@@ -24,3 +24,4 @@ public import Lantana.Examples.TicketLock
 public import Lantana.Examples.Queue
 public import Lantana.Examples.TaskQueue
 public import Lantana.Examples.TaskQueueClient
+public import Lantana.Examples.TaskQueueFlagStableClient
