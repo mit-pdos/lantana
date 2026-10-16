@@ -11,6 +11,7 @@ public import Iris.Std.CoPset
 public import Iris.Std.Namespaces
 public import Iris.Std.GenSetsInstances
 public import Iris.Std.HeapInstances
+public import Lantana.Prelude.Ids
 public import Lantana.Algebra.Measure
 public import Lantana.ProgramLogic.TemporalClass
 
@@ -39,27 +40,6 @@ open Iris Iris.BI
 open Iris.ProgramLogic (toVal)
 open scoped Lantana.Measure Ordinals.Ordinal
 
-
-/-- Obligation ids. -/
-@[lantana_alias oid]
-abbrev Oid := Nat
-
-/-- Finite sets of obligation ids. -/
-@[lantana_alias oids]
-abbrev Oids := Std.ExtTreeSet Oid compare
-
-/-- Finite maps from obligation ids. -/
-abbrev OidMap (V : Type _) := Std.ExtTreeMap Oid V compare
-
-/-- A parent in the obligation forest: a thread or an obligation. -/
-@[lantana_alias parent]
-inductive Parent where
-  | thread (i : ThreadId)
-  | obl (k : Oid)
-  deriving DecidableEq
-
-attribute [lantana_alias PThread] Parent.thread
-attribute [lantana_alias PObl] Parent.obl
 
 section Predicates
 

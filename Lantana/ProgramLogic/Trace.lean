@@ -4,6 +4,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 -/
 module
 
+public import Lantana.Prelude.Ids
 public import Lantana.ProgramLogic.Language
 
 /-! # Configurations, traces and behaviors
@@ -22,10 +23,6 @@ namespace Lantana
 
 open Iris.ProgramLogic (toVal)
 
-
-/-- Thread ids are positions in the thread pool. -/
-@[lantana_alias thread_id]
-abbrev ThreadId := Nat
 
 /-- The thread pool: the expression of every thread, by id. -/
 @[lantana_alias thread_pool]

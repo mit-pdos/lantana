@@ -6,3 +6,4 @@ module
 
 public import Lantana.BaseLogic.RUpd
 public import Lantana.BaseLogic.LaterCredits
+public import Lantana.BaseLogic.Model
