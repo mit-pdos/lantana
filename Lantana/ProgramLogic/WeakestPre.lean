@@ -352,6 +352,12 @@ theorem get_ind_strong (s : Stuckness)
   ipureintro
   rfl
 
+theorem get_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr} :
+    OFE.NonExpansive (get (Expr := Expr) (GF := GF) s i E e) :=
+  ⟨fun _ _ _ h => by
+    refine OFE.NonExpansive.ne (f := bi_least_fixpoint (pre' s)) ?_
+    exact ⟨.rfl, .rfl, .rfl, h⟩⟩
+
 end Internal
 
 instance instLwp : Lwp (IProp GF) Expr Val Stuckness ThreadId where
@@ -373,6 +379,35 @@ theorem lwp_ind_strong (s : Stuckness)
       ⊢ ∀ i e E Φ, lWP e @ s; i; E {{ Φ }} -∗ Ψ i E e Φ :=
   Internal.get_ind_strong s Ψ
 
+/-- Induction on `lWP`. -/
+@[lantana_alias lwp_ind]
+theorem lwp_ind (s : Stuckness) (Ψ : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF) :
+    □ (∀ i e E Φ, lwpPre s Ψ i E e Φ -∗ Ψ i E e Φ)
+      ⊢ ∀ i e E Φ, lWP e @ s; i; E {{ Φ }} -∗ Ψ i E e Φ := by
+  iintro #IH
+  iapply lwp_ind_strong s Ψ
+  iintro !> %i %e %E %Φ H
+  iapply IH
+  iapply lwpPre_mono $$ [] H
+  iintro !> %i %E %e %Φ H
+  icases H with ⟨H, -⟩
+  iexact H
+
+@[lantana_alias lwp_ne]
+instance lwp_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr} :
+    OFE.NonExpansive (Lwp.lwp (PROP := IProp GF) (Val := Val) s i E e) :=
+  Internal.get_ne
+
+#lantana_ignore lwp_proper "Subsumed by the `NonExpansive` instance `lwp_ne`."
+#lantana_ignore lwp_fix_ne "`lwp` is not sealed: `lwp_ne`."
+#lantana_ignore lwp_fix_proper "`lwp` is not sealed: `lwp_ne`."
+#lantana_ignore lwp_fix_unfold "`lwp` is not sealed: `lwp_unfold`."
+#lantana_ignore lwp_fix_unfold_fix "`lwp` is not sealed: `lwp_unfold`."
+#lantana_ignore lwp_unfold_fix "`lwp` is not sealed: `lwp_unfold`."
+#lantana_ignore lwp_pre_lwp_pre' "`lwp` is not sealed: `pre'` is an `abbrev`."
+#lantana_ignore lwp_step_ne "`lwpStep_ne`, a dist lemma (no `Proper`)."
+#lantana_ignore lwp_step_proper "`lwpStep_ne`, a dist lemma (no `Proper`)."
+
 /-! ## Structural rules -/
 
 section Rules
@@ -380,49 +415,625 @@ variable {s s₁ s₂ : Stuckness} {i : ThreadId} {E E₁ E₂ : CoPset} {e : Ex
   {Φ Ψ : Val → IProp GF} {P : IProp GF}
 
 @[lantana_alias fupd_lwp]
-theorem fupd_lwp : (|={E}=> lWP e @ s; i; E {{ Φ }}) ⊢ lWP e @ s; i; E {{ Φ }} := sorry
+theorem fupd_lwp : (|={E}=> lWP e @ s; i; E {{ Φ }}) ⊢ lWP e @ s; i; E {{ Φ }} := by
+  simp only [(lwp_unfold (e := e)).to_eq, lwpPre]
+  iintro H
+  cases toVal e with
+  | some v =>
+    imod H
+    iexact H
+  | none =>
+    unfold lwpStep
+    iintro %K %h %n %σ₁ %tp %hK %hi Hσ
+    imod H
+    iapply H $$ %K %h %n %σ₁ %tp %hK %hi Hσ
 
 @[lantana_alias sfmupd_lwp]
-theorem mupd_lwp : (|={E}=>m lWP e @ s; i; E {{ Φ }}) ⊢ lWP e @ s; i; E {{ Φ }} := sorry
+theorem mupd_lwp : (|={E}=>m lWP e @ s; i; E {{ Φ }}) ⊢ lWP e @ s; i; E {{ Φ }} := by
+  simp only [(lwp_unfold (e := e)).to_eq, lwpPre]
+  iintro H
+  cases toVal e with
+  | some v =>
+    imod H
+    iexact H
+  | none =>
+    unfold lwpStep mupd mupdFancy
+    iintro %K %h %n %σ₁ %tp %hK %hi Hσ
+    imod H $$ %h %n %σ₁ %tp Hσ with H
+    imodintro
+    imod H with H
+    iapply fupd_mupdBase_elim
+    imod H with ⟨Hσ, H⟩
+    iapply H $$ %K %h %n %σ₁ %tp %hK %hi Hσ
 
 @[lantana_alias lwp_value_sfmupd']
-theorem lwp_value_mupd' {v : Val} : lWP (v : Expr) @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := sorry
+theorem lwp_value_mupd' {v : Val} : lWP (v : Expr) @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := by
+  simp [(lwp_unfold (e := (v : Expr))).to_eq, lwpPre]
 
-@[lantana_alias lwp_strong_mono]
-theorem lwp_strong_mono (hs : s₁ ≤ s₂) (hE : E₁ ⊆ E₂) :
-    lWP e @ s₁; i; E₁ {{ Φ }} ⊢ (∀ v, Φ v ={E₂}=∗ Ψ v) -∗ lWP e @ s₂; i; E₂ {{ Ψ }} := sorry
+theorem _root_.Iris.Stuckness.maybeReducible_mono {s₁ s₂ : Stuckness} (hs : s₁ ≤ s₂) {e : Expr}
+    {σ : State} (h : s₁.maybeReducible e σ) : s₂.maybeReducible e σ := by
+  cases s₁ <;> cases s₂ <;> simp_all [Stuckness.maybeReducible, LE.le]
 
 @[lantana_alias lwp_strong_mono_sfmupd]
 theorem lwp_strong_mono_mupd (hs : s₁ ≤ s₂) (hE : E₁ ⊆ E₂) :
-    lWP e @ s₁; i; E₁ {{ Φ }} ⊢ (∀ v, Φ v ={E₂}=∗m Ψ v) -∗ lWP e @ s₂; i; E₂ {{ Ψ }} := sorry
+    lWP e @ s₁; i; E₁ {{ Φ }} ⊢ (∀ v, Φ v ={E₂}=∗m Ψ v) -∗ lWP e @ s₂; i; E₂ {{ Ψ }} := by
+  iintro H HΦ
+  iapply lwp_ind_strong s₁ (fun i E₁ e Φ => iprop(∀ E₂ Ψ, ⌜E₁ ⊆ E₂⌝ -∗
+      (∀ v, Φ v ={E₂}=∗m Ψ v) -∗ lWP e @ s₂; i; E₂ {{ Ψ }})) $$ [] %i %e %E₁ %Φ H %E₂ %Ψ %hE HΦ
+  iintro !> %i %e %E₁ %Φ IH %E₂ %Ψ %hE HΦ
+  rw [lwp_unfold.to_eq]
+  unfold lwpPre
+  cases toVal e with
+  | some v =>
+    imod mupd_mask_mono hE $$ IH with HΦv
+    iapply HΦ $$ HΦv
+  | none =>
+    unfold lwpStep
+    iintro %K %h %n %σ₁ %tp %hK %hi Hσ
+    imod fupd_mask_subseteq hE with Hclose
+    imod IH $$ %K %h %n %σ₁ %tp %hK %hi Hσ with IH
+    imodintro
+    imod IH with ⟨%hred, IH⟩
+    imodintro
+    isplitr
+    · ipureintro
+      exact Stuckness.maybeReducible_mono hs hred
+    iintro %e₂ %σ₂ %efs %hstep
+    ispecialize IH $$ %e₂ %σ₂ %efs %hstep
+    iapply mprog_wand $$ [Hclose HΦ] IH
+    iintro IH
+    iapply mphys_wand $$ [Hclose HΦ] IH
+    iintro IH
+    iapply ALC_wand $$ [Hclose HΦ] IH
+    iintro IH
+    iapply mupdBase_wand $$ [Hclose HΦ] IH
+    iintro IH
+    imod IH with ⟨Hσ, ⟨IH, -⟩, Hefs⟩
+    imod Hclose
+    imodintro
+    iframe Hσ
+    isplitl [IH HΦ]
+    · iapply IH $$ %E₂ %Ψ %hE HΦ
+    · iapply BigSepL.bigSepL_impl $$ Hefs
+      iintro !> %j %ef %_ ⟨Hef, -⟩
+      iapply Hef $$ %⊤ %_ %(Std.LawfulSet.subset_refl)
+      iintro %v Hv
+      iapply mupd_intro $$ Hv
+
+@[lantana_alias lwp_strong_mono]
+theorem lwp_strong_mono (hs : s₁ ≤ s₂) (hE : E₁ ⊆ E₂) :
+    lWP e @ s₁; i; E₁ {{ Φ }} ⊢ (∀ v, Φ v ={E₂}=∗ Ψ v) -∗ lWP e @ s₂; i; E₂ {{ Ψ }} := by
+  iintro H HΦ
+  iapply lwp_strong_mono_mupd hs hE $$ H
+  iintro %v Hv
+  iapply fupd_mupd
+  iapply HΦ $$ Hv
 
 @[lantana_alias lwp_sfmupd]
-theorem lwp_mupd : lWP e @ s; i; E {{ v, |={E}=>m Φ v }} ⊢ lWP e @ s; i; E {{ Φ }} := sorry
+theorem lwp_mupd : lWP e @ s; i; E {{ v, |={E}=>m Φ v }} ⊢ lWP e @ s; i; E {{ Φ }} := by
+  iintro H
+  iapply lwp_strong_mono_mupd (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  iexact Hv
 
-@[lantana_alias lwp_atomic_sfmupd]
-theorem lwp_atomic_mupd [Language.Atomic s.toAtomicity e] :
-    (|={E₁,E₂}=>m lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }}) ⊢ lWP e @ s; i; E₁ {{ Φ }} := sorry
+@[lantana_alias lwp_value_sfmupd]
+theorem lwp_value_mupd_of_toVal {v : Val} (he : toVal e = some v) :
+    lWP e @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := by
+  simp [(lwp_unfold (e := e)).to_eq, lwpPre, he]
 
-@[lantana_alias lwp_bind]
-theorem lwp_bind (K : Expr → Expr) [Language.Context K] :
-    lWP e @ s; i; E {{ v, lWP (K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢ lWP (K e) @ s; i; E {{ Φ }} :=
-  sorry
+theorem lwp_value_mupd {v : Val} [h : Language.IntoVal e v] :
+    lWP e @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := by
+  obtain ⟨rfl⟩ := h
+  exact lwp_value_mupd'
 
 @[lantana_alias lwp_value']
-theorem lwp_value' {v : Val} : Φ v ⊢ lWP (v : Expr) @ s; i; E {{ Φ }} := sorry
+theorem lwp_value' {v : Val} : Φ v ⊢ lWP (v : Expr) @ s; i; E {{ Φ }} :=
+  mupd_intro.trans lwp_value_mupd'.mpr
+
+@[lantana_alias lwp_value]
+theorem lwp_value {v : Val} [Language.IntoVal e v] : Φ v ⊢ lWP e @ s; i; E {{ Φ }} :=
+  mupd_intro.trans lwp_value_mupd.mpr
+
+/-- `(tp.set i e ++ efs)[i]? = some e` when `i` is a thread of `tp`. -/
+theorem getElem?_set_append {tp efs : List Expr} {i : ThreadId} {e e' : Expr}
+    (hi : tp[i]? = some e) : (tp.set i e' ++ efs)[i]? = some e' := by
+  have hlt : i < tp.length := (List.getElem?_eq_some_iff.mp hi).1
+  rw [List.getElem?_append_left (by simpa using hlt)]
+  simp [hlt]
+
+/-- The model update `|={E₁,E₂}=>m P` applied to the history interpretation. -/
+theorem mupd_elim {h : List (HistEntry Expr State)} {n : Nat} {σ : State} {tp : ThreadPool Expr}
+    {E₁ E₂ : CoPset} {P : IProp GF} (L : Nat) (hL : tp.length = L) :
+    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗
+      |={E₁,∅}=> |=[n, L]=>m |={∅,E₂}=> (historyTInterp h n σ tp ∗ P) := by
+  subst hL
+  unfold mupd mupdFancy
+  iintro H Hσ
+  iapply H $$ %h %n %σ %tp Hσ
+
+/-- The value case of `lwp_atomic_mupd`. -/
+private theorem lwp_atomic_value {e₂ : Expr} {v₂ : Val} (he₂ : toVal e₂ = some v₂)
+    {h : List (HistEntry Expr State)} {n : Nat} {σ : State} {tp : ThreadPool Expr} {L : Nat}
+    (hL : tp.length = L) {X : IProp GF} :
+    lWP e₂ @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }} ⊢ historyTInterp h n σ tp -∗ X -∗
+      |={E₂,∅}=> |=[n, L]=>m |={∅,E₁}=>
+        (historyTInterp h n σ tp ∗ (lWP e₂ @ s; i; E₁ {{ Φ }} ∗ X)) := by
+  iintro H Hσ HX
+  ihave H := (lwp_value_mupd_of_toVal he₂).mp $$ H
+  ihave H := mupd_trans $$ H
+  imod mupd_elim L hL $$ H Hσ with H
+  imodintro
+  imod H with H
+  imodintro
+  imod H with ⟨Hσ, HΦ⟩
+  imodintro
+  iframe Hσ HX
+  iapply (lwp_value_mupd_of_toVal he₂).mpr
+  iapply mupd_intro $$ HΦ
+
+@[lantana_alias lwp_atomic_sfmupd]
+theorem lwp_atomic_mupd [hatom : Language.Atomic s.toAtomicity e] :
+    (|={E₁,E₂}=>m lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }}) ⊢ lWP e @ s; i; E₁ {{ Φ }} := by
+  simp only [(lwp_unfold (e := e)).to_eq, lwpPre]
+  iintro H
+  cases toVal e with
+  | some v =>
+    imod H
+    imod H
+    iexact H
+  | none =>
+    unfold lwpStep
+    iintro %K %h %n %σ₁ %tp %hK %hi Hσ
+    imod mupd_elim tp.length rfl $$ H Hσ with H
+    imodintro
+    imod H with H
+    iapply fupd_mupdBase_elim
+    imod H with ⟨Hσ, H⟩
+    imod H $$ %K %h %n %σ₁ %tp %hK %hi Hσ with H
+    imodintro
+    imod H with ⟨%hred, H⟩
+    imodintro
+    isplitr
+    · ipureintro
+      exact hred
+    iintro %e₂ %σ₂ %efs %hstep
+    ispecialize H $$ %e₂ %σ₂ %efs %hstep
+    iapply mprog_wand $$ [] H
+    iintro H
+    iapply mphys_wand $$ [] H
+    iintro H
+    iapply ALC_wand $$ [] H
+    iintro H
+    imod H with H
+    iapply fupd_mupdBase_elim
+    imod H with ⟨Hσ, H, Hefs⟩
+    have hlen : (tp.set i (K e₂) ++ efs).length = tp.length + efs.length := by simp
+    have hat := hatom.atomic hstep
+    cases s with
+    | NotStuck =>
+      cases he₂ : toVal e₂ with
+      | some v₂ => iapply lwp_atomic_value he₂ hlen $$ H Hσ Hefs
+      | none =>
+        isimp only [(lwp_unfold (e := e₂)).to_eq, lwpPre, he₂, lwpStep] at H
+        rw [← hlen]
+        imod H $$ %K %_ %_ %_ %_ %hK %(getElem?_set_append hi) Hσ with H
+        imodintro
+        imod H with ⟨%hred₂, -⟩
+        exact (Language.not_reducible_iff.mpr hat hred₂).elim
+    | MaybeStuck =>
+      obtain ⟨v₂, he₂⟩ := Option.isSome_iff_exists.mp hat
+      iapply lwp_atomic_value he₂ hlen $$ H Hσ Hefs
+
+@[lantana_alias lwp_bind]
+theorem lwp_bind (K : Expr → Expr) [hK : Language.Context K] :
+    lWP e @ s; i; E {{ v, lWP (K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (K e) @ s; i; E {{ Φ }} := by
+  iintro H
+  iapply lwp_ind_strong s (fun i E e Ψ => iprop(∀ Φ,
+      (∀ v, Ψ v -∗ lWP (K (↑v : Val)) @ s; i; E {{ Φ }}) -∗ lWP (K e) @ s; i; E {{ Φ }}))
+    $$ [] %i %e %E %_ H %Φ []
+  · iintro !> %i %e %E %Ψ IH %Φ HΦ
+    unfold lwpPre
+    cases he : toVal e with
+    | some v =>
+      obtain rfl := Iris.ProgramLogic.ToVal.coe_of_toVal_eq_some he
+      iapply mupd_lwp
+      imod IH
+      imodintro
+      iapply HΦ $$ IH
+    | none =>
+      rw [(lwp_unfold (e := K e)).to_eq]
+      simp only [lwpPre, hK.toVal_eq_none_fill he]
+      unfold lwpStep
+      iintro %K₁ %h %n %σ₁ %tp %hK₁ %hi Hσ
+      imod IH $$ %(fun x => K₁ (K x)) %h %n %σ₁ %tp %(Language.Context.instComp K₁ K) %hi Hσ
+        with IH
+      imodintro
+      imod IH with ⟨%hred, IH⟩
+      imodintro
+      isplitr
+      · ipureintro
+        cases s
+        · exact Language.Context.reducible_fill K hred
+        · trivial
+      iintro %e₂ %σ₂ %efs %hstep
+      obtain ⟨e₂', rfl, hstep'⟩ := hK.primStep_fill_inv he hstep
+      ispecialize IH $$ %e₂' %σ₂ %efs %hstep'
+      iapply mprog_wand $$ [HΦ] IH
+      iintro IH
+      iapply mphys_wand $$ [HΦ] IH
+      iintro IH
+      iapply ALC_wand $$ [HΦ] IH
+      iintro IH
+      iapply mupdBase_wand $$ [HΦ] IH
+      iintro IH
+      imod IH with ⟨Hσ, ⟨IH, -⟩, Hefs⟩
+      imodintro
+      iframe Hσ
+      isplitl [IH HΦ]
+      · iapply IH $$ %Φ HΦ
+      · iapply BigSepL.bigSepL_mono_of_forall and_elim_r $$ Hefs
+  · iintro %v Hv
+    iexact Hv
+
+@[lantana_alias lwp_bind_step]
+theorem lwp_bind_step (K : Expr → Expr) [Language.Context K] :
+    lWP e @ s; i; E {{ v, |={E}=>m lWP (K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (K e) @ s; i; E {{ Φ }} := by
+  iintro H
+  iapply lwp_bind K
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  imodintro
+  iapply mupd_lwp $$ Hv
+
+@[lantana_alias lwp_bind_sfmupd]
+theorem lwp_bind_mupd (K : Expr → Expr) [Language.Context K] :
+    (|={E}=>m lWP e @ s; i; E {{ v, |={E}=>m lWP (K (↑v : Val)) @ s; i; E {{ Φ }} }}) ⊢
+      |={E}=>m lWP (K e) @ s; i; E {{ Φ }} := by
+  iintro H
+  imod H
+  imodintro
+  iapply lwp_bind_step K $$ H
+
+@[lantana_alias sfmupd_lwp_sfmupd]
+theorem mupd_lwp_mupd :
+    (|={E}=>m lWP e @ s; i; E {{ v, |={E}=>m Φ v }}) ⊢ |={E}=>m lWP e @ s; i; E {{ Φ }} := by
+  iintro H
+  imod H
+  imodintro
+  iapply lwp_mupd $$ H
+
+/-! ## Derived rules -/
+
+@[lantana_alias lwp_fupd]
+theorem lwp_fupd : lWP e @ s; i; E {{ v, |={E}=> Φ v }} ⊢ lWP e @ s; i; E {{ Φ }} := by
+  iintro H
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  iexact Hv
+
+@[lantana_alias lwp_atomic]
+theorem lwp_atomic [Language.Atomic s.toAtomicity e] :
+    (|={E₁,E₂}=> lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=> Φ v }}) ⊢ lWP e @ s; i; E₁ {{ Φ }} := by
+  iintro H
+  iapply lwp_atomic_mupd
+  iapply fupd_mupd
+  imod H
+  imodintro
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  imodintro
+  iapply fupd_mupd $$ Hv
+
+@[lantana_alias lwp_step_sfmupd]
+theorem lwp_step_mupd (_ : toVal e = none) (hE : E₂ ⊆ E₁) :
+    (|={E₁,E₂}=>m |={E₂,E₁}=>m P) ∗ lWP e @ s; i; E₂ {{ v, P -∗ |={E₁}=>m Φ v }} ⊢
+      lWP e @ s; i; E₁ {{ Φ }} := by
+  iintro ⟨HP, H⟩
+  iapply lwp_strong_mono_mupd (Std.IsPreorder.le_refl _) hE $$ H
+  iintro %v H
+  imod HP
+  imod HP
+  iapply H $$ HP
+
+@[lantana_alias lwp_step_fupd]
+theorem lwp_step_fupd (_ : toVal e = none) (hE : E₂ ⊆ E₁) :
+    (|={E₁,E₂}=> |={E₂,E₁}=> P) ∗ lWP e @ s; i; E₂ {{ v, P ={E₁}=∗ Φ v }} ⊢
+      lWP e @ s; i; E₁ {{ Φ }} := by
+  iintro ⟨HP, H⟩
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) hE $$ H
+  iintro %v H
+  imod HP
+  imod HP
+  iapply H $$ HP
+
+@[lantana_alias lwp_mono]
+theorem lwp_mono (h : ∀ v, Φ v ⊢ Ψ v) : lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ Ψ }} := by
+  iintro H
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  imodintro
+  iapply h $$ Hv
+
+#lantana_ignore lwp_mono' "No `Proper` typeclass in Lean: `lwp_mono`."
+#lantana_ignore lwp_flip_mono' "No `Proper` typeclass in Lean: `lwp_mono`."
+
+@[lantana_alias lwp_stuck_mono, lantana_alias lwp_stuckness_mono]
+theorem lwp_stuck_mono (hs : s₁ ≤ s₂) : lWP e @ s₁; i; E {{ Φ }} ⊢ lWP e @ s₂; i; E {{ Φ }} := by
+  iintro H
+  iapply lwp_strong_mono hs Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  iexact Hv
+
+@[lantana_alias lwp_stuck_weaken]
+theorem lwp_stuck_weaken : lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ i; E ?{{ Φ }} :=
+  lwp_stuck_mono (by cases s <;> simp [LE.le])
+
+@[lantana_alias lwp_mask_mono]
+theorem lwp_mask_mono (hE : E₁ ⊆ E₂) : lWP e @ s; i; E₁ {{ Φ }} ⊢ lWP e @ s; i; E₂ {{ Φ }} := by
+  iintro H
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) hE $$ H
+  iintro %v Hv
+  iexact Hv
 
 @[lantana_alias lwp_frame_l]
 theorem lwp_frame_l {R : IProp GF} :
-    R ∗ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ v, R ∗ Φ v }} := sorry
+    R ∗ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ v, R ∗ Φ v }} := by
+  iintro ⟨HR, H⟩
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  iframe
+
+@[lantana_alias lwp_frame_r]
+theorem lwp_frame_r {R : IProp GF} :
+    lWP e @ s; i; E {{ Φ }} ∗ R ⊢ lWP e @ s; i; E {{ v, Φ v ∗ R }} := by
+  iintro ⟨H, HR⟩
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  iframe
+
+@[lantana_alias lwp_frame_step_l]
+theorem lwp_frame_step_l {R : IProp GF} (he : toVal e = none) (hE : E₂ ⊆ E₁) :
+    (|={E₁,E₂}=> |={E₂,E₁}=> R) ∗ lWP e @ s; i; E₂ {{ Φ }} ⊢
+      lWP e @ s; i; E₁ {{ v, R ∗ Φ v }} := by
+  iintro ⟨HR, H⟩
+  iapply lwp_step_fupd he hE
+  isplitl [HR]
+  · iexact HR
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  imodintro
+  iintro HR
+  imodintro
+  iframe
+
+@[lantana_alias lwp_frame_step_r]
+theorem lwp_frame_step_r {R : IProp GF} (he : toVal e = none) (hE : E₂ ⊆ E₁) :
+    lWP e @ s; i; E₂ {{ Φ }} ∗ (|={E₁,E₂}=> |={E₂,E₁}=> R) ⊢
+      lWP e @ s; i; E₁ {{ v, Φ v ∗ R }} := by
+  iintro ⟨H, HR⟩
+  iapply lwp_mono (fun _ => sep_comm.mp)
+  iapply lwp_frame_step_l he hE
+  iframe
+
+@[lantana_alias lwp_frame_step_l']
+theorem lwp_frame_step_l' {R : IProp GF} (he : toVal e = none) :
+    R ∗ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ v, R ∗ Φ v }} := by
+  iintro ⟨HR, H⟩
+  iapply lwp_frame_step_l he Std.LawfulSet.subset_refl
+  iframe
+
+@[lantana_alias lwp_frame_step_r']
+theorem lwp_frame_step_r' {R : IProp GF} (he : toVal e = none) :
+    lWP e @ s; i; E {{ Φ }} ∗ R ⊢ lWP e @ s; i; E {{ v, Φ v ∗ R }} := by
+  iintro ⟨H, HR⟩
+  iapply lwp_frame_step_r he Std.LawfulSet.subset_refl
+  iframe
 
 @[lantana_alias lwp_wand]
-theorem lwp_wand : lWP e @ s; i; E {{ Φ }} ⊢ (∀ v, Φ v -∗ Ψ v) -∗ lWP e @ s; i; E {{ Ψ }} := sorry
+theorem lwp_wand : lWP e @ s; i; E {{ Φ }} ⊢ (∀ v, Φ v -∗ Ψ v) -∗ lWP e @ s; i; E {{ Ψ }} := by
+  iintro H HΦ
+  iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
+  iintro %v Hv
+  imodintro
+  iapply HΦ $$ Hv
+
+@[lantana_alias lwp_wand_l]
+theorem lwp_wand_l : (∀ v, Φ v -∗ Ψ v) ∗ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ Ψ }} := by
+  iintro ⟨HΦ, H⟩
+  iapply lwp_wand $$ H HΦ
+
+@[lantana_alias lwp_wand_r]
+theorem lwp_wand_r : lWP e @ s; i; E {{ Φ }} ∗ (∀ v, Φ v -∗ Ψ v) ⊢ lWP e @ s; i; E {{ Ψ }} := by
+  iintro ⟨H, HΦ⟩
+  iapply lwp_wand $$ H HΦ
+
+@[lantana_alias lwp_frame_wand]
+theorem lwp_frame_wand {R : IProp GF} :
+    R ⊢ lWP e @ s; i; E {{ v, R -∗ Φ v }} -∗ lWP e @ s; i; E {{ Φ }} := by
+  iintro HR H
+  iapply lwp_wand $$ H
+  iintro %v HΦ
+  iapply HΦ $$ HR
+
+/-! ## Later credits -/
 
 /-- Spending one transfinite later credit strips a later in front of `lWP`. -/
 @[lantana_alias lwp_lc_later_ord]
-theorem lwp_credit_later : £ₒ 1 ⊢ ▷ lWP e @ s; i; E {{ Φ }} -∗ lWP e @ s; i; E {{ Φ }} := sorry
+theorem lwp_credit_later : £ₒ 1 ⊢ ▷ lWP e @ s; i; E {{ Φ }} -∗ lWP e @ s; i; E {{ Φ }} := by
+  iintro Hc H
+  iapply fupd_lwp
+  iapply lc_fupd_elim_later_ord $$ Hc H
+
+@[lantana_alias lwp_lc_later]
+theorem lwp_credit_later_nat : £ₙ 1 ⊢ ▷ lWP e @ s; i; E {{ Φ }} -∗ lWP e @ s; i; E {{ Φ }} :=
+  lwp_credit_later
+
+@[lantana_alias lwp_lc_laterN]
+theorem lwp_credit_laterN (n : Nat) :
+    £ₙ n ⊢ ▷^[n] lWP e @ s; i; E {{ Φ }} -∗ lWP e @ s; i; E {{ Φ }} := by
+  iintro Hc H
+  iapply fupd_lwp
+  iapply lc_fupd_add_laterN n $$ Hc
+  iapply laterN_mono n fupd_intro $$ H
 
 end Rules
+
+/-! ## Proof-mode instances -/
+
+section ProofMode
+
+variable {s : Stuckness} {i : ThreadId} {E E₁ E₂ : CoPset} {e : Expr}
+  {Φ Ψ : Val → IProp GF} {P R : IProp GF}
+
+@[lantana_alias frame_lwp]
+instance frame_lwp {p : Bool} [H : ∀ v, FrameInstantiateExistDisabled p R (Φ v) (Ψ v)] :
+    Frame p R (lWP e @ s; i; E {{ Φ }}) (lWP e @ s; i; E {{ Ψ }}) where
+  frame := lwp_frame_l.trans (lwp_mono fun v => (H v).frame_instantiatiate_exist_disabled.frame)
+
+@[lantana_alias is_except_0_lwp]
+instance isExcept0_lwp : IsExcept0 (lWP e @ s; i; E {{ Φ }}) where
+  is_except0 := (except0_mono fupd_intro).trans (BIFUpdate.except0.trans fupd_lwp)
+
+@[lantana_alias elim_modal_fupd_lwp]
+instance (priority := default + 10) elimModal_fupd_lwp {p io} :
+    ElimModal True p io false iprop(|={E}=> P) P (lWP e @ s; i; E {{ Φ }})
+      (lWP e @ s; i; E {{ Φ }}) where
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans (fupd_wand_right.trans fupd_lwp)
+
+@[lantana_alias elim_modal_bupd_lwp]
+instance elimModal_bupd_lwp {p io} :
+    ElimModal True p io false iprop(|==> P) P (lWP e @ s; i; E {{ Φ }})
+      (lWP e @ s; i; E {{ Φ }}) where
+  elim_modal _ := (sep_mono_left (intuitionisticallyIf_mono
+    (BIUpdateFUpdate.fupd_of_bupd (E := E)))).trans
+      ((elimModal_fupd_lwp (p := p) (io := io)).elim_modal trivial)
+
+@[lantana_alias elim_modal_sfmupd_lwp]
+instance (priority := default + 10) elimModal_mupd_lwp {p io} :
+    ElimModal True p io false (|={E}=>m P) P (lWP e @ s; i; E {{ Φ }})
+      (lWP e @ s; i; E {{ Φ }}) where
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
+    mupd_frame_right.trans <| (mupd_mono wand_elim_right).trans mupd_lwp
+
+/-- Error message for a non-mask-changing update at the wrong mask: for a non-atomic `e`,
+first add a leading fancy update, then change its mask. -/
+@[lantana_alias elim_modal_fupd_lwp_wrong_mask]
+instance (priority := low) elimModal_fupd_lwp_wrongMask {p io} :
+    ElimModal (PMError "Goal and eliminated modality must have the same mask.
+Use `iapply fupd_lwp; imod (fupd_mask_subseteq E₂)` to adjust the mask of your goal to `E₂`")
+      p io false iprop(|={E₂}=> P) iprop(False) (lWP e @ s; i; E₁ {{ Φ }}) iprop(False) where
+  elim_modal := nofun
+
+@[lantana_alias elim_modal_fupd_lwp_atomic]
+instance elimModal_fupd_lwp_atomic {p io} :
+    ElimModal (Language.Atomic s.toAtomicity e) p io false iprop(|={E₁,E₂}=> P) P
+      (lWP e @ s; i; E₁ {{ Φ }}) (lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=> Φ v }}) where
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans
+    (fupd_wand_right.trans lwp_atomic)
+
+@[lantana_alias elim_modal_sfmupd_lwp_atomic]
+instance elimModal_mupd_lwp_atomic {p io} :
+    ElimModal (Language.Atomic s.toAtomicity e) p io false (|={E₁,E₂}=>m P) P
+      (lWP e @ s; i; E₁ {{ Φ }}) (lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }}) where
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
+    mupd_frame_right.trans <| (mupd_mono wand_elim_right).trans lwp_atomic_mupd
+
+/-- Error message for a mask-changing update in front of a non-atomic expression. -/
+@[lantana_alias elim_modal_fupd_lwp_atomic_wrong_mask]
+instance (priority := low) elimModal_fupd_lwp_atomic_wrongMask {E₂' : CoPset} {p io} :
+    ElimModal (PMError "Goal and eliminated modality must have the same mask.
+Use `imod (fupd_mask_subseteq E₂)` to adjust the mask of your goal to `E₂`")
+      p io false iprop(|={E₂,E₂'}=> P) iprop(False) (lWP e @ s; i; E₁ {{ Φ }}) iprop(False) where
+  elim_modal := nofun
+
+@[lantana_alias add_modal_fupd_lwp]
+instance addModal_fupd_lwp : AddModal iprop(|={E}=> P) P (lWP e @ s; i; E {{ Φ }}) where
+  add_modal := fupd_wand_right.trans fupd_lwp
+
+@[lantana_alias add_modal_sfmupd_lwp]
+instance addModal_mupd_lwp : AddModal (|={E}=>m P) P (lWP e @ s; i; E {{ Φ }}) where
+  add_modal := mupd_frame_right.trans <| (mupd_mono wand_elim_right).trans mupd_lwp
+
+@[lantana_alias elim_acc_lwp_atomic]
+instance (priority := low) elimAcc_lwp_atomic {X : Type} (α β : X → IProp GF)
+    (γ : X → Option (IProp GF)) :
+    ElimAcc (Language.Atomic s.toAtomicity e) (fupd E₁ E₂) (fupd E₂ E₁) α β γ
+      (lWP e @ s; i; E₁ {{ Φ }})
+      (fun x => lWP e @ s; i; E₂ {{ v, |={E₂}=> β x ∗ (γ x -∗? Φ v) }}) where
+  elim_acc := by
+    dsimp only [accessor, BIBase.wandM, Option.getD]
+    iintro %atomic Hinner >⟨%x, Hα, Hclose⟩
+    iapply lwp_wand $$ [Hinner Hα]
+    · iapply Hinner $$ Hα
+    · iintro %v >⟨Hβ, HΦ⟩
+      ispecialize Hclose $$ Hβ
+      imod Hclose
+      imodintro
+      cases (γ x) with
+      | none => iexact HΦ
+      | some P => iapply HΦ $$ Hclose
+
+@[lantana_alias elim_acc_lwp_atomic_sfmupd]
+instance (priority := low) elimAcc_lwp_atomic_mupd {X : Type} (α β : X → IProp GF)
+    (γ : X → Option (IProp GF)) :
+    ElimAcc (Language.Atomic s.toAtomicity e) (mupd (Expr := Expr) (State := State) E₁ E₂)
+      (mupd (Expr := Expr) (State := State) E₂ E₁) α β γ
+      (lWP e @ s; i; E₁ {{ Φ }})
+      (fun x => lWP e @ s; i; E₂ {{ v, |={E₂}=>m β x ∗ (γ x -∗? Φ v) }}) where
+  elim_acc := by
+    dsimp only [accessor, BIBase.wandM, Option.getD]
+    iintro %atomic Hinner >⟨%x, Hα, Hclose⟩
+    iapply lwp_wand $$ [Hinner Hα]
+    · iapply Hinner $$ Hα
+    · iintro %v >⟨Hβ, HΦ⟩
+      ispecialize Hclose $$ Hβ
+      imod Hclose
+      imodintro
+      cases (γ x) with
+      | none => iexact HΦ
+      | some P => iapply HΦ $$ Hclose
+
+@[lantana_alias elim_acc_lwp_nonatomic]
+instance elimAcc_lwp_nonatomic {X : Type} (α β : X → IProp GF) (γ : X → Option (IProp GF)) :
+    ElimAcc True (fupd E E) (fupd E E) α β γ (lWP e @ s; i; E {{ Φ }})
+      (fun x => lWP e @ s; i; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }}) where
+  elim_acc := by
+    dsimp only [accessor, BIBase.wandM, Option.getD]
+    iintro %_ Hinner >⟨%x, Hα, Hclose⟩
+    iapply lwp_fupd
+    iapply lwp_wand $$ [Hinner Hα]
+    · iapply Hinner $$ Hα
+    · iintro %v >⟨Hβ, HΦ⟩
+      ispecialize Hclose $$ Hβ
+      imod Hclose
+      imodintro
+      cases (γ x) with
+      | none => iexact HΦ
+      | some P => iapply HΦ $$ Hclose
+
+@[lantana_alias elim_acc_lwp_nonatomic_sfmupd]
+instance elimAcc_lwp_nonatomic_mupd {X : Type} (α β : X → IProp GF)
+    (γ : X → Option (IProp GF)) :
+    ElimAcc True (mupd (Expr := Expr) (State := State) E E)
+      (mupd (Expr := Expr) (State := State) E E) α β γ (lWP e @ s; i; E {{ Φ }})
+      (fun x => lWP e @ s; i; E {{ v, |={E}=>m β x ∗ (γ x -∗? Φ v) }}) where
+  elim_acc := by
+    dsimp only [accessor, BIBase.wandM, Option.getD]
+    iintro %_ Hinner >⟨%x, Hα, Hclose⟩
+    iapply lwp_mupd
+    iapply lwp_wand $$ [Hinner Hα]
+    · iapply Hinner $$ Hα
+    · iintro %v >⟨Hβ, HΦ⟩
+      ispecialize Hclose $$ Hβ
+      imod Hclose
+      imodintro
+      cases (γ x) with
+      | none => iexact HΦ
+      | some P => iapply HΦ $$ Hclose
+
+end ProofMode
 
 end Lwp
 
