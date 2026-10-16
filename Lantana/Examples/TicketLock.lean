@@ -137,6 +137,10 @@ def ownLayer (γ : TicketLockName) (ℓ : Layer) (dq : DFrac) : IProp GF :=
 def layerLb (γc : GName) (ℓ : Layer) : IProp GF :=
   iOwn (E := TicketLockG.configG) γc (◯AM[(· ≤ ·)] ℓ)
 
+instance ownAlive_discard_persistent (γ : TicketLockName) :
+    Persistent (ownAlive (GF := GF) γ .discard) := by
+  unfold ownAlive; infer_instance
+
 instance layerLb_persistent (γc : GName) (ℓ : Layer) : Persistent (layerLb (GF := GF) γc ℓ) := by
   unfold layerLb; infer_instance
 
@@ -882,5 +886,243 @@ theorem delete_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
   iframe
 
 end Specs
+
+/-! ## Temporal guarantees
+
+The guarantees keep the trace content of the invariants: the values of `next` and `curr`, and
+the `finallyI` of the unlock obligation of ticket `c + 1`. Rocq writes the inferred guarantee
+out with a `trSpec_true` for every ghost conjunct (to match `into_guar` syntactically); here the
+ghost conjuncts are dropped and the guarantees are proved with the rules of `GuaranteeRules`. -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- `l ↦{q} v` as a trace specification. -/
+abbrev ptsSpec (l : Loc) (q : Qp) (v : Val) : TrSpec Exp State GF :=
+  TrSpec.state (pointstoSat l (.own q) v)
+
+/-- The holder will increment `curr`. -/
+abbrev releasedTrSpec (curr : Loc) (c : Int) : TrSpec Exp State GF :=
+  ◇ₛ (ptsSpec curr q34 (vz (c + 1)) ∧ₛ TrSpec.true)
+
+/-- The holder part of the alive lock invariant: free, or ticket `c + 1` will be released. -/
+def holderTrSpec (curr : Loc) (c n : Int) : TrSpec Exp State GF :=
+  (⌜c = n⌝ₛ ∧ₛ ptsSpec curr q34 (vz c) ∧ₛ TrSpec.true) ∨ₛ (⌜c < n⌝ₛ ∧ₛ releasedTrSpec curr c)
+
+/-- The guarantee of the alive branch of the lock invariant (Rocq `lock_inv_alive_trSpec`). -/
+@[lantana_alias lock_inv_alive_trSpec]
+def lockInvAliveTrSpec (next curr : Loc) : TrSpec Exp State GF :=
+  ∃ₛ (n : Int) (c : Int), ptsSpec next 1 (vz n) ∧ₛ ptsSpec curr q14 (vz c) ∧ₛ
+    ⌜0 ≤ c ∧ c ≤ n⌝ₛ ∧ₛ holderTrSpec curr c n
+
+/-- The guarantee of the lock invariant: its left disjunct (a deleted lock) is ghost state
+(Rocq `lock_inv_trSpec`). -/
+@[lantana_alias lock_inv_trSpec]
+def lockInvTrSpec (next curr : Loc) : TrSpec Exp State GF :=
+  TrSpec.true ∨ₛ lockInvAliveTrSpec next curr
+
+/-- The guarantee of the token's invariant: nobody holds the lock (ghost state), or its holder
+will increment `curr` (Rocq `lock_token_inv_trSpec`). -/
+@[lantana_alias lock_token_inv_trSpec]
+def lockTokenInvTrSpec (curr : Loc) : TrSpec Exp State GF :=
+  ∃ₛ c : Int, TrSpec.true ∨ₛ (ptsSpec curr q34 (vz c) ∧ₛ releasedTrSpec curr c)
+
+/-- The guarantee of `isFairLock`, vacuous on traces since the lock can be deleted (Rocq
+`fair_lock_trSpec`); see `guar_isFairLockAlive`. -/
+@[lantana_alias fair_lock_trSpec]
+def fairLockTrSpec (tl : Val) : TrSpec Exp State GF :=
+  ∃ₛ (next : Loc) (curr : Loc), ⌜tl = vLock next curr⌝ₛ ∧ₛ □ₛ lockInvTrSpec next curr ∧ₛ
+    □ₛ lockTokenInvTrSpec curr
+
+/-- The guarantee of a lock that cannot be deleted (Rocq `alive_fair_lock_trSpec`). -/
+@[lantana_alias alive_fair_lock_trSpec]
+def aliveFairLockTrSpec (tl : Val) : TrSpec Exp State GF :=
+  fairLockTrSpec tl ∧ₛ
+    ∃ₛ (next : Loc) (curr : Loc), ⌜tl = vLock next curr⌝ₛ ∧ₛ □ₛ lockInvAliveTrSpec next curr
+
+variable [ModelGS GF] [HeapGS GF] [TicketLockG GF]
+
+omit [TicketLockG GF] in
+/-- Dropping the left resource of a separating conjunction. -/
+theorem guar_sep_drop {P Q : IProp GF} {G : TrSpec Exp State GF} (h : ⊢ Q ⊨ₜ G) :
+    ⊢@{IProp GF} iprop(P ∗ Q) ⊨ₜ G := by
+  refine h.trans ?_
+  iintro #HG
+  iapply guar_mono $$ [] HG
+  imodintro
+  iintro ⟨-, HQ⟩
+  iexact HQ
+
+omit [TicketLockG GF] in
+/-- Dropping the right resource of a separating conjunction. -/
+theorem guar_sep_drop_r {P Q : IProp GF} {G : TrSpec Exp State GF} (h : ⊢ P ⊨ₜ G) :
+    ⊢@{IProp GF} iprop(P ∗ Q) ⊨ₜ G := by
+  refine h.trans ?_
+  iintro #HG
+  iapply guar_mono $$ [] HG
+  imodintro
+  iintro ⟨HP, -⟩
+  iexact HP
+
+omit [TicketLockG GF] in
+/-- A pure fact, read as a weaker one. -/
+theorem guar_pure_weaken {φ ψ : Prop} (h : φ → ψ) :
+    ⊢@{IProp GF} iprop(⌜φ⌝) ⊨ₜ (⌜ψ⌝ₛ : TrSpec Exp State GF) :=
+  (guar_pure φ).trans (guar_weaken (fun _ => BI.pure_mono h))
+
+omit [TicketLockG GF] in
+theorem guar_released (curr : Loc) (c : Int) (R : IProp GF) :
+    ⊢@{IProp GF} released curr c R ⊨ₜ (ptsSpec curr q34 (vz (c + 1)) ∧ₛ TrSpec.true) := by
+  unfold released
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := curr ↦{.own q34} some (vz (c + 1))))
+  · iapply guar_true
+
+omit [TicketLockG GF] in
+theorem guar_finally_released (κ : Oid) (q : Qp) (curr : Loc) (c : Int) (R : IProp GF) :
+    ⊢@{IProp GF} finallyI Nev κ q (released curr c R) ⊨ₜ releasedTrSpec curr c := by
+  unfold finallyI
+  exact guar_untilI_valid (guar_true (P := iprop(True))) (guar_released curr c R)
+
+theorem guar_holderSt (γt γo γc : GName) (curr : Loc) (R : IProp GF) (c n : Int) :
+    ⊢@{IProp GF} holderSt γt γo γc curr R c n ⊨ₜ holderTrSpec curr c n := by
+  unfold holderSt holderTrSpec
+  iapply guar_or
+  · iapply guar_sep
+    · iapply guar_pure
+    iapply guar_sep
+    · iapply (GuarOf.guar_of (P := curr ↦{.own q34} some (vz c)))
+    · iapply guar_true
+  · iapply guar_sep
+    · iapply guar_pure
+    iapply guar_ex_ghost
+    iintro %ℓ
+    iapply guar_ex_ghost
+    iintro %κ
+    iapply guar_sep_drop
+    iapply guar_sep_drop
+    iapply guar_sep_drop
+    iapply guar_sep_drop_r
+    iapply guar_finally_released
+
+theorem guar_lockInvAlive (γt γo γc : GName) (next curr : Loc) (R : IProp GF) :
+    ⊢@{IProp GF} lockInvAlive γt γo γc next curr R ⊨ₜ lockInvAliveTrSpec next curr := by
+  unfold lockInvAlive lockInvAliveTrSpec
+  iapply guar_ex
+  iintro %n
+  iapply guar_ex
+  iintro %c
+  iapply guar_ex_ghost
+  iintro %tickets
+  iapply guar_ex_ghost
+  iintro %obls
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := next ↦ some (vz n)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := curr ↦{.own q14} some (vz c)))
+  iapply guar_sep_drop
+  iapply guar_sep_drop
+  iapply guar_sep
+  · iapply guar_pure_weaken (by exact fun h => ⟨h.2.2.1, h.2.2.2⟩)
+  iapply guar_sep_drop
+  iapply guar_holderSt
+
+theorem guar_lockInv (γt γo γc γa : GName) (next curr : Loc) (R : IProp GF) :
+    ⊢@{IProp GF} lockInv γt γo γc γa next curr R ⊨ₜ lockInvTrSpec next curr := by
+  unfold lockInv lockInvTrSpec
+  iapply guar_or
+  · iapply guar_true
+  · iapply guar_lockInvAlive
+
+theorem guar_lockTokenInv (γo γk : GName) (curr : Loc) (R : IProp GF) :
+    ⊢@{IProp GF} lockTokenInv γo γk curr R ⊨ₜ lockTokenInvTrSpec curr := by
+  unfold lockTokenInv lockTokenInvTrSpec
+  iapply guar_ex
+  iintro %c
+  iapply guar_or
+  · iapply guar_true
+  iapply guar_ex_ghost
+  iintro %κ
+  iapply guar_sep_drop
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := curr ↦{.own q34} some (vz c)))
+  iapply guar_sep_drop
+  iapply guar_finally_released
+
+@[lantana_alias guar_is_fair_lock]
+theorem guar_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    ⊢@{IProp GF} isFairLock tl γ R ⊨ₜ fairLockTrSpec tl := by
+  unfold isFairLock fairLockTrSpec
+  iapply guar_ex
+  iintro %next
+  iapply guar_ex
+  iintro %curr
+  iapply guar_sep
+  · iapply guar_pure
+  iapply guar_sep
+  · iapply guar_alwaysI_valid (guar_lockInv γ.γt γ.γo γ.γc γ.γa next curr R)
+  · iapply guar_alwaysI_valid (guar_lockTokenInv γ.γo γ.γk curr R)
+
+/-- Clients see the lock's guarantee, not its invariant. -/
+@[lantana_alias into_guar_is_fair_lock]
+instance intoGuar_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    IntoGuar (Expr := Exp) (State := State) (isFairLock tl γ R) (fairLockTrSpec tl) :=
+  ⟨guar_isFairLock tl γ R⟩
+
+@[lantana_alias guar_is_fair_lock_alive]
+theorem guar_isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    ⊢@{IProp GF} isFairLockAlive tl γ R ⊨ₜ aliveFairLockTrSpec tl := by
+  unfold isFairLockAlive aliveFairLockTrSpec
+  iapply guar_sep
+  · iapply guar_isFairLock
+  iapply guar_ex
+  iintro %next
+  iapply guar_ex
+  iintro %curr
+  iapply guar_sep
+  · iapply guar_pure
+  · iapply guar_alwaysIAs_valid (guar_lockInvAlive γ.γt γ.γo γ.γc next curr R)
+
+@[lantana_alias into_guar_is_fair_lock_alive]
+instance intoGuar_isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    IntoGuar (Expr := Exp) (State := State) (isFairLockAlive tl γ R) (aliveFairLockTrSpec tl) :=
+  ⟨guar_isFairLockAlive tl γ R⟩
+
+/-- A persistent alive token (as the queue keeps) rules out deletion, hence the left disjunct
+of `lockInv`: the lock invariant is registered under its alive branch (Rocq
+`is_fair_lock_register_alive`). -/
+@[lantana_alias is_fair_lock_register_alive]
+theorem isFairLock_register_alive (E : CoPset) (tl : Val) (γ : TicketLockName) (R : IProp GF)
+    (hE : ↑Ninv ⊆ E) :
+    isFairLock tl γ R ⊢ (γ ↪LOCK_AL{.discard}) -∗ |={E}=>m isFairLockAlive tl γ R := by
+  iintro #H #AL
+  unfold isFairLock
+  icases H with ⟨%next, %curr, %htl, #I, #K⟩
+  imod alwaysI_register (Expr := Exp) (State := State) (E := E) (N := Ninv)
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R)
+    (V := lockInvAlive γ.γt γ.γo γ.γc next curr R) hE $$ [] [] with #IA
+  · iapply alwaysI_inv $$ I
+  · imodintro
+    iintro H
+    iunfold lockInv at H
+    icases H with (H | H)
+    · iexfalso
+      iapply ownAlive_full_false $$ AL H
+    · iexact H
+  imodintro
+  unfold isFairLockAlive isFairLock
+  isplitl []
+  · iexists next, curr
+    isplitr
+    · ipureintro
+      exact htl
+    iframe I K
+  · iexists next, curr
+    isplitr
+    · ipureintro
+      exact htl
+    iexact IA
+
+end Guarantee
 
 end Lantana.Examples.TicketLock
