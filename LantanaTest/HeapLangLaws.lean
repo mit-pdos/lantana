@@ -133,6 +133,43 @@ example (K X : Oids) (j : ThreadId) (hX : X ⊆ K) :
       |={E}=>m (thKids i (K \ X) ∗ thKids j (X ∪ ∅)) :=
   obl_move_thread_set E (.thread i) j X K ∅ hX
 
+/-! Operations with a computed result, `lwp_step` (a numeral fuel unifies with `m + 1`), and
+`lwp_expr_simp` writing the values back as `Exp.ofVal`, so that `lwp_step` and `lwp_bind`
+apply again. -/
+
+example : PureExecCtx True 1 hl(if ~#false then #1 else #2) hl(if #(!false) then #1 else #2) :=
+  inferInstance
+
+example (n : Int) : PureExecCtx True 1 hl(#n - #1) hl(#(n - 1 : Int)) := inferInstance
+
+example (n : Int) : PureExecCtx True 1 hl(#n ≤ #0) hl(#(decide (n ≤ 0))) := inferInstance
+
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl(if ~#false then #1 else #2) ∗ thKids i G ∗ oblFuels G 2 ∗
+      (threadExpr i C hl(#1) -∗ thKids i G -∗ lWP hl(#1) @ s; i; E {{ Φ }})
+      ⊢ lWP hl(if ~#false then #1 else #2) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  iapply H $$ HT HG
+
+example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
+    threadExpr i C hl(v(λ x, !x + #1) #l) ∗ thKids i G ∗ oblFuels G 2 ∗ l ↦ some v ∗
+      (threadExpr i C hl(&v + #1) -∗ lWP hl(&v + #1) @ s; i; E {{ Φ }})
+      ⊢ lWP hl(v(λ x, !x + #1) #l) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, Hl, H⟩
+  lwp_step HT HG HF with Hc : 1
+  lwp_expr_simp
+  lwp_bind hl(!#l) HT
+  iapply lwp_load (o := 0) l (DFrac.own 1) v $$ [HT HG HF Hl]
+  · iframe HT Hl
+    iapply stepPre_nil $$ HG HF
+  iintro ⟨HT, -, -⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  iapply H $$ HT
+
 end
 
 /-! Contexts are determined by a step, also for `chooseNat`. -/
