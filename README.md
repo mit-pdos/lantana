@@ -62,6 +62,14 @@ declarations deliberately not ported are recorded with `#lantana_ignore rocqName
 (`Lantana/Std/Porting.lean`). Example files prefix their aliases with the Rocq file name when
 Rocq reuses short names across files.
 
+The generated table [`docs/rocq-correspondence.md`](docs/rocq-correspondence.md) lists every
+alias (Rocq name, Lean declaration, Lean file) and every ignored Rocq name with its reason,
+grouped by Rocq file, with summary counts and a coverage report: the Rocq declarations of
+`lantana/` and `lantana_heap_lang/` that are neither aliased nor ignored. Regenerate it with
+`scripts/rocq-table.sh [rocq-checkout]` (`scripts/RocqTable.lean` walks the environment of
+`import Lantana`; without a Rocq checkout the tables are grouped by Lean module and there is
+no coverage report).
+
 ## Design (the main departures from Rocq)
 
 - **One language per world**: languages are universe-monomorphic (`Expr State Val : Type`) and
