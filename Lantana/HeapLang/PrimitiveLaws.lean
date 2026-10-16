@@ -42,11 +42,13 @@ section Contexts
 
 open EctxItemLanguage EctxLanguage FromMathlib
 
+/-- `Exp.ofVal` is injective (local simp lemma: `val_to_ofVal` makes `ofVal` the normal form). -/
 theorem ofVal_eq_ofVal_iff {v w : Val} : (Exp.ofVal v : Exp) = Exp.ofVal w ↔ v = w :=
   ⟨fun h => Exp.val.inj h, fun h => h ▸ rfl⟩
 
 attribute [local simp] ofVal_eq_ofVal_iff
 
+/-- Two items that agree on two different expressions plugged into them are equal. -/
 theorem ECtxItem.eq_of_fill_eq₂ {Ki Kj : ECtxItem} {u₀ u₁ w₀ w₁ : Exp} (hne : u₀ ≠ u₁)
     (h₀ : Ki.fill u₀ = Kj.fill w₀) (h₁ : Ki.fill u₁ = Kj.fill w₁) : Ki = Kj := by
   cases Ki <;> cases Kj <;> simp_all [ECtxItem.fill]
@@ -931,7 +933,8 @@ theorem lwp_store (l : Loc) (v' v : Val) :
       l{{{ RET Val.lit .unit; threadExpr i C (.val (.lit .unit)) ∗ stepPost i G R o ∗
         l ↦ some v }}} := by
   iintro %Φ !> ⟨HT, Hpre, Hl⟩ HΦ
-  iapply lwp_heap_step (o := o) rfl iprop(l ↦ some v') (fun w => iprop(⌜w = .lit .unit⌝ ∗ l ↦ some v))
+  iapply lwp_heap_step (o := o) rfl iprop(l ↦ some v')
+    (fun w => iprop(⌜w = .lit .unit⌝ ∗ l ↦ some v))
   · intro σ₁
     iintro ⟨Hh, Hl⟩
     ihave %hl : ⌜σ₁.get? l = some (some v')⌝ $$ [Hh Hl]
