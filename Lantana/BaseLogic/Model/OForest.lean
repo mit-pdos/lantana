@@ -482,6 +482,119 @@ theorem update (h : StatusMap tc T) {i : ThreadId} (s : ThreadStatus) (hi : i < 
 
 end StatusMap
 
+/-! ## OSat additions (to be moved)
+
+Owner changes and owner-preserving progress rounds of a set of obligations, by iterating
+`osat_progress_one_owner` (Rocq `osat_chown`, `osat_chown_set` in `oforest.v`; there, the owner
+tokens forced every progress round to keep the owners, here the round must say it). -/
+
+section OSatAdditions
+
+variable {GF : BundledGFunctors} [OSatGS GF]
+
+/-- The obligations of `S`, owned by `t`, each with positive cash, get the new owner `j` and less
+fuel (Rocq `osat_chown_set`, without the owner and per-thread tokens). -/
+@[lantana_alias osat_chown_set]
+theorem osat_chown_set {Ω : Obls} (S : Oids) {t : ThreadId} (j : ThreadId)
+    (hS : ∀ x, x ∈ S → Ω.ownerOf x = some t) :
+    osat Ω ∗ ([∗set] x ∈ S, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) ⊢@{IProp GF}
+      |==> ∃ Ω', osat Ω' ∗ ⌜chownRel S t j Ω Ω'⌝ := by
+  induction S using FiniteSet.set_ind with
+  | hemp =>
+    iintro ⟨Hs, -⟩
+    imodintro
+    iexists Ω
+    iframe Hs
+    ipureintro
+    exact chownRel.empty t j Ω
+  | hadd x X hx ih =>
+    have hX : ∀ y, y ∈ X → Ω.ownerOf y = some t := fun y hy =>
+      hS y (LawfulSet.mem_insert.2 (.inr hy))
+    obtain ⟨a, ha⟩ := Obls.ownerOf_eq_some.1 (hS x (LawfulSet.mem_insert.2 (.inl rfl)))
+    iintro ⟨Hs, Hu⟩
+    icases (BigSepS.bigSepS_insert hx).mp $$ Hu with ⟨⟨%c, %hc, Hf⟩, Hu⟩
+    imod ih hX $$ [$Hs $Hu] with ⟨%Ω₁, Hs, %h₁⟩
+    have hx₁ : get? Ω₁ x = some (.assigned a t) := (h₁.1 x hx).trans ha
+    imod osat_progress_one_owner j hx₁ hc $$ [$Hs $Hf] with ⟨%a', Hs, %hpr⟩
+    imodintro
+    iexists insert Ω₁ x (.assigned a' j)
+    iframe Hs
+    ipureintro
+    exact chownRel.insert hx h₁ hx₁ hpr
+
+#lantana_ignore osat_chown "`osat_chown_set` iterates `osat_progress_one_owner`"
+
+/-- The obligations of thread `i`, each with positive cash, make progress and keep their owner:
+a progress round of `i` as `oforest_step` needs it (Rocq `osat_progress` with the owner tokens of
+`othread`). -/
+theorem osat_progress_owner {Ω : Obls} (i : ThreadId) (G : Oids)
+    (hG : ∀ x, x ∈ G ↔ Ω.ownerOf x = some i) :
+    osat Ω ∗ ([∗set] x ∈ G, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) ⊢@{IProp GF}
+      |==> ∃ Ω', osat Ω' ∗
+        ⌜Obls.condProgress (Obl.condOwner i) Ω Ω' ∧ ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ := by
+  iintro H
+  imod osat_chown_set G i (fun x hx => (hG x).1 hx) $$ H with ⟨%Ω', Hs, %h⟩
+  imodintro
+  iexists Ω'
+  iframe Hs
+  ipureintro
+  exact ⟨h.condProgress fun x hx => (hG x).2 hx, h.ownerOf_self⟩
+
+end OSatAdditions
+
+/-! ## Big operators over the forest -/
+
+section BigOp
+
+variable {PROP : Type _} [BI PROP]
+
+/-- Rocq `big_sepS_filter_dom`. -/
+@[lantana_alias big_sepS_filter_dom]
+theorem bigSepS_dom_filter {V : Type _} (m : OidMap V) (φ : Oid → V → Bool)
+    (Φ : Oid → PROP) :
+    ([∗set] x ∈ (FiniteMap.dom_set (PartialMap.filter φ m) : Oids), Φ x) ⊣⊢
+      [∗map] x ↦ v ∈ m, if φ x v then Φ x else emp := by
+  refine BigSepM.bigSepM_dom.symm.trans ?_
+  rw [BigSepM.bigSepM_filter_cond]
+  exact .rfl
+
+theorem Forest.bigSepS_kids (Par : OidMap Parent) (p : Parent) (Φ : Oid → PROP) :
+    ([∗set] x ∈ Forest.kids Par p, Φ x) ⊣⊢
+      [∗map] x ↦ q ∈ Par, if decide (q = p) then Φ x else emp :=
+  bigSepS_dom_filter Par _ Φ
+
+theorem Forest.bigSepS_owned (Ω : Obls) (Par : OidMap Parent) (i : ThreadId) (Φ : Oid → PROP) :
+    ([∗set] x ∈ Forest.owned Ω Par i, Φ x) ⊣⊢
+      [∗map] x ↦ _q ∈ Par, if decide (Ω.ownerOf x = some i) then Φ x else emp :=
+  bigSepS_dom_filter Par _ Φ
+
+/-- The nodes of `S` other than `k`, as a big operator over the other nodes. -/
+theorem bigSepS_diff_delete (Par : OidMap Parent) (S : Oids) (k : Oid)
+    (hS : ∀ x, x ∈ S → (get? Par x).isSome) (Φ : Oid → PROP) :
+    ([∗set] x ∈ S \ {k}, Φ x) ⊣⊢
+      [∗map] x ↦ _q ∈ delete Par k, if decide (x ∈ S) then Φ x else emp := by
+  have heq : (FiniteMap.dom_set (PartialMap.filter (fun x (_ : Parent) => decide (x ∈ S))
+      (delete Par k)) : Oids) = S \ {k} := LawfulSet.ext fun x => by
+    rw [LawfulFiniteMap.mem_dom_set, get?_filter, LawfulSet.mem_diff, LawfulSet.mem_singleton]
+    by_cases hkx : k = x
+    · subst hkx
+      simp [get?_delete_eq]
+    · rw [get?_delete_ne hkx]
+      have hne : x ≠ k := fun e => hkx e.symm
+      by_cases hxS : x ∈ S
+      · obtain ⟨q, hq⟩ := Option.isSome_iff_exists.mp (hS x hxS)
+        simp [hq, hxS, hne]
+      · cases get? Par x <;> simp [hxS]
+  rw [← heq]
+  exact bigSepS_dom_filter _ _ Φ
+
+end BigOp
+
+theorem Forest.empty_diff (S : Oids) : (∅ : Oids) \ S = ∅ :=
+  LawfulSet.ext fun x => by
+    rw [LawfulSet.mem_diff]
+    exact ⟨fun h => (LawfulSet.mem_empty h.1).elim, fun h => (LawfulSet.mem_empty h).elim⟩
+
 /-! ## The invariant -/
 
 /-! ### Threads -/
@@ -648,6 +761,277 @@ theorem nodes_congr {Ω Ω' : Obls} {tc : Nat} {Par : OidMap Parent} (wf : Fores
     ⟨Ordinal.le_of_eq (h x (by simp [hx])), fun c hc => by
       subst hc
       exact Ordinal.le_of_eq (h c (wf.par_obl hx))⟩
+
+/-! ### Steps of a thread -/
+
+theorem ite_decide_pos {α : Type _} {P : Prop} [Decidable P] (h : P) {a b : α} :
+    (if decide P = true then a else b) = a := by
+  simp [h]
+
+theorem ite_decide_neg {α : Type _} {P : Prop} [Decidable P] (h : ¬P) {a b : α} :
+    (if decide P = true then a else b) = b := by
+  simp [h]
+
+/-- A node at a step of thread `i`: a child of `i` takes the unit given by the user, any other
+node of `i` splits a unit off its piece, keeping exactly the fuel of its parent. -/
+theorem node_step {Ω : Obls} {tc : Nat} {Par : OidMap Parent} (wf : ForestWf Ω tc Par)
+    (i : ThreadId) {x : Oid} {p : Parent} (hx : get? Par x = some p) :
+    forestNode Ω x p ∗
+        (if decide (p = .thread i) then iprop(∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) else emp)
+      ⊢@{IProp GF} |==> (forestNodeStepped Ω i x p ∗
+        if decide (Ω.ownerOf x = some i) then iprop(OSat.elem x ∗ ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c)
+        else emp) := by
+  cases p with
+  | thread j =>
+    have hj := wf.thread x j hx
+    by_cases hji : j = i
+    · subst hji
+      rw [ite_decide_pos rfl, ite_decide_pos hj]
+      iintro ⟨⟨#He, Hb, -⟩, Hu⟩
+      imodintro
+      isplitl [Hb]
+      · isplitr
+        · iexact He
+        isplitl [Hb]
+        · iexact Hb
+        · ipureintro
+          trivial
+      · iframe He Hu
+    · rw [ite_decide_neg (fun h => hji (Parent.thread.inj h)),
+        ite_decide_neg (fun h => hji (Option.some.inj (hj.symm.trans h)))]
+      iintro ⟨⟨#He, Hb, -⟩, -⟩
+      imodintro
+      isplitl [Hb]
+      · isplitr
+        · iexact He
+        isplitl [Hb]
+        · iexact Hb
+        · ipureintro
+          trivial
+      · iempintro
+  | obl c =>
+    rw [ite_decide_neg (fun h => Parent.noConfusion h)]
+    by_cases ho : Ω.ownerOf x = some i
+    · rw [ite_decide_pos ho]
+      iintro ⟨⟨#He, Hb, %π, %hπ, Hf⟩, -⟩
+      imod OSat.fuel_lt hπ $$ Hf with ⟨Hf, Hu⟩
+      imodintro
+      isplitl [Hb Hf]
+      · isplitr
+        · iexact He
+        isplitl [Hb]
+        · iexact Hb
+        · iexists Ω.fuelOf c
+          iframe Hf
+          ipureintro
+          exact ⟨fun _ => rfl, fun h => (h ho).elim⟩
+      · iframe He Hu
+    · rw [ite_decide_neg ho]
+      iintro ⟨⟨#He, Hb, %π, %hπ, Hf⟩, -⟩
+      imodintro
+      isplitl [Hb Hf]
+      · isplitr
+        · iexact He
+        isplitl [Hb]
+        · iexact Hb
+        · iexists π
+          iframe Hf
+          ipureintro
+          exact ⟨fun h => (ho h).elim, fun _ => hπ⟩
+      · iempintro
+
+theorem nodes_step {Ω : Obls} {tc : Nat} {Par : OidMap Parent} (wf : ForestWf Ω tc Par)
+    (i : ThreadId) :
+    ([∗map] x ↦ p ∈ Par, forestNode Ω x p) ∗
+        ([∗map] x ↦ p ∈ Par,
+          if decide (p = .thread i) then iprop(∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) else emp)
+      ⊢@{IProp GF} |==> (([∗map] x ↦ p ∈ Par, forestNodeStepped Ω i x p) ∗
+        [∗map] x ↦ _p ∈ Par, if decide (Ω.ownerOf x = some i) then
+          iprop(OSat.elem x ∗ ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) else emp) := by
+  rw [← BigSepM.bigSepM_sep_eq, ← BigSepM.bigSepM_sep_eq]
+  exact (BigSepM.bigSepM_mono fun hx => node_step wf i hx).trans (BigSepM.bigSepM_bupd _)
+
+theorem entails_pure_forall₂ {PROP : Type _} [BI PROP] {P : PROP} {α β : Sort _}
+    {φ : α → β → Prop} (h : ∀ a b, P ⊢ ⌜φ a b⌝) : P ⊢ ⌜∀ a b, φ a b⌝ :=
+  (BI.forall_intro fun a => (BI.forall_intro fun b => h a b).trans BI.pure_forall.2).trans
+    BI.pure_forall.2
+
+/-- After the round, the pieces of the nodes of `i` are below their new fuels. -/
+theorem nodes_stepped_pieces {Ω Ω' : Obls} {tc : Nat} {Par : OidMap Parent} {i : ThreadId}
+    (wf : ForestWf Ω tc Par) (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') :
+    osat Ω' ∗ ([∗map] x ↦ p ∈ Par, forestNodeStepped Ω i x p) ⊢@{IProp GF}
+      ⌜∀ x c, get? Par x = some (.obl c) → Ω.ownerOf x = some i →
+        Ω.fuelOf c ≤ Ω'.fuelOf x⌝ := by
+  refine entails_pure_forall₂ fun x c => ?_
+  by_cases hx : get? Par x = some (.obl c)
+  · by_cases ho : Ω.ownerOf x = some i
+    · refine (?_ : _ ⊢ ⌜Ω.fuelOf c ≤ Ω'.fuelOf x⌝).trans (BI.pure_mono fun h _ _ => h)
+      iintro ⟨Hs, Hn⟩
+      icases BigSepM.bigSepM_lookup hx $$ Hn with ⟨-, -, %π, %hπ, Hf⟩
+      icases osat_fuel_le Ω' x π $$ [$Hs $Hf] with %hle
+      ipureintro
+      obtain ⟨a', t', hx'⟩ := (prog_live hp x).1 (wf.live_of_isSome (by simp [hx]))
+      rw [← hπ.1 ho, Obls.fuelOf_eq hx']
+      exact hle a' t' hx'
+    · exact BI.pure_intro fun _ h => (ho h).elim
+  · exact BI.pure_intro fun h => (hx h).elim
+
+/-- After the round, a stepped node is a node again. -/
+theorem node_unstep {Ω Ω' : Obls} {tc : Nat} {Par : OidMap Parent} {i : ThreadId}
+    (wf : ForestWf Ω tc Par) (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') {x : Oid}
+    {p : Parent} (hx : get? Par x = some p) :
+    forestNodeStepped Ω i x p ⊢@{IProp GF} forestNode Ω' x p := by
+  cases p with
+  | thread j =>
+    iintro ⟨#He, ⟨%β, #Hb, %hβ⟩, Hp⟩
+    isplitr
+    · iexact He
+    isplitr
+    · iexists β
+      iframe Hb
+      ipureintro
+      exact Ordinal.le_trans (prog_fuelOf_le hp x) hβ
+    · iexact Hp
+  | obl c =>
+    have hoc := (wf.obl x c hx).1
+    iintro ⟨#He, ⟨%β, #Hb, %hβ⟩, %π, %hπ, Hf⟩
+    isplitr
+    · iexact He
+    isplitr
+    · iexists β
+      iframe Hb
+      ipureintro
+      exact Ordinal.le_trans (prog_fuelOf_le hp x) hβ
+    · iexists π
+      iframe Hf
+      ipureintro
+      by_cases ho : Ω.ownerOf x = some i
+      · rw [hπ.1 ho]
+        exact prog_fuelOf_lt hp (hoc.trans ho)
+      · rw [prog_fuelOf_of_ne hp (fun h => ho (hoc.symm.trans h))]
+        exact hπ.2 ho
+
+/-! ### Owner changes of a subtree -/
+
+/-- A node `x` during an owner change of the subtree `S`: a node of `S` has split off a unit,
+keeping exactly the fuel of its parent; the other nodes are unchanged. -/
+@[reducible] def forestNodeMoved (Ω : Obls) (S : Oids) (x : Oid) (p : Parent) : IProp GF :=
+  if decide (x ∈ S) then
+    iprop(OSat.elem x ∗ (∃ β, OSat.bound x β ∗ ⌜Ω.fuelOf x ≤ β⌝) ∗
+      ∃ c, ⌜p = .obl c⌝ ∗ OSat.fuel x (Ω.fuelOf c))
+  else forestNode Ω x p
+
+/-- The nodes of `S` other than `k` are below obligations, and split a unit off their piece. -/
+theorem node_cross_split {Ω : Obls} {Par : OidMap Parent} {S : Oids} {k : Oid}
+    (hS : ∀ x, x ∈ S → x ≠ k → ∃ c, get? Par x = some (.obl c)) {x : Oid} {p : Parent}
+    (hx : get? (delete Par k) x = some p) :
+    forestNode Ω x p ⊢@{IProp GF}
+      |==> ((if decide (x ∈ S) then iprop(∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) else emp) ∗
+        forestNodeMoved Ω S x p) := by
+  unfold forestNodeMoved
+  by_cases hxS : x ∈ S
+  · rw [ite_decide_pos hxS, ite_decide_pos hxS]
+    have hkx : k ≠ x := fun e => by
+      subst e
+      simp [get?_delete_eq] at hx
+    rw [get?_delete_ne hkx] at hx
+    obtain ⟨c, hc⟩ := hS x hxS (fun e => hkx e.symm)
+    rw [hx] at hc
+    cases hc
+    iintro ⟨#He, Hb, %π, %hπ, Hf⟩
+    imod OSat.fuel_lt hπ $$ Hf with ⟨Hf, Hu⟩
+    imodintro
+    iframe Hu He Hb
+    iexists c
+    iframe Hf
+    ipureintro
+    rfl
+  · rw [ite_decide_neg hxS, ite_decide_neg hxS]
+    iintro H
+    imodintro
+    iframe H
+
+/-- After the owner change, the moved nodes are nodes again. -/
+theorem node_cross_join {Ω Ω' : Obls} {Par : OidMap Parent} {k : Oid}
+    {t j : ThreadId} (hrel : chownRel (Forest.subtree Par k) t j Ω Ω') {x : Oid} {p : Parent}
+    (hx : get? (delete Par k) x = some p) :
+    forestNodeMoved Ω (Forest.subtree Par k) x p ⊢@{IProp GF} forestNode Ω' x p := by
+  have hkx : k ≠ x := fun e => by
+    subst e
+    simp [get?_delete_eq] at hx
+  rw [get?_delete_ne hkx] at hx
+  unfold forestNodeMoved
+  by_cases hxS : x ∈ Forest.subtree Par k
+  · rw [ite_decide_pos hxS]
+    have hcS : ∀ c, p = .obl c → c ∈ Forest.subtree Par k := by
+      rintro c rfl
+      rcases Forest.subtree_inv hxS with e | ⟨c', hc', hc'S⟩
+      · exact (hkx e.symm).elim
+      · rw [hx] at hc'
+        cases hc'
+        exact hc'S
+    iintro ⟨#He, ⟨%β, #Hb, %hβ⟩, %c, %hc, Hf⟩
+    isplitr
+    · iexact He
+    isplitr
+    · iexists β
+      iframe Hb
+      ipureintro
+      exact Ordinal.le_trans (Ordinal.le_of_lt (hrel.fuel_in hxS).2) hβ
+    · subst hc
+      iexists Ω.fuelOf c
+      iframe Hf
+      ipureintro
+      exact (hrel.fuel_in (hcS c rfl)).2
+  · rw [ite_decide_neg hxS]
+    refine forestNode_mono (Ordinal.le_of_eq (hrel.fuel_out hxS)) fun c hc => ?_
+    subst hc
+    exact Ordinal.le_of_eq (hrel.fuel_out fun hcS => hxS (Forest.subtree_closed hx hcS))
+
+/-- After the owner change, the pieces of the moved nodes are below their new fuels. -/
+theorem nodes_moved_pieces {Ω Ω' : Obls} {Par : OidMap Parent} {k : Oid} {t j : ThreadId}
+    (hrel : chownRel (Forest.subtree Par k) t j Ω Ω') :
+    osat Ω' ∗ ([∗map] x ↦ p ∈ delete Par k, forestNodeMoved Ω (Forest.subtree Par k) x p)
+      ⊢@{IProp GF} ⌜∀ x c, x ∈ Forest.subtree Par k → x ≠ k → get? Par x = some (.obl c) →
+        Ω.fuelOf c ≤ Ω'.fuelOf x⌝ := by
+  refine entails_pure_forall₂ fun x c => ?_
+  by_cases hxS : x ∈ Forest.subtree Par k
+  · by_cases hxk : x ≠ k
+    · by_cases hx : get? Par x = some (.obl c)
+      · refine (?_ : _ ⊢ ⌜Ω.fuelOf c ≤ Ω'.fuelOf x⌝).trans (BI.pure_mono fun h _ _ _ => h)
+        have hx' : get? (delete Par k) x = some (.obl c) := by
+          rw [get?_delete_ne (fun e => hxk e.symm)]
+          exact hx
+        iintro ⟨Hs, Hn⟩
+        icases BigSepM.bigSepM_lookup hx' $$ Hn with Hx
+        unfold forestNodeMoved
+        rw [ite_decide_pos hxS]
+        icases Hx with ⟨-, -, %c', %hc', Hf⟩
+        cases hc'
+        icases osat_fuel_le Ω' x _ $$ [$Hs $Hf] with %hle
+        ipureintro
+        obtain ⟨a, a', -, hx'', -⟩ := hrel.2 x hxS
+        rw [Obls.fuelOf_eq hx'']
+        exact hle a' j hx''
+      · exact BI.pure_intro fun _ _ h => (hx h).elim
+    · exact BI.pure_intro fun _ h => (h (Classical.not_not.1 hxk)).elim
+  · exact BI.pure_intro fun h => (hxS h).elim
+
+/-- The new piece of a moved node is below its new fuel. -/
+theorem osat_forestPiece {Ω Ω' : Obls} {k : Oid} {p : Parent} (hk : Ω'.live k) :
+    osat Ω' ∗ forestPiece Ω k p ⊢@{IProp GF} ⌜∀ q, p = .obl q → Ω.fuelOf q < Ω'.fuelOf k⌝ := by
+  cases p with
+  | thread j =>
+    exact BI.pure_intro fun q h => Parent.noConfusion h
+  | obl q =>
+    iintro ⟨Hs, %π, %hπ, Hf⟩
+    icases osat_fuel_le Ω' k π $$ [$Hs $Hf] with %hle
+    ipureintro
+    rintro q' hq
+    cases hq
+    obtain ⟨a, t, hka⟩ := hk
+    rw [Obls.fuelOf_eq hka]
+    exact Ordinal.lt_of_lt_of_le hπ (hle a t hka)
 
 end Nodes
 
@@ -1170,6 +1554,203 @@ theorem oforest_move_up {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oid}
     isplitl [Hbnd]
     · iexact Hbnd
     · iapply forestPiece_reparent hpc $$ Hpc
+
+/-! ### Steps of a thread -/
+
+/-- A step of thread `i`, in two phases (Rocq `oforest_step`). First, the children `K` of `i` take
+the units given by the user, and every other node of `i` splits a unit off its piece, keeping
+exactly the fuel of its parent: this returns the set `G` of the obligations of `i` with a unit
+each. Then, after a progress round of `i` that keeps the owners (`osat_progress_owner`), the
+invariant holds again: the new pieces are below the new fuels of the nodes (`osat_fuel_le` on the
+new `osat`) and above the new fuels of their parents. Rocq also hands out and takes back the
+running status and the set of obligations of `i`, which are not ghost state here. -/
+@[lantana_alias oforest_step]
+theorem oforest_step (Ω : Obls) (tc : Nat) (i : ThreadId) (K : Oids) :
+    oforest Ω tc ∗ OForest.kids (.thread i) K ∗ ([∗set] k ∈ K, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c)
+      ⊢@{IProp GF} |==> ∃ G : Oids, ⌜∀ x, x ∈ G ↔ Ω.ownerOf x = some i⌝ ∗
+        OForest.kids (.thread i) K ∗ ([∗set] k ∈ G, OSat.elem k ∗ ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c) ∗
+        ∀ Ω' : Obls, ⌜Obls.condProgress (Obl.condOwner i) Ω Ω'⌝ -∗
+          ⌜∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ -∗ osat Ω' -∗ (osat Ω' ∗ oforest Ω' tc) := by
+  unfold oforest
+  iintro ⟨⟨%Par, %M, %T, %⟨wf, hM, hT⟩, HM, HT, Hth, Hn⟩, Hk, Hu⟩
+  icases OForest.kidsAuth_lookup M _ K $$ [$HM $Hk] with %hK
+  obtain ⟨-, hkids⟩ := hM.lookup hK
+  subst hkids
+  icases (Forest.bigSepS_kids Par _ _).mp $$ Hu with Hu
+  imod nodes_step wf i $$ [$Hn $Hu] with ⟨Hn, Hg⟩
+  icases (Forest.bigSepS_owned Ω Par i _).mpr $$ Hg with Hg
+  imodintro
+  iexists Forest.owned Ω Par i
+  isplitr
+  · ipureintro
+    intro x
+    exact wf.mem_owned_iff
+  iframe Hk Hg
+  iintro %Ω' %hp %hown Hs
+  icases nodes_stepped_pieces wf hp $$ [$Hs $Hn] with %hpiece
+  have howned : ∀ j, j < tc → Forest.owned Ω Par j = ∅ → Forest.owned Ω' Par j = ∅ :=
+    fun j _ h => by
+      rw [Forest.owned_ext fun x _ => hown x]
+      exact h
+  iframe Hs
+  iexists Par, M, T
+  isplitr
+  · ipureintro
+    exact ⟨wf.prog_piece hp (fun x _ => hown x) hpiece, hM, hT⟩
+  iframe HM HT
+  isplitl [Hth]
+  · iapply OForest.threads_mono howned $$ Hth
+  · iapply BigSepM.bigSepM_mono (fun hx => node_unstep wf hp hx) $$ Hn
+
+/-- A step of thread `i` with its progress round: the obligations of `i` make progress and keep
+their owner (`oforest_step` closed with `osat_progress_owner`). -/
+theorem oforest_osat_step (Ω : Obls) (tc : Nat) (i : ThreadId) (K : Oids) :
+    osat Ω ∗ oforest Ω tc ∗ OForest.kids (.thread i) K ∗
+        ([∗set] k ∈ K, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c)
+      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obls.condProgress (Obl.condOwner i) Ω Ω' ∧
+        ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ ∗ osat Ω' ∗ oforest Ω' tc ∗
+        OForest.kids (.thread i) K := by
+  iintro ⟨Hs, H⟩
+  imod oforest_step Ω tc i K $$ H with ⟨%G, %hG, Hk, Hg, Hclose⟩
+  ihave Hg := BigSepS.bigSepS_mono_of_forall (fun _ => BI.sep_elim_right) $$ Hg
+  imod osat_progress_owner i G hG $$ [$Hs $Hg] with ⟨%Ω', Hs, %⟨hp, hown⟩⟩
+  icases Hclose $$ %Ω' %hp %hown Hs with ⟨Hs, H⟩
+  imodintro
+  iexists Ω'
+  iframe Hs H Hk
+  ipureintro
+  exact ⟨hp, hown⟩
+
+/-! ### Moves with owner change -/
+
+/-- The node `k`, owned by `t`, moves from `p₁` to a parent `p₂` of another owner `j`: its whole
+subtree gets the owner `j`, and each of its nodes burns a unit: `k` burns `u`, the other nodes
+split a unit off their piece. Below an obligation, `k` brings its new piece (Rocq
+`oforest_move_cross`, without the owner and per-thread tokens; `osat_chown_set` changes the model
+`Ω` to `Ω'`, related by `chownRel`). -/
+@[lantana_alias oforest_move_cross]
+theorem oforest_move_cross {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K₂ : Oids} {k : Oid}
+    {t j : ThreadId} {u : Fuel} (hk : k ∈ K₁) (ht : Ω.ownerOf k = some t) (htj : t ≠ j)
+    (hu : 0 < u)
+    (hp₂ : match p₂ with
+      | .thread j' => j' = j
+      | .obl q => Ω.ownerOf q = some j) :
+    osat Ω ∗ oforest Ω tc ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OSat.fuel k u ∗
+        forestPiece Ω k p₂
+      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obls.ndf Ω Ω' ∧ (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
+        k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc ∗ OForest.kids p₁ (K₁ \ {k}) ∗
+        OForest.kids p₂ ({k} ∪ K₂) := by
+  unfold oforest
+  iintro ⟨Hs, ⟨%Par, %M, %T, %⟨wf, hM, hT⟩, HM, HT, Hth, Hn⟩, H₁, H₂, Hu, Hpc⟩
+  by_cases hp : p₁ = p₂
+  · subst hp
+    iexfalso
+    iapply OForest.kids_excl $$ [$H₁ $H₂]
+  icases OForest.kidsAuth_lookup M p₁ K₁ $$ [$HM $H₁] with %hp₁K
+  icases OForest.kidsAuth_lookup M p₂ K₂ $$ [$HM $H₂] with %hp₂K
+  obtain ⟨-, hkids₁⟩ := hM.lookup hp₁K
+  obtain ⟨hkey₂, hkids₂⟩ := hM.lookup hp₂K
+  have hPk : get? Par k = some p₁ := Forest.mem_kids.1 (hkids₁ ▸ hk)
+  have hkD : (get? Par k).isSome := by simp [hPk]
+  have hkK₂ : k ∉ K₂ := fun h => by
+    rw [← hkids₂, Forest.mem_kids, hPk] at h
+    cases h
+    exact hp rfl
+  have hkS : k ∈ Forest.subtree Par k := Forest.subtree_root Par k
+  have hSown : ∀ x, x ∈ Forest.subtree Par k → Ω.ownerOf x = some t := fun x hx =>
+    (wf.subtree_owner hkD hx).2.trans ht
+  have hSD : ∀ x, x ∈ Forest.subtree Par k → (get? Par x).isSome := fun x hx =>
+    (wf.subtree_owner hkD hx).1
+  have hSobl : ∀ x, x ∈ Forest.subtree Par k → x ≠ k → ∃ c, get? Par x = some (.obl c) :=
+    fun x hx hxk => by
+      rcases Forest.subtree_inv hx with e | ⟨c, hc, -⟩
+      · exact (hxk e).elim
+      · exact ⟨c, hc⟩
+  have hj : j < tc := by
+    cases p₂ with
+    | thread j' =>
+      cases hp₂
+      simpa using hkey₂
+    | obl q => exact wf.owner q j hp₂
+  have hq : ∀ q, p₂ = .obl q → q ∉ Forest.subtree Par k := by
+    rintro q rfl hqS
+    have h := (hSown q hqS).symm.trans hp₂
+    cases h
+    exact htj rfl
+  -- The entry of the new owner `j`: it is running.
+  icases OForest.threads_acc hj $$ Hth with ⟨Hj, Hclose⟩
+  icases Hj with (Hej | ⟨-, Hkd, %hownd⟩)
+  rotate_left
+  · cases p₂ with
+    | thread j' =>
+      cases hp₂
+      iexfalso
+      iapply OForest.kids_excl $$ [$H₂ $Hkd]
+    | obl q =>
+      have hmem : q ∈ Forest.owned Ω Par j := wf.mem_owned_iff.2 hp₂
+      rw [hownd] at hmem
+      exact (LawfulSet.mem_empty hmem).elim
+  -- The node `k`: its old piece is dropped.
+  icases (BigSepM.bigSepM_delete hPk).mp $$ Hn with ⟨⟨#Hek, ⟨%βk, #Hbk, %hβk⟩, -⟩, Hn⟩
+  -- The other nodes of the subtree split a unit off their piece.
+  ihave Hn := (BigSepM.bigSepM_mono fun hx => node_cross_split (Ω := Ω) hSobl hx) $$ Hn
+  imod BigSepM.bigSepM_bupd _ $$ Hn with Hn
+  rw [BigSepM.bigSepM_sep_eq]
+  icases Hn with ⟨Hus, Hn⟩
+  icases (bigSepS_diff_delete Par _ k hSD _).mpr $$ Hus with Hus
+  ihave Hus := (BigSepS.bigSepS_delete hkS).mpr $$ [Hu Hus]
+  · iframe Hus
+    iexists u
+    iframe Hu
+    ipureintro
+    exact hu
+  imod osat_chown_set (Forest.subtree Par k) j hSown $$ [$Hs $Hus] with ⟨%Ω', Hs, %hrel⟩
+  have hkΩ' : Ω'.live k := (hrel.live k).1 (wf.live_of_isSome hkD)
+  icases osat_forestPiece hkΩ' $$ [$Hs $Hpc] with %hpk
+  icases nodes_moved_pieces hrel $$ [$Hs $Hn] with %hpx
+  have hwf' : ForestWf Ω' tc (insert Par k p₂) := by
+    refine wf.move_cross hkD ht htj ?_ hrel hpk hpx
+    cases p₂ with
+    | thread j' => exact ⟨hp₂, hj⟩
+    | obl q => exact hp₂
+  have howned : ∀ j', j' < tc → j' ≠ j → Forest.owned Ω Par j' = ∅ →
+      Forest.owned Ω' (insert Par k p₂) j' = ∅ := fun j' _ hj' h => by
+    rw [Forest.owned_insert_of_isSome hkD, Forest.owned_chown hrel hSD j']
+    simp only [hj', ↓reduceIte]
+    split
+    · rw [h]
+      exact Forest.empty_diff _
+    · exact h
+  imod OForest.kidsAuth_update M p₁ K₁ (K₁ \ {k}) $$ [$HM $H₁] with ⟨HM, H₁⟩
+  imod OForest.kidsAuth_update _ p₂ K₂ ({k} ∪ K₂) $$ [$HM $H₂] with ⟨HM, H₂⟩
+  imodintro
+  iexists Ω'
+  iframe Hs H₁ H₂
+  isplitr
+  · ipureintro
+    exact ⟨hrel.ndf, hrel.isSome_iff, hkK₂⟩
+  iexists insert Par k p₂, insert (insert M p₁ (K₁ \ {k})) p₂ ({k} ∪ K₂), T
+  isplitr
+  · ipureintro
+    exact ⟨hwf', hM.move hPk hp₁K hp₂K, hT⟩
+  iframe HM HT
+  isplitl [Hclose Hej]
+  · iapply Hclose $$ %_ %_ %howned
+    ileft
+    iexact Hej
+  · iapply BigSepM.bigSepM_insert_delete.mpr
+    isplitl [Hpc]
+    · isplitr
+      · iexact Hek
+      isplitr
+      · iexists βk
+        iframe Hbk
+        ipureintro
+        exact Ordinal.le_trans (Ordinal.le_of_lt (hrel.fuel_in hkS).2) hβk
+      · iapply forestPiece_mono ?_ $$ Hpc
+        rintro q rfl
+        exact Ordinal.le_of_eq (hrel.fuel_out (hq q rfl))
+    · iapply BigSepM.bigSepM_mono (fun hx => node_cross_join hrel hx) $$ Hn
 
 end Oforest
 

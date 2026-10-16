@@ -1008,4 +1008,11 @@ theorem condProgress {i : ThreadId} (h : chownRel S i i Ω Ω')
 
 end chownRel
 
+/-- A progress round of `i` does not increase any fuel. -/
+theorem prog_fuelOf_le {Ω Ω' : Obls} {i : ThreadId}
+    (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') (x : Oid) : Ω'.fuelOf x ≤ Ω.fuelOf x := by
+  by_cases ho : Ω.ownerOf x = some i
+  · exact Ordinal.le_of_lt (prog_fuelOf_lt hp ho)
+  · exact Ordinal.le_of_eq (prog_fuelOf_of_ne hp ho)
+
 end Lantana.Model
