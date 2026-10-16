@@ -519,39 +519,20 @@ theorem gMain_impl (i : ThreadId) :
 
 variable [ModelGS GF] [HeapGS GF] [TicketLockG GF] [QueueG GF]
 
-/-- A task queue exists: its value is trace-visible, its ghost names and layer are not. -/
+/-- A task queue exists: its value is trace-visible, its ghost names and layer are not
+(inferred). -/
 theorem guar_exTaskQueue :
     ⊢@{IProp GF} iprop(∃ (ql : Val) (γ : QueueName) (ℓ : Layer), isTaskQueue ql γ ℓ) ⊨ₜ
       (∃ₛ ql : Val, taskQueueTrSpec ql) := by
-  iapply guar_ex
-  iintro %ql
-  iapply guar_ex_ghost
-  iintro %γ
-  iapply guar_ex_ghost
-  iintro %ℓ
-  iapply TaskQueue.guar_isTaskQueue
+  exact IntoGuar.into_guar
 
+/-- Inferred (`IntoGuar`), with the guarantees of the flag and of the task queue as instances:
+the flag's location and the queue are trace-visible, the names and layers ghost. -/
 @[lantana_alias task_queue_client.guar_Φ_P]
 theorem guar_mainRes (i : ThreadId) (μ : Measure) :
     ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
-  haveI : GuarOf (Expr := Exp) (State := State)
-      iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)
-      (∃ₛ x : Loc, flagTrSpec x) := ⟨Flag.guar_exFlag⟩
-  haveI : GuarOf (Expr := Exp) (State := State)
-      iprop(∃ (ql : Val) (γ : QueueName) (ℓ : Layer), isTaskQueue (GF := GF) ql γ ℓ)
-      (∃ₛ ql : Val, taskQueueTrSpec ql) := ⟨guar_exTaskQueue⟩
-  unfold mainRes gMain finallyI
-  iapply guar_ex_ghost
-  iintro %kl
-  iapply guar_ex_ghost
-  iintro %kc
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nl kl 1 iprop(True)
-      (exits v1 @ i)))
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nc kc 1 iprop(True)
-      (flagAndQueue (GF := GF))))
-  iapply guar_true
+  unfold mainRes gMain
+  exact IntoGuar.into_guar
 
 end Guarantee
 

@@ -19,6 +19,9 @@ POPL 2027), on top of Transfinite Iris-Lean.
 lake build --wfail    # the library, warnings (incl. the Iris-Lean linters) as errors
 lake test             # LantanaTest: unit tests, closed-world instances, axiom checks
 scripts/audit.sh      # no sorry / admit / axiom / native_decide in Lantana/ and LantanaTest/
+scripts/check-imports.sh  # layering: Std, Init < Prelude < Algebra < BaseLogic < ProgramLogic
+                          #   < Trace < HeapLang < Examples; no module imports a later layer
+scripts/rocq-table.sh     # regenerate docs/rocq-correspondence.md (see below)
 ```
 
 ## The main theorems
@@ -52,7 +55,14 @@ All are proved; the clients have end-to-end corollaries through the adequacy the
   `Paradox` (two rule variants shown unsound through adequacy, as class hypotheses);
 - `TicketLock` (deletable, §7.1; release progress at trace level), `TicketLockMono` (starvation
   freedom with no hypothesis on `next`), `TicketLock2` and `TicketLock2Client`
-  (starvation-free), `ExtendedInt`.
+  (starvation-free), `ExtendedInt`;
+- `Queue` (§7.2: a queue protected by the ticket lock whose elements carry obligations;
+  `queue_release_progress`), `TaskQueue` (§7.3: a task queue run by a forked worker thread;
+  `taskQueue_release_progress`), `TaskQueueClient` (a reentrant task;
+  `taskQueueClient_liveness_safety`) and `TaskQueueFlagStableClient` (the same over the stable
+  flag; `taskQueueClient_flag_stays`).
+
+`Lib`, `GhostMapP`, `LockLevel` and `World` (the closed world `ExGF`) are shared infrastructure.
 
 ## Correspondence with Rocq
 
@@ -61,6 +71,14 @@ Lean declarations carry `@[lantana_alias rocqName]`, which also creates a deprec
 declarations deliberately not ported are recorded with `#lantana_ignore rocqName "reason"`
 (`Lantana/Std/Porting.lean`). Example files prefix their aliases with the Rocq file name when
 Rocq reuses short names across files.
+
+The generated table [`docs/rocq-correspondence.md`](docs/rocq-correspondence.md) lists every
+alias (Rocq name, Lean declaration, Lean file) and every ignored Rocq name with its reason,
+grouped by Rocq file, with summary counts and a coverage report: the Rocq declarations of
+`lantana/` and `lantana_heap_lang/` that are neither aliased nor ignored. Regenerate it with
+`scripts/rocq-table.sh [rocq-checkout]` (`scripts/RocqTable.lean` walks the environment of
+`import Lantana`; without a Rocq checkout the tables are grouped by Lean module and there is
+no coverage report).
 
 ## Design (the main departures from Rocq)
 
