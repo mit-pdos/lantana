@@ -143,8 +143,8 @@ theorem rupd_bind {P Q : IProp GF} : (P -∗ |==>r Q) ⊢ (|==>r P) -∗ |==>r Q
 /-- The general form of spending credits to eliminate a later. -/
 @[lantana_alias rupd_step]
 theorem rupd_step {P : IProp GF} :
-    (∀ x : X, RUpdG.pred x -∗ |==> ∃ y : X, ⌜TransGen (RUpdG.rel GF) y x⌝ ∗ RUpdG.pred y ∗ ▷ |==>r P)
-      ⊢ |==>r P := by
+    (∀ x : X, RUpdG.pred x -∗
+      |==> ∃ y : X, ⌜TransGen (RUpdG.rel GF) y x⌝ ∗ RUpdG.pred y ∗ ▷ |==>r P) ⊢ |==>r P := by
   iintro H
   iapply rupd_unfold
   iintro %x Hx
@@ -226,7 +226,8 @@ variable {GF : BundledGFunctors.{u}} {X : Type v} [RUpdG GF X]
 instance elimModal_bupd_rupd {p io} {P Q : IProp GF} :
     ElimModal True p io false iprop(|==> P) P iprop(|==>r Q) iprop(|==>r Q) where
   elim_modal _ :=
-    (sep_mono_left (intuitionisticallyIf_elim.trans bupd_rupd)).trans <| rupd_wand_r.trans rupd_trans
+    (sep_mono_left (intuitionisticallyIf_elim.trans bupd_rupd)).trans <|
+      rupd_wand_r.trans rupd_trans
 
 @[lantana_alias add_modal_bupd]
 instance addModal_bupd_rupd {P Q : IProp GF} : AddModal iprop(|==> P) P iprop(|==>r Q) where

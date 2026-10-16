@@ -108,6 +108,15 @@ attribute [lantana_alias auth_valid_trivial] CreditCamera.valid_trivial
 #lantana_ignore auth_rupd_discrete "The parent structure `CMRA.Discrete` of `CreditCamera`."
 #lantana_ignore auth_rupd_rel_proper "The OFE of a discrete camera is Leibniz."
 
+@[lantana_alias auth_rupd_rel_irrefl]
+theorem CreditCamera.rel_irrefl {A : Type v} [UCMRA A] [CreditCamera A] (x : A) :
+    ¬CreditCamera.rel x x := by
+  induction (CreditCamera.rel_wf (A := A)).apply x with
+  | intro x _ ih => exact fun h => ih x h h
+
+#lantana_ignore type_inj_existential "`SIdxLarge SI X` is an instance for every `X : Type ≤ 3`."
+#lantana_ignore rupd_type_exists_finite "Finite existentials are theorems of Iris-Lean (`SIdx`)."
+
 /-- The functor of the credit ghost state. -/
 abbrev CreditF (A : Type v) [UCMRA A] : OFunctorPre := AuthURF (constOFP A)
 
@@ -164,10 +173,9 @@ section Credits
 
 variable {GF : BundledGFunctors.{u}} {A : Type v} [UCMRA A] [CreditGS GF A] [CreditCamera A]
 
-theorem credit_timeless {a : A} : Timeless (£ₒ a : IProp GF) := by
+omit [CreditCamera A] in
+instance credit_timeless {a : A} : Timeless (£ₒ a : IProp GF) := by
   unfold credit; exact iOwn_timeless
-
-instance credit_timeless' {a : A} : Timeless (£ₒ a : IProp GF) := credit_timeless
 
 theorem rupdG_pred_eq (x : A) : RUpdG.pred x = (●£ₒ x : IProp GF) := rfl
 
@@ -187,7 +195,8 @@ theorem auth_rupd_rel_update {a b b' : A} (hb : b ≼ a) (h : CreditCamera.rel b
 theorem supply_credit_step {x a a' : A} (h : CreditCamera.rel a' a) :
     ●£ₒ x ∗ £ₒ a ⊢@{IProp GF} |==> ∃ x', ⌜CreditCamera.rel x' x⌝ ∗ ●£ₒ x' ∗ £ₒ a' := by
   unfold supply credit
-  refine iOwn_op.mpr.trans <| iOwn_valid_r.trans <| (sep_mono_right (UPred.discrete_valid _).mp).trans ?_
+  refine iOwn_op.mpr.trans <| iOwn_valid_r.trans <|
+    (sep_mono_right (UPred.discrete_valid _).mp).trans ?_
   iintro ⟨H, %hv⟩
   obtain ⟨x', hl, hx⟩ := auth_rupd_rel_update (auth_both_valid_discrete.mp hv).1 h
   imod iOwn_update (auth_update hl) $$ H with H

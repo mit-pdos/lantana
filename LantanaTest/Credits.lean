@@ -78,4 +78,22 @@ example [TlcGS TestGF] (P Q : IProp TestGF) :
   imodintro
   iframe
 
+/-- The proof mode introduces, eliminates and frames `ALC`. -/
+example [TlcGS TestGF] (P Q : IProp TestGF) : ALC P ∗ Q ⊢@{IProp TestGF} ALC iprop(P ∗ Q) := by
+  iintro ⟨HP, HQ⟩
+  imod HP
+  iframe
+
+/-- `ALC` hands out credits: here one credit strips a later. -/
+example [TlcGS TestGF] (P : IProp TestGF) : ▷ P ⊢@{IProp TestGF} ALC P := by
+  iintro HP
+  iapply ALC_alloc (1 : Ordinal.{1})
+  iintro H1
+  iapply tlc_later
+  isplitl [H1]
+  · iexact H1
+  inext
+  imodintro
+  iexact HP
+
 end LantanaTest.Credits
