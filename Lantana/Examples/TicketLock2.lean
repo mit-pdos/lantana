@@ -402,6 +402,30 @@ theorem init_spec : ∃ m : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadId
     rfl
   · iexact HA
 
+/-- The spin loop of `acquire` for the ticket `my`, by induction on the witness fuel of the
+obligation `κp` of the ticket `my` (the unlock obligation of the previous holder): each
+iteration in which `my` is not served observes `κp`, whose credit buys the fuel of the next
+iteration. When `my` is served, the thread acknowledges its ticket `my + 1` and takes `R`. -/
+theorem acquire_spin (i : ThreadId) (C : List ECtxItem) (G : Oids) (next curr : Loc)
+    (γ : TicketLockName) (R : IProp GF) (my : Int) (κp κu : Oid) (ℓw : Layer)
+    (F : OidMap (Layer × Measure))
+    (hF : ([∗map] f ↦ lm ∈ F, Obl.fuel (GF := GF) f lm.1 lm.2) ⊢ oblFuels G 4)
+    (lc : Fuel) (Φ : Val → IProp GF) (α : Fuel) :
+    alwaysI Ninv (lockInv γ.γt γ.γa γ.γc next curr R) ⊢
+      (γ.γt ↪◯MAP[my]{.discard} κp) -∗ Wit.layer κp ℓw -∗
+      (γ.γt ↪◯MAP[my + 1]{.discard} κu) -∗ (γ.γa ↪◯MAP[my + 1]{half} false) -∗
+      Wit.fuels κp ℓw α F -∗
+      threadExpr i C hl(v(&(spin curr my)) #()) -∗ thKids i G -∗ oblFuels G 4 -∗
+      (threadExpr i C hl(#()) -∗ £ₒ lc -∗ thKids i G -∗ curr ↦{half} some (vInt my) -∗ R -∗
+        Φ hl_val(#())) -∗
+      lWP hl(v(&(spin curr my)) #()) @ i {{ Φ }} := by
+  induction α using WellFounded.induction Ordinals.Ordinal.lt_wf with
+  | h α IH =>
+  iintro #Hinv #Mtp #Wp #Mtu Ma WF HT HG HF HΦ
+  lwp_step HT HG HF with Hc : 1
+  lwp_expr_simp
+  sorry
+
 end Specs
 
 end Lantana.Examples.TicketLock2
