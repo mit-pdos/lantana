@@ -143,12 +143,10 @@ theorem cntAuth_update (γ : GName) {n m : Nat} (h : n ≤ m) :
   iapply MonoNat.own_update γ ⟨n⟩ ⟨m⟩ h $$ H
 
 @[lantana_alias alloc_cnt_auth]
-theorem cntAuth_alloc (n : Nat) : ⊢@{IProp GF} |==> ∃ γ : GName, cntAuth γ n 1 := by
-  unfold cntAuth
-  imod MonoNat.own_alloc (GF := GF) ⟨n⟩ with ⟨%γ, H, -⟩
-  imodintro
-  iexists γ
-  iexact H
+theorem cntAuth_alloc (n : Nat) :
+    ⊢@{IProp GF} |==> ∃ γ : GName, cntAuth γ n 1 ∗ cntLb γ n := by
+  unfold cntAuth cntLb
+  iapply MonoNat.own_alloc (GF := GF) ⟨n⟩
 
 end Counters
 
@@ -416,6 +414,271 @@ theorem px_loop1_spec [LwpNoLc GF] : ∀ (i : ThreadId) (z : Oid) (rm ci cj : GN
     · iexact Wf
   iapply HP $$ HT HG HU Hlc Hca
 
+/-- The ghost state and the invariant, and thread `1`'s first obligation `ck` at index `0`,
+registered with its witness and half of its until. -/
+@[lantana_alias px_init]
+theorem px_init (E : CoPset) (j : ThreadId) :
+    (thKids j ∅ : IProp GF) ⊢ |={E}=>m ∃ (ck : Oid) (rm ci cj : GName) (n : Nat),
+      thKids j {ck} ∗ oblKids ck ∅ ∗ Obl.fuel ck 0 10 ∗
+      finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗ Wit.layer ck 0 ∗ px rm ci cj ∗
+      cntAuth ci n 1 ∗ cntAuth cj n (1 : Qp).half ∗ cntLb cj n ∗ mapElem rm n ck := by
+  iintro HG
+  imod cntAuth_alloc (GF := GF) 0 with ⟨%ci, Cai, #Cli⟩
+  imod cntAuth_alloc (GF := GF) 0 with ⟨%cj, Caj, #Clj⟩
+  imod ghost_map_alloc_empty (GF := GF) (K := Nat) (V := Oid) (H := IdxMap) with ⟨%rm, GM⟩
+  imod untilI_alloc (E := E) (.thread j) ∅ 0 10 $$ [] HG with ⟨%ck, -, HG, Kck, Gf, #Wl, A⟩
+  · iapply parLe_thread
+  imod A $$ %E %Nu %iprop(True) %(nextQ rm cj 0) [] with HF
+  · inext
+    ipureintro
+    trivial
+  imod ghost_map_insert_persist 0 ck (Iris.Std.LawfulPartialMap.get?_empty _) $$ GM
+    with ⟨GM, #Me⟩
+  icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half) (Qp.half_add_half 1).symm
+    $$ HF with ⟨HF, HF0⟩
+  icases (cntAuth_halves cj 0).mp $$ Caj with ⟨Caj, Caj0⟩
+  imod inv_alloc N E (pxInv rm ci cj) $$ [Caj0 GM HF0] with #Hpx
+  · inext
+    unfold pxInv
+    iexists 0, insert (∅ : IdxMap Oid) 0 ck
+    iframe Caj0 GM
+    iapply (BigSepM.bigSepM_insert (Iris.Std.LawfulPartialMap.get?_empty _)).mpr
+    isplitl
+    · iapply (pxEntry_iff rm ci cj 0 ck).mpr
+      iframe Me Clj Wl
+      isplitr
+      · iright
+        iexact Cli
+      · ileft
+        unfold finallyI
+        iexact HF0
+    · iapply BigSepM.bigSepM_empty.mpr
+      iempintro
+  imodintro
+  iexists ck, rm, ci, cj, 0
+  unfold finallyI
+  iframe Kck Gf HF Wl Cai Caj Clj Me
+  isplitl [HG]
+  · iapply Par.kids_congr _ $$ HG
+    intro z
+    simp
+  · unfold px
+    iexact Hpx
+
+/-- The resources after the allocations (Rocq `Φ_P`): thread `0`'s commitment to `False`,
+half of the until on thread `1`'s first obligation, and the rest. -/
+def mainRes : IProp GF :=
+  iprop(∃ (z ck : Oid) (rm ci cj : GName) (n : Nat),
+    untilI N1 z 1 iprop(True) iprop(False) ∗
+    finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗
+    (£ₙ 10 ∗ px rm ci cj ∗ cntAuth ci n 1 ∗ cntAuth cj n (1 : Qp).half ∗ cntLb cj n ∗
+      mapElem rm n ck ∗ Wit.layer ck 0 ∗ thKids 0 {z} ∗ thKids 1 {ck} ∗ oblKids ck ∅ ∗
+      Obl.fuel ck 0 10))
+
+/-- The postcondition of both threads. -/
+abbrev post : ThreadId → Val → IProp GF := fun _ _ => iprop(True)
+
+/-- From the tokens of the two threads, ten later credits and their empty sets of children:
+the resources, and the `lWP`s of the threads from them (Rocq `px_loop_pre`). -/
+@[lantana_alias px_loop_pre]
+theorem px_loop_pre [LwpNoLc GF] :
+    threadExpr (GF := GF) 0 [] hl(v(&loop) #()) ⊢ threadExpr 1 [] hl(v(&loop) #()) -∗ £ₙ 10 -∗
+      thKids 0 ∅ -∗ thKids 1 ∅ -∗
+      |={⊤}=>m mainRes ∗
+        (mainRes -∗ |={⊤}=>m lWP hl(v(&loop) #()) @ 0; ⊤ {{ liftTerm 0 post }} ∗
+          lWP hl(v(&loop) #()) @ 1; ⊤ {{ liftTerm 1 post }}) := by
+  iintro HT0 HT1 Hlc HG0 HG1
+  imod untilI_alloc (E := ⊤) (.thread 0) ∅ 1 0 $$ [] HG0 with ⟨%z, -, HG0, -, -, -, A⟩
+  · iapply parLe_thread
+  imod A $$ %⊤ %N1 %iprop(True) %iprop(False) [] with HFz
+  · inext
+    ipureintro
+    trivial
+  imod px_init ⊤ 1 $$ HG1 with
+    ⟨%ck, %rm, %ci, %cj, %n, HG1, Kck, Gf, HFck, #Wl, #Hpx, Cai, Caj, #Clj, #Me⟩
+  imodintro
+  isplitl [HFz HFck Hlc Cai Caj HG0 HG1 Kck Gf]
+  · unfold mainRes
+    iexists z, ck, rm, ci, cj, n
+    iframe HFz HFck Hlc Hpx Cai Caj Clj Me Wl HG1 Kck Gf
+    iapply Par.kids_congr _ $$ HG0
+    intro z
+    simp
+  iintro HP
+  unfold mainRes
+  icases HP with ⟨%z, %ck, %rm, %ci, %cj, %n, HFz, HFck, Hlc, #Hpx, Cai, Caj, #Clj, #Me, #Wl,
+    HG0, HG1, Kck, Gf⟩
+  imodintro
+  isplitl [HT0 HG0 HFz Hlc Cai]
+  · iapply px_loop1_spec 0 z rm ci cj [] $$ [HT0 HG0 HFz Hlc Cai]
+    · iframe HT0 HG0 HFz Hlc Hpx
+      iexists n
+      iframe Cai Clj
+      iexists ck
+      iframe Wl Me
+    · iintro ⟨-, H⟩
+      unfold liftTerm
+      iexact H
+  · iapply px_loop2_spec 1 n rm ci cj ck [] $$ [HT1 HG1 Kck HFck Gf Caj]
+    · iframe HT1 HG1 Kck HFck Gf Hpx Caj Me
+    · iintro ⟨-, H⟩
+      unfold liftTerm
+      iexact H
+
 end Specs
+
+/-! ## Adequacy: "eventually `False`" -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- Eventually `False` (and eventually `True`) (Rocq `R_main`). -/
+def rMain : TrProp Exp State := ◇ₜ ⌜False⌝ₜ ∧ₜ ◇ₜ ⌜True⌝ₜ
+
+/-- What the resources guarantee (Rocq `G_main`, inferred): thread `0`'s `True 𝒰 False`, and
+thread `1`'s first until, read with `True` on the right. -/
+def gMain : TrSpec Exp State GF :=
+  (⌜True⌝ₛ 𝒰ₛ ⌜False⌝ₛ) ∧ₛ (⌜True⌝ₛ 𝒰ₛ TrSpec.true) ∧ₛ TrSpec.true
+
+@[lantana_alias paradox.G_main_impl]
+theorem gMain_impl : (gMain (GF := GF)).external ⊆ rMain :=
+  fun _ ⟨h₁, h₂, _⟩ => ⟨h₁, h₂⟩
+
+variable [ModelGS GF] [HeapGS GF] [ParadoxG GF]
+
+@[lantana_alias paradox.guar_Φ_P]
+theorem guar_mainRes : ⊢@{IProp GF} mainRes ⊨ₜ gMain := by
+  unfold mainRes gMain finallyI
+  iapply guar_ex_ghost
+  iintro %z
+  iapply guar_ex_ghost
+  iintro %ck
+  iapply guar_ex_ghost
+  iintro %rm
+  iapply guar_ex_ghost
+  iintro %ci
+  iapply guar_ex_ghost
+  iintro %cj
+  iapply guar_ex_ghost
+  iintro %n
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) N1 z 1 iprop(True)
+      iprop(False)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nu ck (1 : Qp).half
+      iprop(True) (nextQ (GF := GF) rm cj n)))
+  iapply guar_true
+
+end Guarantee
+
+section Adequacy
+
+/-- The initial pool: the two loops, threads `0` and `1`. -/
+abbrev tp0 : ThreadPool Exp := [hl(v(&loop) #()), hl(v(&loop) #())]
+
+/-- The initial state: the empty heap. -/
+abbrev σ0 : State := ⟨∅⟩
+
+/-- **The paradox**: with the no-credit rule, in every fair behavior from the initial
+configuration, eventually `False`. -/
+@[lantana_alias loop_paradox]
+theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
+    (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) : rMain τ := by
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 gMain rMain gMain_impl τ hbeh hfair hpos
+    hinit ?_
+  intro _ _
+  refine ⟨Ordinals.Ordinal.ofNat 10, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  haveI : LwpNoLc ExGF := hnolc
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), post
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0, 1] from rfl]
+  icases BigSepL.bigSepL_cons.mp $$ HG with ⟨HG0, HG⟩
+  ihave HG1 := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_cons.mp $$ HT with ⟨HT0, HT⟩
+  ihave HT1 := BigSepL.bigSepL_singleton.mp $$ HT
+  imod px_loop_pre $$ HT0 HT1 Hc HG0 HG1 with ⟨HP, Hwp⟩
+  imodintro
+  iexists mainRes
+  isplitr
+  · iapply guar_mainRes
+  iframe HP
+  iintro HP
+  imod Hwp $$ HP with ⟨W0, W1⟩
+  imodintro
+  iapply BigSepL.bigSepL_cons.mpr
+  iframe W0
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact W1
+
+/-! ## The fair run of the two loops -/
+
+/-- `loop ()` steps to itself. -/
+@[lantana_alias paradox.loop_prim_step]
+theorem loop_primStep (σ : State) :
+    primStep (hl(v(&loop) #()) : Exp) σ hl(v(&loop) #()) σ [] :=
+  EctxLanguage.primStep_of_baseStep (.betaS _ _ _ _ _ σ rfl)
+
+/-- Thread `0` is scheduled at even positions, thread `1` at odd ones. -/
+def sched (m : Nat) : Nat := if m % 2 = 0 then 0 else 1
+
+/-- The run of the two loops: every step takes `loop ()` to `loop ()`. -/
+@[lantana_alias paradox.loop_run]
+def loopRun : Trace Exp State := ⟨0, fun m => ⟨(tp0, σ0), sched m⟩⟩
+
+/-- Each thread is scheduled at the current position or at the next one. -/
+theorem sched_eventually (m j : Nat) (hj : j < 2) : ∃ m', m ≤ m' ∧ sched m' = j := by
+  by_cases h : sched m = j
+  · exact ⟨m, Nat.le_refl m, h⟩
+  · refine ⟨m + 1, Nat.le_succ m, ?_⟩
+    unfold sched at h ⊢
+    split at h <;> split <;> omega
+
+/-- Both threads run the loop. -/
+theorem tp0_getElem? {j : Nat} (hj : j < 2) : tp0[j]? = some hl(v(&loop) #()) := by
+  rcases j with _ | _ | j
+  · rfl
+  · rfl
+  · omega
+
+@[lantana_alias paradox.loop_run_behavior]
+theorem loopRun_behavior : IsBehavior loopRun := by
+  intro m _
+  left
+  have hlt : sched m < 2 := by
+    unfold sched
+    split <;> decide
+  have h := ThreadStep.step (i := sched m) (tp := tp0) (σ := σ0) (tp0_getElem? hlt)
+    (loop_primStep σ0)
+  have hset : tp0.set (sched m) hl(v(&loop) #()) = tp0 := by
+    unfold sched
+    split <;> rfl
+  rw [List.append_nil, hset] at h
+  exact h
+
+@[lantana_alias paradox.loop_run_fair]
+theorem loopRun_fair : fairScheduling loopRun := by
+  intro m _ j
+  by_cases hj : j < 2
+  · right
+    obtain ⟨m', hm', ht⟩ := sched_eventually m j hj
+    exact ⟨⟨hl(v(&loop) #()), tp0_getElem? hj, rfl⟩, m', hm', ht, fun _ _ _ => trivial⟩
+  · left
+    left
+    exact List.getElem?_eq_none (Nat.not_lt.mp hj)
+
+/-- **The no-credit rule is unsound**: assuming it, `loop_paradox` gives "eventually `False`" on
+the fair run of the loops. -/
+@[lantana_alias no_lc_absurd]
+theorem no_lc_absurd (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF) : False := by
+  obtain ⟨⟨_, _, hF, _⟩, _⟩ := loop_paradox hnolc loopRun loopRun_behavior loopRun_fair rfl rfl
+  exact hF
+
+end Adequacy
 
 end Lantana.Examples.Paradox

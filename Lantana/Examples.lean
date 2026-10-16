@@ -15,3 +15,4 @@ public import Lantana.Examples.Handoff
 public import Lantana.Examples.HandoffClient
 public import Lantana.Examples.CertDischarge
 public import Lantana.Examples.NonstrictMove
+public import Lantana.Examples.Paradox

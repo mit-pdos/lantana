@@ -3,8 +3,9 @@ module
 public import Lantana
 
 /-! Tests of the case studies that test the adequacy theorem: `cert_discharge.v` (the program,
-the end-to-end corollaries and their axioms) and `nonstrict_move.v` (the loop and its run, the
-refutation of the non-strict move and its axioms). -/
+the end-to-end corollaries and their axioms), `nonstrict_move.v` (the loop and its run, the
+refutation of the non-strict move and its axioms) and `paradox.v` (the world, the run of the two
+loops, the refutation of the no-credit rule and its axioms). -/
 
 namespace LantanaTest.ExamplesAdequacy
 
@@ -56,5 +57,26 @@ info: 'Lantana.Examples.NonstrictMove.nonstrictMove_absurd' depends on axioms:
 -/
 #guard_msgs (whitespace := lax) in
 #print axioms NonstrictMove.nonstrictMove_absurd
+
+/-- The paradox's world has its counters and its ghost map of obligations. -/
+noncomputable example : Paradox.ParadoxG ExGF := inferInstance
+
+/-- The two loops alternate in the fair run. -/
+example : (Paradox.loopRun.seq 4).thread = 0 ∧ (Paradox.loopRun.seq 7).thread = 1 :=
+  ⟨rfl, rfl⟩
+
+/-- The no-credit rule is refuted (a hypothesis of the theorem, not an axiom). -/
+example : ¬ ∀ [ModelGS ExGF] [HeapGS ExGF], Paradox.LwpNoLc ExGF :=
+  Paradox.no_lc_absurd
+
+set_option linter.deprecated false in
+example : @RocqLantana.loop_paradox = @Paradox.loop_paradox := rfl
+
+/--
+info: 'Lantana.Examples.Paradox.no_lc_absurd' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms Paradox.no_lc_absurd
 
 end LantanaTest.ExamplesAdequacy
