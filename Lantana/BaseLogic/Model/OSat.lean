@@ -1171,14 +1171,27 @@ theorem osat_progress_owner {Ω : Obls} (i : ThreadId) (G : Oids)
 
 end Osat
 
-/-- Allocation of the ghost state of obligations, with no obligation (Rocq `osat_alloc`). -/
-@[lantana_alias osat_alloc]
-theorem osat_alloc {GF : BundledGFunctors} [OSatGpreS GF] :
-    ⊢@{IProp GF} |==> ∃ _ : OSatGS GF, osat ∅ := by
+/-- The ghost names of the ghost state of obligations (D32: small enough for the existential
+property of satisfiability, unlike `OSatGS GF`). -/
+structure OSatNames where
+  /-- The ghost name of the state map. -/
+  state : GName
+  /-- The ghost name of the map of per-obligation names. -/
+  names : GName
+
+/-- The ghost state of obligations at the names `γ`, over the world's cameras. -/
+@[reducible] def OSatGS.ofNames {GF : BundledGFunctors} [OSatGpreS GF] (γ : OSatNames) :
+    OSatGS GF where
+  stateName := γ.state
+  namesName := γ.names
+
+/-- Allocation of the ghost state of obligations, with no obligation, at names `γ` (D32). -/
+theorem osat_alloc_names {GF : BundledGFunctors} [OSatGpreS GF] :
+    ⊢@{IProp GF} |==> ∃ γ : OSatNames, letI := OSatGS.ofNames (GF := GF) γ; osat ∅ := by
   imod ghost_map_alloc_empty (GF := GF) (K := Oid) (V := Bool) with ⟨%γs, HS⟩
   imod ghost_map_alloc_empty (GF := GF) (K := Oid) (V := OblNames) with ⟨%γn, HN⟩
   imodintro
-  iexists { stateName := γs, namesName := γn }
+  iexists ⟨γs, γn⟩
   unfold osat OSat.stateAuth OSat.namesAuth
   iexists ∅, ∅
   iframe HS HN
@@ -1187,5 +1200,14 @@ theorem osat_alloc {GF : BundledGFunctors} [OSatGpreS GF] :
     exact OSatWf.empty
   · iapply BigSepM.bigSepM_empty.mpr
     iempintro
+
+/-- Allocation of the ghost state of obligations, with no obligation (Rocq `osat_alloc`). -/
+@[lantana_alias osat_alloc]
+theorem osat_alloc {GF : BundledGFunctors} [OSatGpreS GF] :
+    ⊢@{IProp GF} |==> ∃ _ : OSatGS GF, osat ∅ := by
+  imod osat_alloc_names (GF := GF) with ⟨%γ, H⟩
+  imodintro
+  iexists OSatGS.ofNames γ
+  iexact H
 
 end Lantana.Model
