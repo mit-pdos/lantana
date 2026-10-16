@@ -1150,7 +1150,97 @@ theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : Thre
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(faa(#next, #1)) HT
-  sorry
+  -- The atomic FAA, in the lock invariant.
+  ihave Hacc := alwaysI_acc (E := E) (N := Ninv)
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (Ninv_subseteq hE) $$ INV
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨H, Hclose⟩
+  iclear Hacc
+  iapply lwp_credit_later $$ Hc
+  inext
+  iunfold lockInv at H
+  icases H with (Hdel | H)
+  · iexfalso
+    iapply ownAlive_full_false $$ AL Hdel
+  iunfold lockInvAlive at H
+  icases H with ⟨%n, %c, %tickets, %obls, PtrNext, PtrCurr, GMAt, GMAo, %⟨Domt, Domo, hc0, hcn⟩,
+    HMt, Hc⟩
+  icases oblFuels_add 1 12 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_faa (o := 0) (G := G) (R := ∅) $$ [HT HG HF1 PtrNext]
+  · iframe HT PtrNext
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨-, HG, -⟩, PtrNext⟩
+  -- A new container, at the lock's layer, to receive the unlock obligation.
+  imod Obl.new (E \ ↑Ninv) (.thread i) G ℓ 12 $$ [] HG with ⟨%gu, %hgu, HG, Kgu, Agu, Fgu, #Wgu⟩
+  · iapply parLe_thread
+  ihave HF := oblFuels_add_obl G gu ℓ 12 $$ Fgu HF
+  icases ownLayer_lb γ dq₂ ℓ $$ CF with ⟨CF, #CFl⟩
+  iunfold holderSt at Hc
+  icases Hc with (⟨%hcn', PtrCurr0, HR⟩ | ⟨%hcn', Hc⟩)
+  · -- The lock is free: the unlock obligation, in the container, and the token.
+    subst hcn'
+    imod untilI_alloc (E := E \ ↑Ninv) (.obl gu) ∅ ℓ m $$ [] Kgu with
+      ⟨%κu, -, Kgu, Kk, Of, #Wlku, ALLOC⟩
+    · iapply parLe_obl gu Ordinals.Ordinal.le_rfl $$ Wgu
+    imod ALLOC $$ %(E \ ↑Ninv) %Nev %iprop(True) %(released curr c R) [] with HU
+    · inext
+      ipureintro
+      trivial
+    icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half)
+      (Qp.half_add_half 1).symm $$ HU with ⟨HU1, HU2⟩
+    obtain ⟨hft, Domt'⟩ := dom_insert_succ Domt hc0 (none : TicketInfo)
+    obtain ⟨hfo, Domo'⟩ := dom_insert_succ Domo hc0 (some κu : Option Oid)
+    imod ghostMapP_insert (c + 1) (none : TicketInfo) hft $$ GMAt with ⟨GMAt, GMEt⟩
+    imod ghostMapP_elem_persist $$ GMEt with #GMEt
+    imod ghost_map_insert (c + 1) (some κu) hfo $$ GMAo with ⟨GMAo, GMEo⟩
+    imod ghost_map_elem_persist $$ GMEo with #GMEo
+    imod Hclose $$ [PtrNext PtrCurr GMAt GMAo HMt HU1] with -
+    · inext
+      iunfold lockInv
+      iright
+      iunfold lockInvAlive
+      iexists c + 1, c, insert tickets (c + 1) (none : TicketInfo),
+        insert obls (c + 1) (some κu : Option Oid)
+      iframe PtrNext PtrCurr GMAt GMAo
+      isplitr
+      · ipureintro
+        exact ⟨Domt', Domo', hc0, by omega⟩
+      isplitl [HMt]
+      · iapply tickets_insert γ.γt γ.γo γ.γc tickets _ hft $$ HMt
+        iunfold ticketSt
+        iright
+        ileft
+        ipureintro
+        rfl
+      · iunfold holderSt
+        iright
+        isplitr
+        · ipureintro
+          omega
+        iexists ℓ, κu
+        iunfold finallyI
+        iframe CFl Wlku GMEo HU1
+        iright
+        iexact GMEt
+    imodintro
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    lwp_step HT HG HF
+    lwp_expr_simp
+    lwp_step HT HG HF
+    lwp_expr_simp
+    lwp_step HT HG HF
+    lwp_expr_simp
+    icases oblFuels_add 4 5 _ $$ HF with ⟨HF, -⟩
+    iapply acquire_mine lc i G γ dq₁ dq₂ ℓ m R E hE C Φ curr c gu κu hgu $$ ITK GMEt GMEo HΦ
+      AL CF HG HF [Kgu] Agu Kk Of PtrCurr0 HR [HU2] HT
+    · iapply Par.kids_congr _ $$ Kgu
+      intro z
+      simp
+    · iunfold finallyI
+      iexact HU2
+  · -- The lock is taken: wait in the container.
+    sorry
 
 end Acquire
 
