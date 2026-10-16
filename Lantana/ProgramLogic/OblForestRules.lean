@@ -12,7 +12,17 @@ Rocq `lantana/program_logic/obl_forest_rules.v`: the usual rules of the model up
 `|={E₁,E₂}=>m P` and its proof-mode instances, derived from the three core rules of the
 interface (`mupd_ne`, `fupd_mupd`, `mupd_bind`); the rules of obligation invariants, witness
 induction, parents, fuel and credits; the model updates and the physical steps in their usual
-shapes. Everything here is derived from the statements of `Lantana.ProgramLogic.OblForest`.
+shapes. Everything here is derived from the statements of `Lantana.ProgramLogic.OblForest`,
+except the two interface additions below. This file also holds the rules of the base model
+update `|=[n,tc]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
+
+Porting notes:
+* The union of `OidMap = Std.ExtTreeMap` takes the values of its *right* argument, so Rocq's
+  `G ∪ F` (left-biased `gmap` union) is `F ∪ G` here (`Wit.fuels_add_map_gen`,
+  `embedFuels_add_map`).
+* Rocq's `{[k]} ∪ K` and `K ∖ {[k]}` are `K.insert k` and `K.erase k` (as in the interface);
+  sets of children moved at once use `∪` and `\`.
+* The model update absorbs `◇` unconditionally (`isExcept0_mupd`), as the fancy update does.
 -/
 
 @[expose] public noncomputable section
