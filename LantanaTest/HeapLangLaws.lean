@@ -3,8 +3,8 @@ module
 public import Lantana
 
 /-! Tests for the program logic of HeapLang (M7): the thread-expression token, the step laws
-with the bookkeeping of children and witnesses, laws in an evaluation context, and contexts
-determined by a step. -/
+with the bookkeeping of children and witnesses, laws in an evaluation context, the tactics
+`lwp_pure`, `lwp_bind`, `lwp_expr_simp`, and contexts determined by a step. -/
 
 namespace LantanaTest.HeapLangLaws
 
@@ -76,6 +76,57 @@ example (l : Loc) (v w : Val) :
   · iframe
   · iintro ⟨-, Hpost, Hl⟩
     iframe
+
+/-! The tactics: a pure step in a context, then a load in a context. -/
+
+example : PureExecCtx True 1 hl((if #true then #1 else #2) + #3) hl(#1 + #3) := inferInstance
+
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl((if #true then #1 else #2) + #3) ∗ thKids i G ∗
+      oblFuels G ((1 + 2 : Nat) : Measure) ∗
+      (threadExpr i C hl(#1 + #3) -∗ thKids i G -∗ oblFuels G ((2 : Nat) : Measure) -∗
+        |={E}=>m lWP hl(#1 + #3) @ s; i; E {{ Φ }})
+      ⊢ lWP hl((if #true then #1 else #2) + #3) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  lwp_pure HT
+  iexists G, 2, ∅, 0
+  isplitl [HG HF]
+  · iframe
+    unfold witLayers
+    iapply BigSepS.bigSepS_empty.mpr
+    iempintro
+  iintro HG HF - - HT
+  iapply H $$ HT HG HF
+
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl(v(λ x, x + #1) #2) ∗ thKids i G ∗ oblFuels G ((1 + 0 : Nat) : Measure) ∗
+      (threadExpr i C hl(#2 + #1) -∗ |={E}=>m lWP hl(#2 + #1) @ s; i; E {{ Φ }})
+      ⊢ lWP hl(v(λ x, x + #1) #2) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  lwp_pure HT
+  lwp_expr_simp
+  iexists G, 0, ∅, 0
+  isplitl [HG HF]
+  · iframe
+    unfold witLayers
+    iapply BigSepS.bigSepS_empty.mpr
+    iempintro
+  iintro - - - - HT
+  iapply H $$ HT
+
+example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
+    threadExpr i C hl(!#l + #1) ∗ stepPre i G R ∗ l ↦ some v ∗
+      (threadExpr i C hl(&v + #1) -∗ stepPost i G R o -∗ l ↦ some v -∗
+        lWP hl(&v + #1) @ s; i; E {{ Φ }})
+      ⊢ lWP hl(!#l + #1) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, Hpre, Hl, HΦ⟩
+  lwp_bind hl(!#l) HT
+  iapply lwp_load (o := o) l (DFrac.own 1) v $$ [HT Hpre Hl]
+  · iframe
+  · iintro ⟨HT, Hpost, Hl⟩
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    iapply HΦ $$ HT Hpost Hl
 
 example (K X : Oids) (j : ThreadId) (hX : X ⊆ K) :
     thKids i K ∗ thKids j ∅ ∗ oblFuels X 1 ⊢@{IProp GF}

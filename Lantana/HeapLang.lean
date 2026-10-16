@@ -10,11 +10,13 @@ public import Lantana.HeapLang.Notation
 public import Lantana.HeapLang.Instances
 public import Lantana.HeapLang.PrimitiveLaws
 public import Lantana.HeapLang.TemporalLaws
+public import Lantana.HeapLang.ProofMode
 
 /-! # HeapLang
 
 Lantana's HeapLang (Rocq `lantana_heap_lang/`), a fork of Iris-Lean's HeapLang (D22) with labels
 and `chooseNat`, without prophecies (D15), and with the state predicates that the atoms of
 temporal properties observe. `PrimitiveLaws` and `TemporalLaws` are the program logic: the ghost
-state, the step laws and the state facts.
+state, the step laws and the state facts; `ProofMode` has the tactics `lwp_pure`, `lwp_bind` and
+`lwp_expr_simp`.
 -/
