@@ -21,3 +21,4 @@ public import Lantana.Examples.HandoffFlagStableClient
 public import Lantana.Examples.ExtendedInt
 public import Lantana.Examples.GhostMapP
 public import Lantana.Examples.TicketLock
+public import Lantana.Examples.Queue

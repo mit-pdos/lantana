@@ -1080,4 +1080,77 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
 
 end Specs
 
+/-! ## Temporal guarantees
+
+The queue guarantees what its lock does: `queueInv` is ghost state, `queueLock` is the lock's
+resource (whose guarantee the lock does not export), and `γ ↪LOCK_AL{.discard}` keeps the lock
+from being deleted (`guar_isFairLockAlive`). -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- The guarantee of a queue: that of its alive lock (Rocq `queue_trSpec`). -/
+@[lantana_alias queue.queue_trSpec]
+def queueTrSpec (ql : Val) : TrSpec Exp State GF :=
+  ∃ₛ (lhptr : Loc) (ltptr : Loc) (tl : Val), ⌜ql = vQueue lhptr ltptr tl⌝ₛ ∧ₛ
+    aliveFairLockTrSpec tl
+
+variable [ModelGS GF] [HeapGS GF] [TicketLockG GF] [QueueG GF]
+
+@[lantana_alias queue.guar_is_queue]
+theorem guar_isQueue (ql : Val) (γ : QueueName) (ℓ : Layer) (φ : Val → Oids → IProp GF) :
+    ⊢@{IProp GF} isQueue ql γ ℓ φ ⊨ₜ queueTrSpec ql := by
+  unfold isQueue queueTrSpec
+  iapply guar_ex
+  iintro %lhptr
+  iapply guar_ex
+  iintro %ltptr
+  iapply guar_ex
+  iintro %tl
+  iapply guar_and
+  · iapply guar_pure
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_isFairLockAlive
+
+/-- Clients see the queue's guarantee, not its invariant. -/
+@[lantana_alias queue.into_guar_is_queue]
+instance intoGuar_isQueue (ql : Val) (γ : QueueName) (ℓ : Layer) (φ : Val → Oids → IProp GF) :
+    IntoGuar (Expr := Exp) (State := State) (isQueue ql γ ℓ φ) (queueTrSpec ql) :=
+  ⟨guar_isQueue ql γ ℓ φ⟩
+
+@[lantana_alias queue.guar_is_queue_init]
+theorem guar_isQueueInit (ql : Val) (γ : QueueName) (φ : Val → Oids → IProp GF) :
+    ⊢@{IProp GF} isQueueInit ql γ φ ⊨ₜ queueTrSpec ql := by
+  unfold isQueueInit queueTrSpec
+  iapply guar_ex
+  iintro %lhptr
+  iapply guar_ex
+  iintro %ltptr
+  iapply guar_ex
+  iintro %tl
+  iapply guar_and
+  · iapply guar_pure
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_isFairLockAlive
+
+end Guarantee
+
+/-! ## Progress of the queue's lock, at the level of traces -/
+
+/-- The queue's lock makes release progress (`releaseProgress`): every `enqueue` or `dequeue`
+that takes the lock eventually releases it (Rocq `queue_release_progress`). -/
+@[lantana_alias queue.queue_release_progress]
+theorem queue_release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace Exp State)
+    (h : (queueTrSpec (GF := GF) ql).external τ) :
+    ∃ lhptr ltptr next curr : Loc,
+      ql = vQueue lhptr ltptr (vLock next curr) ∧ releaseProgress next curr τ := by
+  obtain ⟨lhptr, ltptr, tl, rfl, htl⟩ := h
+  obtain ⟨next, curr, rfl, hrp⟩ := TicketLock.aliveFairLock_release_progress tl τ htl
+  exact ⟨lhptr, ltptr, next, curr, rfl, hrp⟩
+
 end Lantana.Examples.Queue
