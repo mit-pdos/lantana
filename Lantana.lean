@@ -6,3 +6,4 @@ module
 
 public import Lantana.Init
 public import Lantana.Std
+public import Lantana.BaseLogic
