@@ -1,0 +1,498 @@
+/-
+Copyright (c) The Lantana-Lean Contributors
+Released under BSD-3-Clause license as described in the file LICENSE.
+-/
+module
+
+public import Lantana.HeapLang.Syntax
+public import Std.Data.ExtTreeMap
+public import Iris.Std.BitOp
+public import Iris.Std.PartialMap
+public import Iris.Std.HeapInstances
+public import Iris.Algebra.DFrac
+import Iris.Std.List
+
+/-! # HeapLang: semantics
+
+Evaluation contexts, the state, and the base step of Lantana's HeapLang (Rocq
+`lantana_heap_lang/lang.v`), a fork of Iris-Lean's `Iris.HeapLang.Semantics` (D22). Compared
+with Iris-Lean's: the context item `label t` and the base steps `labelS`/`chooseNatS` are new,
+and there are no prophecies (no `resolve` items, no `usedProphId` in the state, no
+observations, D15). As in Iris-Lean, the base step knows nothing about thread ids: `fork e`
+returns `e` as the one forked thread, which the pool appends (D14).
+
+It also defines the state predicates that the atoms of temporal properties observe
+(Rocq `lang.v:411-418` and `temporal_laws.v:16`), over a state and the thread pool.
+-/
+
+@[expose] public section
+namespace Lantana.HeapLang
+
+open Iris.Std
+
+/-- Evaluation context items. Evaluation is right to left. -/
+@[lantana_alias heap_lang.ectx_item]
+inductive ECtxItem where
+  | appL (v2 : Val)
+  | appR (e1 : Exp)
+  | unOp (op : UnOp)
+  | binOpL (op : BinOp) (v2 : Val)
+  | binOpR (op : BinOp) (e1 : Exp)
+  | if (e1 e2 : Exp)
+  | pairL (v2 : Val)
+  | pairR (e1 : Exp)
+  | fst
+  | snd
+  | injL
+  | injR
+  | case (e1 e2 : Exp)
+  | allocNL (v2 : Val)
+  | allocNR (e1 : Exp)
+  | free
+  | load
+  | storeL (v2 : Val)
+  | storeR (e1 : Exp)
+  | xchgL (v2 : Val)
+  | xchgR (e1 : Exp)
+  | cmpXchgL (v1 v2 : Val)
+  | cmpXchgM (e0 : Exp) (v2 : Val)
+  | cmpXchgR (e0 e1 : Exp)
+  | faaL (v2 : Val)
+  | faaR (e1 : Exp)
+  | label (t : String)
+  deriving Inhabited, Repr, DecidableEq
+
+attribute [lantana_alias heap_lang.LabelCtx] ECtxItem.label
+
+#lantana_ignore heap_lang.ResolveLCtx "prophecies dropped (D15)"
+#lantana_ignore heap_lang.ResolveMCtx "prophecies dropped (D15)"
+#lantana_ignore heap_lang.ResolveRCtx "prophecies dropped (D15)"
+
+@[lantana_alias heap_lang.fill_item]
+def ECtxItem.fill (Ki : ECtxItem) (e : Exp) : Exp :=
+  match Ki with
+  | .appL v2        => .app e (.ofVal v2)
+  | .appR e1        => .app e1 e
+  | .unOp op        => .unop op e
+  | .binOpL op v2   => .binop op e (.ofVal v2)
+  | .binOpR op e1   => .binop op e1 e
+  | .if e1 e2       => .if e e1 e2
+  | .pairL v2       => .pair e (.ofVal v2)
+  | .pairR e1       => .pair e1 e
+  | .fst            => .fst e
+  | .snd            => .snd e
+  | .injL           => .injL e
+  | .injR           => .injR e
+  | .case e1 e2     => .case e e1 e2
+  | .allocNL v2     => .allocN e (.ofVal v2)
+  | .allocNR e1     => .allocN e1 e
+  | .free           => .free e
+  | .load           => .load e
+  | .storeL v2      => .store e (.ofVal v2)
+  | .storeR e1      => .store e1 e
+  | .xchgL v2       => .xchg e (.ofVal v2)
+  | .xchgR e1       => .xchg e1 e
+  | .cmpXchgL v1 v2 => .cmpXchg e (.ofVal v1) (.ofVal v2)
+  | .cmpXchgM e0 v2 => .cmpXchg e0 e (.ofVal v2)
+  | .cmpXchgR e0 e1 => .cmpXchg e0 e1 e
+  | .faaL v2        => .faa e (.ofVal v2)
+  | .faaR e1        => .faa e1 e
+  | .label t        => .label t e
+
+/-- The state: a heap of `Option Val`s, where `none` marks a freed location. -/
+@[lantana_alias heap_lang.state]
+structure State where
+  heap : Std.ExtTreeMap Loc (Option Val) compare
+
+instance : Inhabited State := ⟨⟨.empty⟩⟩
+
+attribute [lantana_alias heap_lang.state_inhabited] instInhabitedState
+
+-- Rocq threads state updates through `state_upd_heap`; in Lean that role is played by
+-- record-update syntax, as in `State.initHeap` below.
+#lantana_ignore heap_lang.state_upd_heap
+  "Lean updates the `State` record directly: `{ σ with heap := f σ.heap }`."
+#lantana_ignore heap_lang.state_upd_used_proph_id "prophecies dropped (D15)"
+#lantana_ignore heap_lang.stateO
+  "Canonical Leibniz OFE on `state`; Lean uses `DiscreteO State`."
+
+/-! ### State predicates
+
+The atoms of temporal properties: predicates on the state and the thread pool. -/
+
+/-- The location `l` holds `v`. The fraction `dq` of the points-to plays no role; it is an
+argument so that the `StateFact` instance for `l ↦{dq} v` can be stated uniformly. -/
+@[lantana_alias heap_lang.pointsto_sat]
+def pointstoSat (l : Loc) (_dq : Iris.DFrac) (v : Val) (σ : State) (_tp : List Exp) : Prop :=
+  σ.heap[l]? = some (some v)
+
+/-- Thread `i` runs `e` in the context `C` (innermost item first). The fold is `fill C e`
+(`threadExprSat_iff`). -/
+@[lantana_alias heap_lang.thread_expr_sat]
+def threadExprSat (i : Nat) (C : List ECtxItem) (e : Exp) (_σ : State) (tp : List Exp) :
+    Prop :=
+  tp[i]? = some (C.foldl (fun e Ki => Ki.fill e) e)
+
+/-- The location `l` has been freed. -/
+@[lantana_alias heap_lang.freed_sat]
+def freedSat (l : Loc) (σ : State) (_tp : List Exp) : Prop :=
+  σ.heap[l]? = some none
+
+@[lantana_alias heap_lang.un_op_eval]
+def UnOp.eval : UnOp → Val → Option Val
+  | .neg,   .lit (.bool b) => some (.lit (.bool (!b)))
+  | .neg,   .lit (.int n)  => some (.lit (.int (~~~n)))
+  | .minus, .lit (.int n)  => some (.lit (.int (-n)))
+  | _,      _              => none
+
+/-- Binary operations on two integer literals. `BinOp.eval` agrees with this on integers
+(`BinOp.eval_lit_int`); `.eq` is listed here because Rocq's `bin_op_eval_int` does, even though
+`BinOp.eval` routes equality through `Val.compareSafe`. -/
+@[lantana_alias heap_lang.bin_op_eval_int]
+def BinOp.evalInt : BinOp → Int → Int → Option BaseLit
+  | .plus,   n1, n2 => some (.int (n1 + n2))
+  | .minus,  n1, n2 => some (.int (n1 - n2))
+  | .mult,   n1, n2 => some (.int (n1 * n2))
+  | .tdiv,   n1, n2 => some (.int (n1.tdiv n2))
+  | .tmod,   n1, n2 => some (.int (n1.tmod n2))
+  | .and,    n1, n2 => some (.int (n1 &&& n2))
+  | .or,     n1, n2 => some (.int (n1 ||| n2))
+  | .xor,    n1, n2 => some (.int (n1 ^^^ n2))
+  | .shiftl, n1, n2 => some (.int (n1 <<< n2))
+  | .shiftr, n1, n2 => some (.int (n1 >>> n2))
+  | .le,     n1, n2 => some (.bool (n1 ≤ n2))
+  | .lt,     n1, n2 => some (.bool (n1 < n2))
+  | .eq,     n1, n2 => some (.bool (n1 = n2))
+  | .offset, _,  _  => none -- Pointer arithmetic
+
+/-- Binary operations on two boolean literals; see `BinOp.eval_lit_bool`. -/
+@[lantana_alias heap_lang.bin_op_eval_bool]
+def BinOp.evalBool : BinOp → Bool → Bool → Option BaseLit
+  | .and, b1, b2 => some (.bool (b1 && b2))
+  | .or,  b1, b2 => some (.bool (b1 || b2))
+  | .xor, b1, b2 => some (.bool (b1 ^^ b2))
+  | .eq,  b1, b2 => some (.bool (b1 == b2))
+  | _,    _,  _  => none
+
+/-- Binary operations whose left argument is a location: pointer arithmetic and the comparison
+of two locations. See `BinOp.eval_lit_loc`. -/
+@[lantana_alias heap_lang.bin_op_eval_loc]
+def BinOp.evalLoc : BinOp → Loc → BaseLit → Option BaseLit
+  | .offset, l1, .int off => some (.loc (l1 + off))
+  | .le,     l1, .loc l2  => some (.bool (l1 ≤ l2))
+  | .lt,     l1, .loc l2  => some (.bool (l1 < l2))
+  | _,       _,  _        => none
+
+@[lantana_alias heap_lang.bin_op_eval]
+def BinOp.eval (op : BinOp) (v1 v2 : Val) : Option Val :=
+  if op = .eq then
+    if v1.compareSafe v2 then some (.lit (.bool (v1 == v2))) else none
+  else
+    match v1, v2 with
+    | .lit (.int n1), .lit (.int n2) => Val.lit <$> op.evalInt n1 n2
+    | .lit (.bool b1), .lit (.bool b2) => Val.lit <$> op.evalBool b1 b2
+    | .lit (.loc l1), .lit lit2 => Val.lit <$> op.evalLoc l1 lit2
+    | _, _ => none
+
+theorem BinOp.eval_lit_int (op : BinOp) (n1 n2 : Int) :
+    BinOp.eval op (.lit (.int n1)) (.lit (.int n2)) = (Val.lit <$> op.evalInt n1 n2) := by
+  cases op <;> simp [BinOp.eval, BinOp.evalInt, Val.compareSafe, BaseLit.isUnboxed, Val.isUnboxed];
+    by_cases h : n1 = n2 <;> simp [h]
+
+theorem BinOp.eval_lit_bool (op : BinOp) (b1 b2 : Bool) :
+    BinOp.eval op (.lit (.bool b1)) (.lit (.bool b2)) = (Val.lit <$> op.evalBool b1 b2) := by
+  cases b1 <;> cases b2 <;> cases op <;> rfl
+
+/-- Unlike the integer and boolean cases, this one needs `op ≠ .eq`: Rocq's `bin_op_eval`
+dispatches `EqOp` before it ever reaches `bin_op_eval_loc`, and `BinOp.eval` likewise routes
+equality of two locations through `Val.compareSafe`. -/
+theorem BinOp.eval_lit_loc (op : BinOp) (l : Loc) (lit : BaseLit) (hop : op ≠ .eq) :
+    BinOp.eval op (.lit (.loc l)) (.lit lit) = (Val.lit <$> op.evalLoc l lit) := by
+  cases op <;> cases lit <;> simp_all [BinOp.eval, BinOp.evalLoc]
+
+abbrev HeapF := fun V => Std.ExtTreeMap Loc V compare
+
+@[lantana_alias heap_lang.state_init_heap]
+abbrev State.initHeap (σ : State) (l : Loc) (n : Int) (v : Option Val) : State :=
+  { σ with heap := (List.range n.toNat).foldl
+            (fun h (i : Nat) => Iris.Std.insert (M := HeapF) h (l + (i : Int)) v) σ.heap }
+
+abbrev State.get? (σ : State) (l : Loc) : Option (Option Val) :=
+    PartialMap.get? (M := HeapF) σ.heap l
+
+/-! ### Multi-cell allocation -/
+
+@[lantana_alias heap_lang.heap_array]
+def heapArray (l : Loc) (vs : List (Option Val)) : HeapF (Option Val) :=
+  match vs with
+  | .nil => ∅
+  | v :: vs' => Iris.Std.insert (M := HeapF) (heapArray (l + (1 : Int)) vs') l v
+
+abbrev allocCells (l : Loc) (n : Nat) (v : Option Val) : HeapF (Option Val) :=
+  heapArray l (List.replicate n v)
+
+@[simp]
+theorem heapArray_nil {l : Loc} : heapArray l [] = (∅ : HeapF (Option Val)) := rfl
+
+@[lantana_alias heap_lang.heap_array_singleton]
+theorem heapArray_singleton {l : Loc} {v : Option Val} : heapArray l [v] = PartialMap.singleton l v := rfl
+
+theorem heapArray_snoc {l : Loc} {vs : List (Option Val)} {v : Option Val} :
+    heapArray l (vs ++ [v]) =
+      Iris.Std.insert (M := HeapF) (heapArray l vs) (l + (vs.length : Int)) v := by
+  induction vs generalizing l with
+  | nil => simp [heapArray]
+  | cons w vs ih =>
+    simp only [List.cons_append, heapArray, List.length_cons]
+    rw [ih, Iris.Std.LawfulPartialMap.insert_insert_comm]
+    · congr 1
+      rw [loc_add_assoc]
+      congr 1
+      omega
+    · intro h
+      have := congrArg Loc.n h
+      simp only [loc_add_n] at this
+      omega
+
+@[lantana_alias heap_lang.heap_array_lookup]
+theorem get?_heapArray {l : Loc} {vs : List (Option Val)} {ow : Option Val} {k : Loc} :
+    PartialMap.get? (M := HeapF) (heapArray l vs) k = some ow ↔
+      ∃ j : Nat, k = l + (j : Int) ∧ vs[j]? = some ow := by
+  induction vs generalizing l with
+  | nil => simp [heapArray, Iris.Std.LawfulPartialMap.get?_empty]
+  | cons v vs ih =>
+    rw [heapArray, Iris.Std.LawfulPartialMap.get?_insert]
+    have hadd (j : Nat) :
+        l + (1 : Int) + (j : Int) = l + ((j + 1 : Nat) : Int) := by
+      rw [loc_add_assoc, Int.add_comm (1 : Int)]
+      congr 1
+    constructor
+    · split
+      · rename_i hlk
+        intro how
+        exact ⟨0, by simpa using hlk.symm, by simpa using how⟩
+      · intro hget
+        obtain ⟨j, hkj, hj⟩ := ih.mp hget
+        exact ⟨j + 1, hkj.trans (hadd j), by simpa using hj⟩
+    · rintro ⟨_ | j, hkj, hj⟩
+      · rw [ite_eq_left (by simpa using hkj.symm)]
+        simpa using hj
+      · rw [ite_eq_right]
+        · exact ih.mpr ⟨j, hkj.trans (hadd j).symm, by simpa using hj⟩
+        · intro hlk
+          have := congrArg Loc.n (hlk.trans hkj)
+          simp only [loc_add_n] at this
+          omega
+
+@[lantana_alias heap_lang.heap_array_map_disjoint]
+theorem heapArray_disjoint {l : Loc} {vs : List (Option Val)} {m : HeapF (Option Val)}
+    (hf : ∀ i : Int, 0 ≤ i → i < (vs.length : Int) →
+      PartialMap.get? (M := HeapF) m (l + i) = none) :
+    PartialMap.disjoint (M := HeapF) (heapArray l vs) m := by
+  intro k ⟨h1, h2⟩
+  rcases hget : PartialMap.get? (M := HeapF) (heapArray l vs) k with _ | ow
+  · simp [hget] at h1
+  · obtain ⟨i, hki, hvi⟩ := get?_heapArray.mp hget
+    have hi := (List.getElem?_eq_some_iff.mp hvi).1
+    rw [hki, hf (i : Int) (Int.natCast_nonneg i) (by omega)] at h2
+    simp at h2
+
+theorem get?_heapArray_self {l : Loc} {vs : List (Option Val)} :
+    PartialMap.get? (M := HeapF) (heapArray l vs) (l + (vs.length : Int)) = none := by
+  rcases hget : PartialMap.get? (M := HeapF) (heapArray l vs)
+    (l + (vs.length : Int)) with _ | ow
+  · rfl
+  · obtain ⟨i, hik, hvi⟩ := get?_heapArray.mp hget
+    have hi := (List.getElem?_eq_some_iff.mp hvi).1
+    exact False.elim (Nat.ne_of_lt hi (Int.ofNat_inj.mp (loc_add_inj hik).symm))
+
+theorem get?_foldl_insert (l : Loc) (v : Option Val) (m : HeapF (Option Val)) (n : Nat) (k : Loc) :
+    PartialMap.get? (M := HeapF) ((List.range n).foldl
+        (fun h (i : Nat) => Iris.Std.insert (M := HeapF) h (l + (i : Int)) v) m) k
+      = if (∃ i, i < n ∧ k = l + (i : Int)) then some v
+        else PartialMap.get? (M := HeapF) m k := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    rw [List.range_succ, List.foldl_append, List.foldl_cons, List.foldl_nil,
+      Iris.Std.LawfulPartialMap.get?_insert, ih]
+    by_cases hk : (l + (n : Int)) = k
+    · rw [ite_eq_left hk, ite_eq_left ⟨n, Nat.lt_succ_self n, hk.symm⟩]
+    · rw [ite_eq_right hk]
+      by_cases hex : ∃ i, i < n ∧ k = l + (i : Int)
+      · obtain ⟨i, hi, hki⟩ := hex
+        rw [ite_eq_left ⟨i, hi, hki⟩, ite_eq_left ⟨i, Nat.lt_succ_of_lt hi, hki⟩]
+      · grind
+
+theorem get?_allocCells {l : Loc} {n : Nat} {v : Option Val} {k : Loc} :
+    PartialMap.get? (M := HeapF) (allocCells l n v) k
+      = if (∃ i, i < n ∧ k = l + (i : Int)) then some v else none := by
+  by_cases h : ∃ i, i < n ∧ k = l + (i : Int)
+  · rw [ite_eq_left h]
+    obtain ⟨i, hi, hki⟩ := h
+    apply get?_heapArray.mpr
+    exact ⟨i, hki, List.getElem?_replicate_of_lt hi⟩
+  · rw [ite_eq_right h]
+    rcases hget : PartialMap.get? (M := HeapF) (allocCells l n v) k with _ | ow
+    · rfl
+    · obtain ⟨i, hki, hvi⟩ := get?_heapArray.mp hget
+      have hi := (List.getElem?_eq_some_iff.mp hvi).1
+      exact False.elim (h ⟨i, by simpa using hi, hki⟩)
+
+@[simp]
+theorem allocCells_zero {l : Loc} {v : Option Val} : allocCells l 0 v = ∅ := rfl
+
+/-- `allocCells` peels off its *last* cell. -/
+theorem allocCells_succ {l : Loc} {n : Nat} {v : Option Val} :
+    allocCells l (n + 1) v = Iris.Std.insert (M := HeapF) (allocCells l n v) (l + (n : Int)) v := by
+  rw [allocCells, List.replicate_succ', heapArray_snoc, List.length_replicate]
+
+theorem get?_allocCells_self {l : Loc} {n : Nat} {v : Option Val} :
+    PartialMap.get? (M := HeapF) (allocCells l n v) (l + (n : Int)) = none := by
+  simpa [allocCells] using
+    (get?_heapArray_self (l := l) (vs := List.replicate n v))
+
+theorem initHeap_heap_eq {σ : State} {l : Loc} {n : Int} {v : Option Val} :
+    Iris.Std.PartialMap.equiv (M := HeapF) (σ.initHeap l n v).heap
+      (Iris.Std.PartialMap.union (allocCells l n.toNat v) σ.heap) := by
+  intro k
+  change PartialMap.get? (M := HeapF) ((List.range n.toNat).foldl
+      (fun h (i : Nat) => Iris.Std.insert (M := HeapF) h (l + (i : Int)) v) σ.heap) k = _
+  rw [get?_foldl_insert, Iris.Std.PartialMap.union, Iris.Std.LawfulPartialMap.get?_merge, get?_allocCells]
+  by_cases hex : ∃ i, i < n.toNat ∧ k = l + (i : Int)
+  · simp only [ite_eq_left hex]; cases PartialMap.get? (M := HeapF) σ.heap k <;> rfl
+  · simp only [ite_eq_right hex]; cases PartialMap.get? (M := HeapF) σ.heap k <;> rfl
+
+theorem allocCells_disjoint {l : Loc} {n : Int} {v : Val} {m : HeapF (Option Val)}
+    (hf : ∀ i : Int, 0 ≤ i → i < n → PartialMap.get? (M := HeapF) m (l + i) = none) :
+    Iris.Std.PartialMap.disjoint (M := HeapF) (allocCells l n.toNat v) m := by
+  apply heapArray_disjoint
+  intro i hi hin
+  apply hf i hi
+  simp only [List.length_replicate] at hin
+  omega
+
+theorem exists_fresh_block (m : HeapF (Option Val)) (n : Int) :
+    ∃ l : Loc, ∀ i : Int, 0 ≤ i → i < n → PartialMap.get? (M := HeapF) m (l + i) = none := by
+  refine ⟨Loc.mk ((m.keys.map Loc.n).foldr max 0 + 1), fun i hi0 hin => ?_⟩
+  simp only [PartialMap.get?, getElem?_eq_none_iff, ← Std.ExtTreeMap.mem_keys]
+  intro hmem
+  have hle : (Loc.mk ((m.keys.map Loc.n).foldr max 0 + 1) + i).n ≤ (m.keys.map Loc.n).foldr max 0 :=
+    List.mem_le_foldr_max _ _ (List.mem_map_of_mem hmem)
+  simp only [loc_add_n] at hle
+  grind
+
+/-- Initializing a single cell is a plain insert. Rocq adds `h` on the right in
+`state_init_heap` to make this hold; here it falls out of the `foldl`. -/
+@[lantana_alias heap_lang.state_init_heap_singleton]
+theorem State.initHeap_singleton {σ : State} {l : Loc} {v : Option Val} :
+    σ.initHeap l 1 v = { σ with heap := Iris.Std.insert (M := HeapF) σ.heap l v } := by
+  simp [State.initHeap]
+
+/-- Writing back a cell's current contents leaves the state unchanged. -/
+theorem State.initHeap_self {σ : State} {l : Loc} {v : Option Val}
+    (h : PartialMap.get? (M := HeapF) σ.heap l = some v) : σ.initHeap l 1 v = σ := by
+  have hins : Iris.Std.insert (M := HeapF) σ.heap l v = σ.heap := by
+    refine Iris.Std.LawfulPartialMap.equiv_iff_eq.mp fun k => ?_
+    rw [Iris.Std.LawfulPartialMap.get?_insert]
+    split
+    · next heq => exact heq ▸ h.symm
+    · rfl
+  simp only [State.initHeap, Int.toNat_one, List.range_one, List.foldl_cons, List.foldl_nil,
+    Int.cast_ofNat_Int, loc_add_zero, hins]
+
+/-- The base step `BaseStep e σ e' σ' efs`: the redex `e` steps to `e'`, the state `σ` to `σ'`,
+forking the threads `efs`. -/
+@[lantana_alias heap_lang.base_step]
+inductive BaseStep : Exp → State → Exp → State → List Exp → Prop where
+  | recS (f x : Binder) (e : Exp) (σ : State) :
+      BaseStep (.rec_ f x e) σ (.ofVal (.rec_ f x e)) σ []
+  | pairS (v1 v2 : Val) (σ : State) :
+      BaseStep (.pair (.ofVal v1) (.ofVal v2)) σ (.ofVal (.pair v1 v2)) σ []
+  | injLS (v : Val) (σ : State) :
+      BaseStep (.injL (.ofVal v)) σ (.ofVal (.injL v)) σ []
+  | injRS (v : Val) (σ : State) :
+      BaseStep (.injR (.ofVal v)) σ (.ofVal (.injR v)) σ []
+  | betaS (f x : Binder) (e1 : Exp) (v2 : Val) (e' : Exp) (σ : State) :
+      e' = (e1.subst f (.rec_ f x e1)).subst x v2 →
+      BaseStep (.app (.ofVal (.rec_ f x e1)) (.ofVal v2)) σ e' σ []
+  | unOpS (op : UnOp) (v v' : Val) (σ : State) :
+      op.eval v = some v' →
+      BaseStep (.unop op (.ofVal v)) σ (.ofVal v') σ []
+  | binOpS (op : BinOp) (v1 v2 v' : Val) (σ : State) :
+      op.eval v1 v2 = some v' →
+      BaseStep (.binop op (.ofVal v1) (.ofVal v2)) σ (.ofVal v') σ []
+  | ifTrueS (e1 e2 : Exp) (σ : State) :
+      BaseStep (.if (.ofVal (.lit (.bool true))) e1 e2) σ e1 σ []
+  | ifFalseS (e1 e2 : Exp) (σ : State) :
+      BaseStep (.if (.ofVal (.lit (.bool false))) e1 e2) σ e2 σ []
+  | fstS (v1 v2 : Val) (σ : State) :
+      BaseStep (.fst (.ofVal (Val.pair v1 v2))) σ (.ofVal v1) σ []
+  | sndS (v1 v2 : Val) (σ : State) :
+      BaseStep (.snd (.ofVal (Val.pair v1 v2))) σ (.ofVal v2) σ []
+  | caseLS (v : Val) (e1 e2 : Exp) (σ : State) :
+      BaseStep (.case (.ofVal (.injL v)) e1 e2) σ (.app e1 (.ofVal v)) σ []
+  | caseRS (v : Val) (e1 e2 : Exp) (σ : State) :
+      BaseStep (.case (.ofVal (.injR v)) e1 e2) σ (.app e2 (.ofVal v)) σ []
+  | allocNS (n : Int) (v : Val) (σ : State) (l : Loc) :
+      0 < n →
+      (∀ i : Int, 0 ≤ i → i < n → σ.get? (l + i) = none) →
+      BaseStep (.allocN (.ofVal (.lit (.int n))) (.ofVal v)) σ
+               (.ofVal (.lit (.loc l))) (σ.initHeap l n v) []
+  | freeS (l : Loc) (v : Val) (σ : State) :
+      σ.get? l = some v →
+      BaseStep (.free (.ofVal (.lit (.loc l)))) σ
+               (.ofVal (.lit .unit)) (σ.initHeap l 1 none) []
+  | loadS (l : Loc) (v : Val) (σ : State) :
+      σ.get? l = some v →
+      BaseStep (.load (.ofVal (.lit (.loc l)))) σ (.ofVal v) σ []
+  | storeS (l : Loc) (v w : Val) (σ : State) :
+      σ.get? l = some v →
+      BaseStep (.store (.ofVal (.lit (.loc l))) (.ofVal w)) σ
+               (.ofVal (.lit .unit)) (σ.initHeap l 1 w) []
+  | xchgS (l : Loc) (v1 v2 : Val) (σ : State) :
+      σ.get? l = some v1 →
+      BaseStep (.xchg (.ofVal (.lit (.loc l))) (.ofVal v2)) σ
+               (.ofVal v1) (σ.initHeap l 1 v2) []
+  | cmpXchgS (l : Loc) (v1 v2 vl : Val) (σ : State) (b : Bool) :
+      σ.get? l = some vl →
+      vl.compareSafe v1 →
+      decide (vl = v1) = b →
+      BaseStep (.cmpXchg (.ofVal (.lit (.loc l))) (.ofVal v1) (.ofVal v2)) σ
+               (.ofVal (.pair vl (.lit (.bool b))))
+               (if b then (σ.initHeap l 1 v2) else σ) []
+  | faaS (l : Loc) (i1 i2 : Int) (σ : State) :
+      σ.get? l = some (some (.lit (.int i1))) →
+      BaseStep (.faa (.ofVal (.lit (.loc l))) (.ofVal (.lit (.int i2)))) σ
+               (.ofVal (.lit (.int i1)))
+               (σ.initHeap l 1 (some (.lit (.int (i1 + i2))))) []
+  | forkS (e : Exp) (σ : State) :
+      BaseStep (.fork e) σ (.ofVal (.lit .unit)) σ [e]
+  | labelS (t : String) (v : Val) (σ : State) :
+      BaseStep (.label t (.ofVal v)) σ (.ofVal v) σ []
+  | chooseNatS (n : Nat) (σ : State) :
+      BaseStep .chooseNat σ (.ofVal (.lit (.int n))) σ []
+
+attribute [lantana_alias heap_lang.LabelS] BaseStep.labelS
+attribute [lantana_alias heap_lang.ChooseNatS] BaseStep.chooseNatS
+
+#lantana_ignore heap_lang.NewProphS "prophecies dropped (D15)"
+#lantana_ignore heap_lang.ResolveS "prophecies dropped (D15)"
+#lantana_ignore heap_lang.new_proph_id_fresh "prophecies dropped (D15)"
+#lantana_ignore heap_lang.new_thread_id_fresh
+  "positional thread ids (D14): `forkS` needs no fresh id, the pool appends the forked thread"
+#lantana_ignore heap_lang.fork_thread_ids_disjoint
+  "positional thread ids (D14): forked threads are appended to the pool, so there are no fresh ids"
+
+/-- Allocation always has a step available: `Loc.fresh` picks a block that the heap does not
+use. -/
+@[lantana_alias heap_lang.alloc_fresh]
+theorem alloc_fresh (v : Val) (n : Int) (σ : State) (hn : 0 < n) :
+    BaseStep (.allocN (.ofVal (.lit (.int n))) (.ofVal v)) σ
+      (.ofVal (.lit (.loc (Loc.fresh σ.heap.keys))))
+      (σ.initHeap (Loc.fresh σ.heap.keys) n v) [] :=
+  .allocNS n v σ _ hn fun i hi0 _ => by
+    simpa [State.get?, PartialMap.get?, getElem?_eq_none_iff, ← Std.ExtTreeMap.mem_keys]
+      using Loc.fresh_fresh _ hi0
+
+end Lantana.HeapLang

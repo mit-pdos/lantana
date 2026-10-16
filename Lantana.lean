@@ -7,6 +7,7 @@ module
 public import Lantana.Init
 public import Lantana.Prelude
 public import Lantana.Algebra
+public import Lantana.HeapLang
 public import Lantana.ProgramLogic
 public import Lantana.Std
 public import Lantana.Trace
