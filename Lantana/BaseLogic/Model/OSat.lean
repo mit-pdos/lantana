@@ -500,6 +500,71 @@ theorem fuel_lt {k : Oid} {a₀ a₁ : Fuel} (h : a₀ < a₁) :
   ipureintro
   exact hc
 
+instance fuel_intoSep (k : Oid) (a₀ a₁ : Fuel) :
+    IntoSep (fuel (GF := GF) k (a₀ +ₕ a₁)) (fuel k a₀) (fuel k a₁) where
+  into_sep := (fuel_split k a₀ a₁).mp
+
+instance fuel_fromSep (k : Oid) (a₀ a₁ : Fuel) :
+    FromSep (fuel (GF := GF) k (a₀ +ₕ a₁)) (fuel k a₀) (fuel k a₁) where
+  from_sep := (fuel_split k a₀ a₁).mpr
+
+instance fuel_combineSepAs (k : Oid) (a₀ a₁ : Fuel) :
+    CombineSepAs (fuel (GF := GF) k a₀) (fuel k a₁) (fuel k (a₀ +ₕ a₁)) where
+  combine_sep_as := (fuel_split k a₀ a₁).mpr
+
+/-! Big-operator versions, over lists and sets of obligations. -/
+
+@[lantana_alias oblG_fuel_mon_list]
+theorem fuel_mon_list {L : List Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
+    ([∗list] k ∈ L, fuel k a₁) ⊢@{IProp GF} |==> [∗list] k ∈ L, fuel k a₀ :=
+  (BigSepL.bigSepL_mono_of_forall (fuel_mon h)).trans (BigSepL.bigSepL_bupd _ L)
+
+@[lantana_alias oblG_fuel_split_list]
+theorem fuel_split_list (L : List Oid) (a₀ a₁ : Fuel) :
+    ([∗list] k ∈ L, fuel k (a₀ +ₕ a₁)) ⊣⊢@{IProp GF}
+      ([∗list] k ∈ L, fuel k a₀) ∗ [∗list] k ∈ L, fuel k a₁ :=
+  ⟨(BigSepL.bigSepL_mono_of_forall (fuel_split _ a₀ a₁).mp).trans BigSepL.bigSepL_sep_eqv.mp,
+    BigSepL.bigSepL_sep_eqv.mpr.trans (BigSepL.bigSepL_mono_of_forall (fuel_split _ a₀ a₁).mpr)⟩
+
+@[lantana_alias oblG_fuel_mon_split_list]
+theorem fuel_mon_split_list {L : List Oid} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
+    ([∗list] k ∈ L, fuel k a₂) ⊢@{IProp GF}
+      |==> (([∗list] k ∈ L, fuel k a₀) ∗ [∗list] k ∈ L, fuel k a₁) :=
+  (fuel_mon_list h).trans (BIUpdate.mono (fuel_split_list L a₀ a₁).mp)
+
+@[lantana_alias oblG_fuel_lt_list]
+theorem fuel_lt_list {L : List Oid} {a₀ a₁ : Fuel} (h : a₀ < a₁) :
+    ([∗list] k ∈ L, fuel k a₁) ⊢@{IProp GF}
+      |==> (([∗list] k ∈ L, fuel k a₀) ∗ [∗list] k ∈ L, ∃ c, ⌜0 < c⌝ ∗ fuel k c) :=
+  (BigSepL.bigSepL_mono_of_forall (fuel_lt h)).trans <|
+    (BigSepL.bigSepL_bupd _ L).trans (BIUpdate.mono BigSepL.bigSepL_sep_eqv.mp)
+
+@[lantana_alias oblG_fuel_mon_set]
+theorem fuel_mon_set {K : Oids} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
+    ([∗set] k ∈ K, fuel k a₁) ⊢@{IProp GF} |==> [∗set] k ∈ K, fuel k a₀ :=
+  (BigSepS.bigSepS_mono_of_forall fun _ => fuel_mon h).trans (BigSepS.bigSepS_bupd _ K)
+
+@[lantana_alias oblG_fuel_split_set]
+theorem fuel_split_set (K : Oids) (a₀ a₁ : Fuel) :
+    ([∗set] k ∈ K, fuel k (a₀ +ₕ a₁)) ⊣⊢@{IProp GF}
+      ([∗set] k ∈ K, fuel k a₀) ∗ [∗set] k ∈ K, fuel k a₁ :=
+  ⟨(BigSepS.bigSepS_mono_of_forall fun _ => (fuel_split _ a₀ a₁).mp).trans BigSepS.bigSepS_sep.mp,
+    BigSepS.bigSepS_sep.mpr.trans
+      (BigSepS.bigSepS_mono_of_forall fun _ => (fuel_split _ a₀ a₁).mpr)⟩
+
+@[lantana_alias oblG_fuel_mon_split_set]
+theorem fuel_mon_split_set {K : Oids} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
+    ([∗set] k ∈ K, fuel k a₂) ⊢@{IProp GF}
+      |==> (([∗set] k ∈ K, fuel k a₀) ∗ [∗set] k ∈ K, fuel k a₁) :=
+  (fuel_mon_set h).trans (BIUpdate.mono (fuel_split_set K a₀ a₁).mp)
+
+@[lantana_alias oblG_fuel_lt_set]
+theorem fuel_lt_set {K : Oids} {a₀ a₁ : Fuel} (h : a₀ < a₁) :
+    ([∗set] k ∈ K, fuel k a₁) ⊢@{IProp GF}
+      |==> (([∗set] k ∈ K, fuel k a₀) ∗ [∗set] k ∈ K, ∃ c, ⌜0 < c⌝ ∗ fuel k c) :=
+  (BigSepS.bigSepS_mono_of_forall fun _ => fuel_lt h).trans <|
+    (BigSepS.bigSepS_bupd _ K).trans (BIUpdate.mono BigSepS.bigSepS_sep.mp)
+
 /-! ### Fuel (supply) -/
 
 @[lantana_alias oblG_fuel_supply_fractional]
@@ -573,6 +638,38 @@ theorem supply_spend (k : Oid) (a₀ a₁ : Fuel) (q : Qp) :
   · iexists ns
     iframe Hn
     iexact H
+
+@[lantana_alias oblG_fuel_supply_issue_2]
+theorem supply_issue_2 {k : Oid} {q₀ q₁ : Qp} (hq : q₀ + q₁ = 1) (a₀ a₁ b : Fuel) :
+    supply k a₀ q₀ ∗ supply k a₁ q₁ ⊢@{IProp GF}
+      |==> (supply k (a₀ +ₕ b) q₀ ∗ supply k (a₀ +ₕ b) q₁ ∗ fuel k b) := by
+  have e₁ : supply k a₀ (q₀ + q₁) ⊢@{IProp GF} supply k a₀ 1 := by
+    rw [hq]
+  have e₂ : supply k (a₀ +ₕ b) 1 ⊢@{IProp GF} supply k (a₀ +ₕ b) q₀ ∗ supply k (a₀ +ₕ b) q₁ := by
+    rw [← hq]
+    exact ((supply_fractional k _).fractional q₀ q₁).mp
+  iintro H
+  icases supply_add k a₀ a₁ q₀ q₁ $$ H with ⟨%c, H, %hc⟩
+  imod supply_mon (q₀ + q₁) hc.1 $$ H with H
+  ihave H := e₁ $$ H
+  imod supply_issue k a₀ b $$ H with ⟨H, Hf⟩
+  icases e₂ $$ H with ⟨H₀, H₁⟩
+  imodintro
+  iframe
+
+@[lantana_alias oblG_fuel_spend_2]
+theorem supply_spend_2 (k : Oid) (a₀ a₁ c : Fuel) (q₀ q₁ : Qp) :
+    supply k a₀ q₀ ∗ supply k a₁ q₁ ∗ fuel k c ⊢@{IProp GF}
+      |==> ∃ a₂, ⌜c +ₕ a₂ ≤ a₀ ∧ c +ₕ a₂ ≤ a₁⌝ ∗ supply k a₂ q₀ ∗ supply k a₂ q₁ := by
+  iintro ⟨H₀, H₁, Hf⟩
+  icases supply_add k a₀ a₁ q₀ q₁ $$ [$H₀ $H₁] with ⟨%b, H, %hb⟩
+  imod supply_spend k b c (q₀ + q₁) $$ [$H $Hf] with ⟨%a₂, %ha₂, H⟩
+  icases (supply_fractional k a₂).fractional q₀ q₁ $$ H with ⟨H₀, H₁⟩
+  imodintro
+  iexists a₂
+  iframe H₀ H₁
+  ipureintro
+  exact ⟨Ordinal.le_trans ha₂ hb.1, Ordinal.le_trans ha₂ hb.2⟩
 
 /-! ### The invariant of one obligation -/
 

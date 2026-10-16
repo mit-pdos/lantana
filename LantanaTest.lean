@@ -8,4 +8,5 @@ public import LantanaTest.HeapLang
 public import LantanaTest.Measure
 public import LantanaTest.Model
 public import LantanaTest.Notation
+public import LantanaTest.OSat
 public import LantanaTest.Registry

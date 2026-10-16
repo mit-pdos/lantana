@@ -8,12 +8,14 @@ public import Lantana.BaseLogic.Obligation
 public import Lantana.BaseLogic.Witness
 public import Lantana.BaseLogic.ModelRel
 public import Lantana.BaseLogic.Forest
+public import Lantana.BaseLogic.Model.OSat
 
 /-! # The obligation model
 
-The model of obligations (Rocq `lantana/base_logic/`, files `obligation.v` to `opreds.v`). For
-now its pure part: obligations and witnesses with their steps and relations
+The model of obligations (Rocq `lantana/base_logic/`, files `obligation.v` to `opreds.v`). Its
+pure part: obligations and witnesses with their steps and relations
 (`Obligation`, `Witness`), the round relations and the choice of witnesses (`ModelRel`), and the
-pure forest invariant `ForestWf` with its shape-change lemmas (`Forest`). Everything lives in
-the namespace `Lantana.Model`.
+pure forest invariant `ForestWf` with its shape-change lemmas (`Forest`). Its ghost state, so far:
+the ghost state of obligations and its invariant `osat` (`Model.OSat`). Everything lives in the
+namespace `Lantana.Model`.
 -/
