@@ -19,8 +19,10 @@ sets the flag; `wait` spins until the flag is `1`, which is fair by witness-laye
 At the level of traces (`isFlagTr`), the flag is `0` until `1` and `1` afterwards. The guarantee
 does not say that the flag stays `1`: `flagRun` (`0, 1, 0, 1, 1, …`) satisfies it.
 
-**Skeleton:** the trace-level lemmas are proved; `isFlag_init` and the specifications are
-`sorry` until the HeapLang laws (M7).
+The specifications are proved as in Rocq, with the measures `10` (`init`, `set`) and
+`5 * ▽ + 5` (`wait`: five steps per iteration, by witness-layer induction `Wit.layer_ind`, and
+five for the last one). They use the obligation-forest interface and the rules of temporal
+formulas, which are still stated with `sorry` (M4–M6); nothing in this file is `sorry`.
 -/
 
 @[expose] public noncomputable section
