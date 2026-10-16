@@ -19,6 +19,9 @@ POPL 2027), on top of Transfinite Iris-Lean.
 lake build --wfail    # the library, warnings (incl. the Iris-Lean linters) as errors
 lake test             # LantanaTest: unit tests, closed-world instances, axiom checks
 scripts/audit.sh      # no sorry / admit / axiom / native_decide in Lantana/ and LantanaTest/
+scripts/check-imports.sh  # layering: Std, Init < Prelude < Algebra < BaseLogic < ProgramLogic
+                          #   < Trace < HeapLang < Examples; no module imports a later layer
+scripts/rocq-table.sh     # regenerate docs/rocq-correspondence.md (see below)
 ```
 
 ## The main theorems
