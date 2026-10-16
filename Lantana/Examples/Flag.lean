@@ -544,7 +544,49 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         imod IH $$ Hwc with ⟨HF, HP⟩
         imodintro
         iapply HP $$ HT HG HΦ HF
-      · sorry
+      · icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+        rw [← val_to_ofVal]
+        iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hl]
+        · iframe HT Hl
+          iapply stepPre_nil $$ HG HF1
+        iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+        imod Hclose $$ [Hl]
+        · inext
+          iright
+          iframe Hl
+          iexact Hd
+        imodintro
+        ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+        lwp_expr_simp
+        simp only [val_to_ofVal]
+        lwp_pure HT
+        iexists G, 2, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        rw [show (v1 == hl_val(#1)) = true from rfl]
+        imodintro
+        lwp_pure HT
+        iexists G, 1, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        simp only [Bool.not_true]
+        imodintro
+        lwp_pure HT
+        iexists G, 0, ∅, lc
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG - - Hlc HT
+        imodintro
+        iapply lwp_value'
+        rw [show Φ hl_val(#1) = Φ v1 from rfl]
+        iapply HΦ
+        iframe
+        iexact Hd
     isplitl []
     · iexact Wk
     · iexact HFw
