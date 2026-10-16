@@ -1,5 +1,6 @@
 module
 
+public import LantanaTest.Algebra
 public import LantanaTest.Basic
 public import LantanaTest.Credits
 public import LantanaTest.HeapLang
