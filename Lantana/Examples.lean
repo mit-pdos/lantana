@@ -15,3 +15,4 @@ public import Lantana.Examples.Handoff
 public import Lantana.Examples.HandoffClient
 public import Lantana.Examples.FlagStableClient
 public import Lantana.Examples.HandoffFlagStableClient
+public import Lantana.Examples.ExtendedInt
