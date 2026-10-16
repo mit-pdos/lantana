@@ -187,6 +187,17 @@ def pxEntry (rm ci cj : GName) (a : Nat) (k : Oid) : IProp GF :=
   iprop(((£ₙ 10 ∨ cntLb ci a) ∗ mapElem rm a k ∗ cntLb cj a ∗ Wit.layer k 0) ∗
     (finallyI Nu k (1 : Qp).half (nextQ rm cj a) ∨ (Obl.discharged k ∗ nextQ rm cj a)))
 
+omit [ModelGS GF] [HeapGS GF] in
+theorem nextQ_iff (rm cj : GName) (a : Nat) :
+    nextQ (GF := GF) rm cj a ⊣⊢ cntLb cj (a + 1) ∗ ∃ k' : Oid, mapElem rm (a + 1) k' := by
+  unfold nextQ; exact .rfl
+
+theorem pxEntry_iff (rm ci cj : GName) (a : Nat) (k : Oid) :
+    pxEntry (GF := GF) rm ci cj a k ⊣⊢
+      ((£ₙ 10 ∨ cntLb ci a) ∗ mapElem rm a k ∗ cntLb cj a ∗ Wit.layer k 0) ∗
+        (finallyI Nu k (1 : Qp).half (nextQ rm cj a) ∨ (Obl.discharged k ∗ nextQ rm cj a)) := by
+  unfold pxEntry; exact .rfl
+
 /-- The invariant of the paradox (Rocq `px_inv`). -/
 @[lantana_alias px_inv]
 def pxInv (rm ci cj : GName) : IProp GF :=
@@ -315,6 +326,95 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
     iframe HG Caj Mn1
   imod Hupd with ⟨HG, Caj, #Mn1⟩
   iapply IH $$ %(n + 1) %ck1 HT HG Kck1 Unew Of1 Caj HΦ Mn1
+
+/-- Thread `0` steps by the assumed rule, observing thread `1`'s obligation `ck` of index `n`;
+its later credits come from the invariant (`px`). -/
+@[lantana_alias px_loop1_spec]
+theorem px_loop1_spec [LwpNoLc GF] : ∀ (i : ThreadId) (z : Oid) (rm ci cj : GName)
+    (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&loop) #()) ∗ thKids i {z} ∗
+          untilI N1 z 1 iprop(True) iprop(False) ∗ £ₙ 10 ∗ px rm ci cj ∗
+          ∃ n : Nat, cntAuth ci n 1 ∗ cntLb cj n ∗ ∃ ck : Oid, Wit.layer ck 0 ∗ mapElem rm n ck }}}
+        hl(v(&loop) #()) @ i
+      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗
+        liftTerm i (fun _ _ => iprop(True)) hl_val(#()) }}} := by
+  intro i z rm ci cj C
+  iintro %Φ !> ⟨HT, HG, HU, Hlc, #Hpx, %n, Hca, #Hlb, %ck, #Wck, #Mn⟩ -
+  unfold px
+  iloeb as IH generalizing! %n %ck
+  icases Wit.fuels_init ck 0 $$ Wck with ⟨%α, #Wf⟩
+  imod Wit.fuels_ind ck 0 α ∅ iprop(threadExpr i C hl(v(&loop) #()) -∗ thKids i {z} -∗
+      untilI N1 z 1 iprop(True) iprop(False) -∗ £ₙ 10 -∗ cntAuth ci n 1 -∗
+      lWP hl(v(&loop) #()) @ i {{ Φ }}) $$ [] with HP
+  · isplitl []
+    · imodintro
+      iintro HInd
+      imodintro
+      iintro HT HG HU Hlc Hca
+      -- The step pays nothing and observes `ck`.
+      iapply LwpNoLc.lwp_pure_step_no_lc (e₁ := hl(v(&loop) #())) _ i ⊤ ⊤ _ True Φ
+        instPureExecBeta trivial
+      imodintro
+      iexists {ck}
+      isplitl []
+      · unfold witLayers
+        iapply BigSepS.bigSepS_singleton.mpr
+        iexists 0
+        iexact Wck
+      iintro Hwc
+      unfold loop
+      lwp_expr_simp
+      icases witCreds_singleton ck $$ Hwc with (Hc | #Hd)
+      · -- A credit of `ck`: witness induction.
+        imod HInd $$ Hc with ⟨-, HP⟩
+        imodintro
+        imodintro
+        iapply HP $$ HT HG HU Hlc Hca
+      · -- `ck` is discharged: the next index, and its credits, from the invariant.
+        imod inv_acc (E := ⊤) (N := N) (P := pxInv rm ci cj) (fun _ _ => CoPset.mem_full)
+          $$ Hpx with ⟨Hi, Hclose⟩
+        icases (tlc_split_nat 1 9).mp $$ Hlc with ⟨Hc1, -⟩
+        iapply lc_fupd_add_later $$ Hc1
+        inext
+        unfold pxInv
+        icases Hi with ⟨%m, %os, ⟨Ca, GMA⟩, HM⟩
+        ihave %hlu := ghost_map_lookup $$ GMA Mn
+        icases (BigSepM.bigSepM_delete hlu).mp $$ HM with ⟨Hn, HM⟩
+        icases (pxEntry_iff rm ci cj n ck).mp $$ Hn with ⟨Hn, (HF | ⟨-, #HQ⟩)⟩
+        · iexfalso
+          unfold finallyI
+          iapply untilI_discharged_false $$ HF Hd
+        icases (nextQ_iff rm cj n).mp $$ HQ with ⟨#Hlbj1, %ck1, #Mn1⟩
+        ihave HM : bigSepM (M := IdxMap) (fun a k => pxEntry rm ci cj a k) os $$ [Hn HM]
+        · iapply (BigSepM.bigSepM_delete hlu).mpr
+          iframe HM
+          iapply (pxEntry_iff rm ci cj n ck).mpr
+          iframe Hn
+          iright
+          iframe Hd HQ
+        ihave %hlu1 := ghost_map_lookup $$ GMA Mn1
+        icases (BigSepM.bigSepM_delete hlu1).mp $$ HM with ⟨Hn1, HM⟩
+        icases (pxEntry_iff rm ci cj (n + 1) ck1).mp $$ Hn1 with
+          ⟨⟨(Hc10 | #Hlbi), -, -, #Wck1⟩, HnU1⟩
+        rotate_left
+        · ihave %hle := cntAuth_lb_valid ci n (n + 1) 1 $$ Hca Hlbi
+          exact absurd hle (by omega)
+        imod cntAuth_update ci (Nat.le_succ n) $$ Hca with ⟨Hca, #Hlbi1⟩
+        imod Hclose $$ [Ca GMA HM HnU1] with -
+        · inext
+          iexists m, os
+          iframe Ca GMA
+          iapply (BigSepM.bigSepM_delete hlu1).mpr
+          iframe HM
+          iapply (pxEntry_iff rm ci cj (n + 1) ck1).mpr
+          iframe HnU1 Mn1 Hlbj1 Wck1
+          iright
+          iexact Hlbi1
+        imodintro
+        imodintro
+        iapply IH $$ %(n + 1) %ck1 HT HG HU Hc10 Hca Hlbj1 Wck1 Mn1
+    · iexact Wf
+  iapply HP $$ HT HG HU Hlc Hca
 
 end Specs
 
