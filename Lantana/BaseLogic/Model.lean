@@ -14,6 +14,7 @@ public import Lantana.BaseLogic.Model.OWit
 public import Lantana.BaseLogic.Model.OInv
 public import Lantana.BaseLogic.Model.OPredsBase
 public import Lantana.BaseLogic.Model.OForest
+public import Lantana.BaseLogic.Model.MUpd
 
 /-! # The obligation model
 
@@ -24,5 +25,7 @@ pure forest invariant `ForestWf` with its shape-change lemmas (`Forest`). Its gh
 model history (`Model.ModelHistory`), the obligations with `osat` (`Model.OSat`), the witnesses
 with `owit` (`Model.OWit`), invariants over obligation states (`Model.OInv`), the user predicates
 on obligations and witnesses (`Model.OPredsBase`), and the forest with the thread statuses,
-`oforest` (`Model.OForest`). Everything lives in the namespace `Lantana.Model`.
+`oforest` (`Model.OForest`), and the model interpretation with the model update `mupd` and the
+rounds `mprog`/`mphys` of a physical step (`Model.MUpd`; `ModelGS` itself is `Lantana.ModelGS`).
+Everything else lives in the namespace `Lantana.Model`.
 -/

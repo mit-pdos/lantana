@@ -5,7 +5,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.ProgramLogic.TemporalRegistry
-public import Lantana.BaseLogic.FUpd
+public import Lantana.BaseLogic.Model.MUpd
 
 /-! # The ghost state of the temporal layer
 
@@ -14,8 +14,8 @@ obligation model, of the history and of the temporal registry; `TemporalInterp` 
 interpretation of the temporal layer, a parameter the program logic threads without knowing
 its content (the trace layer fixes it to the registry state).
 
-**Skeleton (M1):** `ModelGS` is a placeholder; its fields (ghost names) come with the model
-(M4). The ghost state of the registry, `RegGS`, is in `Lantana.ProgramLogic.TemporalRegistry`.
+The ghost state of the model, `ModelGS`, is in `Lantana.BaseLogic.Model.MUpd`; the ghost state
+of the registry, `RegGS`, is in `Lantana.ProgramLogic.TemporalRegistry`.
 -/
 
 @[expose] public noncomputable section
@@ -25,10 +25,6 @@ namespace Lantana
 open Iris
 
 
-/-- The ghost state of the obligation model: invariants and transfinite later credits (`InvGS`)
-and the model's own components (placeholder: M4). -/
-@[lantana_alias mupdGS]
-class ModelGS (GF : BundledGFunctors) extends InvGS GF
 
 /-- The language-dependent ghost state of the temporal layer: the history and the registry.
 The language is an output parameter: a world `GF` carries one language (D30), so that
