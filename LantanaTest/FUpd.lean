@@ -94,10 +94,17 @@ example {E₁ E₂ : CoPset} {P : IProp TestGF} :
 /-- Relational updates and `ALC?` inside fancy updates. -/
 example {E : CoPset} {P : IProp TestGF} : (|==>r P) ⊢@{IProp TestGF} |={E}=> P := rupd_fupd
 
-example (b : Bool) (P : IProp TestGF) : P ⊢ ALCb b P := by
+example (b : Bool) (P : IProp TestGF) : P ⊢ ALC? b P := by
   iintro HP
   imodintro
   iexact HP
+
+example (b : Bool) (P Q : IProp TestGF) : (ALC? b P) ∗ Q ⊢ ALC? b iprop(P ∗ Q) := by
+  iintro ⟨HP, HQ⟩
+  imod HP
+  iframe
+
+example (b : Bool) (P : IProp TestGF) : (ALC? b P) = ALCb b P := rfl
 
 end Invariants
 

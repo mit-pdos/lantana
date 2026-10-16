@@ -5,7 +5,6 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.BaseLogic.FUpd
-public import Iris.BI.Transfinite
 public import Iris.Instances.UPred.Transfinite
 public import Iris.Algebra.StepIndexChoice
 public import Iris.Std.FromMathlib
@@ -306,6 +305,18 @@ instance satLc_rupdUpdate [SatBUpd S] : SatRUpdUpdate (satLc (X := X) S) where
     iframe
 
 end RUpd
+
+section Tlc
+
+variable {GF : BundledGFunctors.{u}} [TlcGS GF]
+
+/-- `rupd_satisfiable` for transfinite later credits. -/
+theorem rupd_satisfiable_tlc (S : SatPred GF) [SatLater S] [SatBUpd S]
+    [SatExists S Ordinal.{1}] [SatExists S Bool] {P : IProp GF} (x : Ordinal.{1}) :
+    S.sat iprop(●£ₒ x ∗ |==>r P) → ∃ x', ReflTransGen (· < ·) x' x ∧ S.sat iprop(●£ₒ x' ∗ P) :=
+  rupd_satisfiable S x
+
+end Tlc
 
 /-! ## Eliminating the allocation modality -/
 
