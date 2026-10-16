@@ -34,11 +34,12 @@ language). (Placeholder.) -/
 class RegGS (Expr : Type) (State : Type) (GF : BundledGFunctors) : Type where
 
 /-- The language-dependent ghost state of the temporal layer: the history and the registry.
-The ghost state of the obligation model (`ModelGS GF`) is independent of the language and
-stays a separate instance argument (Lean cannot project it from a bundle whose other
-parameters it does not mention). -/
+The language is an output parameter: a world `GF` carries one language (D30), so that
+formulas such as `alwaysI N P : IProp GF` need no language annotations. The ghost state of the
+obligation model (`ModelGS GF`) is independent of the language and stays a separate instance
+argument. -/
 @[lantana_alias temporalGS]
-class TemporalGS (Expr : Type) (State : Type) (GF : BundledGFunctors)
+class TemporalGS (Expr : outParam Type) (State : outParam Type) (GF : BundledGFunctors)
     extends HistGS Expr State GF, RegGS Expr State GF
 
 /-- The interpretation of the temporal layer; one interpretation per instance of the ghost
