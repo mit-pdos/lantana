@@ -2,7 +2,7 @@
 
 Where the build time of Lantana-Lean goes, by layer, module and declaration; how it is measured;
 what has been done about it; and what is left. Measured on 2026-10-16 at commit `f281253` (later
-commits change only documentation and scripts).
+commits change only documentation, scripts and Rocq-name records).
 
 | Measure | Value |
 |---|--:|
@@ -15,6 +15,10 @@ commits change only documentation and scripts).
 
 The clean build takes as long as the critical path: the build is bounded by its longest chain of
 imports, not by the total work. A module cannot start before all of its imports are built.
+
+For reference, the README of the Rocq development reports that `make -j3` builds its 118 files
+from scratch in about 6.5 minutes on an Intel Xeon Gold 6354. The machines and the parallelism
+differ, so the two numbers are not a benchmark.
 
 ## Method
 

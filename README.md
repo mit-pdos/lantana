@@ -3,13 +3,15 @@
 A Lean 4 reimplementation of *Lantana*, a concurrent separation logic for liveness
 ("Decoupling Liveness Obligations from Threads in the Lantana Concurrent Separation Logic",
 POPL 2027), on top of Transfinite Iris-Lean.
+[`docs/paper-correspondence.md`](docs/paper-correspondence.md) gives the Lean name of each item of
+the paper.
 
 - Lean `v4.34.1`; depends on the `Iris/` package of
   [dongjaelee1/iris-lean](https://github.com/dongjaelee1/iris-lean), branch `transfinite`
   (step index `Iris.SI := Ordinal.{3}`), and through it on its `Ordinals` package.
 - Reference: the Rocq development of Lantana,
-  [dongjaelee1/liveness](https://github.com/dongjaelee1/liveness) (branch `dev`, commit
-  `0c1515a`). This is a reimplementation, not a line-by-line port: definitions, rules and
+  [dongjaelee1/liveness](https://github.com/dongjaelee1/liveness) (branch `main`, commit
+  `08838e2`). This is a reimplementation, not a line-by-line port: definitions, rules and
   theorem statements follow Rocq, the implementation is redesigned for Lean (see *Design*
   below).
 - The development is free of `sorry`, `admit` and `axiom`; its theorems depend only on
@@ -27,13 +29,53 @@ scripts/rocq-table.sh     # regenerate docs/rocq-correspondence.md (see below)
 scripts/profile.py        # build-time profile per layer, module and declaration (docs/performance.md)
 ```
 
-## The main theorems
+## The logic
 
-- `Lantana.lwp_adequacy_temporal` (`Lantana/Trace/Adequacy/Temporal.lean`): if the initial
-  threads have `lWP`s and a resource `P` guarantees a trace specification `G` (`P ⊨ₜ G`), then
-  every fair behavior from the initial configuration satisfies the trace reading of `G`.
-- `Lantana.lwp_adequacy_safety` (`Lantana/Trace/Adequacy/Safety.lean`): on fair behaviors the
-  scheduled thread is never stuck and a terminated initial thread satisfies its postcondition.
+A liveness obligation is a resource that must eventually be discharged. Obligations form a
+forest: every live obligation has a parent, which is a thread or another obligation. Each step of
+a thread burns a unit of fuel of every obligation in its tree, and fuel is an ordinal measure, so
+on a fair behavior no obligation stays assigned forever. Temporal formulas are tied to
+obligations: `untilI N k q P Q` says that `P` holds until `Q`, and `Q` comes because `k` must be
+discharged. Lean names are in the namespace `Lantana`, and files in `Lantana/`.
+
+| Concept | Lean | File |
+|---|---|---|
+| Thread-local weakest precondition, a least fixpoint; one step is a model update, the physical step with its progress update, and a model update | `lWP e @ s; i; E {{ Φ }}` (`Lwp.lwp`), texan triples `l{{{ P }}} e @ i; E l{{{ v, RET v; Q }}}`, one step `lwpStep` | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/Notation.lean` |
+| The obligation predicates and their rules, as a sealed interface that the program logic uses | obligations `Obl.*`, witnesses `Wit.*`, threads `Th.*`, the children `Par.kids p K` of a parent `p` (`thKids i K`, `oblKids k K`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
+| The model update, which changes obligations and witnesses | `\|={E₁,E₂}=>m P` (`mupd`) | `ProgramLogic/OblForest.lean` |
+| The model of the interface | `Model.OPreds`, over the obligation model (`ModelGS`) | `BaseLogic/Model/OPreds.lean` |
+| Trace properties, with LTL on traces | `TrProp`, `□ₜ` `◇ₜ` `○ₜ` `𝒰ₜ`, entailment `R ⊆ S` | `Trace/TraceProp.lean` |
+| Trace specifications: a trace property with an internal, step-indexed reading adequate for it | `TrSpec` (`TrSpec.external`, `TrSpec.internal`), entailment `G ⊑ₛ H` | `Trace/TrSpec.lean` |
+| Guarantees: whenever `P` holds, the rest of the execution satisfies `G` | `P ⊨ₜ G` (`Guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
+| Temporal formulas, which are `iProp`s with guarantees | `alwaysI N P`, `untilI N k q P Q`, `finallyI N k q Q` | `Trace/TemporalFormula.lean`, `Trace/TemporalFormulaRules.lean` |
+| Adequacy | `lwp_adequacy_temporal`, `lwp_adequacy_safety` | `Trace/Adequacy/Temporal.lean`, `Trace/Adequacy/Safety.lean` |
+| HeapLang: the language, its `lWP` laws, and points-to and thread termination as trace atoms | `HeapLang.lwp_load`, `HeapLang.lwp_store`, `HeapLang.lwp_fork`, …; `l ↦ some v`, `exits v @ i` | `HeapLang/PrimitiveLaws.lean`, `HeapLang/TemporalLaws.lean` |
+
+The two adequacy theorems:
+
+- `lwp_adequacy_temporal`: if the initial threads have `lWP`s and a resource `P` guarantees a
+  trace specification `G` (`P ⊨ₜ G`), then every fair behavior from the initial configuration
+  satisfies the trace reading of `G`.
+- `lwp_adequacy_safety`: on fair behaviors the scheduled thread is never stuck and a terminated
+  initial thread satisfies its postcondition.
+
+## Proving a liveness property
+
+`Examples/FlagFork.lean` follows these steps for the program `main` of the paper's §2, which
+forks a thread that sets a flag and waits for the flag.
+
+1. Specify each module with texan `lWP` triples. Their pre- and postconditions hold the
+   thread-expression token `threadExpr i C e`, the children `thKids i G` of the thread and fuel
+   `Obl.fuel g ℓ μ` for each child `g` (`init_spec`, `set_spec` and `wait_spec` in
+   `Examples/Flag.lean`).
+2. In the proofs, create obligations (`Obl.new`) and temporal formulas (`alwaysI_alloc`,
+   `untilI_alloc`) inside model updates `|={E}=>m`, and discharge an until once its right
+   formula holds (`untilI_discharge`, `finallyI_discharge`).
+3. Give the initial resources an `iProp` `P` with a guarantee `P ⊨ₜ G`, usually inferred by
+   instance search (`IntoGuar.into_guar` in `guar_mainRes`).
+4. Show that `G.external` implies the trace property of interest (`gMain_impl`), and apply
+   `lwp_adequacy_temporal` (`main_adequacy`). `lwp_adequacy_safety` gives safety in the same way
+   (`main_safety_adequacy`), and `main_liveness_safety` states both.
 
 ## Layout
 
@@ -83,6 +125,19 @@ grouped by Rocq file, with summary counts and a coverage report: the Rocq declar
 `import Lantana`; without a Rocq checkout the tables are grouped by Lean module and there is
 no coverage report).
 
+## Naming
+
+- Rocq's `oblP_*`, `witP_*`, `thP_*` and `parP_*` are `Obl.*`, `Wit.*`, `Th.*` and `Par.*`
+  (`oblP_fuel` is `Obl.fuel`); `thP_kids i K` and `oblP_kids k K` are the notations `thKids i K`
+  and `oblKids k K`.
+- Definitions are lowerCamelCase and types UpperCamelCase (`untilI_done` is `untilIDone`,
+  `is_flag` is `isFlag`); lemmas keep Rocq's snake_case over the Lean names (`guar_untilI_done`
+  is `guar_untilIDone`).
+- Rocq's `trSpec_*`, `trI_*` and `tr_*` are in the namespaces `TrSpec`, `TrIProp` and `TrProp`
+  (`trSpec_always` is `TrSpec.always`); `reg_*` are `reg*` (`reg_check` is `regCheck`).
+- A case study's names are in `Lantana.Examples.<File>`, without Rocq's module prefix
+  (`Flag_set_spec` is `Examples.Flag.set_spec`).
+
 ## Design (the main departures from Rocq)
 
 - **One language per world**: languages are universe-monomorphic (`Expr State Val : Type`) and
@@ -108,12 +163,31 @@ no coverage report).
 
 All documents live in `docs/`:
 
+- [`docs/paper-correspondence.md`](docs/paper-correspondence.md): the Lean name of each item of
+  the paper, after the Rocq development's `PAPER.md`.
 - [`docs/rocq-correspondence.md`](docs/rocq-correspondence.md): the generated Rocq↔Lean table
   (above).
 - [`docs/performance.md`](docs/performance.md): where the build time goes, by layer, module and
   declaration, and how to measure it (`scripts/profile.py`).
 - [`docs/iris-lean-proposal.md`](docs/iris-lean-proposal.md): changes to Iris-Lean that would
   remove code Lantana-Lean had to copy or work around.
+
+## Credits
+
+Lantana-Lean reimplements the Rocq development, whose README credits the sources of some of its
+parts; the Lean counterparts come from them through it:
+
+- HeapLang from Iris's HeapLang, here through a fork of Iris-Lean's;
+- the language interface, the lifting lemmas and the `lWP` notations from Iris, here after
+  Iris-Lean's, and `ProgramLogic/WeakestPre.lean` follows the structure of Iris's weakest
+  precondition;
+- fancy updates, invariants, satisfiability and invariant locations from Transfinite Iris, and
+  the relational updates and later credits from the artifact of *Later Credits* (Spies et al.,
+  ICFP 2022);
+- ordered commutative monoids and the bank and bounded-credit cameras from the Lilo and FOS
+  developments.
+
+The files adapted from or based on Iris-Lean say so in their headers (see *License*).
 
 ## License
 
