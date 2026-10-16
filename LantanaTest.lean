@@ -8,6 +8,7 @@ public import LantanaTest.Examples
 public import LantanaTest.ExamplesAdequacy
 public import LantanaTest.ExamplesTicketLock
 public import LantanaTest.ExamplesTicketLock2
+public import LantanaTest.ExamplesTicketLockMono
 public import LantanaTest.FUpd
 public import LantanaTest.Guarantee
 public import LantanaTest.GuaranteeInfer
