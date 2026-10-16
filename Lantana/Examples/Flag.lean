@@ -405,10 +405,10 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       iintro HT HG HΦ HF
       ihave HF := oblFuels_init G 5 ℓ.succ $$ HF
       unfold wait
-      lwp_step HT HG HF with Hc : 1 +ₕ 1
+      lwp_step with Hc : 1 +ₕ 1
       icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
       lwp_expr_simp
-      lwp_bind hl(!#l) HT
+      lwp_bind hl(!#l)
       ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
         (fun _ _ => CoPset.mem_full) $$ HA
       ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -445,12 +445,10 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
           iexact Hu
         imodintro
         ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
-        lwp_expr_simp
-        lwp_step HT HG HF
-        rw [show (v0 == hl_val(#1)) = false from rfl]
-        lwp_step HT HG HF
-        simp only [Bool.not_false]
-        lwp_step HT HG HF
+        -- `!l = 1`, `~false`, `if true`: back to `wait l`
+        lwp_step
+        lwp_step
+        lwp_step
         imod IH $$ Hwc with ⟨HF, HP⟩
         iapply HP $$ HT HG HΦ HF
       · icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
@@ -465,12 +463,10 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
           iexact Hd
         imodintro
         ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
-        lwp_expr_simp
-        lwp_step HT HG HF
-        rw [show (v1 == hl_val(#1)) = true from rfl]
-        lwp_step HT HG HF
-        simp only [Bool.not_true]
-        lwp_step HT HG HF with Hlc : lc
+        -- `!l = 1`, `~true`, `if false`: the value `1`
+        lwp_step
+        lwp_step
+        lwp_step with Hlc : lc
         iapply lwp_value'
         rw [show Φ hl_val(#1) = Φ v1 from rfl]
         iapply HΦ
