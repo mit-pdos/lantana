@@ -7,6 +7,7 @@ public import LantanaTest.Credits
 public import LantanaTest.Examples
 public import LantanaTest.FUpd
 public import LantanaTest.Guarantee
+public import LantanaTest.GuaranteeInfer
 public import LantanaTest.HeapLang
 public import LantanaTest.HeapLangLaws
 public import LantanaTest.Measure
