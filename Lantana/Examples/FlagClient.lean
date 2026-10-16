@@ -25,8 +25,8 @@ The guarantee `gClient` of the resources `clientRes` is assembled with `guar_sep
 `guar_ex_ghost` and `guar_true`, from the flag's guarantees and the inferred ones of the
 `finallyI`s.
 
-Everything here is proved, from the obligation-forest interface, the rules of temporal formulas
-and the adequacy theorems (whose own proofs are M4–M6).
+Everything here is proved; the end-to-end corollaries depend only on the standard axioms
+(checked in `LantanaTest.Examples`).
 -/
 
 @[expose] public noncomputable section
@@ -383,11 +383,11 @@ theorem flagClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
   iframe
 
 /-- Safety for one thread `j`, for any property `Φ` implied by its return value. -/
-theorem flagClient_safety_of (j : ThreadId) (Φ : ThreadId → Val → Prop)
+theorem flagClient_safety_of (j : ThreadId) (hj : j < tp0.length) (Φ : ThreadId → Val → Prop)
     (hΦ : ∀ v, clientVal j v → Φ j v) (τ : Trace Exp State) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
     safetyIris j Φ τ := by
-  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 j Φ τ hbeh hfair hpos hinit ?_
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 j Φ τ hbeh hfair hpos hinit hj ?_
   intro _ _
   refine ⟨4, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, Hl, HT⟩
@@ -410,8 +410,8 @@ stuck, and once the writer (resp. the reader) has returned, its value is `()` (r
 theorem flagClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
     safetyIris 0 (fun _ v => v = vUnit) τ ∧ safetyIris 1 (fun _ v => v = v1) τ :=
-  ⟨flagClient_safety_of 0 _ (fun _ h => h) τ hbeh hfair hpos hinit,
-    flagClient_safety_of 1 _ (fun _ h => h) τ hbeh hfair hpos hinit⟩
+  ⟨flagClient_safety_of 0 (by decide) _ (fun _ h => h) τ hbeh hfair hpos hinit,
+    flagClient_safety_of 1 (by decide) _ (fun _ h => h) τ hbeh hfair hpos hinit⟩
 
 /-- Liveness and safety together, over the same fair behaviors. -/
 @[lantana_alias flag_client_liveness_safety]

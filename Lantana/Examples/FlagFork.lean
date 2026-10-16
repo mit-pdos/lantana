@@ -30,8 +30,8 @@ postcondition `True`. The guarantee `gMain` of the commitments `mainRes` is infe
 obligation and layer are ghost) and assembled with `guar_sep`, `guar_ex_ghost` and `guar_true`.
 `main_safety_adequacy` is the safety statement from `lwp_adequacy_safety`.
 
-Everything here is proved, from the obligation-forest interface, the rules of temporal formulas
-and the adequacy theorems (whose own proofs are M4–M6).
+Everything here is proved; the end-to-end corollaries depend only on the standard axioms
+(checked in `LantanaTest.Examples`).
 -/
 
 @[expose] public noncomputable section
@@ -358,7 +358,7 @@ stuck, and once the main thread has returned, its value is `42`. -/
 theorem main_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
     safetyIris 0 (fun _ v => v = v42) τ := by
-  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit ?_
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
   intro _ _
   refine ⟨2, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩

@@ -79,4 +79,27 @@ example : @RocqLantana.flag_fork.main_adequacy = @FlagFork.main_adequacy := rfl
 set_option linter.deprecated false in
 example : @RocqLantana.handoff_client_adequacy = @HandoffClient.handoffClient_adequacy := rfl
 
+/-! The end-to-end corollaries of the examples depend only on the standard axioms. -/
+
+/--
+info: 'Lantana.Examples.FlagFork.main_liveness_safety' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms FlagFork.main_liveness_safety
+
+/--
+info: 'Lantana.Examples.FlagClient.flagClient_liveness_safety' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms FlagClient.flagClient_liveness_safety
+
+/--
+info: 'Lantana.Examples.HandoffClient.handoffClient_liveness_safety' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms HandoffClient.handoffClient_liveness_safety
+
 end LantanaTest.Examples

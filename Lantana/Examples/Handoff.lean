@@ -33,8 +33,7 @@ The guarantee `guar_isHandoff`: always, the cell holds `NONE` or a task (`handof
 `handoffInvTrSpec_ext`); the location's value is trace-visible (an existential over `Val`), the
 inbox and the obligations are ghost.
 
-Everything here is proved, from the obligation-forest interface and the rules of temporal
-formulas (whose own proofs are M4–M6).
+Everything here is proved.
 -/
 
 @[expose] public noncomputable section
