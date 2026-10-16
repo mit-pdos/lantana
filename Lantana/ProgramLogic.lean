@@ -13,3 +13,4 @@ public import Lantana.ProgramLogic.TemporalClass
 public import Lantana.ProgramLogic.OblForest
 public import Lantana.ProgramLogic.Notation
 public import Lantana.ProgramLogic.WeakestPre
+public import Lantana.ProgramLogic.Lifting
