@@ -204,6 +204,11 @@ instance ownAlive_discard_persistent (γ : TicketLockName) :
 instance layerLb_persistent (γc : GName) (ℓ : Layer) : Persistent (layerLb (GF := GF) γc ℓ) := by
   unfold layerLb; infer_instance
 
+/-- The discarded layer of a lock is persistent (Rocq: `↪LOCK_CF□` is persistent). -/
+instance ownLayer_discard_persistent (γ : TicketLockName) (ℓ : Layer) :
+    Persistent (ownLayer (GF := GF) γ ℓ .discard) := by
+  unfold ownLayer; infer_instance
+
 @[inherit_doc ownAlive] notation γ " ↪LOCK_AL{" dq "}" => ownAlive γ dq
 @[inherit_doc ownAlive] notation γ " ↪LOCK_AL" => ownAlive γ (DFrac.own 1)
 @[inherit_doc ownLayer] notation γ " ↪LOCK_CF{" dq "} " l => ownLayer γ l dq
@@ -1988,12 +1993,11 @@ section Trace
 def trPointsTo (l : Loc) (v : Val) : TrProp Exp State :=
   TrProp.state (pointstoSat l (DFrac.own 1) v)
 
-/-- A location holds one value at a time. -/
+/-- A location holds one value at a time (`HeapLang.pointsToTr_agree`, at a trace). -/
 theorem state_pointsto_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {τ : Trace Exp State}
     (h₁ : TrProp.state (pointstoSat l dq₁ v₁) τ) (h₂ : TrProp.state (pointstoSat l dq₂ v₂) τ) :
-    v₁ = v₂ := by
-  simp only [TrProp.state, pointstoSat] at h₁ h₂
-  exact Option.some.inj (Option.some.inj (h₁.symm.trans h₂))
+    v₁ = v₂ :=
+  HeapLang.pointsToTr_agree l dq₁ dq₂ v₁ v₂ τ ⟨h₁, h₂⟩
 
 /-- Release progress of the ticket lock `(next, curr)`: whenever a ticket is taken but not
 served out (`curr ↦ c`, `next ↦ n`, `c < n`), `curr` is eventually incremented. So every holder

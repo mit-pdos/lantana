@@ -274,12 +274,6 @@ theorem queueFuels_shift (L : List Oids) (ℓ : Layer) :
       (Obl.fuel_add_nat b ℓ (m₁ := n + 1) (m₂ := 1) rfl).mp).trans
       BigSepS.bigSepS_sep.mp).trans BigSepL.bigSepL_sep_eqv.mp
 
-omit [ModelGS GF] [HeapGS GF] [QueueG GF] in
-/-- The discarded layer of a lock is persistent (Rocq: `↪LOCK_CF□` is persistent). -/
-instance ownLayer_discard_persistent (γ : TicketLockName) (ℓ : Layer) :
-    Persistent (ownLayer (GF := GF) γ ℓ .discard) := by
-  unfold ownLayer; infer_instance
-
 @[lantana_alias queue.is_queue_persistent]
 instance isQueue_persistent (ql : Val) (γ : QueueName) (ℓ : Layer)
     (φ : Val → Oids → IProp GF) : Persistent (isQueue ql γ ℓ φ) := by
