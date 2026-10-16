@@ -114,7 +114,7 @@ section Proof
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 
 #lantana_ignore Int.post_wp "A tactic; `lwp_step` closes each pure step."
-#lantana_ignore Int.lwp_pures "A tactic; `lwp_step`."
+#lantana_ignore Int.lwp_pures "A tactic; `HeapLang.lwp_pures`."
 
 /-- `lt` returns whether `ltRel` holds. -/
 @[lantana_alias Int.lwp_lt]
@@ -128,20 +128,9 @@ theorem lwp_lt : ∃ μ : Measure, ∀ (x y : ExtInt) (i : ThreadId) (G : Oids) 
   rw [decide_ltRel]
   iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
   unfold lt
-  have h0 : (hl_val(#0) == hl_val(#1) : Bool) = false := rfl
-  have h1 : (hl_val(#1) == hl_val(#1) : Bool) = true := rfl
-  have h2 : (hl_val(#2) == hl_val(#1) : Bool) = false := rfl
   -- The pure steps up to the value, at most `18`.
   rcases x with _ | a | _ <;> rcases y with _ | b | _ <;> simp only [intoVal, ltb] <;>
-    repeat
-      fail_if_success iapply lwp_value'
-      lwp_step HT HG HF
-      try lwp_expr_simp
-      try simp only [decide_false, decide_true, h0, h1, h2]
-  all_goals
-    iapply lwp_value'
-    iapply HΦ
-    iframe
+    lwp_pures <;> iapply lwp_value' <;> iapply HΦ <;> iframe
 
 end Proof
 

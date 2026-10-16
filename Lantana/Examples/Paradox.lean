@@ -557,26 +557,8 @@ variable [ModelGS GF] [HeapGS GF] [ParadoxG GF]
 
 @[lantana_alias paradox.guar_Φ_P]
 theorem guar_mainRes : ⊢@{IProp GF} mainRes ⊨ₜ gMain := by
-  unfold mainRes gMain finallyI
-  iapply guar_ex_ghost
-  iintro %z
-  iapply guar_ex_ghost
-  iintro %ck
-  iapply guar_ex_ghost
-  iintro %rm
-  iapply guar_ex_ghost
-  iintro %ci
-  iapply guar_ex_ghost
-  iintro %cj
-  iapply guar_ex_ghost
-  iintro %n
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) N1 z 1 iprop(True)
-      iprop(False)))
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nu ck (1 : Qp).half
-      iprop(True) (nextQ (GF := GF) rm cj n)))
-  iapply guar_true
+  unfold mainRes gMain
+  exact IntoGuar.into_guar
 
 end Guarantee
 

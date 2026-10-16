@@ -33,9 +33,10 @@ instance instEctxItemLanguageExp : EctxItemLanguage Exp ECtxItem State Val where
     cases Ki <;> simp_all [ECtxItem.fill, toVal]
   fillItem_inj {Ki} e₁ e₂ h := by
     cases Ki <;> simp_all [ECtxItem.fill]
+  -- `cases heq` tells the constructors apart and unifies the arguments: the same item, or a
+  -- value on the other side (`cases hv₁`/`cases hv₂`); `simp_all` on the 729 pairs costs 6.5 s.
   fillItem_no_val_inj {Ki₁ Ki₂ _ _} hv₁ hv₂ heq := by
-    cases Ki₁ <;> cases Ki₂ <;>
-      simp_all only [ECtxItem.fill, Exp.ofVal, toVal, reduceCtorEq, Exp.app.injEq] <;> grind
+    cases Ki₁ <;> cases Ki₂ <;> cases heq <;> first | rfl | cases hv₁ | cases hv₂
   base_ctx_step_val {Ki} _ _ _ _ _ h := by
     cases Ki <;> cases h <;> rfl
 

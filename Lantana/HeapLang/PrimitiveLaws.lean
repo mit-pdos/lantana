@@ -22,11 +22,10 @@ later credits and the witnesses' credits (the paper's STEP rules).
 Points-to is Iris-Lean's `l ↦{dq} v` at value type `Option Val`: `l ↦ v` with `v : Val` means
 `l ↦ some v` by coercion, and a freed location is `l ↦{q} none` (Rocq `freed l q`).
 
-**Contexts.** Unlike Rocq, where a context is the list of its items, `lWP` quantifies over
-every function `K` with `Language.Context K` that puts the thread's expression into the pool.
-The token knows `fill C e`; that `K` agrees with `fill C` after the step is
-`Context.eq_fill_of_primStep`. For a deterministic step this follows from the context laws; for
-`chooseNat` it needs HeapLang itself (`Context.eq_fill_chooseNat`, by probing `K` with a load).
+**Contexts.** As in Rocq, the contexts of HeapLang are lists of items (D31): `lWP` quantifies
+over the contexts `K` that put the thread's expression into the pool, `fill K e`. The token knows
+`fill C e`; as `e` can step, `K = C` (`threadExpr_ctx`, by `fill_ctx_step_inj`), so the pool
+after the step is `tp.set i (fill C e')`.
 -/
 
 @[expose] public noncomputable section
@@ -35,309 +34,6 @@ namespace Lantana.HeapLang
 
 open Iris Iris.BI Iris.ProofMode Lantana Lantana.Language
 open Iris.ProgramLogic (toVal)
-
-/-! ## Contexts are determined by a step -/
-
-section Contexts
-
-open EctxItemLanguage EctxLanguage FromMathlib
-
-/-- `Exp.ofVal` is injective (local simp lemma: `val_to_ofVal` makes `ofVal` the normal form). -/
-theorem ofVal_eq_ofVal_iff {v w : Val} : (Exp.ofVal v : Exp) = Exp.ofVal w ↔ v = w :=
-  ⟨fun h => Exp.val.inj h, fun h => h ▸ rfl⟩
-
-attribute [local simp] ofVal_eq_ofVal_iff
-
-/-- Two items that agree on two different expressions plugged into them are equal. -/
-theorem ECtxItem.eq_of_fill_eq₂ {Ki Kj : ECtxItem} {u₀ u₁ w₀ w₁ : Exp} (hne : u₀ ≠ u₁)
-    (h₀ : Ki.fill u₀ = Kj.fill w₀) (h₁ : Ki.fill u₁ = Kj.fill w₁) : Ki = Kj := by
-  cases Ki <;> cases Kj <;> simp_all [ECtxItem.fill]
-
-/-- Two contexts that agree on two different values plugged into them are equal. -/
-theorem ctx_eq_of_fill_val_eq₂ {A B : List ECtxItem} {a₀ a₁ b₀ b₁ : Val} (hne : a₀ ≠ a₁)
-    (h₀ : fill A (Exp.ofVal a₀ : Exp) = fill B (Exp.ofVal b₀ : Exp))
-    (h₁ : fill A (Exp.ofVal a₁ : Exp) = fill B (Exp.ofVal b₁ : Exp)) : A = B := by
-  induction A using List.reverseRec generalizing B with
-  | nil =>
-    cases B using List.reverseCases with
-    | nil => rfl
-    | append_singleton B Kj =>
-      rw [fill_append, fill_singleton, fill_nil] at h₀
-      exact absurd (congrArg toVal h₀) (by simp)
-  | append_singleton A Ki ih =>
-    cases B using List.reverseCases with
-    | nil =>
-      rw [fill_append, fill_singleton, fill_nil] at h₀
-      exact absurd (congrArg toVal h₀) (by simp)
-    | append_singleton B Kj =>
-      rw [fill_append, fill_append, fill_singleton, fill_singleton] at h₀ h₁
-      have hu : fill A (Exp.ofVal a₀ : Exp) ≠ fill A (Exp.ofVal a₁ : Exp) := fun h =>
-        hne (ofVal_eq_ofVal_iff.mp (EvContext.fill_inj h))
-      obtain rfl : Ki = Kj := ECtxItem.eq_of_fill_eq₂ hu h₀ h₁
-      rw [ih (fillItem_inj h₀) (fillItem_inj h₁)]
-
-/-! ### Base steps -/
-
-theorem State.get?_initHeap_self {σ : State} {l : Loc} {n : Int} (hn : 0 < n) {v : Option Val} :
-    (σ.initHeap l n v).get? l = some v := by
-  simp only [State.get?]
-  rw [get?_foldl_insert, ite_eq_left ⟨0, by omega, by simp [loc_add_zero]⟩]
-
-theorem State.get?_initHeap (σ : State) (l k : Loc) (n : Int) (v : Option Val) :
-    (σ.initHeap l n v).get? k =
-      if (∃ i, i < n.toNat ∧ k = l + (i : Int)) then some v else σ.get? k := by
-  simp only [State.get?]
-  rw [get?_foldl_insert]
-
-/-- Allocation at two fresh blocks gives the same state only at the same location. -/
-theorem State.eq_of_initHeap_eq {σ : State} {l l' : Loc} {n : Int} {v : Option Val} (hn : 0 < n)
-    (hf : ∀ i : Int, 0 ≤ i → i < n → σ.get? (l + i) = none)
-    (hf' : ∀ i : Int, 0 ≤ i → i < n → σ.get? (l' + i) = none)
-    (h : σ.initHeap l n v = σ.initHeap l' n v) : l = l' := by
-  have key : ∀ {l l' : Loc}, (∀ i : Int, 0 ≤ i → i < n → σ.get? (l + i) = none) →
-      σ.initHeap l n v = σ.initHeap l' n v → ∃ i : Nat, l = l' + (i : Int) := by
-    intro l l' hf h
-    have h1 := State.get?_initHeap_self (σ := σ) (l := l) hn (v := v)
-    rw [h, State.get?_initHeap] at h1
-    split at h1
-    · next hex => obtain ⟨i, -, hi⟩ := hex; exact ⟨i, hi⟩
-    · have := hf 0 (by omega) hn
-      rw [loc_add_zero] at this
-      simp [this] at h1
-  obtain ⟨i, hi⟩ := key hf h
-  obtain ⟨j, hj⟩ := key hf' h.symm
-  have h1 := congrArg Loc.n hi
-  have h2 := congrArg Loc.n hj
-  simp only [loc_add_n] at h1 h2
-  ext
-  omega
-
-/-- A base step other than `chooseNat` is deterministic, given the final state. -/
-theorem BaseStep.det_of_ne_chooseNat {r a b : Exp} {σ σ₁ σ₂ : State} {efs efs' : List Exp}
-    (ha : BaseStep r σ a σ₁ efs) (hb : BaseStep r σ b σ₂ efs') (hσ : σ₁ = σ₂)
-    (hr : r ≠ .chooseNat) : a = b := by
-  cases ha with
-  | allocNS n v σ l hn hf =>
-    cases hb with
-    | allocNS _ _ _ l' _ hf' => rw [State.eq_of_initHeap_eq hn hf hf' hσ]
-  | _ => cases hb; simp_all
-
-/-! ### Contexts are determined by a step
-
-`Language.Context K` is a property of a function `K`, so `K e₁ = fill C e₁` alone does not say
-that `K` is `fill C`. Along a step of `e₁` it does: for a deterministic step this follows from
-the context laws, and for `chooseNat` from probing `K` with a load (`eq_fill_chooseNat`). -/
-
-/-- The location the probe reads. -/
-def probeLoc : Loc := ⟨0⟩
-
-/-- The state whose heap holds `#m` at `probeLoc` and nothing else. -/
-def probeState (m : Nat) : State :=
-  ⟨Iris.Std.insert (∅ : HeapF (Option Val)) probeLoc (some (.lit (.int m)))⟩
-
-theorem probeState_get? (m : Nat) (l : Loc) :
-    (probeState m).get? l = if probeLoc = l then some (some (.lit (.int m))) else none := by
-  simp only [State.get?, probeState]
-  rw [Iris.Std.LawfulPartialMap.get?_insert, Iris.Std.get?_empty]
-
-theorem probeState_get?_eq_some {m : Nat} {l : Loc} {v : Option Val}
-    (h : (probeState m).get? l = some v) : l = probeLoc ∧ v = some (.lit (.int m)) := by
-  rw [probeState_get?] at h
-  split at h <;> simp_all
-
-/-- The base steps of a redex `q` in the probe states: they read the probe (`load`, `faa`),
-read it into a pair (`cmpXchg`), or do not depend on it. -/
-theorem probe_classify {q a₀ : Exp} {σ₀' : State} {efs₀ : List Exp}
-    (h₀ : BaseStep q (probeState 0) a₀ σ₀' efs₀) (hσ₀ : σ₀' = probeState 0) (hefs₀ : efs₀ = [])
-    (huniq : ∀ a σ' efs, BaseStep q (probeState 0) a σ' efs → a = a₀)
-    (h₁ : ∃ a σ' efs, BaseStep q (probeState 1) a σ' efs ∧ σ' = probeState 1 ∧ efs = []) :
-    (∀ m a σ' efs, BaseStep q (probeState m) a σ' efs → a = .val (.lit (.int m))) ∨
-    (∀ m a σ' efs, BaseStep q (probeState m) a σ' efs →
-      ∃ b, a = .val (.pair (.lit (.int m)) (.lit (.bool b)))) ∨
-    (∀ m a σ' efs, BaseStep q (probeState m) a σ' efs → a = a₀) := by
-  cases h₀
-  case loadS l v hget =>
-    left
-    intro m a σ' efs h
-    cases h
-    next v' hget' => obtain ⟨-, h⟩ := probeState_get?_eq_some hget'; simp_all
-  case faaS l i1 i2 hget =>
-    left
-    intro m a σ' efs h
-    cases h
-    next i1' hget' => obtain ⟨-, h⟩ := probeState_get?_eq_some hget'; simp_all
-  case cmpXchgS l v1 v2 vl b hget _ _ =>
-    right; left
-    intro m a σ' efs h
-    cases h
-    next vl' b' _ _ hget' => obtain ⟨-, h⟩ := probeState_get?_eq_some hget'; simp_all
-  case allocNS n v l hn hf =>
-    exfalso
-    have h1 := State.get?_initHeap_self (σ := probeState 0) (l := l) hn (v := some v)
-    rw [hσ₀] at h1
-    have h2 := hf 0 (by omega) hn
-    rw [loc_add_zero] at h2
-    simp [h1] at h2
-  case freeS l v hget =>
-    exfalso
-    have h1 := State.get?_initHeap_self (σ := probeState 0) (l := l) (n := 1) (by omega)
-      (v := none)
-    rw [hσ₀, hget] at h1
-    simp at h1
-  case storeS l v w hget =>
-    exfalso
-    obtain ⟨hl, -⟩ := probeState_get?_eq_some hget
-    have h0 := State.get?_initHeap_self (σ := probeState 0) (l := l) (n := 1) (by omega)
-      (v := some w)
-    rw [hσ₀] at h0
-    obtain ⟨a, σ', efs, h, hσ', -⟩ := h₁
-    cases h
-    have h1 := State.get?_initHeap_self (σ := probeState 1) (l := l) (n := 1) (by omega)
-      (v := some w)
-    rw [hσ'] at h1
-    obtain ⟨-, h0⟩ := probeState_get?_eq_some h0
-    obtain ⟨-, h1⟩ := probeState_get?_eq_some h1
-    simp_all
-  case xchgS l v1 v2 hget =>
-    exfalso
-    obtain ⟨hl, -⟩ := probeState_get?_eq_some hget
-    have h0 := State.get?_initHeap_self (σ := probeState 0) (l := l) (n := 1) (by omega)
-      (v := some v2)
-    rw [hσ₀] at h0
-    obtain ⟨a, σ', efs, h, hσ', -⟩ := h₁
-    cases h
-    have h1 := State.get?_initHeap_self (σ := probeState 1) (l := l) (n := 1) (by omega)
-      (v := some v2)
-    rw [hσ'] at h1
-    obtain ⟨-, h0⟩ := probeState_get?_eq_some h0
-    obtain ⟨-, h1⟩ := probeState_get?_eq_some h1
-    simp_all
-  case forkS => simp at hefs₀
-  case chooseNatS k =>
-    exfalso
-    have := huniq _ _ _ (.chooseNatS (k + 1) _)
-    simp at this
-    omega
-  all_goals
-    right; right
-    intro m a σ' efs h
-    cases h
-    simp_all
-
-/-- A context that agrees with `fill C` on `fill D chooseNat` agrees with it on every result of
-the step. The bijection between the results that the context laws give is the identity: the
-context maps the load of a location to a redex whose results follow the location's contents. -/
-theorem Context.eq_fill_chooseNat {K : Exp → Exp} [Context K] {C D : List ECtxItem}
-    (hK : K (fill D .chooseNat) = fill C (fill D .chooseNat)) (n : Nat) :
-    K (fill D (.val (.lit (.int n)))) = fill C (fill D (.val (.lit (.int n)))) := by
-  have hnv : toVal (fill D Exp.chooseNat) = none := EctxItemLanguage.fill_not_val D rfl
-  have hred : ∀ σ : State, BaseReducible Exp.chooseNat σ := fun σ => ⟨_, _, _, .chooseNatS 0 σ⟩
-  -- The results of `chooseNat` under `K` are those under `fill (D ++ C)`.
-  have hF1 (m : Nat) : ∃ m' : Nat,
-      K (fill D (.val (.lit (.int m)))) = fill (D ++ C) (.val (.lit (.int m'))) := by
-    have hs := Context.primStep_fill (K := K)
-      (primStep_fill_of_baseStep D (BaseStep.chooseNatS m default))
-    rw [hK, ← fill_append] at hs
-    obtain ⟨y, hy, hb⟩ := exists_baseStep_of_primStep_fill (hred default) hs
-    cases hb
-    exact ⟨_, hy⟩
-  have hF2 (m' : Nat) : ∃ m : Nat,
-      fill (D ++ C) (.val (.lit (.int m'))) = K (fill D (.val (.lit (.int m)))) := by
-    have hs := primStep_fill_of_baseStep (Expr := Exp) (D ++ C) (BaseStep.chooseNatS m' default)
-    rw [fill_append, ← hK] at hs
-    obtain ⟨x, hx, hs'⟩ := Context.primStep_fill_inv (K := K) hnv hs
-    obtain ⟨y, rfl, hb⟩ := exists_baseStep_of_primStep_fill (hred default) hs'
-    cases hb
-    exact ⟨_, hx⟩
-  -- The probe: a load of `probeLoc` in the context `D`.
-  have hload (m : Nat) : BaseStep (.load (.val (.lit (.loc probeLoc)))) (probeState m)
-      (.val (.lit (.int m))) (probeState m) [] :=
-    .loadS _ _ _ (by simp [probeState_get?])
-  have hPuniq (m : Nat) (x : Exp) (σ' : State) (efs : List Exp)
-      (h : primStep (fill D (.load (.val (.lit (.loc probeLoc))))) (probeState m) x σ' efs) :
-      x = fill D (.val (.lit (.int m))) := by
-    obtain ⟨y, rfl, hb⟩ := exists_baseStep_of_primStep_fill ⟨_, _, _, hload m⟩ h
-    cases hb
-    next v hget => obtain ⟨-, h⟩ := probeState_get?_eq_some hget; simp_all
-  -- Its image under `K` reads the probe.
-  have hY (m : Nat) : primStep (K (fill D (.load (.val (.lit (.loc probeLoc)))))) (probeState m)
-      (K (fill D (.val (.lit (.int m))))) (probeState m) [] :=
-    Context.primStep_fill (primStep_fill_of_baseStep D (hload m))
-  have hYuniq (m : Nat) (Z : Exp) (σ' : State) (efs : List Exp)
-      (h : primStep (K (fill D (.load (.val (.lit (.loc probeLoc)))))) (probeState m) Z σ' efs) :
-      Z = K (fill D (.val (.lit (.int m)))) := by
-    obtain ⟨x, rfl, hx⟩ := Context.primStep_fill_inv (K := K)
-      (EctxItemLanguage.fill_not_val D rfl) h
-    rw [hPuniq m x σ' efs hx]
-  obtain ⟨D', q, a₀, hYeq, hX₀, hb₀⟩ := hY 0
-  have hall (m : Nat) : ∃ a, K (fill D (.val (.lit (.int m)))) = fill D' a ∧
-      BaseStep q (probeState m) a (probeState m) [] := by
-    obtain ⟨D'', q', a', heq, ha', hb'⟩ := hY m
-    obtain ⟨rfl, rfl⟩ := base_redex_unique (hYeq.symm.trans heq) ⟨_, _, _, hb₀⟩ ⟨_, _, _, hb'⟩
-    exact ⟨a', ha', hb'⟩
-  have huniq (a : Exp) (σ' : State) (efs : List Exp) (h : BaseStep q (probeState 0) a σ' efs) :
-      a = a₀ := by
-    have h' : primStep (K (fill D (.load (.val (.lit (.loc probeLoc)))))) (probeState 0)
-        (fill D' a) σ' efs := by
-      rw [hYeq]; exact primStep_fill_of_baseStep (Expr := Exp) D' h
-    have := hYuniq 0 _ _ _ h'
-    exact EvContext.fill_inj (this.trans hX₀)
-  obtain ⟨a₁, -, hb₁⟩ := hall 1
-  obtain ⟨m₀, h₀⟩ := hF1 0
-  obtain ⟨m₁, h₁⟩ := hF1 1
-  obtain ⟨c₀, hk₀, hs₀⟩ := hall 0
-  obtain ⟨c₁, hk₁, hs₁⟩ := hall 1
-  rcases probe_classify hb₀ rfl rfl huniq ⟨a₁, _, _, hb₁, rfl, rfl⟩ with hA | hB | hC
-  · -- The redex reads the probe: `K` is `fill (D ++ C)` on the results.
-    rw [hA _ _ _ _ hs₀] at hk₀
-    rw [hA _ _ _ _ hs₁] at hk₁
-    have hDC : D' = D ++ C :=
-      ctx_eq_of_fill_val_eq₂ (a₀ := .lit (.int 0)) (a₁ := .lit (.int 1)) (by simp)
-        (hk₀.symm.trans h₀) (hk₁.symm.trans h₁)
-    obtain ⟨cn, hkn, hsn⟩ := hall n
-    rw [hkn, hA _ _ _ _ hsn, hDC, fill_append]
-  · -- The redex reads the probe into a pair: impossible.
-    obtain ⟨d₀, hd₀⟩ := hB _ _ _ _ hs₀
-    obtain ⟨d₁, hd₁⟩ := hB _ _ _ _ hs₁
-    rw [hd₀] at hk₀
-    rw [hd₁] at hk₁
-    have hDC : D' = D ++ C :=
-      ctx_eq_of_fill_val_eq₂ (a₀ := .pair (.lit (.int 0)) (.lit (.bool d₀)))
-        (a₁ := .pair (.lit (.int 1)) (.lit (.bool d₁))) (by simp)
-        (hk₀.symm.trans h₀) (hk₁.symm.trans h₁)
-    subst hDC
-    have := EvContext.fill_inj (hk₀.symm.trans h₀)
-    simp at this
-  · -- The redex ignores the probe: then `K` is constant on the results, but they are not.
-    obtain ⟨x₀, hx₀⟩ := hF2 0
-    obtain ⟨x₁, hx₁⟩ := hF2 1
-    obtain ⟨e₀, he₀, hse₀⟩ := hall x₀
-    obtain ⟨e₁, he₁, hse₁⟩ := hall x₁
-    rw [hC _ _ _ _ hse₀] at he₀
-    rw [hC _ _ _ _ hse₁] at he₁
-    have := EvContext.fill_inj ((hx₀.trans he₀).trans (hx₁.trans he₁).symm)
-    simp at this
-
-/-- A context that agrees with `fill C` on an expression agrees with it on the results of the
-steps of that expression. -/
-theorem Context.eq_fill_of_primStep {K : Exp → Exp} [Context K] {C : List ECtxItem}
-    {e₁ e₂ : Exp} {σ σ' : State} {efs : List Exp}
-    (hK : K e₁ = fill C e₁) (h : primStep e₁ σ e₂ σ' efs) : K e₂ = fill C e₂ := by
-  obtain ⟨D, r, r', rfl, rfl, hb⟩ := h
-  by_cases hr : r = .chooseNat
-  · subst hr
-    cases hb
-    exact Context.eq_fill_chooseNat hK _
-  · have hs : primStep (K (fill D r)) σ (fill C (fill D r')) σ' efs := by
-      rw [hK]
-      exact Context.primStep_fill (primStep_fill_of_baseStep D hb)
-    obtain ⟨x, hx, hxs⟩ := Context.primStep_fill_inv (K := K)
-      (EctxItemLanguage.fill_not_val D (EctxLanguage.val_base_stuck hb)) hs
-    obtain ⟨y, rfl, hy⟩ := exists_baseStep_of_primStep_fill ⟨_, _, _, hb⟩ hxs
-    rw [BaseStep.det_of_ne_chooseNat hy hb rfl hr] at hx
-    exact hx.symm
-
-end Contexts
 
 /-! ## Ghost state -/
 
@@ -439,6 +135,24 @@ theorem threadMapAuth_lookup (tp : ThreadPool Exp) (i : ThreadId) (C : List ECtx
   ipureintro
   rwa [ThreadPool.get?_toMap] at h
 
+/-- The context of a thread is determined by its expression when that expression can step: the
+context `K` of the pool is the context `C` of the token (`fill_ctx_step_inj`). -/
+theorem ctx_eq_of_primStep {tp : ThreadPool Exp} {i : ThreadId} {C K : List ECtxItem} {e : Exp}
+    {σ : State} {e' : Exp} {σ' : State} {efs : List Exp} (hs : primStep e σ e' σ' efs)
+    (hC : tp[i]? = some (fill C e)) (hK : tp[i]? = some (fill K e)) : C = K :=
+  EctxItemLanguage.fill_ctx_step_inj hs (Option.some.inj (hC.symm.trans hK))
+
+/-- The token determines the context of a thread that can step. -/
+@[lantana_alias thread_expr_ctx]
+theorem threadExpr_ctx (tp : ThreadPool Exp) (i : ThreadId) (C K : List ECtxItem) (e : Exp)
+    {σ : State} {e' : Exp} {σ' : State} {efs : List Exp} (hK : tp[i]? = some (fill K e))
+    (hs : primStep e σ e' σ' efs) :
+    threadMapAuth (GF := GF) tp ∗ threadExpr i C e ⊢ ⌜C = K⌝ := by
+  iintro H
+  ihave %hC := threadMapAuth_lookup tp i C e $$ H
+  ipureintro
+  exact ctx_eq_of_primStep hs hC hK
+
 /-- The token and the pool change together. -/
 theorem threadMapAuth_update (tp : ThreadPool Exp) (i : ThreadId) (C : List ECtxItem)
     (e e' : Exp) :
@@ -527,19 +241,17 @@ end
 @[lantana_alias thread_expr_pure_exec_si]
 instance threadExpr_pureExecSI {GF : BundledGFunctors} [HeapGS GF] (C : List ECtxItem)
     (i : ThreadId) : PureExecSI (GF := GF) (fun i e => threadExpr i C e) i where
-  pureExecSI {K e₁ e₂ σ tp} hK hi hstep := by
+  pureExecSI {K e₁ e₂ σ tp} _ hi hstep := by
     iintro ⟨Hf, Hσ⟩
     icases (stateInterp_unfold σ tp).mp $$ Hσ with ⟨Hh, Ha⟩
-    ihave %h : ⌜tp[i]? = some (fill C e₁)⌝ $$ [Ha Hf]
-    · iapply threadMapAuth_lookup
-      iframe
-    have hKe₂ := Context.eq_fill_of_primStep (Option.some.inj (hi.symm.trans h)) hstep
+    ihave %hC := threadExpr_ctx tp i C K e₁ hi hstep $$ [Ha Hf]
+    · iframe
+    subst hC
     imod threadMapAuth_update tp i C e₁ e₂ $$ [Ha Hf] with ⟨Ha, Hf⟩
     · iframe
     imodintro
     iframe Hf
     iapply (stateInterp_unfold σ _).mpr
-    rw [hKe₂]
     iframe
 
 /-! ## The primitive laws -/
@@ -573,14 +285,14 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro ⟨HT, ⟨HG, HF, HR⟩, HH, HΦ⟩
   iapply lwp_lift_atomic_base_step_no_fork he
-  iintro %K %σ₁ %tp %hK %hi Hσ
+  iintro %K %σ₁ %tp %hi Hσ
   icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
-  ihave %hT : ⌜tp[i]? = some (fill C e₁)⌝ $$ [Ha HT]
-  · iapply threadMapAuth_lookup
-    iframe
-  have hKe : K e₁ = fill C e₁ := Option.some.inj (hi.symm.trans hT)
   icases hstep σ₁ $$ [Hh HH] with ⟨%hred, Hstep⟩
   · iframe
+  have ⟨_, _, _, hb⟩ := hred
+  ihave %hC := threadExpr_ctx tp i C K e₁ hi (EctxLanguage.primStep_of_baseStep hb) $$ [Ha HT]
+  · iframe
+  subst hC
   imodintro
   isplitr
   · ipureintro
@@ -590,7 +302,6 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
   iexists R
   iframe HR
   iintro %e₂ %σ₂ %efs %hs
-  have hKe₂ := Context.eq_fill_of_primStep hKe (EctxLanguage.primStep_of_baseStep hs)
   imod Hstep $$ %e₂ %σ₂ %efs %hs with ⟨%hefs, %v, %hv, Hh, HΨ⟩
   imod threadMapAuth_update tp i C e₁ e₂ $$ [Ha HT] with ⟨Ha, HT⟩
   · iframe
@@ -605,7 +316,6 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
     exact hefs
   isplitl [Hh Ha]
   · iapply (stateInterp_unfold σ₂ _).mpr
-    rw [hKe₂]
     iframe
   subst hv
   iexists v
@@ -726,12 +436,12 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
           (£ₒ o ∗ thKids i (G \ K) ∗ witCreds R) }}} := by
   iintro #Hfork %Φ !> ⟨HT, ⟨HG, HF, HR⟩, HK, HP⟩ HΦ
   iapply lwp_lift_atomic_base_step rfl
-  iintro %K' %σ₁ %tp %hK' %hi Hσ
+  iintro %K' %σ₁ %tp %hi Hσ
   icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
-  ihave %hT : ⌜tp[i]? = some (fill C (.fork e))⌝ $$ [Ha HT]
-  · iapply threadMapAuth_lookup
-    iframe
-  have hKe : K' (.fork e) = fill C (.fork e) := Option.some.inj (hi.symm.trans hT)
+  ihave %hC := threadExpr_ctx tp i C K' (.fork e) hi
+    (EctxLanguage.primStep_of_baseStep (.forkS e σ₁)) $$ [Ha HT]
+  · iframe
+  subst hC
   imodintro
   isplitr
   · ipureintro
@@ -741,7 +451,6 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
   iexists R
   iframe HR
   iintro %e₂ %σ₂ %efs %hs
-  have hKe₂ := Context.eq_fill_of_primStep hKe (EctxLanguage.primStep_of_baseStep hs)
   cases hs
   imod threadMapAuth_update tp i C (.fork e) (.val (.lit .unit)) $$ [Ha HT] with ⟨Ha, HT⟩
   · iframe
@@ -754,7 +463,6 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
   imodintro
   isplitl [Hh Ha]
   · iapply (stateInterp_unfold σ₁ _).mpr
-    rw [hKe₂]
     iframe
   simp only [List.length_set, List.length_singleton, List.range_one]
   icases BigSepL.bigSepL_singleton.mp $$ Hforks with Hkj

@@ -13,7 +13,7 @@ open Iris.ProgramLogic (toVal)
 section
 
 variable {Expr State Val : Type} {GF : BundledGFunctors}
-variable [Language Expr State Val] [ModelGS GF]
+variable [Λ : Language Expr State Val] [ModelGS GF]
 variable [LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
 variable {s : Stuckness} {i : ThreadId} {E E₂ : CoPset} {e : Expr} {Φ : Val → IProp GF}
   {P Q : IProp GF}
@@ -80,13 +80,20 @@ example (h : E ⊆ E₂) : lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E₂ {{ Φ
 
 /-! Bind: a context around an expression. -/
 
-example (K₁ K₂ : Expr → Expr) [Language.Context K₁] [Language.Context K₂] :
-    lWP e @ s; i; E {{ fun v : Val => lWP (K₁ (K₂ (v : Expr))) @ s; i; E {{ Φ }} }} ⊢
-      lWP (K₁ (K₂ e)) @ s; i; E {{ Φ }} := by
-  haveI : Language.Context fun x => K₁ (K₂ x) := Language.Context.instComp K₁ K₂
+example (K₁ K₂ : Λ.Ctx) [Language.Context K₁] [Language.Context K₂] :
+    lWP e @ s; i; E {{ fun v : Val =>
+        lWP (ctxApply K₁ (ctxApply K₂ (v : Expr))) @ s; i; E {{ Φ }} }} ⊢
+      lWP (ctxApply K₁ (ctxApply K₂ e)) @ s; i; E {{ Φ }} := by
   iintro H
-  iapply lwp_bind (fun x => K₁ (K₂ x))
+  rw [← Language.ctxApply_comp]
+  iapply lwp_bind (ctxComp K₁ K₂)
+  isimp only [Language.ctxApply_comp]
   iexact H
+
+/-! The empty context. -/
+
+example : lWP e @ s; i; E {{ Φ }} ⊢ lWP (ctxApply ctxId e) @ s; i; E {{ Φ }} := by
+  rw [Language.ctxApply_id]
 
 /-! Two pure steps paid at once. -/
 

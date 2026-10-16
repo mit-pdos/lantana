@@ -26,6 +26,8 @@ step, and the witness layers; it gives back the witnesses' credits and later cre
   `≤`, `<` on integers), which the generic ones of `Instances` cannot provide to instance search.
 * `stepPre_nil`, `stepPre_wit`, `witLayers_empty`, `witCreds_singleton`: the bookkeeping of the
   witnesses of a step.
+* `lwp_step`, `lwp_pure`, `lwp_bind e'` without hypothesis names, `lwp_expr_eval` and
+  `lwp_pures` (the last section): the token, the children and the fuel found by their shape.
 -/
 
 @[expose] public noncomputable section
@@ -302,7 +304,7 @@ theorem tac_lwp_bind (e' : Exp) {e : Exp} {K : List ECtxItem} [h : InCtx e' e K]
       lWP e @ s; i; E {{ Φ }} := by
   iintro HT H
   rw [← h.eq_fill]
-  iapply lwp_bind (fill K)
+  iapply lwp_bind_fill K
   iapply H
   iapply (threadExpr_fill i C K e').mp $$ HT
 
@@ -373,7 +375,7 @@ end Steps
 token `H : threadExpr i C e` (Rocq `lwp_pure`). The pure condition is tried with `trivial`
 and `decide`, and is left as the first goal if they fail; the goal left is the existential of
 `tac_lwp_pure`. -/
-syntax (name := lwpPure) "lwp_pure " ident : tactic
+syntax (name := lwpPure) "lwp_pure " colGt ident : tactic
 
 macro_rules
   | `(tactic| lwp_pure $H:ident) =>
@@ -387,7 +389,7 @@ macro_rules
 hypotheses are given back (`HF` with `m` units of fuel, `H` for the new expression) and the
 goal is `lWP e' @ s; i; E {{ Φ }}`. `lwp_step H HG HF with Hc : o` also gives the later
 credits `Hc : £ₒ o`. The pure condition is handled as by `lwp_pure`. -/
-syntax (name := lwpStep) "lwp_step " ident ppSpace ident ppSpace ident
+syntax (name := lwpStep) "lwp_step " colGt ident ppSpace colGt ident ppSpace colGt ident
   (" with " ident " : " term)? : tactic
 
 macro_rules
@@ -404,7 +406,7 @@ macro_rules
 
 /-- `lwp_bind e' H`: focus on the subexpression `e'` of the goal `lWP e @ s; i; E {{ Φ }}`
 (Rocq `lwp_bind`); the token `H : threadExpr i C e` becomes `H : threadExpr i (K ++ C) e'`. -/
-syntax (name := lwpBind) "lwp_bind " term:max ppSpace ident : tactic
+syntax (name := lwpBind) "lwp_bind " colGt term:max ppSpace colGt ident : tactic
 
 macro_rules
   | `(tactic| lwp_bind $e $H:ident) =>
@@ -422,5 +424,256 @@ macro "lwp_expr_simp" : tactic =>
         List.cons_append, EctxItemLanguage.fill_append, EctxItemLanguage.fill_nil,
         EctxItemLanguage.fill_cons, fillItem_eq, ECtxItem.fill, Bool.not_true, Bool.not_false]
     try simp only [val_to_ofVal]))
+
+/-! ## Finding the hypotheses of a step (D27, M10)
+
+The tactics above take the token, the children and the fuel by name. The variants below find
+them in the proof-mode context by their shape, for the thread `i` and the expression `e` of the
+goal `lWP e @ s; i; E {{ Φ }}`: the token is the spatial hypothesis `threadExpr i C e` (with the
+goal's expression), the children the spatial hypothesis `thKids i G`, and the fuel the spatial
+hypothesis `oblFuels G n` of the same `G`; the most recent such hypothesis is taken.
+
+* `lwp_step`, `lwp_step with Hc : o`, `lwp_pure` and `lwp_bind e'` are `lwp_step H HG HF`,
+  `lwp_step H HG HF with Hc : o`, `lwp_pure H` and `lwp_bind e' H` with the hypotheses found.
+  Before applying a step, `lwp_step` checks that the expression is not a value and finds the
+  redex (`PureExecCtx φ 1 e e'`) itself, after `lwp_expr_eval` if there is none and the
+  expression has something to compute. (The named tactic, applied to a value or to an
+  unsimplified `Exp.subst`, fails its instance search with an error that elaboration recovers
+  from; the search for a proof of the then unknown pure condition by `trivial` exceeds the
+  maximum recursion depth, an exception that `try` and `repeat` do not catch.)
+* `lwp_expr_eval` is `lwp_expr_simp` that also computes the comparisons `v₁ == v₂` of closed
+  values (`reduceValBEq`; the result of `instPureExecEqOp`), `decide` of decided propositions
+  (the results of `≤` and `<` on integer literals) and the arithmetic of integer literals.
+* `lwp_pures` repeats `lwp_step`, giving back the token, the children and the fuel under their
+  names and computing the expression with `lwp_expr_eval` when it has something to compute,
+  until the expression is a value, has no one-step pure redex, or has one whose pure condition
+  `trivial` and `decide` do not prove. It fails if it takes no step; a missing hypothesis or a
+  lack of fuel is an error. The `lWP` of a value is left to the caller (`lwp_value'`).
+-/
+
+/-- Computes `v₁ == v₂` on closed values (the result of `instPureExecEqOp`), by evaluation. -/
+simproc_decl reduceValBEq (@BEq.beq Val _ _ _) := fun e => do
+  unless e.isAppOfArity ``BEq.beq 4 do return .continue
+  if e.hasFVar || e.hasMVar then return .continue
+  let r ← Lean.Meta.whnfD e
+  if r.isConstOf ``true || r.isConstOf ``false then return .done { expr := r }
+  return .continue
+
+/-- `lwp_expr_eval`: `lwp_expr_simp`, which also computes the comparisons `v₁ == v₂` of closed
+values, `decide` of decided propositions (`decide (1 < 2)`) and the arithmetic of integer
+literals (`2 + 1`). -/
+macro "lwp_expr_eval" : tactic =>
+  `(tactic| (
+    simp (config := {decide := true}) only
+      [Exp.subst, Exp.substStr, Exp.ofVal, ↓reduceIte, List.nil_append, List.append_nil,
+        List.cons_append, EctxItemLanguage.fill_append, EctxItemLanguage.fill_nil,
+        EctxItemLanguage.fill_cons, fillItem_eq, ECtxItem.fill, Bool.not_true, Bool.not_false,
+        reduceValBEq, _root_.decide_true, _root_.decide_false, Int.reduceAdd, Int.reduceSub,
+        Int.reduceMul, Int.reduceNeg]
+    try simp only [val_to_ofVal]))
+
+section AutoStep
+
+open Lean Elab Tactic Meta
+
+/-- The parsed proof-mode goal `lWP e @ s; i; E {{ Φ }}`, its thread `i` and its expression
+`e`. -/
+meta def lwpGoal? (goal : Expr) : MetaM (Option (IrisGoal × Expr × Expr)) := do
+  let some ig := parseIrisGoal? (← instantiateMVars goal) | return none
+  let g := ig.goal.consumeMData
+  unless g.isAppOfArity ``Lwp.lwp 11 do return none
+  return some (ig, g.getArg! 7, g.getArg! 9)
+
+/-- `a` and `b` are equal up to reducible unfolding (no metavariable is assigned). -/
+meta def eqReducible (a b : Expr) : MetaM Bool :=
+  withNewMCtxDepth <| withReducible <| isDefEq a b
+
+/-- The last `k` arguments of an application of the constant `c`. -/
+meta def lastArgs? (ty : Expr) (c : Name) (k : Nat) : Option (Array Expr) :=
+  if ty.getAppFn.isConstOf c && ty.getAppNumArgs ≥ k then
+    some (ty.getAppArgs.extract (ty.getAppNumArgs - k) ty.getAppNumArgs)
+  else none
+
+/-- The name and type of the most recent spatial hypothesis whose type satisfies `p`. -/
+meta def findSpatialHyp {u : Level} {prop bi e : Expr} (hyps : @Hyps u prop bi e)
+    (p : Expr → MetaM Bool) : MetaM (Option (Name × Expr)) := do
+  let r ← hyps.findM? fun _ _ b ty => do
+    if isTrue b then return false
+    p ty.consumeMData
+  return r.map fun (n, _, _, ty) => (n, ty.consumeMData)
+
+/-- The token `threadExpr i C e` of the thread `i` with the expression `e`. -/
+meta def findToken (tac : String) {u : Level} {prop bi e₀ : Expr} (hyps : @Hyps u prop bi e₀)
+    (i e : Expr) : MetaM Name := do
+  let some (n, _) ← findSpatialHyp hyps fun ty => do
+      let some #[i', _, e'] := lastArgs? ty ``threadExpr 3 | return false
+      eqReducible i' i <&&> eqReducible e' e
+    | throwError "{tac}: no hypothesis threadExpr {i} _{indentExpr e}\n(the token of the thread)"
+  return n
+
+/-- The children `thKids i G` of the thread `i` and their fuel `oblFuels G n`. -/
+meta def findKidsFuel (tac : String) {u : Level} {prop bi e₀ : Expr}
+    (hyps : @Hyps u prop bi e₀) (i : Expr) : MetaM (Name × Name) := do
+  let some (nG, tyG) ← findSpatialHyp hyps fun ty => do
+      let some #[p, _] := lastArgs? ty ``Par.kids 2 | return false
+      let some #[i'] := lastArgs? p ``Parent.thread 1 | return false
+      eqReducible i' i
+    | throwError "{tac}: no hypothesis thKids {i} _ (the children of the thread)"
+  let G := tyG.getAppArgs.back!
+  let some (nF, _) ← findSpatialHyp hyps fun ty => do
+      let some #[G', _] := lastArgs? ty ``oblFuels 2 | return false
+      eqReducible G' G
+    | throwError "{tac}: no hypothesis oblFuels {G} _ (the fuel of the children of the thread)"
+  return (nG, nF)
+
+/-- The names of the hypotheses of a step: the token, the children and their fuel. -/
+structure StepHyps where
+  token : Name
+  kids : Name
+  fuel : Name
+
+/-- `e` is a value: `Exp.val v` (`Exp.ofVal v`) up to instance unfolding. -/
+meta def isValExp (e : Expr) : MetaM Bool :=
+  return (← withTransparency .instances <| whnf e).isAppOf ``Exp.val
+
+/-- `e` has something for `lwp_expr_eval` to compute: a substitution, a context, a negation, a
+comparison, a `decide` or an arithmetic operation. -/
+meta def needsEval (e : Expr) : Bool :=
+  (e.find? fun x => x.isConst && [``Exp.subst, ``EvContext.fill, ``EctxItemLanguage.fillItem,
+    ``ECtxItem.fill, ``BEq.beq, ``not, ``Decidable.decide, ``HAdd.hAdd, ``HSub.hSub,
+    ``HMul.hMul, ``Neg.neg].contains x.constName!).isSome
+
+/-- The pure condition `φ` of the one-step pure redex of `e` (`PureExecCtx φ 1 e e'`). -/
+meta def findPureRedex? (e : Expr) : MetaM (Option Expr) := do
+  let φ ← mkFreshExprMVar (mkSort .zero)
+  let n ← mkFreshExprMVar (mkConst ``Nat)
+  let e' ← mkFreshExprMVar (mkConst ``Exp)
+  let some _ ← synthInstance? (mkAppN (mkConst ``PureExecCtx) #[φ, n, e, e']) | return none
+  unless (← whnfD (← instantiateMVars n)).rawNatLit? == some 1 do return none
+  return some (← instantiateMVars φ)
+
+/-- The pure condition `φ` is proved by `trivial` or `decide` (nothing is assigned). -/
+meta def provesPureCond (φ : Expr) : TacticM Bool := withMainContext do
+  if φ.hasMVar then return false
+  let saved ← saveState
+  let m ← mkFreshExprMVar φ
+  let ok ← try
+      let gs ← Term.withoutErrToSorry <| Tactic.run m.mvarId! <|
+        evalTactic (← `(tactic| first | trivial | decide))
+      pure gs.isEmpty
+    catch _ => pure false
+  saved.restore
+  return ok
+
+/-- What a step finds in the main goal. -/
+inductive StepView where
+  /-- The goal is not an `lWP` of the proof mode. -/
+  | notLwp
+  /-- The expression is a value. -/
+  | value
+  /-- The expression `e` has no one-step pure redex. -/
+  | noRedex (e : Expr)
+  /-- A pure step with the pure condition `φ`, and the hypotheses that pay for it. -/
+  | step (φ : Expr) (hyps : StepHyps)
+
+/-- The view of the main goal; with `eval`, an expression without redex is computed with
+`lwp_expr_eval` first (once) if it has something to compute. -/
+meta partial def stepView (tac : String) (eval : Bool := true) : TacticM StepView :=
+    withMainContext do
+  let some (ig, i, e) ← lwpGoal? (← getMainTarget) | return .notLwp
+  if ← isValExp e then return .value
+  match ← findPureRedex? e with
+  | some φ =>
+    let token ← findToken tac ig.hyps i e
+    let (kids, fuel) ← findKidsFuel tac ig.hyps i
+    return .step φ { token, kids, fuel }
+  | none =>
+    if eval && needsEval e then
+      let done ← try
+          evalTactic (← `(tactic| lwp_expr_eval))
+          pure true
+        catch _ => pure false
+      if done then return ← stepView tac (eval := false)
+    return .noRedex e
+
+/-- The named `lwp_step` with the hypotheses `h`, raising the errors of its elaboration. -/
+meta def runStep (tac : String) (h : StepHyps) (with? : Option (TSyntax `ident × Term)) :
+    TacticM Unit := do
+  let (H, HG, HF) := (mkIdent h.token, mkIdent h.kids, mkIdent h.fuel)
+  let stx ← match with? with
+    | none => `(tactic| lwp_step $H $HG $HF)
+    | some (Hc, o) => `(tactic| lwp_step $H $HG $HF with $Hc : $o)
+  try Term.withoutErrToSorry <| evalTactic stx
+  catch ex => throwError "{tac}: the step with {H} {HG} {HF} fails (is there fuel left in \
+    {HF}?):{indentD ex.toMessageData}"
+
+/-- The reason why the view `v` is not a step, as an error of the tactic `tac`. -/
+meta def throwNoStep {α} (tac : String) : StepView → TacticM α
+  | .notLwp => throwError "{tac}: the goal is not an lWP of the proof mode"
+  | .value => throwError "{tac}: the expression is a value"
+  | .noRedex e => throwError "{tac}: no one-step pure redex in{indentExpr e}"
+  | .step φ _ => throwError "{tac}: the pure condition{indentExpr φ}\nis not proved by trivial \
+      or decide"
+
+/-- `lwp_step` with the hypotheses found. -/
+meta def evalLwpStepAuto (with? : Option (TSyntax `ident × Term)) : TacticM Unit := do
+  match ← stepView "lwp_step" with
+  | .step _ h => runStep "lwp_step" h with?
+  | v => throwNoStep "lwp_step" v
+
+/-- The steps of `lwp_pures`, at most `bound`; the number of steps taken. -/
+meta partial def lwpPuresLoop (bound : Nat) (taken : Nat := 0) : TacticM Nat := do
+  if taken ≥ bound then return taken
+  let .step φ h ← stepView "lwp_pures" | return taken
+  unless ← provesPureCond φ do return taken
+  runStep "lwp_pures" h none
+  if let some (_, _, e) ← withMainContext do lwpGoal? (← getMainTarget) then
+    if needsEval e then
+      try evalTactic (← `(tactic| lwp_expr_eval)) catch _ => pure ()
+  lwpPuresLoop bound (taken + 1)
+
+/-- The token of the goal's thread and expression. -/
+meta def findGoalToken (tac : String) : TacticM (TSyntax `ident) := withMainContext do
+  let some (ig, i, e) ← lwpGoal? (← getMainTarget)
+    | throwError "{tac}: the goal is not an lWP of the proof mode"
+  return mkIdent (← findToken tac ig.hyps i e)
+
+
+/-- `lwp_step`: `lwp_step H HG HF` with the token `H : threadExpr i C e` of the goal's thread and
+expression, the children `HG : thKids i G` and their fuel `HF : oblFuels G n` found in the
+context; `lwp_step with Hc : o` also gives the later credits `Hc : £ₒ o`. It fails with an error
+on a value, or on an expression without a one-step pure redex (after `lwp_expr_eval`). -/
+syntax (name := lwpStepAuto) "lwp_step" (" with " ident " : " term)? : tactic
+
+elab_rules : tactic
+  | `(tactic| lwp_step) => evalLwpStepAuto none
+  | `(tactic| lwp_step with $Hc:ident : $o) => evalLwpStepAuto (some (Hc, o))
+
+/-- `lwp_pure`: `lwp_pure H` with the token `H` of the goal's thread and expression. -/
+syntax (name := lwpPureAuto) "lwp_pure" : tactic
+
+elab_rules : tactic
+  | `(tactic| lwp_pure) => do
+    let H ← findGoalToken "lwp_pure"
+    evalTactic (← `(tactic| lwp_pure $H))
+
+/-- `lwp_bind e'`: `lwp_bind e' H` with the token `H` of the goal's thread and expression. -/
+syntax (name := lwpBindAuto) "lwp_bind " colGt term:max : tactic
+
+elab_rules : tactic
+  | `(tactic| lwp_bind $e') => do
+    let H ← findGoalToken "lwp_bind"
+    evalTactic (← `(tactic| lwp_bind $e' $H))
+
+/-- `lwp_pures`: `lwp_step` repeated (with `lwp_expr_eval` when the expression has something to
+compute) until the expression is a value, has no one-step pure redex, or has one whose pure
+condition `trivial` and `decide` do not prove; it fails if no step is taken. -/
+syntax (name := lwpPures) "lwp_pures" : tactic
+
+elab_rules : tactic
+  | `(tactic| lwp_pures) => do
+    if (← lwpPuresLoop 10000) == 0 then throwNoStep "lwp_pures" (← stepView "lwp_pures")
+
+end AutoStep
 
 end Lantana.HeapLang

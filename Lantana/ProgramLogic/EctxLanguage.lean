@@ -36,8 +36,6 @@ open Iris.ProgramLogic.Language (Atomicity)
   "observations dropped (D15): this is `reducible_of_baseReducible`"
 #lantana_ignore base_prim_fill_reducible_no_obs
   "observations dropped (D15): this is `reducible_fill_of_baseReducible`"
-#lantana_ignore ectx_lang_ctx_mixin
-  "a `Lantana.Language` has no context field: contexts are `Context` instances (`instContextFill`)"
 
 /-- The empty context and the composition of contexts. -/
 class EvContextOps (Ectx : Type) where
@@ -111,11 +109,23 @@ theorem fill_not_val (K : Ectx) {e : Expr} (h : toVal e = none) : toVal (fill K 
   | none => rfl
   | some _ => simpa [h] using fill_val K e (by simp [hK])
 
-/-- The language of an `EctxLanguage`: a primitive step is a base step under a context. -/
-@[lantana_alias ectx_lang, lantana_alias ectx_lang_mixin, lantana_alias LanguageOfEctx]
+/-- The language of an `EctxLanguage`: a primitive step is a base step under a context, and the
+contexts of the language are the evaluation contexts `Ectx` (Rocq `ectx_lang_ctx_mixin`). -/
+@[lantana_alias ectx_lang, lantana_alias ectx_lang_mixin, lantana_alias LanguageOfEctx,
+  lantana_alias ectx_lang_ctx_mixin]
 instance instLanguage : Language Expr State Val where
   primStep e σ e' σ' efs := ∃ K e₁ e₂, e = fill K e₁ ∧ e' = fill K e₂ ∧ baseStep e₁ σ e₂ σ' efs
   val_stuck := fun ⟨K, _, _, he, _, h⟩ => he ▸ fill_not_val K (val_base_stuck h)
+  Ctx := Ectx
+  ctxApply := fill
+  ctxId := emptyEctx
+  ctxComp := compEctx
+  ctxApply_id := fill_empty
+  ctxApply_comp K₁ K₂ e := (fill_comp K₁ K₂ e).symm
+
+/-- The contexts of the language are the evaluation contexts. -/
+@[simp]
+theorem ctxApply_eq_fill (K : Ectx) (e : Expr) : ctxApply (Expr := Expr) K e = fill K e := rfl
 
 /-- The primitive step, unfolded. -/
 @[lantana_alias prim_step]
@@ -276,8 +286,9 @@ theorem baseStep_of_primStep_of_baseReducible {e₁ : Expr} {σ₁ : State} {e�
   obtain ⟨e₂', rfl, hs⟩ := exists_baseStep_of_primStep_fill hred h'
   rwa [fill_empty]
 
+/-- Every evaluation context is a context of the language. -/
 @[lantana_alias ectx_lang_ctx]
-instance instContextFill (K : Ectx) : Language.Context (fill (Expr := Expr) K) where
+instance instContextFill (K : Ectx) : Language.Context (Expr := Expr) K where
   toVal_eq_none_fill := fill_not_val K
   primStep_fill := EctxLanguage.primStep_fill K
   primStep_fill_inv {e _ _ _ _} hv h := by
@@ -306,7 +317,7 @@ theorem PureBaseStep.pureStep {e₁ e₂ : Expr} (h : PureBaseStep e₁ e₂) :
 @[lantana_alias pure_exec_fill]
 theorem pureExec_fill (K : Ectx) {φ : Prop} {n : Nat} {e₁ e₂ : Expr}
     (h : Language.PureExec φ n e₁ e₂) : Language.PureExec φ n (fill K e₁) (fill K e₂) :=
-  Language.PureExec.fill (fill K) h
+  Language.PureExec.fill (Expr := Expr) K h
 
 end EctxLanguage
 end Lantana

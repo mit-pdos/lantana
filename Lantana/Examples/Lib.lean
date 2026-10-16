@@ -4,6 +4,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 -/
 module
 
+public import Iris.Instances.Lib.GhostMap
 public import Lantana.HeapLang.ProofMode
 public import Lantana.HeapLang.TemporalLaws
 public import Lantana.Trace
@@ -14,6 +15,8 @@ public import Lantana.Trace
   two obligations and over a set with one more obligation; the fuel of a set of obligations
   gives that of a subset.
 * `pointsTo_halves`: a points-to is two halves.
+* `IntMap`: finite maps from integers (the tickets of the ticket locks).
+* `ghostMapElem_halves`: a ghost map element is two halves.
 * `threadExpr_terminate_finally` (Rocq `thread_expr_terminate_finally`, `temporal_laws.v`):
   a thread that has returned the value `v` discharges a `finallyI` on its own obligation with its
   final expression `exits v @ i`, and terminates.
@@ -61,6 +64,11 @@ theorem oblFuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
 
 end Fuel
 
+/-! ## Finite maps from integers -/
+
+/-- Finite maps from integers (Rocq `gmap Z`). -/
+abbrev IntMap (V : Type _) := Std.ExtTreeMap Int V compare
+
 /-! ## Halves of a points-to -/
 
 section PointsTo
@@ -75,6 +83,23 @@ theorem pointsTo_halves (l : Loc) (v : Option Val) :
   exact h
 
 end PointsTo
+
+/-! ## Halves of a ghost map element -/
+
+section GhostMap
+variable {GF : BundledGFunctors} {K V : Type _} {H : Type _ → Type _}
+  [Iris.Std.LawfulFiniteMap H K] [GhostMapG GF K V H]
+
+/-- A ghost map element is two halves. -/
+theorem ghostMapElem_halves (γ : GName) (k : K) (v : V) :
+    (γ ↪◯MAP[k] v) ⊣⊢@{IProp GF} (γ ↪◯MAP[k]{.own (1 : Qp).half} v) ∗
+      (γ ↪◯MAP[k]{.own (1 : Qp).half} v) := by
+  have h := (ghost_map_elem_fractional (GF := GF) (H := H) γ k v).fractional
+    (1 : Qp).half (1 : Qp).half
+  rw [Qp.half_add_half] at h
+  exact h
+
+end GhostMap
 
 /-! ## Terminating on a `finallyI` -/
 

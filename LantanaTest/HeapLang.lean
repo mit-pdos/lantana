@@ -26,7 +26,11 @@ example : Lantana.Language Exp State Val := inferInstance
 
 example : EctxLanguage Exp State Val (List ECtxItem) := inferInstance
 
-example (K : List ECtxItem) : Context (fill (Expr := Exp) K) := inferInstance
+example (K : List ECtxItem) : Context (Expr := Exp) K := inferInstance
+
+example : (Language.Ctx (Expr := Exp)) = List ECtxItem := rfl
+
+example (K : List ECtxItem) (e : Exp) : ctxApply K e = fill K e := rfl
 
 example : (emptyEctx : List ECtxItem) = [] := rfl
 

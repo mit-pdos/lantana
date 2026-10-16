@@ -147,9 +147,7 @@ theorem subredexesAreValues {e : Expr}
   · rw [List.concat_eq_append, fill_append, fill_singleton] at heq
     simpa [hv] using fill_val (hsub _ _ heq)
 
-@[lantana_alias ectxi_lang_ctx_item]
-instance instContextFillItem (Ki : Item) : Language.Context (fillItem (Expr := Expr) Ki) :=
-  inferInstanceAs (Language.Context (fill [Ki]))
+#lantana_ignore ectxi_lang_ctx_item "`EctxLanguage.instContextFill [Ki]`"
 
 /-- A reducible expression determines its context. -/
 @[lantana_alias fill_ctx_step_inj]

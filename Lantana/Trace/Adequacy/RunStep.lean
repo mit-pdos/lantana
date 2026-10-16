@@ -242,7 +242,7 @@ def runStepPost (c : Nat) (h : List (HistEntry Expr State)) (n : Nat)
     £ₙ c ∗ historyTInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
     modelInterp g' v' Ω' W' (n + 1) tp'.length ∗ threadsRun tp' Ψ')
 
-/-- One step of `lWP` for a running thread: `lwpStep` at the context `id`, mask `⊤`. -/
+/-- One step of `lWP` for a running thread: `lwpStep` at the empty context `ctxId`, mask `⊤`. -/
 theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → IProp GF}
     (he : toVal e₁ = none) :
     threadRun i e₁ Ψ ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
@@ -260,8 +260,8 @@ theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → I
   rw [threadRun_of_toVal_none he, lwp_unfold.to_eq]
   simp only [lwpPre, he]
   unfold lwpStep
-  refine (forall_elim id).trans ?_
-  simp only [id, Stuckness.maybeReducible]
+  refine (forall_elim ctxId).trans ?_
+  simp only [Language.ctxApply_id, Stuckness.maybeReducible]
   iintro H %h %n %σ %tp %hi
   iapply H $$ %h %n %σ %tp %Language.Context.instId %hi
 

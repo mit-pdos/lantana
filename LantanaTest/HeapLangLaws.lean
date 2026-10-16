@@ -4,7 +4,8 @@ public import Lantana
 
 /-! Tests for the program logic of HeapLang (M7): the thread-expression token, the step laws
 with the bookkeeping of children and witnesses, laws in an evaluation context, the tactics
-`lwp_pure`, `lwp_bind`, `lwp_expr_simp`, and contexts determined by a step. -/
+`lwp_pure`, `lwp_bind`, `lwp_expr_simp`, contexts determined by a step, and the step tactics
+that find their hypotheses (`lwp_step`, `lwp_pures`). -/
 
 namespace LantanaTest.HeapLangLaws
 
@@ -58,7 +59,7 @@ example (K : List ECtxItem) (l : Loc) (v : Val) (Φ : Val → IProp GF) :
         lWP (fill K (Exp.val v)) @ s; i; E {{ Φ }})
       ⊢ lWP (fill K hl(!#l)) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, Hpre, Hl, HΦ⟩
-  iapply lwp_bind (fill K)
+  iapply lwp_bind_fill K
   ihave HT := (threadExpr_fill i C K _).mp $$ HT
   iapply lwp_load (o := o) l (DFrac.own 1) v $$ [HT Hpre Hl]
   · iframe
@@ -172,16 +173,140 @@ example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
 
 end
 
-/-! Contexts are determined by a step, also for `chooseNat`. -/
+/-! The context of a thread that can step is determined by its expression, also for
+`chooseNat` (D31). -/
 
-example (K : Exp → Exp) [Context K] (C : List ECtxItem) (σ : State) (n : Nat)
-    (h : K .chooseNat = fill C .chooseNat) :
-    K (.val (.lit (.int n))) = fill C (.val (.lit (.int n))) :=
-  Context.eq_fill_of_primStep h (EctxLanguage.primStep_of_baseStep (.chooseNatS n σ))
+example (tp : ThreadPool Exp) (i : ThreadId) (K C : List ECtxItem) (σ : State) (n : Nat)
+    (hK : tp[i]? = some (fill K .chooseNat)) (hC : tp[i]? = some (fill C .chooseNat)) : C = K :=
+  ctx_eq_of_primStep (EctxLanguage.primStep_of_baseStep (.chooseNatS n σ)) hC hK
 
-example (K : Exp → Exp) [Context K] (C : List ECtxItem) (σ : State) (l : Loc) (v : Val)
-    (hl : σ.get? l = some (some v)) (h : K hl(!#l) = fill C hl(!#l)) :
-    K (.val v) = fill C (.val v) :=
-  Context.eq_fill_of_primStep h (EctxLanguage.primStep_of_baseStep (.loadS l v σ hl))
+example {GF : BundledGFunctors} [HeapStateGS GF] (tp : ThreadPool Exp) (i : ThreadId)
+    (K C : List ECtxItem) (σ : State) (n : Nat) (hK : tp[i]? = some (fill K .chooseNat)) :
+    threadMapAuth (GF := GF) tp ∗ threadExpr i C .chooseNat ⊢ ⌜C = K⌝ :=
+  threadExpr_ctx tp i C K _ hK (EctxLanguage.primStep_of_baseStep (.chooseNatS n σ))
+
+/-! The step tactics that find their hypotheses (D27, M10): `lwp_step`, `lwp_step with`,
+`lwp_pure`, `lwp_bind e'` and `lwp_pures`; on a value they fail with an error that `try`,
+`repeat` and `fail_if_success` catch. -/
+
+section AutoStep
+
+variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]
+variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem} {G : Oids}
+
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl(#1) ∗ thKids i G ∗ oblFuels G 2 ∗ (threadExpr i C hl(#1) -∗ Φ hl_val(#1))
+      ⊢ lWP hl(#1) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  fail_if_success lwp_step
+  fail_if_success lwp_pures
+  repeat lwp_step
+  iapply lwp_value'
+  iapply H $$ HT
+
+/-- A beta step, then an addition (`lwp_step` computes the substitution first). -/
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl(v(λ x, x + #1) #2) ∗ thKids i G ∗ oblFuels G 2 ∗
+      (threadExpr i C hl(#3) -∗ Φ hl_val(#3)) ⊢
+      lWP hl(v(λ x, x + #1) #2) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  lwp_step
+  lwp_step
+  lwp_expr_eval
+  iapply lwp_value'
+  iapply H $$ HT
+
+/-- The comparison of closed values is computed. -/
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl(v(λ x, if x = #1 then #4 else x + #1) #2) ∗ thKids i G ∗ oblFuels G 5 ∗
+      (threadExpr i C hl(#3) -∗ Φ hl_val(#3)) ⊢
+      lWP hl(v(λ x, if x = #1 then #4 else x + #1) #2) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  lwp_pures
+  iapply lwp_value'
+  iapply H $$ HT
+
+/-- `lwp_pures` stops at a load; `lwp_bind` finds the token. -/
+example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
+    threadExpr i C hl(v(λ x, !x + #1) #l) ∗ thKids i G ∗ oblFuels G 2 ∗ l ↦ some v ∗
+      (threadExpr i C hl(&v + #1) -∗ lWP hl(&v + #1) @ s; i; E {{ Φ }})
+      ⊢ lWP hl(v(λ x, !x + #1) #l) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, Hl, H⟩
+  lwp_pures
+  lwp_bind hl(!#l)
+  iapply lwp_load (o := 0) l (DFrac.own 1) v $$ [HT HG HF Hl]
+  · iframe HT Hl
+    iapply stepPre_nil $$ HG HF
+  iintro ⟨HT, -, -⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  iapply H $$ HT
+
+/-- A symbolic amount of fuel; the fuel left is given back. -/
+example (n : Nat) (Φ : Val → IProp GF) :
+    threadExpr i C hl(if #true then #1 else #2) ∗ thKids i G ∗
+      oblFuels G ((n + 1 : Nat) : Measure) ∗
+      (threadExpr i C hl(#1) -∗ thKids i G -∗ oblFuels G (n : Measure) -∗ Φ hl_val(#1))
+      ⊢ lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  lwp_pures
+  iapply lwp_value'
+  iapply H $$ HT HG HF
+
+/-- The later credits of a step. -/
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl(if #true then #1 else #2) ∗ thKids i G ∗ oblFuels G 1 ∗
+      (£ₒ 3 -∗ threadExpr i C hl(#1) -∗ Φ hl_val(#1))
+      ⊢ lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  lwp_step with Hc : 3
+  iapply lwp_value'
+  iapply H $$ Hc HT
+
+/-- `lwp_pure` finds the token. -/
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl((if #true then #1 else #2) + #3) ∗ thKids i G ∗
+      oblFuels G ((1 + 2 : Nat) : Measure) ∗
+      (threadExpr i C hl(#1 + #3) -∗ thKids i G -∗ oblFuels G ((2 : Nat) : Measure) -∗
+        |={E}=>m lWP hl(#1 + #3) @ s; i; E {{ Φ }})
+      ⊢ lWP hl((if #true then #1 else #2) + #3) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H⟩
+  lwp_pure
+  iexists G, 2, ∅, 0
+  isplitl [HG HF]
+  · iframe
+    iapply witLayers_empty
+  iintro HG HF - - HT
+  iapply H $$ HT HG HF
+
+/-- Errors: no fuel left; no token; no redex; a pure condition that `decide` does not prove. -/
+example (Φ : Val → IProp GF) (l : Loc) (v w : Val) :
+    threadExpr i C hl(if #true then #1 else #2) ∗ thKids i G ∗ oblFuels G 0 ∗
+      lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} ∗
+      threadExpr i [] hl(!#l) ∗ lWP hl(!#l) @ s; i; E {{ Φ }} ∗
+      threadExpr i [] hl(&v = &w) ∗ lWP hl(&v = &w) @ s; i; E {{ Φ }}
+      ⊢ (lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} ∗ lWP hl(!#l) @ s; i; E {{ Φ }}) ∗
+        lWP hl(&v = &w) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF, H, HT₁, H₁, HT₂, H₂⟩
+  isplitl [HT HG HF H HT₁ H₁]
+  · isplitl [HT HG HF H]
+    · fail_if_success lwp_pures
+      fail_if_success lwp_step
+      iclear HT
+      fail_if_success lwp_step
+      iexact H
+    · fail_if_success lwp_pures
+      iexact H₁
+  · fail_if_success lwp_pures
+    iexact H₂
+
+/-- error: lwp_step: the expression is a value -/
+#guard_msgs in
+example (Φ : Val → IProp GF) :
+    threadExpr i C hl(#1) ∗ thKids i G ∗ oblFuels G 2 ⊢ lWP hl(#1) @ s; i; E {{ Φ }} := by
+  iintro ⟨HT, HG, HF⟩
+  lwp_step
+
+end AutoStep
 
 end LantanaTest.HeapLangLaws

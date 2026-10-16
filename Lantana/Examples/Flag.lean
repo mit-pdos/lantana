@@ -115,6 +115,17 @@ theorem guar_flagTk (l : Loc) (k : Oid) :
     ⊢@{IProp GF} flagTk l k ⊨ₜ (pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) := by
   unfold flagTk; exact IntoGuar.into_guar
 
+/-- The flag's guarantee as an instance, for the inference (and checking) of the guarantees of
+formulas containing `isFlag`. -/
+instance guarOf_isFlag (l : Loc) (k : Oid) (ℓ : Layer) :
+    GuarOf (isFlag (GF := GF) l k ℓ) (flagTrSpec l) :=
+  ⟨guar_isFlag l k ℓ⟩
+
+/-- The setter's token's guarantee as an instance. -/
+instance guarOf_flagTk (l : Loc) (k : Oid) :
+    GuarOf (flagTk (GF := GF) l k) (pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) :=
+  ⟨guar_flagTk l k⟩
+
 /-- `l ↦ v` as a trace property. -/
 abbrev pointsToTr (l : Loc) (v : Val) : TrProp Exp State :=
   TrProp.state (pointstoSat l (DFrac.own 1) v)
@@ -128,14 +139,6 @@ def flagResponse (l : Loc) : TrProp Exp State :=
 theorem v0_ne_v1 : v0 ≠ v1 := by
   simp [v0, v1]
 
-/-- A location holds one value at a time (Rocq `tr_pointsto_agree`, `temporal_laws.v`). -/
-theorem pointsToTr_agree (l : Loc) (dq₁ dq₂ : DFrac) (v₁ v₂ : Val) :
-    (TrProp.state (pointstoSat l dq₁ v₁) ∧ₜ TrProp.state (pointstoSat l dq₂ v₂) :
-      TrProp Exp State) ⊆ ⌜v₁ = v₂⌝ₜ := by
-  intro τ ⟨h₁, h₂⟩
-  simp only [TrProp.state, pointstoSat] at h₁ h₂
-  exact (by simpa using h₁.symm.trans h₂ : v₁ = v₂)
-
 omit [ModelGS GF] [HeapGS GF] in
 /-- The until gives the eventually; in the other branch the flag is `1`, not `0`. -/
 @[lantana_alias flag_response_ext]
@@ -143,7 +146,7 @@ theorem flagResponse_ext (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ flag
   intro τ ⟨_, h⟩ m hm h₀
   rcases h m hm with hU | ⟨_, h₁⟩
   · exact TrProp.until_eventually _ hU
-  · exact absurd (pointsToTr_agree l (.own 1) (.own 1) v0 v1 _ ⟨h₀, h₁⟩) v0_ne_v1
+  · exact absurd (HeapLang.pointsToTr_agree l (.own 1) (.own 1) v0 v1 _ ⟨h₀, h₁⟩) v0_ne_v1
 
 @[lantana_alias is_flag_response]
 theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
@@ -154,14 +157,8 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
 /-- A flag exists: its location is trace-visible, its obligation and layer are not. -/
 theorem guar_exFlag :
     ⊢@{IProp GF} iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ⊨ₜ
-      (∃ₛ x : Loc, flagTrSpec x) := by
-  iapply guar_ex
-  iintro %x
-  iapply guar_ex_ghost
-  iintro %k
-  iapply guar_ex_ghost
-  iintro %ℓ
-  iapply guar_isFlag
+      (∃ₛ x : Loc, flagTrSpec x) :=
+  IntoGuar.into_guar
 
 /-- Initialization: a new obligation below `p` carrying the flag. -/
 @[lantana_alias is_flag_init]
@@ -400,10 +397,10 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       iintro HT HG HΦ HF
       ihave HF := oblFuels_init G 5 ℓ.succ $$ HF
       unfold wait
-      lwp_step HT HG HF with Hc : 1 +ₕ 1
+      lwp_step with Hc : 1 +ₕ 1
       icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
       lwp_expr_simp
-      lwp_bind hl(!#l) HT
+      lwp_bind hl(!#l)
       ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
         (fun _ _ => CoPset.mem_full) $$ HA
       ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -440,12 +437,10 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
           iexact Hu
         imodintro
         ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
-        lwp_expr_simp
-        lwp_step HT HG HF
-        rw [show (v0 == hl_val(#1)) = false from rfl]
-        lwp_step HT HG HF
-        simp only [Bool.not_false]
-        lwp_step HT HG HF
+        -- `!l = 1`, `~false`, `if true`: back to `wait l`
+        lwp_step
+        lwp_step
+        lwp_step
         imod IH $$ Hwc with ⟨HF, HP⟩
         iapply HP $$ HT HG HΦ HF
       · icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
@@ -460,12 +455,10 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
           iexact Hd
         imodintro
         ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
-        lwp_expr_simp
-        lwp_step HT HG HF
-        rw [show (v1 == hl_val(#1)) = true from rfl]
-        lwp_step HT HG HF
-        simp only [Bool.not_true]
-        lwp_step HT HG HF with Hlc : lc
+        -- `!l = 1`, `~true`, `if false`: the value `1`
+        lwp_step
+        lwp_step
+        lwp_step with Hlc : lc
         iapply lwp_value'
         rw [show Φ hl_val(#1) = Φ v1 from rfl]
         iapply HΦ
