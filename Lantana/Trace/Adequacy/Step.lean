@@ -151,4 +151,78 @@ theorem mprog_exists_step {τ : Trace Expr State} {γ : Nat → ThreadId → Nat
       | assigned a o => exact Ordinals.Ordinal.le_rfl
       | discharged => trivial
 
+/-! ## The drop of the fair-scheduler measures across a step -/
+
+/-- The measures of all obligations drop from `Ω` to `Ω'` (Rocq `obls_drop`). -/
+@[lantana_alias obls_drop]
+def oblsDrop (m m' : ThreadId → Fuel → Fuel) (Ω Ω' : Obls) : Prop :=
+  ∀ k fu o fu' o', get? Ω k = some (.assigned fu o) → get? Ω' k = some (.assigned fu' o') →
+    m' o' fu' < m o fu
+
+/-- A step of the scheduled thread `i` drops every measure (Rocq `obls_drop_step`): through the
+pre-step model update `Ω ≤ Ω₀`, the progress round `Ω₀ → Ω₂` of `i` and the post-step update
+`Ω₂ ≤ Ω'`, the obligations of `i` lose fuel and the other active owners lose a counter. -/
+@[lantana_alias obls_drop_step]
+theorem oblsDrop_step {τ : Trace Expr State} {γ : Nat → ThreadId → Nat} {i : ThreadId}
+    (hi : i = τ.thread) (hcnt : BehFscnt τ γ) {Ω Ω₀ Ω₂ Ω' : Obls} (h₀ : Obls.le Ω Ω₀)
+    (hprog : Obls.condProgress (Obl.condOwner i) Ω₀ Ω₂) (h₂ : Obls.le Ω₂ Ω')
+    (hact : oblsThreadActive Ω₂ τ) :
+    oblsDrop (fairMeasure (γ τ.pos)) (fairMeasure (γ (τ.pos + 1))) Ω Ω' := by
+  intro k fu o fu' o' hk hk'
+  obtain ⟨g₀, hk₀⟩ : ∃ g₀, get? Ω₀ k = some g₀ :=
+    Option.isSome_iff_exists.mp (h₀.1 k (by rw [hk]; rfl))
+  have hle₀ : Obl.le (.assigned fu o) g₀ := h₀.2 k _ _ hk hk₀
+  obtain ⟨g₂, hk₂, hr⟩ := mapForall2.lookup_left hprog.1 hk₀
+  have hkeep : Obl.keep g₀ g₂ := mapForall2.lookup hprog.2 hk₀ hk₂
+  have hle₂ : Obl.le g₂ (.assigned fu' o') := h₂.2 k _ _ hk₂ hk'
+  cases g₂ with
+  | discharged => exact hle₂.elim
+  | assigned fu₂ o₂ =>
+    cases g₀ with
+    | discharged => exact hkeep.elim
+    | assigned fu₀ o₀ =>
+      have hfu₀ : fu₀ ≤ fu := by
+        rcases hle₀ with ⟨h, -⟩ | h
+        · exact h
+        · exact Ordinals.Ordinal.le_of_lt h
+      have hfu' : fu' ≤ fu₂ := by
+        rcases hle₂ with ⟨h, -⟩ | h
+        · exact h
+        · exact Ordinals.Ordinal.le_of_lt h
+      rcases hr with ⟨-, hs | hs⟩ | ⟨hno, heq⟩
+      · exact fairMeasure_lt_mono
+          (Ordinals.Ordinal.lt_of_le_of_lt hfu' (Ordinals.Ordinal.lt_of_lt_of_le hs hfu₀))
+      · exact hs.elim
+      · injection heq with hf ho
+        subst hf
+        subst ho
+        rcases Ordinals.Ordinal.lt_or_eq_of_le (Ordinals.Ordinal.le_trans hfu' hfu₀)
+          with hlt | heq'
+        · exact fairMeasure_lt_mono hlt
+        · have hfu₀' : fu₀ = fu := Ordinals.Ordinal.le_antisymm hfu₀ (heq' ▸ hfu')
+          have ho₀ : o = o₀ := by
+            rcases hle₀ with ⟨-, h⟩ | h
+            · exact h
+            · exact absurd (hfu₀' ▸ h) (Ordinals.Ordinal.lt_irrefl _)
+          have ho' : o₀ = o' := by
+            rcases hle₂ with ⟨-, h⟩ | h
+            · exact h
+            · exact absurd ((heq'.trans hfu₀'.symm) ▸ h) (Ordinals.Ordinal.lt_irrefl _)
+          subst ho₀
+          subst ho'
+          exact fairMeasure_next_lt hcnt hi (hact k fu₀ o hk₂) (.inr ⟨fun h => hno h, heq', rfl⟩)
+
+/-- A stutter of a finished thread drops every measure through the fairness counters
+(Rocq `obls_drop_na`). -/
+@[lantana_alias obls_drop_na]
+theorem oblsDrop_na {τ : Trace Expr State} {γ : Nat → ThreadId → Nat} (hcnt : BehFscnt τ γ)
+    (hna : τ.now.inactive τ.thread) {Ω : Obls} (hact : oblsThreadActive Ω τ) :
+    oblsDrop (fairMeasure (γ τ.pos)) (fairMeasure (γ (τ.pos + 1))) Ω Ω := by
+  intro k fu o fu' o' hk hk'
+  rw [hk] at hk'
+  cases hk'
+  refine fairMeasure_next_lt hcnt rfl (hact k fu o hk) (.inr ⟨?_, rfl, rfl⟩)
+  intro ho
+  exact TraceState.not_active_and_inactive o _ ⟨hact k fu o hk, by rw [ho]; exact hna⟩
+
 end Lantana
