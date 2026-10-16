@@ -554,13 +554,19 @@ theorem owit_get_credit_zero (W : Witnesses) :
 
 end Owit
 
-/-- Allocation of the ghost state of witnesses, with no witness (Rocq `owit_alloc`). -/
-@[lantana_alias owit_alloc]
-theorem owit_alloc {GF : BundledGFunctors} [OSatGS GF] [OWitGpreS GF] :
-    ⊢@{IProp GF} |==> ∃ _ : OWitGS GF, owit ∅ := by
+/-- The ghost state of witnesses at the name `γ` of the name map, over the world's cameras
+(D32: the name is small enough for the existential property of satisfiability, unlike
+`OWitGS GF`). -/
+@[reducible] def OWitGS.ofName {GF : BundledGFunctors} [OWitGpreS GF] (γ : GName) :
+    OWitGS GF where
+  namesName := γ
+
+/-- Allocation of the ghost state of witnesses, with no witness, at the name `γ` (D32). -/
+theorem owit_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OWitGpreS GF] :
+    ⊢@{IProp GF} |==> ∃ γ : GName, letI := OWitGS.ofName (GF := GF) γ; owit ∅ := by
   imod ghost_map_alloc_empty (GF := GF) (K := Oid) (V := GName) with ⟨%γ, HN⟩
   imodintro
-  iexists { namesName := γ }
+  iexists γ
   unfold owit OWit.namesAuth
   iexists ∅
   iframe HN
@@ -571,5 +577,13 @@ theorem owit_alloc {GF : BundledGFunctors} [OSatGS GF] [OWitGpreS GF] :
   · iapply BigSepM.bigSepM_empty.mpr
     iempintro
 
+/-- Allocation of the ghost state of witnesses, with no witness (Rocq `owit_alloc`). -/
+@[lantana_alias owit_alloc]
+theorem owit_alloc {GF : BundledGFunctors} [OSatGS GF] [OWitGpreS GF] :
+    ⊢@{IProp GF} |==> ∃ _ : OWitGS GF, owit ∅ := by
+  imod owit_alloc_names (GF := GF) with ⟨%γ, H⟩
+  imodintro
+  iexists OWitGS.ofName γ
+  iexact H
 
 end Lantana.Model

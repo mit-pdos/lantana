@@ -167,22 +167,42 @@ theorem historyInterp_histEvent_lookup (h : List (HistEntry Expr State)) (n : Na
 
 end
 
-/-- Allocating the history with its first entry (the state interpretation is given). -/
-@[lantana_alias history_interp_init]
-theorem historyInterp_init {Expr State : Type} {GF : BundledGFunctors}
-    [MonoListG GF (HistEntry Expr State)] [StateInterp Expr State GF] (σ : State)
-    (tp : ThreadPool Expr) :
-    ⊢@{IProp GF} |==> ∃ _ : HistGS Expr State GF, stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp := by
+/-- The ghost state of the history at the name `γ`, over the world's camera (D32: the name is
+small enough for the existential property of satisfiability, unlike `HistGS Expr State GF`). -/
+@[reducible] def HistGS.ofName {Expr State : Type} {GF : BundledGFunctors}
+    [MonoListG GF (HistEntry Expr State)] (γ : GName) : HistGS Expr State GF where
+  name := γ
+
+/-- Allocating the history with its first entry, at the name `γ` (D32), for every state
+interpretation (chosen after the allocation, as in Rocq `history_interp_init`). -/
+theorem historyInterp_init_names {Expr State : Type} {GF : BundledGFunctors}
+    [MonoListG GF (HistEntry Expr State)] (σ : State) (tp : ThreadPool Expr) :
+    ⊢@{IProp GF} |==> ∃ γ : GName,
+      letI := HistGS.ofName (Expr := Expr) (State := State) (GF := GF) γ
+      iprop(∀ _ : StateInterp Expr State GF,
+        stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp) := by
   iintro
   imod MonoList.own_alloc [(σ, tp)] with ⟨%γ, Ha, -⟩
   imodintro
-  iexists ⟨γ⟩
-  iintro Hs
+  iexists γ
+  iintro %_SI Hs
   imodintro
   unfold historyInterp histAuth
   simp only [histName]
   iframe Ha Hs
   ipureintro
   simp
+
+/-- Allocating the history with its first entry (the state interpretation is given). -/
+@[lantana_alias history_interp_init]
+theorem historyInterp_init {Expr State : Type} {GF : BundledGFunctors}
+    [MonoListG GF (HistEntry Expr State)] [StateInterp Expr State GF] (σ : State)
+    (tp : ThreadPool Expr) :
+    ⊢@{IProp GF} |==> ∃ _ : HistGS Expr State GF,
+      stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp := by
+  imod historyInterp_init_names (GF := GF) σ tp with ⟨%γ, H⟩
+  imodintro
+  iexists HistGS.ofName γ
+  iapply H
 
 end Lantana

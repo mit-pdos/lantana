@@ -1,5 +1,6 @@
 module
 
+public import LantanaTest.Adequacy
 public import LantanaTest.Algebra
 public import LantanaTest.Basic
 public import LantanaTest.Credits
@@ -17,6 +18,7 @@ public import LantanaTest.OPreds
 public import LantanaTest.OSat
 public import LantanaTest.OWit
 public import LantanaTest.Registry
+public import LantanaTest.TemporalFormula
 public import LantanaTest.Trace
 public import LantanaTest.TrSpecModel
 public import LantanaTest.WeakestPre

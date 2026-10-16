@@ -13,7 +13,7 @@ monotonicity in `P` (`guar_mono`) and in `G` (`guar_weaken`, `guar_cast`), the r
 connectives of `P`, the canonical specification `TrSpec.canon P` and its completeness, state
 atoms (`StateFact`), implications and big separating conjunctions. Guarantees are inferred from
 the shape of `P` (`GuarOf`) and checked against a target (`IntoGuar`). The rules for the
-temporal formulas `alwaysI` and `untilI` are in `Lantana.Trace.TemporalFormula`.
+temporal formulas `alwaysI` and `untilI` are in `Lantana.Trace.TemporalFormulaRules`.
 
 The rules for the connectives combine records (`record_and`, `record_all`, `record_mono`): a
 record of a conjunction or a universal is assembled from the records of its parts, against

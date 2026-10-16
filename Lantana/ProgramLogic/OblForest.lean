@@ -656,6 +656,41 @@ theorem mupdBase_modelInterp_steps (n tc : Nat) (γ : ThreadId → Fuel → Fuel
   rw [mupdBase_unfold]
   exact Model.modelInterp_mupd_steps n tc γ hγ P
 
+/-- A base model update that only reads the model, which it returns unchanged (Rocq
+`mupd_read`, `temporal_formula.v`): how the temporal formulas record their contents. -/
+@[lantana_alias mupd_read]
+theorem mupdBase_read (n tc : Nat) (P : IProp GF) :
+    (∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obls) (W : Model.Witnesses),
+      Model.modelInterp h i Ω W n tc -∗ Model.modelInterp h i Ω W n tc ∗ P) ⊢ |=[n,tc]=>m P := by
+  rw [mupdBase_unfold]
+  exact Model.mupd_read n tc P
+
+open Iris.Std LawfulPartialMap in
+/-- A live obligation is assigned in the model (Rocq `osat_lookup_assigned` read through
+the interface). -/
+theorem Obl.assigned_modelInterp_lookup (k : Oid) (q : Qp) (h : List Model.MEvent) (i : Nat)
+    (Ω : Model.Obls) (W : Model.Witnesses) (n tc : Nat) :
+    Obl.assigned (GF := GF) k q ∗ Model.modelInterp h i Ω W n tc ⊢
+      ⌜∃ a t, get? Ω k = some (Model.Obl.assigned a t)⌝ := by
+  rw [Obl.assigned_unfold]
+  unfold Model.OPreds.oblAssigned Model.modelInterp
+  iintro ⟨⟨-, Ha⟩, -, Hs, -⟩
+  iapply Model.osat_lookup_assigned Ω k _
+  iframe Hs Ha
+
+open Iris.Std LawfulPartialMap in
+/-- A discharged obligation is discharged in the model (Rocq `osat_lookup_discharged` read
+through the interface). -/
+theorem Obl.discharged_modelInterp_lookup (k : Oid) (h : List Model.MEvent) (i : Nat)
+    (Ω : Model.Obls) (W : Model.Witnesses) (n tc : Nat) :
+    Obl.discharged (GF := GF) k ∗ Model.modelInterp h i Ω W n tc ⊢
+      ⌜get? Ω k = some Model.Obl.discharged⌝ := by
+  rw [Obl.discharged_unfold]
+  unfold Model.OPreds.oblDischarged Model.modelInterp
+  iintro ⟨⟨-, Hd⟩, -, Hs, -⟩
+  iapply Model.osat_lookup_discharged Ω k
+  iframe Hs Hd
+
 /-- The progress round of thread `i` against the model (the definition of Rocq `mprog`). -/
 theorem mprog_modelInterp (n tc : Nat) (i : ThreadId) (P : IProp GF) :
     mprog n tc i P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω₁ : Model.Obls)
@@ -706,5 +741,32 @@ end Adequacy
 
 
 end Rules
+
+/-! ## Adequacy bridges (run step)
+
+What the single-step simulation of adequacy (`Lantana.Trace.Adequacy.RunStep`) reads of the
+model through the sealed predicates: a terminated thread owns no obligation. -/
+
+section AdequacyRunStep
+
+open Iris.Std LawfulPartialMap
+
+variable {GF : BundledGFunctors} [ModelGS GF]
+
+/-- A terminated thread owns no obligation of the model (Rocq `othread_assigned_done_false`,
+through the model interpretation). -/
+theorem Th.done_modelInterp_not_owner (i : ThreadId) (h : List Model.MEvent) (a : Nat)
+    (Ω : Model.Obls) (W : Model.Witnesses) (n tc : Nat) :
+    Th.done i ∗ Model.modelInterp h a Ω W n tc ⊢@{IProp GF}
+      ⌜∀ k fu, get? Ω k ≠ some (.assigned fu i)⌝ := by
+  rw [Th.done_unfold]
+  unfold Model.modelInterp Model.OPreds.thDone
+  iintro ⟨Hd, -, -, Hf, -, -⟩
+  icases Model.oforest_done_owned Ω tc i $$ [$Hf $Hd] with %h
+  ipureintro
+  intro k fu hk
+  exact h k (Model.Obls.ownerOf_eq hk)
+
+end AdequacyRunStep
 
 end Lantana
