@@ -8,6 +8,7 @@ public import Lantana.BaseLogic.Obligation
 public import Lantana.BaseLogic.Witness
 public import Lantana.BaseLogic.ModelRel
 public import Lantana.BaseLogic.Forest
+public import Lantana.BaseLogic.Model.ModelHistory
 
 /-! # The obligation model
 

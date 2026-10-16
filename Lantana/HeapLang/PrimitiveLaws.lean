@@ -81,8 +81,8 @@ theorem threadExpr_fill (i : ThreadId) (C D : List ECtxItem) (e : Exp) :
 
 @[lantana_alias thread_expr_read]
 theorem threadExpr_read (σ : State) (tp : ThreadPool Exp) (i : ThreadId) (C : List ECtxItem)
-    (e : Exp) : stateInterp (GF := GF) σ tp ⊢ threadExpr i C e -∗ ⌜tp[i]? = some (fill C e)⌝ :=
-  sorry
+    (e : Exp) :
+    stateInterp (GF := GF) σ tp ⊢ threadExpr i C e -∗ ⌜tp[i]? = some (fill C e)⌝ := sorry
 
 @[lantana_alias pointsto_state_interp]
 theorem pointsTo_stateInterp (σ : State) (tp : ThreadPool Exp) (l : Loc) (dq : DFrac) (v : Val) :
@@ -126,7 +126,8 @@ abbrev stepPost (i : ThreadId) (G R : Oids) (o : Fuel) : IProp GF :=
 theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IProp GF)
     [PureExec φ n e₁ e₂] (hφ : φ) (hn : 0 < n) :
     threadExpr i C e₁ ∗ thKids i G ∗ oblFuels G n ∗ witLayers R ∗
-      (threadExpr i C e₂ -∗ thKids i G -∗ witCreds R -∗ £ₒ o -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
+      (threadExpr i C e₂ -∗ thKids i G -∗ witCreds R -∗ £ₒ o -∗
+        |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := sorry
 
 /-- Fork: the children `K ⊆ G` move to the new thread, each paying one unit of fuel. -/
@@ -147,28 +148,31 @@ theorem lwp_chooseNat :
 
 @[lantana_alias heap_lang.lwp_alloc]
 theorem lwp_alloc (v : Val) :
-    ⊢@{IProp GF} l{{{ threadExpr i C (.allocN (.val (.lit (.int 1))) (.val v)) ∗ stepPre i G R }}}
+    ⊢@{IProp GF} l{{{ threadExpr i C (.allocN (.val (.lit (.int 1))) (.val v)) ∗
+          stepPre i G R }}}
         (Exp.allocN (.val (.lit (.int 1))) (.val v)) @ s; i; E
       l{{{ (l : Loc), RET Val.lit (.loc l); threadExpr i C (.val (.lit (.loc l))) ∗
         stepPost i G R o ∗ l ↦ some v }}} := sorry
 
 @[lantana_alias heap_lang.lwp_free]
 theorem lwp_free (l : Loc) (v : Val) :
-    ⊢@{IProp GF} l{{{ threadExpr i C (.free (.val (.lit (.loc l)))) ∗ stepPre i G R ∗ l ↦ some v }}}
+    ⊢@{IProp GF} l{{{ threadExpr i C (.free (.val (.lit (.loc l)))) ∗ stepPre i G R ∗
+          l ↦ some v }}}
         (Exp.free (.val (.lit (.loc l)))) @ s; i; E
       l{{{ RET Val.lit .unit; threadExpr i C (.val (.lit .unit)) ∗ stepPost i G R o ∗
         l ↦ (none : Option Val) }}} := sorry
 
 @[lantana_alias heap_lang.lwp_load]
 theorem lwp_load (l : Loc) (dq : DFrac) (v : Val) :
-    ⊢@{IProp GF} l{{{ threadExpr i C (.load (.val (.lit (.loc l)))) ∗ stepPre i G R ∗ l ↦{dq} some v }}}
+    ⊢@{IProp GF} l{{{ threadExpr i C (.load (.val (.lit (.loc l)))) ∗ stepPre i G R ∗
+          l ↦{dq} some v }}}
         (Exp.load (.val (.lit (.loc l)))) @ s; i; E
       l{{{ RET v; threadExpr i C (.val v) ∗ stepPost i G R o ∗ l ↦{dq} some v }}} := sorry
 
 @[lantana_alias heap_lang.lwp_store]
 theorem lwp_store (l : Loc) (v' v : Val) :
-    ⊢@{IProp GF} l{{{ threadExpr i C (.store (.val (.lit (.loc l))) (.val v)) ∗ stepPre i G R ∗
-          l ↦ some v' }}}
+    ⊢@{IProp GF} l{{{ threadExpr i C (.store (.val (.lit (.loc l))) (.val v)) ∗
+          stepPre i G R ∗ l ↦ some v' }}}
         (Exp.store (.val (.lit (.loc l))) (.val v)) @ s; i; E
       l{{{ RET Val.lit .unit; threadExpr i C (.val (.lit .unit)) ∗ stepPost i G R o ∗
         l ↦ some v }}} := sorry
@@ -205,8 +209,8 @@ theorem lwp_faa (l : Loc) (n₁ n₂ : Int) :
     ⊢@{IProp GF} l{{{ threadExpr i C (.faa (.val (.lit (.loc l))) (.val (.lit (.int n₂)))) ∗
           stepPre i G R ∗ l ↦ some (Val.lit (.int n₁)) }}}
         (Exp.faa (.val (.lit (.loc l))) (.val (.lit (.int n₂)))) @ s; i; E
-      l{{{ RET Val.lit (.int n₁); threadExpr i C (.val (.lit (.int n₁))) ∗ stepPost i G R o ∗
-        l ↦ some (Val.lit (.int (n₁ + n₂))) }}} := sorry
+      l{{{ RET Val.lit (.int n₁); threadExpr i C (.val (.lit (.int n₁))) ∗
+        stepPost i G R o ∗ l ↦ some (Val.lit (.int (n₁ + n₂))) }}} := sorry
 
 end Laws
 

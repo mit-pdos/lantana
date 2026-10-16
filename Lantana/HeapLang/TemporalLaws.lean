@@ -27,7 +27,8 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 
 @[lantana_alias freed_state_interp]
 theorem freed_stateInterp (σ : State) (tp : ThreadPool Exp) (l : Loc) (dq : DFrac) :
-    stateInterp (GF := GF) σ tp ∗ l ↦{dq} (none : Option Val) ⊢ ⌜freedSat l σ tp⌝ := sorry
+    stateInterp (GF := GF) σ tp ∗ l ↦{dq} (none : Option Val) ⊢ ⌜freedSat l σ tp⌝ :=
+  sorry
 
 @[lantana_alias pointsto_state_fact]
 instance pointsTo_stateFact (l : Loc) (dq : DFrac) (v : Val) :

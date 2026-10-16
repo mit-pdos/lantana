@@ -9,6 +9,7 @@ public import Lantana.ProgramLogic.EctxLanguage
 public import Lantana.ProgramLogic.EctxiLanguage
 public import Lantana.ProgramLogic.Trace
 public import Lantana.ProgramLogic.HistoryInterp
+public import Lantana.ProgramLogic.TemporalRegistry
 public import Lantana.ProgramLogic.TemporalClass
 public import Lantana.ProgramLogic.OblForest
 public import Lantana.ProgramLogic.Notation
