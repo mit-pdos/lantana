@@ -14,6 +14,7 @@ public import Lantana.Trace
   two obligations and over a set with one more obligation; the fuel of a set of obligations
   gives that of a subset.
 * `pointsTo_halves`: a points-to is two halves.
+* `IntMap`: finite maps from integers (the tickets of the ticket locks).
 * `threadExpr_terminate_finally` (Rocq `thread_expr_terminate_finally`, `temporal_laws.v`):
   a thread that has returned the value `v` discharges a `finallyI` on its own obligation with its
   final expression `exits v @ i`, and terminates.
@@ -60,6 +61,11 @@ theorem oblFuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
   exact BigSepS.bigSepS_subseteq h
 
 end Fuel
+
+/-! ## Finite maps from integers -/
+
+/-- Finite maps from integers (Rocq `gmap Z`). -/
+abbrev IntMap (V : Type _) := Std.ExtTreeMap Int V compare
 
 /-! ## Halves of a points-to -/
 
