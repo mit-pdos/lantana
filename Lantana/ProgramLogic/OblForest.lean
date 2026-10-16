@@ -351,10 +351,10 @@ theorem fupd_mupd (E₁ E₂ : CoPset) (P : IProp GF) :
   imodintro
   iframe HT HP
 
-@[lantana_alias oblf.sfmupd_bind]
-theorem mupd_bind (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
+private theorem mupd_bind_aux (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
     (P -∗ mupd (Expr := Expr) (State := State) E₂ E₃ Q) ⊢
-      mupd (Expr := Expr) (State := State) E₁ E₂ P -∗ mupd (Expr := Expr) (State := State) E₁ E₃ Q := by
+      mupd (Expr := Expr) (State := State) E₁ E₂ P -∗
+        mupd (Expr := Expr) (State := State) E₁ E₃ Q := by
   unfold mupd mupdFancy
   iintro HPQ HP %h %n %σ %tp HT
   imod HP $$ %h %n %σ %tp HT with HP
@@ -364,6 +364,12 @@ theorem mupd_bind (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
   iapply fupd_mupdBase_elim
   imod HP with ⟨HT, HP⟩
   iapply HPQ $$ HP %h %n %σ %tp HT
+
+@[lantana_alias oblf.sfmupd_bind]
+theorem mupd_bind (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
+    (P -∗ mupd (Expr := Expr) (State := State) E₂ E₃ Q) ⊢
+      mupd (Expr := Expr) (State := State) E₁ E₂ P -∗ mupd (Expr := Expr) (State := State) E₁ E₃ Q :=
+  mupd_bind_aux E₁ E₂ E₃ P Q
 
 /-- A base model update at every step index and thread count is a model update at one mask:
 how the forest operations of the model are lifted. -/
@@ -625,6 +631,83 @@ theorem step_fork (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) (hn : n₁ ≤ n�
   exact Model.OPreds.mphys_step_kids n₁ n₂ tc₁ tc₂ P hn htc
 
 end Physical
+
+/-! ## Running the model (for adequacy)
+
+What the adequacy proofs read of the model (Rocq `obl_forest_instance.v`, "Facts about the
+model at the instance"): the children predicates of new threads, and the base model update and
+the two rounds of a step against the model interpretation `Model.modelInterp`. -/
+
+section Adequacy
+
+/-- The children predicates of new threads `tc, …, tc + m - 1` (Rocq
+`thP_kids_alloc_threads`). -/
+@[lantana_alias thP_kids_alloc_threads]
+theorem thKids_alloc_threads (Ω : Model.Obls) (tc m : Nat) :
+    Model.oforest Ω tc ⊢@{IProp GF} |==> (Model.oforest Ω (tc + m) ∗
+      [∗list] j ∈ List.range' tc m, thKids j ∅) := by
+  rw [Par.kids_unfold]
+  exact Model.OPreds.thKids_alloc_threads Ω tc m
+
+/-- Running a base model update against the model: the rounds compose into `Obls.le` and keep
+a lower bound `γ` of the witnesses (`Model.modelInterp_mupd_steps`). -/
+theorem mupdBase_modelInterp_steps (n tc : Nat) (γ : ThreadId → Fuel → Fuel)
+    (hγ : Model.owitInvLbMonoFair γ) (P : IProp GF) :
+    (|=[n,tc]=>m P) ⊢ ∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obls)
+      (W : Model.Witnesses), ⌜Model.owitInvLb γ Ω W⌝ → Model.modelInterp h i Ω W n tc ={∅}=∗
+        P ∗ ∃ h' i' Ω' W', ⌜Model.Obls.le Ω Ω' ∧ Model.owitInvLb γ Ω' W'⌝ ∗
+          Model.modelInterp (h ++ h') (i + i') Ω' W' n tc := by
+  rw [mupdBase_unfold]
+  exact Model.modelInterp_mupd_steps n tc γ hγ P
+
+/-- The progress round of thread `i` against the model (the definition of Rocq `mprog`). -/
+theorem mprog_modelInterp (n tc : Nat) (i : ThreadId) (P : IProp GF) :
+    mprog n tc i P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω₁ : Model.Obls)
+      (W₁ : Model.Witnesses), Model.modelInterp h a Ω₁ W₁ n tc ={∅}=∗
+        ∃ Ω₂, ⌜Model.Obls.condProgress (Model.Obl.condOwner i) Ω₁ Ω₂⌝ ∗
+        ∀ W₂, ⌜Model.Witnesses.condProgress Model.Witness.condAssigned W₁ W₂ ∧
+          Model.owitInvFair Ω₂ W₂⌝ ={∅}=∗
+          Model.modelInterp (h ++ [(n, Ω₂)]) (a + 1) Ω₂ W₂ n tc ∗ P := by
+  rw [mprog_unfold]
+  exact .rfl
+
+/-- The physical round against the model (the definition of Rocq `mphys`). -/
+theorem mphys_modelInterp (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) :
+    mphys n₁ n₂ tc₁ tc₂ P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω : Model.Obls)
+      (W : Model.Witnesses), Model.modelInterp h a Ω W n₁ tc₁ ={∅}=∗
+        Model.modelInterp (h ++ [(n₂, Ω)]) (a + 1) Ω W n₂ tc₂ ∗ P := by
+  rw [mphys_unfold]
+  exact .rfl
+
+variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
+  [TemporalInterp Expr State GF]
+
+/-- Running a model update against the model (Rocq `all_interp_sfmupd_steps`). -/
+@[lantana_alias all_interp_sfmupd_steps]
+theorem mupd_modelInterp_steps (γ : ThreadId → Fuel → Fuel) (hγ : Model.owitInvLbMonoFair γ)
+    (E₁ E₂ : CoPset) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
+    (tp : ThreadPool Expr) (g : List Model.MEvent) (v : Nat) (Ω : Model.Obls)
+    (W : Model.Witnesses) (P : IProp GF) (hLb : Model.owitInvLb γ Ω W) :
+    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗ Model.modelInterp g v Ω W n tp.length ={E₁,E₂}=∗
+      P ∗ historyTInterp h n σ tp ∗ ∃ g' v' Ω' W',
+        ⌜Model.Obls.le Ω Ω' ∧ Model.owitInvLb γ Ω' W'⌝ ∗
+        Model.modelInterp (g ++ g') (v + v') Ω' W' n tp.length := by
+  unfold mupd mupdFancy
+  rw [mupdBase_unfold]
+  iintro HP HT HM
+  imod HP $$ %h %n %σ %tp HT with HP
+  imod Model.modelInterp_mupd_steps n tp.length γ hγ _ $$ HP %g %v %Ω %W %hLb HM
+    with ⟨HP, %g', %v', %Ω', %W', %hle, HM⟩
+  imod HP with ⟨HT, HP⟩
+  imodintro
+  iframe HP HT
+  iexists g', v', Ω', W'
+  iframe HM
+  ipureintro
+  exact hle
+
+end Adequacy
+
 
 end Rules
 
