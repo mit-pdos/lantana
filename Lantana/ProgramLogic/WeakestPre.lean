@@ -21,7 +21,10 @@ Thread ids are positions in the pool (D14): a step of thread `i` running `K e₁
 `tp` leads to the pool `tp.set i (K e₂) ++ efs`, and the forked threads get the ids
 `tp.length, tp.length + 1, …`.
 
-**Skeleton (M1):** the definitions are real; the monotonicity proof and the rules are `sorry`.
+Induction (`lwp_ind_strong`, `lwp_ind`) needs no non-expansiveness of the predicate: it is
+done on the predicate's closure under internal equality. The file also derives the rules of the
+model updates `|=[n,tc]=>m P` and `|={E₁,E₂}=>m P` that the program logic uses (Rocq
+`mupd.v`, `obl_forest_rules.v`), with their proof-mode instances.
 -/
 
 @[expose] public noncomputable section
@@ -75,7 +78,7 @@ theorem mupdBase_frame_right : (|=[n,tc]=>m P) ∗ R ⊢ |=[n,tc]=>m (P ∗ R) :
   · iexact HP
   · iexact HR
 
-@[lantana_alias mupd_fupd_l]
+@[lantana_alias fupd_mupd]
 theorem fupd_mupdBase : (|={∅}=> P) ⊢ |=[n,tc]=>m P :=
   (fupd_mono (mupdBase_intro n tc P)).trans (fupd_mupdBase_elim n tc P)
 
@@ -98,23 +101,23 @@ end Base
 variable [TemporalGS Expr State GF] [StateInterp Expr State GF] [TemporalInterp Expr State GF]
 variable {E E₁ E₂ E₃ : CoPset} {P Q R : IProp GF}
 
-@[lantana_alias oblf.sfmupd_wand_l]
+@[lantana_alias sfmupd_wand_l]
 theorem mupd_wand : (P -∗ Q) ⊢ (|={E₁,E₂}=>m P) -∗ |={E₁,E₂}=>m Q :=
   (wand_mono_right (fupd_intro.trans (fupd_mupd E₂ E₂ Q))).trans (mupd_bind E₁ E₂ E₂ P Q)
 
-@[lantana_alias oblf.sfmupd_intro]
+@[lantana_alias sfmupd_intro]
 theorem mupd_intro : P ⊢ |={E}=>m P :=
   fupd_intro.trans (fupd_mupd E E P)
 
-@[lantana_alias oblf.sfmupd_mono]
+@[lantana_alias sfmupd_mono]
 theorem mupd_mono (h : P ⊢ Q) : (|={E₁,E₂}=>m P) ⊢ |={E₁,E₂}=>m Q :=
   wand_entails ((entails_wand h).trans mupd_wand)
 
-@[lantana_alias oblf.sfmupd_trans]
+@[lantana_alias sfmupd_trans]
 theorem mupd_trans : (|={E₁,E₂}=>m |={E₂,E₃}=>m P) ⊢ |={E₁,E₃}=>m P :=
   wand_entails (wand_rfl.trans (mupd_bind E₁ E₂ E₃ _ P))
 
-@[lantana_alias oblf.sfmupd_frame_r]
+@[lantana_alias sfmupd_frame_r]
 theorem mupd_frame_right : (|={E₁,E₂}=>m P) ∗ R ⊢ |={E₁,E₂}=>m (P ∗ R) := by
   iintro ⟨HP, HR⟩
   iapply mupd_wand $$ [HR] HP
@@ -123,7 +126,7 @@ theorem mupd_frame_right : (|={E₁,E₂}=>m P) ∗ R ⊢ |={E₁,E₂}=>m (P �
   · iexact HP
   · iexact HR
 
-@[lantana_alias oblf.sfmupd_mask_mono]
+@[lantana_alias sfmupd_mask_mono]
 theorem mupd_mask_mono (h : E₁ ⊆ E₂) : (|={E₁}=>m P) ⊢ |={E₂}=>m P := by
   iintro HP
   iapply mupd_bind E₂ E₁ E₂ iprop(|={E₁,E₂}=> emp) P $$ [HP]
@@ -516,11 +519,11 @@ theorem lwp_mupd : lWP e @ s; i; E {{ v, |={E}=>m Φ v }} ⊢ lWP e @ s; i; E {{
   iintro %v Hv
   iexact Hv
 
-@[lantana_alias lwp_value_sfmupd]
 theorem lwp_value_mupd_of_toVal {v : Val} (he : toVal e = some v) :
     lWP e @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := by
   simp [(lwp_unfold (e := e)).to_eq, lwpPre, he]
 
+@[lantana_alias lwp_value_sfmupd]
 theorem lwp_value_mupd {v : Val} [h : Language.IntoVal e v] :
     lWP e @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := by
   obtain ⟨rfl⟩ := h

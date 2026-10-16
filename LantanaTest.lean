@@ -10,3 +10,4 @@ public import LantanaTest.Model
 public import LantanaTest.Notation
 public import LantanaTest.Registry
 public import LantanaTest.Trace
+public import LantanaTest.WeakestPre
