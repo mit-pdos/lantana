@@ -41,17 +41,19 @@ initialize registerBuiltinAttribute {
       | throwError "invalid @[lantana_alias] syntax"
     let aliasName := `RocqLantana ++ rocqId.getId
     let env ← getEnv
-    if env.find? aliasName |>.isSome then
+    if env.contains aliasName then
       throwError s!"duplicate lantana_alias: `{aliasName}` already exists"
-    let some info := env.find? declName
+    -- `findAsync?`, not `find?`: the alias needs only the kind and the signature of the
+    -- declaration, and `find?` would wait for a proof that is being elaborated asynchronously.
+    let some info := env.findAsync? declName
       | throwError s!"unknown declaration '{declName}'"
-    let levels := info.levelParams.map mkLevelParam
-    let value := mkConst declName levels
-    match info with
-    | .thmInfo val =>
-      addDecl (.thmDecl { name := aliasName, levelParams := val.levelParams, type := val.type, value })
+    let sig := info.sig.get
+    let value := mkConst declName (sig.levelParams.map mkLevelParam)
+    match info.kind with
+    | .thm =>
+      addDecl (.thmDecl { name := aliasName, levelParams := sig.levelParams, type := sig.type, value })
     | _ =>
-      addDecl (.defnDecl { name := aliasName, levelParams := info.levelParams, type := info.type,
+      addDecl (.defnDecl { name := aliasName, levelParams := sig.levelParams, type := sig.type,
                            value, hints := .abbrev, safety := .safe })
     Elab.addDeclarationRangesFromSyntax aliasName stx rocqId
     let declIdent := mkIdent declName
