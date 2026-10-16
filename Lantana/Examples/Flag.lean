@@ -190,6 +190,35 @@ theorem stepPre_nil [ModelGS GF] (i : ThreadId) (G : Oids) :
   iapply BigSepS.bigSepS_empty.mpr
   iempintro
 
+instance instPureExecNegBool {b : Bool} :
+    PureExec True 1 (Exp.unop .neg (.ofVal (.lit (.bool b)))) (.ofVal (.lit (.bool !b))) :=
+  ⟨fun _ => (instPureExecUnOp (op := .neg) (v := .lit (.bool b))
+    (v' := .lit (.bool !b))).pureExec rfl⟩
+
+/-- No witnesses. -/
+theorem witLayers_empty [ModelGS GF] : ⊢ witLayers (GF := GF) ∅ := by
+  unfold witLayers
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
+
+/-- The precondition of a step that observes the witness `k`. -/
+theorem stepPre_wit [ModelGS GF] (i : ThreadId) (G : Oids) (k : Oid) (ℓ : Layer) :
+    thKids i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ Wit.layer k ℓ -∗
+      stepPre (GF := GF) i G {k} := by
+  iintro HG HF Hk
+  simp only [stepPre]
+  iframe HG HF
+  unfold witLayers
+  iapply BigSepS.bigSepS_singleton.mpr
+  iexists ℓ
+  iexact Hk
+
+/-- What a step that observes the witness `k` gives back. -/
+theorem witCreds_singleton [ModelGS GF] (k : Oid) :
+    witCreds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
+  unfold witCreds
+  exact BigSepS.bigSepS_singleton.mp
+
 end Helpers
 
 section Specs
@@ -422,8 +451,104 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&wait) #l) ∗ thKids i G ∗
           ([∗set] g ∈ G, Obl.fuel g ℓ.succ μ) ∗ isFlag l k ℓ }}}
         hl(v(&wait) #l) @ i
-      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} :=
-  sorry
+      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} := by
+  refine ⟨5 * ▽ + 5, fun lc i l G k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, #Hflag⟩ HΦ
+  unfold isFlag
+  icases Hflag with ⟨#Wk, #HA⟩
+  icases (Obl.fuel_add_set G ℓ.succ (5 * ▽) 5).mp $$ HF with ⟨HFw, HF⟩
+  imod Wit.layer_ind k ℓ G ℓ.succ 5
+    iprop(threadExpr i C hl(v(&wait) #l) -∗ thKids i G -∗
+      (threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k -∗ Φ v1) -∗
+      ([∗set] g ∈ G, Obl.fuel g ℓ.succ 5) -∗ lWP hl(v(&wait) #l) @ i {{ Φ }})
+    (Ordinals.Ordinal.lt_succ ℓ) $$ [HFw] with HP
+  · isplitl []
+    · imodintro
+      iintro IH
+      imodintro
+      iintro HT HG HΦ HF
+      ihave HF := oblFuels_init G 5 ℓ.succ $$ HF
+      unfold wait
+      lwp_pure HT
+      iexists G, 4, ∅, 1 +ₕ 1
+      isplitl [HG HF]
+      · iframe HG HF
+        iapply witLayers_empty
+      iintro HG HF - Hc HT
+      icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
+      lwp_expr_simp
+      simp only [val_to_ofVal]
+      imodintro
+      lwp_bind hl(!#l) HT
+      ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+        (fun _ _ => CoPset.mem_full) $$ HA
+      ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+      imod Hacc with ⟨Hinv, Hclose⟩
+      iapply lwp_credit_later $$ Hc1
+      inext
+      unfold flagInv
+      icases Hinv with (Hinv | ⟨#Hd, Hl⟩)
+      · ihave Hu := untilI_acc (E := ⊤ \ ↑Na) Np_subseteq $$ Hinv
+        ihave Hu := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hu
+        imod Hu
+        iapply lwp_credit_later $$ Hc2
+        inext
+        icases Hu with ⟨Hl, Hucl⟩
+        icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+        rw [← val_to_ofVal]
+        iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := {k}) $$ [HT HG HF1 Hl]
+        · iframe HT Hl
+          iapply stepPre_wit $$ HG HF1 Wk
+        iintro ⟨HT, ⟨-, HG, HW⟩, Hl⟩
+        icases witCreds_singleton k $$ HW with (Hwc | #Hd)
+        rotate_left
+        · imod Hucl $$ [Hl] with Hu
+          · inext
+            iexact Hl
+          iexfalso
+          iapply untilI_discharged_false $$ Hu Hd
+        imod Hucl $$ [Hl] with Hu
+        · inext
+          iexact Hl
+        imodintro
+        imod Hclose $$ [Hu]
+        · inext
+          ileft
+          iexact Hu
+        imodintro
+        ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+        lwp_expr_simp
+        simp only [val_to_ofVal]
+        lwp_pure HT
+        iexists G, 2, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        rw [show (v0 == hl_val(#1)) = false from rfl]
+        imodintro
+        lwp_pure HT
+        iexists G, 1, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        simp only [Bool.not_false]
+        imodintro
+        lwp_pure HT
+        iexists G, 0, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        imod IH $$ Hwc with ⟨HF, HP⟩
+        imodintro
+        iapply HP $$ HT HG HΦ HF
+      · sorry
+    isplitl []
+    · iexact Wk
+    · iexact HFw
+  iapply HP $$ HT HG HΦ HF
 
 end Specs
 
