@@ -6,6 +6,7 @@ public import LantanaTest.Credits
 public import LantanaTest.Examples
 public import LantanaTest.FUpd
 public import LantanaTest.HeapLang
+public import LantanaTest.HeapLangLaws
 public import LantanaTest.Measure
 public import LantanaTest.Model
 public import LantanaTest.Notation

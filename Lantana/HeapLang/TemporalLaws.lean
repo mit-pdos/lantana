@@ -13,22 +13,27 @@ Rocq `lantana_heap_lang/temporal_laws.v`: the heap assertions are state facts (`
 so that they are the atoms of trace specifications: `l ↦{dq} v` says `pointstoSat l dq v`,
 `threadExpr i C e` says `threadExprSat i C e`, and a freed location `l ↦{dq} none` says
 `freedSat l`.
-
-**Skeleton (M1):** the lemma on freed locations is `sorry` (M7).
 -/
 
 @[expose] public noncomputable section
 
 namespace Lantana.HeapLang
 
-open Iris Iris.BI Lantana
+open Iris Iris.BI Iris.ProofMode Lantana
 
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 
+omit [ModelGS GF] in
 @[lantana_alias freed_state_interp]
 theorem freed_stateInterp (σ : State) (tp : ThreadPool Exp) (l : Loc) (dq : DFrac) :
-    stateInterp (GF := GF) σ tp ∗ l ↦{dq} (none : Option Val) ⊢ ⌜freedSat l σ tp⌝ :=
-  sorry
+    stateInterp (GF := GF) σ tp ∗ l ↦{dq} (none : Option Val) ⊢ ⌜freedSat l σ tp⌝ := by
+  unfold stateInterp
+  iintro ⟨⟨Hh, -⟩, Hl⟩
+  ihave %h : ⌜σ.get? l = some none⌝ $$ [Hh Hl]
+  · iapply genHeapInterp_lookup
+    iframe
+  ipureintro
+  exact h
 
 @[lantana_alias pointsto_state_fact]
 instance pointsTo_stateFact (l : Loc) (dq : DFrac) (v : Val) :
