@@ -29,7 +29,7 @@ namespace Lantana.Examples.FlagStable
 
 open Iris Iris.BI Lantana Lantana.HeapLang Lantana.Language
 open Lantana.Examples.Flag (init set wait v0 v1 N Na Np pointsToSpec pointsToTr flagRun)
-open scoped Lantana.TrSpec Lantana.TrProp
+open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 
 /-- The namespace of the invariant of the set flag. -/
 def Nv : Namespace := N.@"value"
@@ -110,7 +110,29 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
 theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
     parLe (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
-        Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := sorry
+        Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := by
+  iintro #B Ptr Kp
+  imod untilI_alloc (E := E) p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Fk, #Wk, H⟩
+  imod H $$ %E %Np %iprop(l ↦ some v0) %(alwaysI Nv iprop(l ↦ some v1)) [Ptr] with H
+  · inext
+    iexact Ptr
+  icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half)
+    (Qp.half_add_half 1).symm $$ H with ⟨H1, H2⟩
+  imod alwaysI_alloc (E := E) (N := Na) (P := flagInv l k) $$ [H1] with #HA
+  · inext
+    unfold flagInv
+    ileft
+    iexact H1
+  imodintro
+  iexists k
+  isplitr
+  · ipureintro
+    exact hk
+  unfold flagTk isFlag
+  iframe Kp Kk Fk H2
+  isplitl
+  · iexact Wk
+  · iexact HA
 
 end Invariant
 
@@ -130,7 +152,34 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
         thKids i G ∗ ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
         Obl.fuel k ℓ m ∗
-        flagTk x k ∗ isFlag x k ℓ }}} := sorry
+        flagTk x k ∗ isFlag x k ℓ }}} := by
+  refine ⟨10, fun lc i G p K ℓ m C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, #HB, HK⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold init
+  lwp_pure HT
+  iexists G, 9, ∅, lc
+  isplitl [HG HF]
+  · iframe HG HF
+    iapply witLayers_empty
+  iintro HG HF - Hlc HT
+  lwp_expr_simp
+  imodintro
+  iapply lwp_mupd
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF
+  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
+  rw [show (hl_val(#0) : Val) = v0 from rfl]
+  imod isFlag_init ⊤ x p K ℓ m $$ HB Hx HK with ⟨%k, %hk, HK, Hkk, Hf, Htk, #Hflag⟩
+  imodintro
+  iapply HΦ $$ %x %k
+  iframe
+  isplitl
+  · ipureintro
+    exact hk
+  · iexact Hflag
 
 /-- `set` allocates the invariant of the set flag after its store. -/
 @[lantana_alias flag_stable.Flag_set_spec]
@@ -141,7 +190,63 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
           oblKids k ∅ ∗ flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗
-        Par.kids p (K.erase k) ∗ Obl.discharged k }}} := sorry
+        Par.kids p (K.erase k) ∗ Obl.discharged k }}} := by
+  refine ⟨10, fun lc i l G p K k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, HK, %hk, Hkk, HU, #Hflag⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold isFlag Flag.set
+  icases Hflag with ⟨#Wk, #HA⟩
+  lwp_pure HT
+  iexists G, 9, ∅, lc +ₕ 1 +ₕ 1
+  isplitl [HG HF]
+  · iframe HG HF
+    iapply witLayers_empty
+  iintro HG HF - Hlc HT
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  lwp_expr_simp
+  imodintro
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+    (fun _ _ => CoPset.mem_full) $$ HA
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨Hinv, Hclose⟩
+  iapply lwp_credit_later $$ Hc1
+  inext
+  unfold flagInv flagTk
+  icases Hinv with (Hinv | ⟨#Hd, -⟩)
+  rotate_left
+  · iexfalso
+    iapply untilI_discharged_false $$ HU Hd
+  ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
+  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Flag.Np_subseteq $$ HU
+  ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
+  imod HU
+  iapply lwp_credit_later $$ Hc2
+  inext
+  icases HU with ⟨Hl, Hdis⟩
+  iapply lwp_store (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF Hl]
+  · iframe HT Hl
+    iapply stepPre_nil $$ HG HF
+  iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+  rw [show (hl_val(#1) : Val) = v1 from rfl]
+  -- The set flag becomes an invariant: the right formula of the until.
+  imod alwaysI_alloc (N := Nv) (P := iprop(l ↦ some v1)) $$ [Hl] with #Av
+  · inext
+    iexact Hl
+  imod Hdis $$ %p %K %hk HK Hkk Av %_ with H
+  imod H with ⟨-, HK, #Hd⟩
+  imodintro
+  imod Hclose $$ []
+  · inext
+    iright
+    isplitl
+    · iexact Hd
+    · iexact Av
+  imodintro
+  iapply HΦ
+  iframe
+  iexact Hd
 
 /-- The same operations when the flag's obligation is a child of the calling thread itself. -/
 @[lantana_alias flag_stable.Flag_init_thread_spec]
@@ -152,7 +257,36 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
         hl(v(&init) #()) @ i
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
         ⌜k ∉ G⌝ ∗ thKids i (G.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ m ∗
-        flagTk x k ∗ isFlag x k ℓ }}} := sorry
+        flagTk x k ∗ isFlag x k ℓ }}} := by
+  refine ⟨10, fun lc i G ℓ m C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold init
+  lwp_pure HT
+  iexists G, 9, ∅, lc
+  isplitl [HG HF]
+  · iframe HG HF
+    iapply witLayers_empty
+  iintro HG HF - Hlc HT
+  lwp_expr_simp
+  imodintro
+  iapply lwp_mupd
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF
+  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
+  rw [show (hl_val(#0) : Val) = v0 from rfl]
+  imod isFlag_init ⊤ x (.thread i) G ℓ m $$ [] Hx HG with
+    ⟨%k, %hk, HG, Hkk, Hf, Htk, #Hflag⟩
+  · iapply parLe_thread
+  imodintro
+  iapply HΦ $$ %x %k
+  iframe
+  isplitl
+  · ipureintro
+    exact hk
+  · iexact Hflag
 
 @[lantana_alias flag_stable.Flag_set_thread_spec]
 theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids)

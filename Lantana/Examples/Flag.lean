@@ -52,11 +52,16 @@ def N : Namespace := nroot.@"flag"
 def Na : Namespace := N.@"always"
 def Np : Namespace := N.@"pointsto"
 
+/-- A namespace is outside its siblings. -/
+theorem ndot_subseteq_diff (N : Namespace) {x y : String} (h : x ≠ y) :
+    (↑(N.@x) : CoPset) ⊆ ⊤ \ ↑(N.@y) := by
+  intro p hp
+  refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
+  exact ndot_ne_disjoint N h p ⟨hp, h'⟩
+
 /-- The until's namespace is outside the invariant's. -/
-theorem Np_subseteq : (↑Np : CoPset) ⊆ ⊤ \ ↑Na := by
-  intro x hx
-  refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h => ?_⟩
-  exact ndot_ne_disjoint N (by decide : "pointsto" ≠ "always") x ⟨hx, h⟩
+theorem Np_subseteq : (↑Np : CoPset) ⊆ ⊤ \ ↑Na :=
+  ndot_subseteq_diff N (by decide)
 
 /-! ## The invariant -/
 
