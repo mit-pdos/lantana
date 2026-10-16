@@ -64,20 +64,70 @@ attribute [lantana_alias invGS_lc] InvGS.toCreditGS
 #lantana_ignore «invΣ» "Superseded by the `InvGpreS` typeclass on `BundledGFunctors`."
 #lantana_ignore «subG_invΣ» "Superseded by Lean's direct `ElemG` typeclass synthesis."
 
+/-- The ghost names of world satisfaction and of the credits (D32: small enough for the
+existential property of satisfiability, unlike `InvGS GF`). -/
+structure InvNames where
+  /-- The ghost name of the invariant map. -/
+  inv : GName
+  /-- The ghost name of the enabled invariants. -/
+  enabled : GName
+  /-- The ghost name of the disabled invariants. -/
+  disabled : GName
+  /-- The ghost name of the credit supply. -/
+  credit : GName
+
+/-- The ghost state of world satisfaction and of the credits at the names `γ`, over the world's
+cameras. -/
+@[reducible] def InvGS.ofNames {GF : BundledGFunctors.{u}} [InvGpreS GF] (γ : InvNames) :
+    InvGS GF where
+  toWsatGS :=
+    { inv := WsatGpreS.inv, enabled := WsatGpreS.enabled, disabled := WsatGpreS.disabled,
+      invariant_name := γ.inv, enabled_name := γ.enabled, disabled_name := γ.disabled }
+  toCreditGS := { elem := CreditGpreS.elem, name := γ.credit }
+
+/-- Allocate world satisfaction and an empty credit supply, at names `γ`: `invGS_alloc` with the
+ghost names in the existential (D32). -/
+theorem invGS_alloc_names {GF : BundledGFunctors.{u}} [InvGpreS GF] :
+    ⊢@{IProp GF} |==> ∃ γ : InvNames, letI := InvGS.ofNames (GF := GF) γ
+      iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤) := by
+  imod iOwn_alloc (E := (inferInstance : WsatGpreS GF).inv) (HeapView.Auth (.own 1) ∅)
+    HeapView.auth_one_valid with ⟨%γi, Hi⟩
+  imod iOwn_alloc (E := (inferInstance : WsatGpreS GF).enabled) (DisjointLeibnizSet.valid ⊤) ⟨⟩
+    with ⟨%γe, He⟩
+  imod iOwn_alloc (E := (inferInstance : WsatGpreS GF).disabled) (DisjointLeibnizSet.valid ∅) ⟨⟩
+    with ⟨%γd, -⟩
+  imod iOwn_alloc (E := (inferInstance : TlcGpreS GF).elem)
+    ((Auth.auth (.own 1) (0 : Ordinal.{1})) • (Auth.frag (0 : Ordinal.{1})))
+    (Auth.auth_both_valid_discrete.mpr ⟨CMRA.inc_refl _, CreditCamera.valid_trivial _⟩)
+    with ⟨%γc, Hc⟩
+  icases iOwn_op $$ Hc with ⟨Hc, -⟩
+  imodintro
+  iexists ⟨γi, γe, γd, γc⟩
+  isplitl [Hc]
+  · iexists 0
+    unfold supply
+    iexact Hc
+  isplitl [Hi]
+  · unfold wsat
+    iexists ∅
+    isplitl
+    · have H : liftInv (∅ : InvMap (IProp GF)) = ∅ := by
+        simp only [liftInv, LawfulPartialMap.map_empty]
+      rw [invMap, H]
+      iexact Hi
+    · iapply BigSepM.bigSepM_empty
+      itrivial
+  · unfold ownE
+    iexact He
+
 /-- Allocate world satisfaction and an empty credit supply. -/
 @[lantana_alias invGS_alloc]
 theorem invGS_alloc {GF : BundledGFunctors.{u}} [InvGpreS GF] :
     ⊢@{IProp GF} |==> ∃ _ : InvGS GF, (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ := by
-  imod wsat_alloc with ⟨%W, Hw, HE⟩
-  imod credit_alloc (A := Ordinal.{1}) 0 with ⟨%C, Hs, -⟩
+  imod invGS_alloc_names (GF := GF) with ⟨%γ, H⟩
   imodintro
-  iexists { toWsatGS := W, toCreditGS := C }
-  isplitl [Hs]
-  · iexists 0
-    iexact Hs
-  isplitl [Hw]
-  · iexact Hw
-  · iexact HE
+  iexists InvGS.ofNames γ
+  iexact H
 
 end InvG
 

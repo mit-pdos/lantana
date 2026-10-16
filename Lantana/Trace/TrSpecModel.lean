@@ -19,12 +19,10 @@ fixpoint body has no fold (`TrSpec.mu_unfold_r_guarded`).
 extracts the instances with the existential property. Here the instance records
 (`ModelGS GF`, `TemporalGS Expr State GF`) live in `Type 4` (their `ElemG` fields hold maps
 on `IProp GF`), while the existential property `SIdxLarge SI X` holds for `X : Type ≤ 3` only
-(`SI = Ordinal.{3} : Type 4`). So the allocation exposes the ghost *names*
-(`invGS_alloc_names`, a copy of `invGS_alloc` and `wsat_alloc` with the names in the
-existential), the names are extracted, and the instance is rebuilt from the world's `GpreS`
-instances and the names (`InvGS.ofNames`). Only world satisfaction and the credit supply are
-needed: the internal reading is valid for every instance, so the other components get
-arbitrary names (`ModelGS.ofInvGS`, `TemporalGS.ofGpreS`).
+(`SI = Ordinal.{3} : Type 4`). So, as in adequacy (D32), the allocation exposes the ghost
+*names* (`adequacy_alloc_names`), the names are extracted (`iPropSat.sat_alloc`), and the
+instances are rebuilt from the world's cameras and the names (`ModelGS.ofNames`,
+`TemporalGS.ofNames`). Only world satisfaction and the credit supply are used.
 -/
 
 @[expose] public noncomputable section
@@ -32,83 +30,6 @@ arbitrary names (`ModelGS.ofInvGS`, `TemporalGS.ofGpreS`).
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Ordinals
-
-/-! ## The instances, from the ghost names -/
-
-section Alloc
-
-variable {GF : BundledGFunctors} [InvGpreS GF]
-
-/-- The ghost state of world satisfaction and of the credits at the names `γ` (invariants,
-enabled, disabled, credits). -/
-@[reducible] def InvGS.ofNames (γ : GName × GName × GName × GName) : InvGS GF where
-  toWsatGS :=
-    { inv := WsatGpreS.inv, enabled := WsatGpreS.enabled, disabled := WsatGpreS.disabled,
-      invariant_name := γ.1, enabled_name := γ.2.1, disabled_name := γ.2.2.1 }
-  toCreditGS := { elem := CreditGpreS.elem, name := γ.2.2.2 }
-
-/-- The resources framed by the satisfiability predicate of adequacy (`iPropSatLcAt ⊤`): a
-credit supply, world satisfaction and the full mask. -/
-def invInitRes [InvGS GF] : IProp GF := iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤)
-
-/-- `invGS_alloc` with the ghost names in the existential: the names are small enough for the
-existential property of satisfiability, the instance is not. -/
-theorem invGS_alloc_names :
-    ⊢@{IProp GF} |==> ∃ γ : GName × GName × GName × GName,
-      @invInitRes GF (InvGS.ofNames γ) := by
-  imod iOwn_alloc (E := (inferInstance : WsatGpreS GF).inv) (HeapView.Auth (.own 1) ∅)
-    HeapView.auth_one_valid with ⟨%γi, Hi⟩
-  imod iOwn_alloc (E := (inferInstance : WsatGpreS GF).enabled) (DisjointLeibnizSet.valid ⊤) ⟨⟩
-    with ⟨%γe, He⟩
-  imod iOwn_alloc (E := (inferInstance : WsatGpreS GF).disabled) (DisjointLeibnizSet.valid ∅) ⟨⟩
-    with ⟨%γd, -⟩
-  imod iOwn_alloc (E := (inferInstance : TlcGpreS GF).elem)
-    ((Auth.auth (.own 1) (0 : Ordinal.{1})) • (Auth.frag (0 : Ordinal.{1})))
-    (Auth.auth_both_valid_discrete.mpr ⟨CMRA.inc_refl _, CreditCamera.valid_trivial _⟩)
-    with ⟨%γc, Hc⟩
-  icases iOwn_op $$ Hc with ⟨Hc, -⟩
-  imodintro
-  iexists (γi, γe, γd, γc)
-  unfold invInitRes
-  isplitl [Hc]
-  · iexists 0
-    unfold supply
-    iexact Hc
-  isplitl [Hi]
-  · unfold wsat
-    iexists ∅
-    isplitl
-    · have H : liftInv (∅ : InvMap (IProp GF)) = ∅ := by
-        simp only [liftInv, Iris.Std.LawfulPartialMap.map_empty]
-      rw [invMap, H]
-      iexact Hi
-    · iapply BigSepM.bigSepM_empty
-      itrivial
-  · unfold ownE
-    iexact He
-
-end Alloc
-
-section Instances
-
-variable {GF : BundledGFunctors}
-
-/-- The ghost state of the model with world satisfaction and credits `Gi`; the other names
-are arbitrary. -/
-@[reducible] def ModelGS.ofInvGS [ModelGpreS GF] (Gi : InvGS GF) : ModelGS GF where
-  toInvGS := Gi
-  toOSatGS := { stateName := 0, namesName := 0 }
-  toOWitGS := { namesName := 0 }
-  toOForestGS := { kidsName := 0, statusName := 0 }
-  toMHistGS := { name := 0 }
-
-/-- The ghost state of the temporal layer, at arbitrary names. -/
-@[reducible] def TemporalGS.ofGpreS (Expr State : Type) [TemporalGpreS Expr State GF] :
-    TemporalGS Expr State GF where
-  name := 0
-  regName := 0
-
-end Instances
 
 namespace TrSpec
 
@@ -121,13 +42,12 @@ variable {Expr State : Type} {GF : BundledGFunctors}
 theorem valid_ext [TemporalGpreS Expr State GF] (G : TrSpec Expr State GF)
     (τ : Trace Expr State) (hG : ∀ [ModelGS GF] [TemporalGS Expr State GF], ⊢ G.internal τ) :
     G.external τ := by
-  have h := iPropSat.mono (true_emp.mp.trans invGS_alloc_names) (iPropSat_intro (GF := GF))
-  obtain ⟨γ, hγ⟩ := iPropSat.sat_exists (iPropSat.sat_bupd h)
-  letI : ModelGS GF := ModelGS.ofInvGS (InvGS.ofNames γ)
-  letI : TemporalGS Expr State GF := TemporalGS.ofGpreS Expr State
+  obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc
+    (adequacy_alloc_names (GF := GF) (τ.seq τ.pos).cfg.2 (τ.seq τ.pos).cfg.1)
+  letI : ModelGS GF := ModelGS.ofNames γ.1
+  letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
   refine G.adeq iprop(emp) τ (iPropSatLcAtFrame_sat.mpr (iPropSat.mono ?_ hγ))
-  unfold invInitRes
-  iintro ⟨Hc, Hw, HE⟩
+  iintro ⟨Hc, Hw, HE, -⟩
   iframe Hc Hw HE
   isplitl []
   · itrivial

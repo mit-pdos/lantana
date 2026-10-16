@@ -35,6 +35,21 @@ argument. -/
 class TemporalGS (Expr : outParam Type) (State : outParam Type) (GF : BundledGFunctors)
     extends HistGS Expr State GF, RegGS Expr State GF
 
+/-- The ghost names of the temporal layer: of the history and of the registry list (D32: small
+enough for the existential property of satisfiability, unlike `TemporalGS Expr State GF`). -/
+structure TemporalNames where
+  /-- The ghost name of the history. -/
+  hist : GName
+  /-- The ghost name of the registry list. -/
+  reg : GName
+
+/-- The ghost state of the temporal layer at the names `γ`, over the world's cameras. -/
+@[reducible] def TemporalGS.ofNames {Expr State : Type} {GF : BundledGFunctors}
+    [RegGpreS Expr State GF] [MonoListG GF (HistEntry Expr State)] (γ : TemporalNames) :
+    TemporalGS Expr State GF where
+  toHistGS := HistGS.ofName γ.hist
+  toRegGS := RegGS.ofName γ.reg
+
 /-- The interpretation of the temporal layer; one interpretation per instance of the ghost
 state. The language is an output parameter: a world `GF` carries one language (so that the
 model update `|={E}=>m P`, whose `P` does not mention the language, elaborates). -/

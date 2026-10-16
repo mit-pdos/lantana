@@ -272,17 +272,33 @@ theorem regAuth_append (l : List (Nat × RegEntry)) (p : Nat) (e : RegEntry)
 
 end
 
-/-- Allocating the registry with an empty list. -/
-@[lantana_alias reg_alloc]
-theorem regGS_alloc {Expr State : Type} {GF : BundledGFunctors} [RegGpreS Expr State GF] :
-    ⊢@{IProp GF} |==> ∃ _ : RegGS Expr State GF, regAuth [] := by
+/-- The ghost state of the registry at the name `γ` of the list, over the world's cameras
+(D32: the name is small enough for the existential property of satisfiability, unlike
+`RegGS Expr State GF`). -/
+@[reducible] def RegGS.ofName {Expr State : Type} {GF : BundledGFunctors}
+    [RegGpreS Expr State GF] (γ : GName) : RegGS Expr State GF where
+  regName := γ
+
+/-- Allocating the registry with an empty list, at the name `γ` (D32). -/
+theorem regGS_alloc_names {Expr State : Type} {GF : BundledGFunctors} [RegGpreS Expr State GF] :
+    ⊢@{IProp GF} |==> ∃ γ : GName,
+      letI := RegGS.ofName (Expr := Expr) (State := State) (GF := GF) γ; regAuth [] := by
   imod MonoList.own_alloc ([] : List (Nat × RegEntry)) with ⟨%γ, Ha, -⟩
   imodintro
-  iexists { regName := γ }
+  iexists γ
   unfold regAuth
   iframe Ha
   ipureintro
   exact regWf_nil
+
+/-- Allocating the registry with an empty list. -/
+@[lantana_alias reg_alloc]
+theorem regGS_alloc {Expr State : Type} {GF : BundledGFunctors} [RegGpreS Expr State GF] :
+    ⊢@{IProp GF} |==> ∃ _ : RegGS Expr State GF, regAuth [] := by
+  imod regGS_alloc_names (Expr := Expr) (State := State) (GF := GF) with ⟨%γ, H⟩
+  imodintro
+  iexists RegGS.ofName γ
+  iexact H
 
 /-! ## Saved trace predicates
 

@@ -1712,17 +1712,31 @@ end Oforest
 
 /-! ## Allocation -/
 
-/-- Allocation of the ghost state of the forest, with no thread and no obligation (Rocq
-`oforest_alloc` and `othread_alloc`). -/
-@[lantana_alias oforest_alloc, lantana_alias othread_alloc]
-theorem oforest_alloc {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF] :
-    ⊢@{IProp GF} |==> ∃ _ : OForestGS GF, oforest ∅ 0 := by
+/-- The ghost names of the forest (D32: small enough for the existential property of
+satisfiability, unlike `OForestGS GF`). -/
+structure OForestNames where
+  /-- The ghost name of the children map. -/
+  kids : GName
+  /-- The ghost name of the status map. -/
+  status : GName
+
+/-- The ghost state of the forest at the names `γ`, over the world's cameras. -/
+@[reducible] def OForestGS.ofNames {GF : BundledGFunctors} [OForestGpreS GF]
+    (γ : OForestNames) : OForestGS GF where
+  kidsName := γ.kids
+  statusName := γ.status
+
+/-- Allocation of the ghost state of the forest, with no thread and no obligation, at names `γ`
+(D32). -/
+theorem oforest_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF] :
+    ⊢@{IProp GF} |==> ∃ γ : OForestNames, letI := OForestGS.ofNames (GF := GF) γ;
+      oforest ∅ 0 := by
   imod ghost_map_alloc_empty (GF := GF) (K := Parent) (V := Oids) (H := ParentMap)
     with ⟨%γk, HK⟩
   imod ghost_map_alloc_empty (GF := GF) (K := ThreadId) (V := ThreadStatus) (H := ThreadMap)
     with ⟨%γs, HS⟩
   imodintro
-  iexists { kidsName := γk, statusName := γs }
+  iexists ⟨γk, γs⟩
   unfold oforest OForest.kidsAuth OForest.statusAuth
   iexists ∅, ∅, ∅
   iframe HK HS
@@ -1735,5 +1749,15 @@ theorem oforest_alloc {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF] :
     iempintro
   · iapply BigSepM.bigSepM_empty.mpr
     iempintro
+
+/-- Allocation of the ghost state of the forest, with no thread and no obligation (Rocq
+`oforest_alloc` and `othread_alloc`). -/
+@[lantana_alias oforest_alloc, lantana_alias othread_alloc]
+theorem oforest_alloc {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF] :
+    ⊢@{IProp GF} |==> ∃ _ : OForestGS GF, oforest ∅ 0 := by
+  imod oforest_alloc_names (GF := GF) with ⟨%γ, H⟩
+  imodintro
+  iexists OForestGS.ofNames γ
+  iexact H
 
 end Lantana.Model

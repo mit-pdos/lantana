@@ -8,7 +8,9 @@ world satisfaction and credits (slots 0–3, as in `LantanaTest.FUpd`), obligati
 `LantanaTest.OSat`), witnesses (8–9, as in `LantanaTest.OWit`), the forest (10–11, as in
 `LantanaTest.OForest`), the model history (12), the registry (13–14, as in
 `LantanaTest.Registry`) and the history (15); its `TemporalGpreS` instance (the universe check
-of the adequacy theorem's assumptions), and the lemmas of `Lantana.Trace.TrSpecModel` in it.
+of the adequacy theorem's assumptions), the allocations in the names form of D32 (up to the
+combined allocation of adequacy, `adequacy_alloc_names`, and the extraction of its names), and
+the lemmas of `Lantana.Trace.TrSpecModel` in it.
 
 Universes: the model history holds obligation maps (ordinals, `Type 2`), so its slot is
 `ULiftOF.{4}` of `constOFP` of the camera, read back with `ElemG.ofLift`, as for the bound and
@@ -90,15 +92,53 @@ noncomputable instance : MonoListG TestGF (HistEntry Exp State) :=
 
 noncomputable instance : TemporalGpreS Exp State TestGF where
 
-/-! Allocation: the model (with its `ModelGS`), and world satisfaction with its names. -/
+/-! Allocation: the model (with its `ModelGS`), and in the names form of D32: world
+satisfaction, the model, and everything adequacy allocates. -/
 
 example : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
     (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 :=
   modelInterp_alloc 0
 
-example : ⊢@{IProp TestGF} |==> ∃ γ : GName × GName × GName × GName,
-    @invInitRes TestGF (InvGS.ofNames γ) :=
+example : ⊢@{IProp TestGF} |==> ∃ γ : InvNames, letI := InvGS.ofNames (GF := TestGF) γ
+    iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤) :=
   invGS_alloc_names
+
+example : ⊢@{IProp TestGF} |==> ∃ γ : ModelNames, letI := ModelGS.ofNames (GF := TestGF) γ
+    iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0) :=
+  modelInterp_alloc_names 0
+
+example (σ : State) (tp : ThreadPool Exp) :
+    ⊢@{IProp TestGF} |==> ∃ γ : ModelNames × TemporalNames,
+      letI := ModelGS.ofNames (GF := TestGF) γ.1
+      letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
+      iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
+        modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length ∗
+        ([∗list] j ∈ List.range tp.length, thKids j ∅) ∗
+        (∀ _ : StateInterp Exp State TestGF,
+          stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp) ∗
+        regAuth []) :=
+  adequacy_alloc_names σ tp
+
+/-- The extraction of the names, as in adequacy: the instances are rebuilt from them, then the
+state interpretation is chosen (here a trivial one) and the registry gets its interpretation. -/
+example (σ : State) (tp : ThreadPool Exp) : ∃ γ : ModelNames × TemporalNames,
+    letI := ModelGS.ofNames (GF := TestGF) γ.1
+    letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
+    letI : StateInterp Exp State TestGF := ⟨fun _ _ => iprop(True)⟩
+    (iPropSat (GF := TestGF)).sat iprop(wsat ∗ ownE ⊤ ∗ |==> (historyInterp [(σ, tp)] 0 σ tp ∗
+      regStateWith (fun _ => iprop(True)) ∗ [∗list] j ∈ List.range tp.length, thKids j ∅)) := by
+  obtain ⟨γ, h⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := TestGF) σ tp)
+  refine ⟨γ, iPropSat.mono ?_ h⟩
+  letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
+  letI : StateInterp Exp State TestGF := ⟨fun _ _ => iprop(True)⟩
+  iintro ⟨-, Hw, HE, -, Hk, HH, HR⟩
+  iframe Hw HE
+  have hs : ⊢@{IProp TestGF} stateInterp σ tp := true_intro
+  ihave Hs := hs
+  imod HH $$ %(inferInstance : StateInterp Exp State TestGF) Hs with HH
+  imodintro
+  iframe HH Hk
+  iapply regStateWith_init $$ HR
 
 /-! The lemmas in the closed world. -/
 
@@ -140,6 +180,6 @@ example : True := by
   fail_if_success have : SIdxLarge SI (TemporalGS Exp State TestGF) := inferInstance
   trivial
 
-example : SIdxLarge SI (GName × GName × GName × GName) := inferInstance
+example : SIdxLarge SI (ModelNames × TemporalNames) := inferInstance
 
 end LantanaTest.TrSpecModel
