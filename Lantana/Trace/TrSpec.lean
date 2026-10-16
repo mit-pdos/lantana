@@ -16,7 +16,9 @@ carry a subscript `ₛ`. In-logic entailment `G ⊑ₛ H` compares internal read
 guarantees but is too weak for temporal reasoning, which happens on the external readings
 (`TrProp`) and is imported with `TrSpec.cast`.
 
-**Skeleton (M1):** the adequacy obligations and the rules are `sorry`.
+The adequacy obligations are the satisfiability laws (`Lantana.SatPred`) and, for `always` and
+`strongUntil`, the reading lemmas of `Lantana.Trace.TrIProp`. `always` and `strongUntil` are
+complete (by Löb induction and by induction on the trace-level until) but not instant.
 -/
 
 @[expose] public noncomputable section
@@ -58,7 +60,7 @@ scoped infix:50 " ⊑ₛ " => TrSpec.le
 def pure (p : Prop) : TrSpec Expr State GF where
   internal := TrIProp.pure p
   external := TrProp.pure p
-  adeq := sorry
+  adeq _ _ h := (iPropSatLcAtFrame _ ⊤).elim h
 
 @[lantana_alias trSpec_true]
 def true : TrSpec Expr State GF := pure True
@@ -67,26 +69,27 @@ def true : TrSpec Expr State GF := pure True
 def and (G H : TrSpec Expr State GF) : TrSpec Expr State GF where
   internal := TrIProp.and G.internal H.internal
   external := G.external ∧ₜ H.external
-  adeq := sorry
+  adeq F τ h :=
+    And.intro (G.adeq F τ (SatPred.sat_and _ h).1) (H.adeq F τ (SatPred.sat_and _ h).2)
 
 @[lantana_alias trSpec_or]
 def or (G H : TrSpec Expr State GF) : TrSpec Expr State GF where
   internal := TrIProp.or G.internal H.internal
   external := G.external ∨ₜ H.external
-  adeq := sorry
+  adeq F τ h := (SatPred.sat_or _ h).imp (G.adeq F τ) (H.adeq F τ)
 
 /-- Implication: both readings assume the antecedent at the level of traces. -/
 @[lantana_alias trSpec_impl]
 def imp (A G : TrSpec Expr State GF) : TrSpec Expr State GF where
   internal := TrIProp.imp A.external G.internal
   external := A.external →ₜ G.external
-  adeq := sorry
+  adeq F τ h hA := G.adeq F τ (SatPred.sat_impl _ h (pure_intro hA))
 
 @[lantana_alias trSpec_forall]
 def all {X : Type _} (G : X → TrSpec Expr State GF) : TrSpec Expr State GF where
   internal := TrIProp.all fun x => (G x).internal
   external := ∀ₜ x, (G x).external
-  adeq := sorry
+  adeq F τ h x := (G x).adeq F τ (SatPred.sat_forall _ x h)
 
 /-- Existential quantification needs the existential property of the step index, so only
 small types qualify (`Nat`, `Fuel`, ghost names, …). -/
@@ -94,19 +97,20 @@ small types qualify (`Nat`, `Fuel`, ghost names, …). -/
 def ex {X : Type _} [SIdxLarge SI X] (G : X → TrSpec Expr State GF) : TrSpec Expr State GF where
   internal := TrIProp.ex fun x => (G x).internal
   external := ∃ₜ x, (G x).external
-  adeq := sorry
+  adeq F τ h := (SatPred.sat_exists _ h).imp fun x => (G x).adeq F τ
 
 @[lantana_alias trSpec_always]
 def always (G : TrSpec Expr State GF) : TrSpec Expr State GF where
   internal := TrIProp.always G.internal
   external := □ₜ G.external
-  adeq := sorry
+  adeq F τ h := TrIProp.always_tr_always F G.internal G.external (G.adeq F) τ h
 
 @[lantana_alias trSpec_until]
 def strongUntil (G H : TrSpec Expr State GF) : TrSpec Expr State GF where
   internal := TrIProp.ex fun a : Fuel => TrIProp.strongUntil G.internal H.internal a
   external := G.external 𝒰ₜ H.external
-  adeq := sorry
+  adeq F τ h :=
+    TrIProp.until_tr_until F G.internal H.internal G.external H.external (G.adeq F) (H.adeq F) τ h
 
 @[lantana_alias trSpec_finally]
 def eventually (G : TrSpec Expr State GF) : TrSpec Expr State GF := strongUntil true G
@@ -116,7 +120,7 @@ def eventually (G : TrSpec Expr State GF) : TrSpec Expr State GF := strongUntil 
 def state (φ : State → ThreadPool Expr → Prop) : TrSpec Expr State GF where
   internal := fun τ => iprop(⌜φ τ.cfg.2 τ.cfg.1⌝)
   external := TrProp.state φ
-  adeq := sorry
+  adeq _ _ h := (iPropSatLcAtFrame _ ⊤).elim h
 
 /-- The same internal reading with a weaker external one: imports trace-level reasoning. -/
 @[lantana_alias trSpec_cast]
@@ -162,34 +166,84 @@ class Instant (G : TrSpec Expr State GF) : Prop where
     (τ : Trace Expr State), G.internal τ ⊢ ⌜G.external τ⌝
 
 instance pure_complete (p : Prop) : Complete (pure (Expr := Expr) (State := State) (GF := GF) p) :=
-  sorry
+  ⟨fun _ h => pure_intro h⟩
 instance and_complete (G H : TrSpec Expr State GF) [Complete G] [Complete H] : Complete (G ∧ₛ H) :=
-  sorry
+  ⟨fun τ h => and_intro (Complete.complete τ h.1) (Complete.complete τ h.2)⟩
 instance or_complete (G H : TrSpec Expr State GF) [Complete G] [Complete H] : Complete (G ∨ₛ H) :=
-  sorry
-instance imp_complete (A G : TrSpec Expr State GF) [Complete G] : Complete (A →ₛ G) := sorry
+  ⟨fun τ h => h.elim (fun h => (Complete.complete τ h).trans or_intro_l)
+    (fun h => (Complete.complete τ h).trans or_intro_r)⟩
+instance imp_complete (A G : TrSpec Expr State GF) [Complete G] : Complete (A →ₛ G) :=
+  ⟨fun τ h => imp_intro <| pure_elim _ and_elim_r fun hA =>
+    and_elim_l.trans (Complete.complete τ (h hA))⟩
 instance all_complete {X : Type _} (G : X → TrSpec Expr State GF) [∀ x, Complete (G x)] :
-    Complete (all G) := sorry
+    Complete (all G) :=
+  ⟨fun τ h => forall_intro fun x => Complete.complete τ (h x)⟩
 instance ex_complete {X : Type _} [SIdxLarge SI X] (G : X → TrSpec Expr State GF)
-    [∀ x, Complete (G x)] : Complete (ex G) := sorry
-instance always_complete (G : TrSpec Expr State GF) [Complete G] : Complete (□ₛ G) := sorry
+    [∀ x, Complete (G x)] : Complete (ex G) :=
+  ⟨fun τ ⟨x, h⟩ => (Complete.complete τ h).trans (exists_intro (Ψ := fun x => (G x).internal τ) x)⟩
+/-- By Löb induction: `always` is a guarded fixpoint. -/
+instance always_complete (G : TrSpec Expr State GF) [Complete G] : Complete (□ₛ G) where
+  complete τ h := by
+    have hl : ⊢ ∀ τ, ⌜(□ₜ G.external) τ⌝ → TrIProp.always G.internal τ := by
+      iloeb as IH
+      iintro %τ %hτ
+      have h₁ : TrIProp.defer iprop(G.internal τ ∧ TrIProp.always G.internal τ.next) ⊢
+          TrIProp.always G.internal τ :=
+        (TrIProp.always_unfold G.internal τ).mpr
+      iapply h₁
+      iapply TrIProp.defer_intro_later
+      inext
+      isplit
+      · iapply Complete.complete τ (TrProp.always_elim τ hτ)
+      · iapply IH
+        ipureintro
+        exact TrProp.always_next τ hτ
+    exact hl.trans <| (forall_elim τ).trans <| (and_intro (pure_intro h) .rfl).trans imp_elim_right
+/-- By induction on the trace-level until, with ranks `0` at the end and `succ` at each step. -/
 instance strongUntil_complete (G H : TrSpec Expr State GF) [Complete G] [Complete H] :
-    Complete (G 𝒰ₛ H) := sorry
+    Complete (G 𝒰ₛ H) where
+  complete τ h := by
+    obtain ⟨a, ha⟩ := TrProp.until_ind
+      (X := fun τ => ∃ a : Fuel, ⊢ TrIProp.strongUntil G.internal H.internal a τ)
+      (fun τ hH => ⟨0, (Complete.complete τ hH).trans <| or_intro_l.trans <|
+        TrIProp.defer_intro.trans (TrIProp.until_unfold G.internal H.internal 0 τ).mpr⟩)
+      (fun τ ⟨hG, a, ha⟩ => ⟨Ordinals.Ordinal.succ a, (and_intro (Complete.complete τ hG)
+        ((and_intro (pure_intro (Ordinals.Ordinal.lt_succ a)) ha).trans
+          (exists_intro (Ψ := fun a' => iprop(⌜a' < Ordinals.Ordinal.succ a⌝ ∧
+            TrIProp.strongUntil G.internal H.internal a' τ.next)) a))).trans <|
+        or_intro_r.trans <| TrIProp.defer_intro.trans
+          (TrIProp.until_unfold G.internal H.internal _ τ).mpr⟩) τ h
+    exact ha.trans (exists_intro (Ψ := fun a => TrIProp.strongUntil G.internal H.internal a τ) a)
 instance state_complete (φ : State → ThreadPool Expr → Prop) :
-    Complete (state (GF := GF) φ) := sorry
+    Complete (state (GF := GF) φ) :=
+  ⟨fun _ h => pure_intro h⟩
 instance pure_instant (p : Prop) : Instant (pure (Expr := Expr) (State := State) (GF := GF) p) :=
-  sorry
+  ⟨fun _ => .rfl⟩
 instance and_instant (G H : TrSpec Expr State GF) [Instant G] [Instant H] : Instant (G ∧ₛ H) :=
-  sorry
+  ⟨fun τ => (and_mono (Instant.instant τ) (Instant.instant τ)).trans pure_and.mp⟩
 instance or_instant (G H : TrSpec Expr State GF) [Instant G] [Instant H] : Instant (G ∨ₛ H) :=
-  sorry
-instance imp_instant (A G : TrSpec Expr State GF) [Instant G] : Instant (A →ₛ G) := sorry
+  ⟨fun τ => or_elim ((Instant.instant τ).trans (pure_mono Or.inl))
+    ((Instant.instant τ).trans (pure_mono Or.inr))⟩
+/-- Classical: by cases on the antecedent. -/
+instance imp_instant (A G : TrSpec Expr State GF) [Instant G] : Instant (A →ₛ G) where
+  instant τ := by
+    by_cases hA : A.external τ
+    · exact ((and_intro (pure_intro hA) .rfl).trans imp_elim_right).trans <|
+        (Instant.instant τ).trans (pure_mono fun h _ => h)
+    · exact pure_intro fun h => absurd h hA
+/-- Classical: some instance fails, or all hold. -/
 instance all_instant {X : Type _} (G : X → TrSpec Expr State GF) [∀ x, Instant (G x)] :
-    Instant (all G) := sorry
+    Instant (all G) where
+  instant τ := by
+    by_cases hall : ∀ x, (G x).external τ
+    · exact pure_intro hall
+    · obtain ⟨x, hx⟩ := Classical.not_forall.mp hall
+      exact (forall_elim x).trans <| (Instant.instant τ).trans (pure_mono fun h => absurd h hx)
 instance ex_instant {X : Type _} [SIdxLarge SI X] (G : X → TrSpec Expr State GF)
-    [∀ x, Instant (G x)] : Instant (ex G) := sorry
+    [∀ x, Instant (G x)] : Instant (ex G) :=
+  ⟨fun τ => exists_elim fun x => (Instant.instant τ).trans (pure_mono fun h => ⟨x, h⟩)⟩
 instance state_instant (φ : State → ThreadPool Expr → Prop) : Instant (state (GF := GF) φ) :=
-  sorry
+  ⟨fun _ => .rfl⟩
 
 /-! ## Rules of `⊑ₛ` -/
 
@@ -203,45 +257,78 @@ theorem le_refl (G : TrSpec Expr State GF) : G ⊑ₛ G := fun _ => .rfl
 theorem le_trans (h₁ : G ⊑ₛ H) (h₂ : H ⊑ₛ X) : G ⊑ₛ X := fun τ => (h₁ τ).trans (h₂ τ)
 
 @[lantana_alias trSpec_le_true]
-theorem le_true : G ⊑ₛ true := sorry
+theorem le_true : G ⊑ₛ true := fun _ => pure_intro trivial
 
 @[lantana_alias trSpec_and_elim_l]
-theorem and_elim_l : (G ∧ₛ H) ⊑ₛ G := sorry
+theorem and_elim_l : (G ∧ₛ H) ⊑ₛ G := fun _ => BI.and_elim_l
 
 @[lantana_alias trSpec_and_elim_r]
-theorem and_elim_r : (G ∧ₛ H) ⊑ₛ H := sorry
+theorem and_elim_r : (G ∧ₛ H) ⊑ₛ H := fun _ => BI.and_elim_r
 
 @[lantana_alias trSpec_and_mono]
-theorem and_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G ∧ₛ H) ⊑ₛ (G' ∧ₛ H') := sorry
+theorem and_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G ∧ₛ H) ⊑ₛ (G' ∧ₛ H') :=
+  fun τ => BI.and_mono (h₁ τ) (h₂ τ)
 
 @[lantana_alias trSpec_or_mono]
-theorem or_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G ∨ₛ H) ⊑ₛ (G' ∨ₛ H') := sorry
+theorem or_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G ∨ₛ H) ⊑ₛ (G' ∨ₛ H') :=
+  fun τ => BI.or_mono (h₁ τ) (h₂ τ)
 
 @[lantana_alias trSpec_impl_mono]
-theorem imp_mono (hA : A'.external ⊆ A.external) (h : G ⊑ₛ G') : (A →ₛ G) ⊑ₛ (A' →ₛ G') := sorry
+theorem imp_mono (hA : A'.external ⊆ A.external) (h : G ⊑ₛ G') : (A →ₛ G) ⊑ₛ (A' →ₛ G') :=
+  fun τ => BI.imp_mono (pure_mono (hA τ)) (h τ)
 
 @[lantana_alias trSpec_impl_intro_le]
-theorem imp_intro_le : G ⊑ₛ (A →ₛ G) := sorry
+theorem imp_intro_le : G ⊑ₛ (A →ₛ G) := fun _ => BI.imp_intro BI.and_elim_l
 
 @[lantana_alias trSpec_forall_mono]
 theorem all_mono {Y : Type _} {G G' : Y → TrSpec Expr State GF} (h : ∀ y, G y ⊑ₛ G' y) :
-    all G ⊑ₛ all G' := sorry
+    all G ⊑ₛ all G' :=
+  fun τ => forall_mono fun y => h y τ
 
 @[lantana_alias trSpec_exist_mono]
 theorem ex_mono {Y : Type _} [SIdxLarge SI Y] {G G' : Y → TrSpec Expr State GF}
-    (h : ∀ y, G y ⊑ₛ G' y) : ex G ⊑ₛ ex G' := sorry
+    (h : ∀ y, G y ⊑ₛ G' y) : ex G ⊑ₛ ex G' :=
+  fun τ => exists_mono fun y => h y τ
 
 @[lantana_alias trSpec_always_mono]
-theorem always_mono (h : G ⊑ₛ G') : (□ₛ G) ⊑ₛ (□ₛ G') := sorry
+theorem always_mono (h : G ⊑ₛ G') : (□ₛ G) ⊑ₛ (□ₛ G') := fun τ => by
+  change TrIProp.always G.internal τ ⊢ TrIProp.always G'.internal τ
+  iintro HG
+  iapply TrIProp.always_mono_i G.internal G'.internal $$ [] HG
+  inext
+  imodintro
+  iintro %τ' H
+  iapply h τ'
+  iexact H
 
 @[lantana_alias trSpec_until_mono]
-theorem strongUntil_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G 𝒰ₛ H) ⊑ₛ (G' 𝒰ₛ H') := sorry
+theorem strongUntil_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G 𝒰ₛ H) ⊑ₛ (G' 𝒰ₛ H') := fun τ => by
+  change iprop(∃ a : Fuel, TrIProp.strongUntil G.internal H.internal a τ) ⊢
+    iprop(∃ a : Fuel, TrIProp.strongUntil G'.internal H'.internal a τ)
+  iintro ⟨%a, HU⟩
+  iexists a
+  iapply TrIProp.until_mono_i G.internal G'.internal H.internal H'.internal $$ [] [] HU
+  · inext
+    imodintro
+    iintro %τ' H
+    iapply h₁ τ'
+    iexact H
+  · inext
+    imodintro
+    iintro %τ' H
+    iapply h₂ τ'
+    iexact H
 
 @[lantana_alias trSpec_impl_intro]
-theorem imp_intro [Complete A] (h : (A ∧ₛ H) ⊑ₛ G) : H ⊑ₛ (A →ₛ G) := sorry
+theorem imp_intro [Complete A] (h : (A ∧ₛ H) ⊑ₛ G) : H ⊑ₛ (A →ₛ G) := fun τ =>
+  BI.imp_intro <| pure_elim _ BI.and_elim_r fun hA =>
+    BI.and_elim_l.trans <| (BI.and_intro (true_intro.trans (Complete.complete τ hA)) .rfl).trans
+      (h τ)
 
 @[lantana_alias trSpec_impl_elim]
-theorem imp_elim [Instant A] : (A ∧ₛ (A →ₛ G)) ⊑ₛ G := sorry
+theorem imp_elim [Instant A] : (A ∧ₛ (A →ₛ G)) ⊑ₛ G := fun τ =>
+  pure_elim _ (BI.and_elim_l.trans (Instant.instant τ)) fun hA =>
+    BI.and_elim_r.trans <| (BI.and_intro (pure_intro hA) .rfl).trans imp_elim_right
 
 @[lantana_alias trSpec_cast_le]
 theorem cast_le (R : TrProp Expr State) (pf : G.external ⊆ R) : G ⊑ₛ G.cast R pf :=
@@ -274,10 +361,10 @@ instance ext_or (G H : TrSpec Expr State GF) (R S : TrProp Expr State) [Ext G R]
 instance ext_imp (A G : TrSpec Expr State GF) (R : TrProp Expr State) [Ext G R] :
     Ext (A →ₛ G) (A.external →ₜ R) := ⟨TrProp.imp_mono (TrProp.le_refl _) Ext.ext_of⟩
 instance ext_all {Y : Type _} (G : Y → TrSpec Expr State GF) (R : Y → TrProp Expr State)
-    [∀ y, Ext (G y) (R y)] : Ext (all G) (∀ₜ y, R y) := ⟨TrProp.all_mono fun y => Ext.ext_of⟩
+    [∀ y, Ext (G y) (R y)] : Ext (all G) (∀ₜ y, R y) := ⟨TrProp.all_mono fun _ => Ext.ext_of⟩
 instance ext_ex {Y : Type _} [SIdxLarge SI Y] (G : Y → TrSpec Expr State GF)
     (R : Y → TrProp Expr State) [∀ y, Ext (G y) (R y)] : Ext (ex G) (∃ₜ y, R y) :=
-  ⟨TrProp.ex_mono fun y => Ext.ext_of⟩
+  ⟨TrProp.ex_mono fun _ => Ext.ext_of⟩
 instance ext_always (G : TrSpec Expr State GF) (R : TrProp Expr State) [Ext G R] :
     Ext (□ₛ G) (□ₜ R) := ⟨TrProp.always_mono Ext.ext_of⟩
 instance (priority := high) ext_eventually (G : TrSpec Expr State GF) (R : TrProp Expr State)

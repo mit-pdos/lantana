@@ -70,10 +70,24 @@ def defer (P : IProp GF) : IProp GF :=
 theorem defer_mono {P Q : IProp GF} (h : P ⊢ Q) : defer P ⊢ defer Q :=
   fupd_mono <| later_mono <| fupd_mono <| fupd_mono <| ALC_mono <| fupd_mono h
 
+/-- The argument of `defer` is only needed one step later. -/
+theorem defer_intro_later {P : IProp GF} : ▷ P ⊢ defer P := by
+  iintro HP
+  unfold defer
+  iapply fupd_mask_intro Std.LawfulSet.empty_subset
+  iintro Hclose
+  inext
+  imod Hclose
+  imodintro
+  iapply fupd_mask_intro Std.LawfulSet.empty_subset
+  iintro Hclose
+  iapply ALC_intro
+  imod Hclose
+  imodintro
+  iexact HP
+
 theorem defer_intro {P : IProp GF} : P ⊢ defer P :=
-  (fupd_mask_intro_subseteq Std.LawfulSet.empty_subset).trans <| fupd_mono <|
-    (fupd_mono <| (fupd_mask_intro_subseteq Std.LawfulSet.empty_subset).trans
-      (fupd_mono ALC_intro)).trans later_intro
+  later_intro.trans defer_intro_later
 
 /-- `defer` is contractive: its argument sits under a `▷`. -/
 instance defer_contractive : OFE.Contractive (defer (GF := GF)) where
