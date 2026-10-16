@@ -231,10 +231,11 @@ theorem ownLayer_lb (γ : TicketLockName) (dq : DFrac) (ℓ : Layer) :
   exact congrArg _ (AuthMra.auth_know_op dq ℓ)
 
 theorem ownLayer_lb_le (γ : TicketLockName) (dq : DFrac) (ℓ ℓ' : Layer) :
-    (γ ↪LOCK_CF{dq} ℓ) ⊢@{IProp GF} layerLb γ.γc ℓ' -∗ ⌜ℓ' ≤ ℓ⌝ := by
+    (γ ↪LOCK_CF{dq} ℓ) ⊢@{IProp GF} layerLb γ.γc ℓ' -∗ ⌜ℓ' ≤ ℓ⌝ ∗ (γ ↪LOCK_CF{dq} ℓ) := by
   unfold ownLayer layerLb
   iintro H1 H2
   icombine H1 H2 gives %h
+  iframe H1
   ipureintro
   exact (AuthMra.both_dfrac_valid.mp h).2
 
@@ -1116,6 +1117,77 @@ theorem acquire_mine (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLockName)
   iapply acquire_end lc i G γ dq₁ dq₂ ℓ m R E hE C Φ curr my gu κu hgu $$ ITK GMEt GMEo HΦ AL CF
     HG HF Kgu Agu Kk Of PtrCurr0 HR HE0 HT
 
+/-- The fuels of the outer induction of the loop (on the number of tickets ahead): for each
+child `g` of the thread, `50 + 50 * ▽` at the layer above the lock's per ticket served. -/
+abbrev embedMap (G : Oids) (ℓ : Layer) : OidMap (Layer × Measure) :=
+  ∅ ∪ (FiniteMap.ofSet (ℓ.succ, (50 + 50 * ▽ : Measure)) G : OidMap (Layer × Measure))
+
+/-- The fuels of the inner induction of the loop (on the witness of the holder's unlock
+obligation): `50` per credit of the holder's unlock obligation. -/
+abbrev witMap (G : Oids) (ℓ : Layer) : OidMap (Layer × Measure) :=
+  ∅ ∪ (FiniteMap.ofSet (ℓ.succ, (50 : Measure)) G : OidMap (Layer × Measure))
+
+/-- The loop of `acquire` for the ticket `my + 1`, `ν` tickets after the holder of ticket
+`prev + 1`, whose unlock obligation is `κ` at layer `ℓ₀`. The thread waits in the container
+`gu` (at the lock's layer `ℓ`); the outer induction is on `ν` (`embedFuels`), the inner one on
+`κ`'s witness (`Wit.fuels`), started with the fuel `50 * ▽` of the children `G`. -/
+def AcqLoopSpec (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLockName) (dq₁ dq₂ : DFrac)
+    (ℓ : Layer) (m : Measure) (R : IProp GF) (E : CoPset) (C : List ECtxItem)
+    (Φ : Val → IProp GF) (next curr : Loc) (my : Int) (ν : Nat) : Prop :=
+  ∀ (prev : Int) (κ : Oid) (ℓ₀ : Layer) (gu : Oid), ν = (my - prev).toNat → prev < my →
+    ℓ₀ ≤ ℓ → gu ∉ G →
+    ⊢@{IProp GF} alwaysI (Expr := Exp) (State := State) Ninv
+        (lockInv γ.γt γ.γo γ.γc γ.γa next curr R) -∗
+      alwaysI (Expr := Exp) (State := State) Ntk (lockTokenInv γ.γo γ.γk curr R) -∗
+      layerLb γ.γc ℓ -∗ layerLb γ.γc ℓ₀ -∗ Wit.layer κ ℓ₀ -∗
+      (γ.γo ↪◯MAP[prev + 1]{.discard} some κ) -∗ Wit.layer gu ℓ -∗
+      acqPost Φ i C lc G γ dq₁ dq₂ ℓ m R -∗ (γ ↪LOCK_AL{dq₁}) -∗ (γ ↪LOCK_CF{dq₂} ℓ) -∗
+      embedFuels Nat.lt_wfRel.wf ν (embedMap G ℓ) -∗
+      ([∗set] g ∈ G, Obl.fuel g ℓ.succ (50 * ▽)) -∗ Obl.assigned gu 1 -∗
+      (γ.γt ↪◯PMAP[my + 1]{.own (1 : Qp).half} (some (gu, ℓ, m) : TicketInfo)) -∗
+      thKids i (G.insert gu) -∗ oblFuels (G.insert gu) 4 -∗
+      threadExpr i C hl(v(&(loopV curr my)) #()) -∗
+      lWP hl(v(&(loopV curr my)) #()) @ i; E {{ Φ }}
+
+/-- An iteration of the loop of `acquire`, by witness induction on the holder's unlock
+obligation `κ` (Rocq: the inner `iInduction α`). -/
+theorem acquire_loop_inner (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLockName)
+    (dq₁ dq₂ : DFrac) (ℓ : Layer) (m : Measure) (R : IProp GF) (E : CoPset) (hE : ↑N ⊆ E)
+    (C : List ECtxItem) (Φ : Val → IProp GF) (next curr : Loc) (my : Int) (ν : Nat)
+    (prev : Int) (κ : Oid) (ℓ₀ : Layer) (hν : ν = (my - prev).toNat) (hprev : prev < my)
+    (hℓ₀ : ℓ₀ ≤ ℓ)
+    (IH : ∀ ν' < ν, AcqLoopSpec lc i G γ dq₁ dq₂ ℓ m R E C Φ next curr my ν') :
+    ∀ (α : Fuel) (gu : Oid), gu ∉ G →
+    ⊢@{IProp GF} alwaysI (Expr := Exp) (State := State) Ninv
+        (lockInv γ.γt γ.γo γ.γc γ.γa next curr R) -∗
+      alwaysI (Expr := Exp) (State := State) Ntk (lockTokenInv γ.γo γ.γk curr R) -∗
+      layerLb γ.γc ℓ -∗ layerLb γ.γc ℓ₀ -∗ Wit.layer κ ℓ₀ -∗
+      (γ.γo ↪◯MAP[prev + 1]{.discard} some κ) -∗ Wit.layer gu ℓ -∗
+      acqPost Φ i C lc G γ dq₁ dq₂ ℓ m R -∗ (γ ↪LOCK_AL{dq₁}) -∗ (γ ↪LOCK_CF{dq₂} ℓ) -∗
+      embedFuels Nat.lt_wfRel.wf ν (embedMap G ℓ) -∗ Wit.fuels κ ℓ₀ α (witMap G ℓ) -∗
+      Obl.assigned gu 1 -∗
+      (γ.γt ↪◯PMAP[my + 1]{.own (1 : Qp).half} (some (gu, ℓ, m) : TicketInfo)) -∗
+      thKids i (G.insert gu) -∗ oblFuels (G.insert gu) 4 -∗
+      threadExpr i C hl(v(&(loopV curr my)) #()) -∗
+      lWP hl(v(&(loopV curr my)) #()) @ i; E {{ Φ }} := by
+  sorry
+
+/-- The loop of `acquire`, by embedded well-founded induction on the number of tickets ahead
+(Rocq: the outer `iInduction ν`). -/
+theorem acquire_loop (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLockName)
+    (dq₁ dq₂ : DFrac) (ℓ : Layer) (m : Measure) (R : IProp GF) (E : CoPset) (hE : ↑N ⊆ E)
+    (C : List ECtxItem) (Φ : Val → IProp GF) (next curr : Loc) (my : Int) (ν : Nat) :
+    AcqLoopSpec lc i G γ dq₁ dq₂ ℓ m R E C Φ next curr my ν := by
+  induction ν using Nat.strongRecOn with
+  | _ ν IH =>
+    intro prev κ ℓ₀ gu hν hprev hℓ₀ hgu
+    iintro #INV #ITK #CFl #CFl0 #Wl0 #GMEo0 #Wgu HΦ AL CF EFs Fsloop Agu GMEt0 HG HF HT
+    icases Wit.fuels_init κ ℓ₀ $$ Wl0 with ⟨%α, WFs⟩
+    imod Wit.fuels_add_map κ ℓ₀ α ∅ G ℓ.succ 50 (Ordinals.Ordinal.lt_succ_iff.mpr hℓ₀) $$
+      WFs Fsloop with WFs
+    iapply acquire_loop_inner lc i G γ dq₁ dq₂ ℓ m R E hE C Φ next curr my ν prev κ ℓ₀ hν hprev
+      hℓ₀ IH α gu hgu $$ INV ITK CFl CFl0 Wl0 GMEo0 Wgu HΦ AL CF EFs WFs Agu GMEt0 HG HF HT
+
 @[lantana_alias TicketLock_acquire_spec]
 theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : ThreadId) (G : Oids)
     (tl : Val) (γ : TicketLockName) (dq₁ dq₂ : DFrac) (ℓ : Layer) (R : IProp GF) (E : CoPset)
@@ -1240,7 +1312,142 @@ theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : Thre
     · iunfold finallyI
       iexact HU2
   · -- The lock is taken: wait in the container.
-    sorry
+    obtain ⟨hft, Domt'⟩ := dom_insert_succ Domt (by omega) (some (gu, ℓ, m) : TicketInfo)
+    obtain ⟨hfo, Domo'⟩ := dom_insert_succ Domo (by omega) (none : Option Oid)
+    imod ghostMapP_insert (n + 1) (some (gu, ℓ, m) : TicketInfo) hft $$ GMAt with ⟨GMAt, GMEt⟩
+    icases ghostMapP_elem_halves $$ GMEt with ⟨GMEt, GMEt0⟩
+    imod ghost_map_insert (n + 1) (none : Option Oid) hfo $$ GMAo with ⟨GMAo, GMEo⟩
+    imod Hclose $$ [PtrNext PtrCurr GMAt GMAo HMt Hc GMEt GMEo Kgu] with -
+    · inext
+      iunfold lockInv
+      iright
+      iunfold lockInvAlive
+      iexists n + 1, c, insert tickets (n + 1) (some (gu, ℓ, m) : TicketInfo),
+        insert obls (n + 1) (none : Option Oid)
+      iframe PtrNext PtrCurr GMAt GMAo
+      isplitr
+      · ipureintro
+        exact ⟨Domt', Domo', hc0, by omega⟩
+      isplitl [HMt GMEt GMEo Kgu]
+      · iapply tickets_insert γ.γt γ.γo γ.γc tickets _ hft $$ HMt
+        iunfold ticketSt
+        iright
+        iright
+        iexists gu, ℓ, m
+        iframe GMEt GMEo CFl Kgu Wgu
+        ipureintro
+        omega
+      · iapply holderSt_mono_n γ.γt γ.γo γ.γc curr R hcn'
+        iunfold holderSt
+        iright
+        isplitr
+        · ipureintro
+          exact hcn'
+        iexact Hc
+    imodintro
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    lwp_step HT HG HF with Hc1 : 1
+    lwp_expr_simp
+    lwp_step HT HG HF
+    lwp_expr_simp
+    lwp_step HT HG HF
+    lwp_expr_simp
+    icases oblFuels_add 4 5 _ $$ HF with ⟨HF, -⟩
+    -- My turn, or wait: the first check, in the lock invariant.
+    iapply fupd_lwp
+    ihave Hacc := alwaysI_acc (E := E) (N := Ninv)
+      (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (Ninv_subseteq hE) $$ INV
+    imod Hacc with ⟨H, Hclose⟩
+    ihave Hc1 := tlc_one_nat.mpr $$ Hc1
+    imod lc_fupd_elim_later $$ Hc1 H with H
+    iunfold lockInv at H
+    icases H with (Hdel | H)
+    · iexfalso
+      iapply ownAlive_full_false $$ AL Hdel
+    iunfold lockInvAlive at H
+    icases H with ⟨%n', %c', %tickets', %obls', PtrNext, PtrCurr, GMAt, GMAo,
+      %⟨Domt₁, Domo₁, hc0', hcn''⟩, HMt, Hc⟩
+    ihave %hlt := ghostMapP_lookup $$ GMAt GMEt0
+    have hmy := (Domt₁ (n + 1)).mp (by simp [hlt])
+    icases (BigSepM.bigSepM_lookup_acc hlt).mp $$ HMt with ⟨Ht, HMt⟩
+    icases ticketSt_waiting _ _ _ c' n' (n + 1) _ $$ Ht GMEt0 with ⟨%hle, Ht, GMEt0⟩
+    ihave HMt := HMt $$ Ht
+    iunfold holderSt at Hc
+    icases Hc with (⟨%h, -⟩ | ⟨%hcn2, %ℓ₀, %κ, #CFl0, #Wl0, #GMEo0, HE0, Hn⟩)
+    · iexfalso
+      ipureintro
+      omega
+    by_cases hmine : n = c'
+    · -- My turn.
+      obtain rfl := hmine
+      icases Hn with (Hn | #GMEt1)
+      rotate_left
+      · iexfalso
+        ihave %h := ghostMapP_elem_agree _ _ _ _ (none : TicketInfo) (some (gu, ℓ, m)) $$
+          [GMEt0]
+        · iframe GMEt1 GMEt0
+        simp at h
+      iunfold nextOwner at Hn
+      icases Hn with ⟨%g, %μ, GMEt1, HE, Gg, Kk, Of, PtrCurr0, HR⟩
+      icases ghostMapP_elem_combine_halves _ _ _ _ $$ [GMEt0 GMEt1] with ⟨GMEt, %h⟩
+      · iframe
+      obtain ⟨rfl, rfl, rfl⟩ : gu = g ∧ ℓ = ℓ₀ ∧ m = μ := by
+        simp only [Option.some.injEq, Prod.mk.injEq] at h
+        exact ⟨h.1.symm, h.2.1.symm, h.2.2.symm⟩
+      imod ghostMapP_update (none : TicketInfo) $$ GMAt GMEt with ⟨GMAt, GMEt⟩
+      imod ghostMapP_elem_persist $$ GMEt with #GMEt
+      imod Hclose $$ [PtrNext PtrCurr GMAt GMAo HMt HE0] with -
+      · inext
+        iunfold lockInv
+        iright
+        iunfold lockInvAlive
+        iexists n', n, insert tickets' (n + 1) (none : TicketInfo), obls'
+        iframe PtrNext PtrCurr GMAt GMAo
+        isplitr
+        · ipureintro
+          exact ⟨dom_insert_same Domt₁ ⟨by omega, hmy.2⟩ _, Domo₁, hc0', hcn''⟩
+        isplitl [HMt]
+        · iapply tickets_update _ _ _ hlt _ $$ HMt
+        · iunfold holderSt
+          iright
+          isplitr
+          · ipureintro
+            exact hcn2
+          iexists ℓ, κ
+          iframe CFl0 Wl0 GMEo0 HE0
+          iright
+          iexact GMEt
+      imodintro
+      iapply acquire_mine lc i G γ dq₁ dq₂ ℓ m R E hE C Φ curr n gu κ hgu $$ ITK GMEt GMEo0 HΦ
+        AL CF HG HF Gg Agu Kk Of PtrCurr0 HR HE HT
+    · -- Not my turn: the loop.
+      have hlt' : c' < n := by omega
+      imod Hclose $$ [PtrNext PtrCurr GMAt GMAo HMt HE0 Hn] with -
+      · inext
+        iunfold lockInv
+        iright
+        iunfold lockInvAlive
+        iexists n', c', tickets', obls'
+        iframe PtrNext PtrCurr GMAt GMAo HMt
+        isplitr
+        · ipureintro
+          exact ⟨Domt₁, Domo₁, hc0', hcn''⟩
+        iunfold holderSt
+        iright
+        isplitr
+        · ipureintro
+          exact hcn2
+        iexists ℓ₀, κ
+        iframe CFl0 Wl0 GMEo0 HE0 Hn
+      imodintro
+      icases ownLayer_lb_le γ dq₂ ℓ ℓ₀ $$ CF CFl0 with ⟨%hℓ₀, CF⟩
+      icases (Obl.fuel_add_set G ℓ.succ _ _).mp $$ Fsloop with ⟨Fs1, Fs2⟩
+      imod embedFuels_add_map Nat.lt_wfRel.wf (n - c').toNat ∅ G ℓ.succ (50 + 50 * ▽) $$
+        [] Fs1 with EFs
+      · iapply embedFuels_init
+      iapply acquire_loop lc i G γ dq₁ dq₂ ℓ m R E hE C Φ next curr n ((n - c').toNat) c' κ ℓ₀
+        gu rfl hlt' hℓ₀ hgu $$ INV ITK CFl CFl0 Wl0 GMEo0 Wgu HΦ AL CF EFs Fs2 Agu GMEt0 HG HF HT
 
 end Acquire
 
