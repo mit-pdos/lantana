@@ -187,6 +187,9 @@ theorem regLb_idx {l : List (Nat × RegEntry)} {j p : Nat} {e : RegEntry}
   ipureintro
   exact ⟨h, hwf⟩
 
+#lantana_ignore reg_lb_lb_valid "Local; Iris-Lean's `MonoList.lb_own_valid`"
+#lantana_ignore reg_auth_lb_valid "Local; Iris-Lean's `MonoList.auth_lb_own_valid`"
+
 @[lantana_alias reg_auth_idx_lookup]
 theorem regAuth_idx_lookup (l : List (Nat × RegEntry)) (j p : Nat) (e : RegEntry) :
     regAuth (GF := GF) l ⊢ regIdx j p e -∗ ⌜l[j]? = some (p, e)⌝ := by
