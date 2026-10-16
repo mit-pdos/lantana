@@ -206,6 +206,42 @@ instance Wit.fuels_timeless (k : Oid) (ℓ : Layer) (α : Fuel) (F : OidMap (Lay
 instance Wit.fuels_empty_persistent (k : Oid) (ℓ : Layer) (α : Fuel) :
     Persistent (Wit.fuels (GF := GF) k ℓ α ∅) := sorry
 
+/-! ## The base model update and the rounds of a step
+
+Their structural rules (Rocq `base_logic/mupd.v` and `model_physical_updates.v`), used by the
+program logic to prove the rules of `lWP`. -/
+
+@[lantana_alias mupd_ne]
+instance mupdBase_ne (n tc : Nat) : OFE.NonExpansive (mupdBase (GF := GF) n tc) := sorry
+
+@[lantana_alias mupd_intro]
+theorem mupdBase_intro (n tc : Nat) (P : IProp GF) : P ⊢ |=[n,tc]=>m P := sorry
+
+/-- A fancy update at the empty mask can be absorbed by the base model update. -/
+@[lantana_alias fupd_mupd_elim]
+theorem fupd_mupdBase_elim (n tc : Nat) (P : IProp GF) :
+    (|={∅}=> |=[n,tc]=>m P) ⊢ |=[n,tc]=>m P := sorry
+
+@[lantana_alias mupd_bind]
+theorem mupdBase_bind (n tc : Nat) (P Q : IProp GF) :
+    (P -∗ |=[n,tc]=>m Q) ⊢ (|=[n,tc]=>m P) -∗ |=[n,tc]=>m Q := sorry
+
+@[lantana_alias mprog_ne]
+instance mprog_ne (n tc : Nat) (i : ThreadId) : OFE.NonExpansive (mprog (GF := GF) n tc i) :=
+  sorry
+
+@[lantana_alias mprog_wand_l]
+theorem mprog_wand (n tc : Nat) (i : ThreadId) (P Q : IProp GF) :
+    (P -∗ Q) ⊢ mprog n tc i P -∗ mprog n tc i Q := sorry
+
+@[lantana_alias mphys_ne]
+instance mphys_ne (n₁ n₂ tc₁ tc₂ : Nat) :
+    OFE.NonExpansive (mphys (GF := GF) n₁ n₂ tc₁ tc₂) := sorry
+
+@[lantana_alias mphys_wand_l]
+theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (P Q : IProp GF) :
+    (P -∗ Q) ⊢ mphys n₁ n₂ tc₁ tc₂ P -∗ mphys n₁ n₂ tc₁ tc₂ Q := sorry
+
 /-! ## The model update: the three core rules (the rest is derived) -/
 
 section ModelUpdate
