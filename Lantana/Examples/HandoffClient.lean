@@ -10,7 +10,27 @@ public import Lantana.Examples.World
 
 /-! # A client of the handoff
 
-Rocq `examples/handoff_client.v`.
+Rocq `examples/handoff_client.v`, the program `handoffMain` of the paper (§5.2): the main
+thread allocates a cell `b`, forks a receiver on it, creates a flag `x`, sends the task
+`set x` to the receiver and waits on the flag.
+
+The layers: `set` runs at `0`, the task is below the handoff's layer `1`, the flag's obligation
+`k` is at `1` (in a container `g0` at `1`, from which `send` moves it into the receiver's
+inbox), and the main thread's commitments `kl` (to return `1`) and `kc` (to create a flag and a
+handoff) are at `2`, above the flag's layer for the `wait`.
+
+Unlike Rocq, which forks with `lwp_fork_step` to create the receiver's inbox in the receiver,
+the inbox `gj` is created below the main thread just before the fork (with the fuel for the fork
+step, its move and the receiver), the handoff is initialized with it, and `lwp_fork` moves it to
+the receiver. The measure is `20 + μ_init + μ_send + μ_wait` for `kl` and `kc`; the container
+gets `2 + (μ_init + μ_send)` and the inbox `1 + (1 + μ_receive)`.
+
+`handoffClient_adequacy` is the end-to-end statement, from `lwp_adequacy_temporal` in the
+closed world `ExGF` (with `HandoffG ExGF` from its ghost-variable slot);
+`handoffClient_safety_adequacy` the safety statement, from `lwp_adequacy_safety`.
+
+Everything here is proved, from the obligation-forest interface, the rules of temporal formulas
+and the adequacy theorems (whose own proofs are M4–M6).
 -/
 
 @[expose] public noncomputable section
@@ -274,6 +294,208 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   · ipureintro
     rfl
 
+/-- What the main thread `i` commits to: a flag and a handoff exist. -/
+abbrev flagAndHandoff : IProp GF :=
+  iprop((∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ∗
+    (∃ (b : Loc) (γ : HandoffName) (ℓ : Layer), isHandoff b γ ℓ))
+
+/-- The commitments of the main thread `i` and its resources (Rocq `Φ_P`). -/
+def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
+  iprop(∃ kl kc : Oid, finallyI Nl kl 1 (exits v1 @ i) ∗ finallyI Nc kc 1 flagAndHandoff ∗
+    (thKids i {kl, kc} ∗ oblKids kl ∅ ∗ oblKids kc ∅ ∗ ⌜kl ≠ kc⌝ ∗
+      [∗set] g ∈ ({kl, kc} : Oids), Obl.fuel g 2 μ))
+
+/-- The postcondition of the main thread. -/
+abbrev mainPost : ThreadId → Val → IProp GF := fun _ v => iprop(⌜v = v1⌝)
+
+/-- From the main thread's token and its empty set of children: its commitments, and its
+`lWP` from them. -/
+@[lantana_alias handoff_client.main_pre]
+theorem main_pre (i : ThreadId) :
+    threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thKids i ∅ -∗
+      |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
+        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+  obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
+  iintro HT HG
+  imod untilI_alloc (E := ⊤) (.thread i) ∅ 2 μ $$ [] HG with
+    ⟨%kl, -, HG, Hkl, Fkl, -, Akl⟩
+  · iapply parLe_thread
+  imod Akl $$ %⊤ %Nl %iprop(True) %(exits v1 @ i) [] with Ul
+  · inext
+    ipureintro
+    trivial
+  imod untilI_alloc (E := ⊤) (.thread i) _ 2 μ $$ [] HG with
+    ⟨%kc, %hkc, HG, Hkc, Fkc, -, Akc⟩
+  · iapply parLe_thread
+  imod Akc $$ %⊤ %Nc %iprop(True) %(flagAndHandoff (GF := GF)) [] with Uc
+  · inext
+    ipureintro
+    trivial
+  have hne : kl ≠ kc := by
+    rintro rfl
+    exact hkc Std.ExtTreeSet.mem_insert_self
+  imodintro
+  iexists μ
+  isplitl [Ul Uc HG Hkl Hkc Fkl Fkc]
+  · unfold mainRes finallyI
+    iexists kl, kc
+    iframe Ul Uc Hkl Hkc
+    isplitl [HG]
+    · iapply Par.kids_congr _ $$ HG
+      intro z
+      simp
+      grind
+    isplitr
+    · ipureintro
+      exact hne
+    iapply (bigSepS_pair hne).mpr
+    iframe
+  iintro HP
+  unfold mainRes
+  icases HP with ⟨%kl, %kc, HFl, HFc, HG, Hkl, Hkc, %hne, HF⟩
+  imodintro
+  iapply hmain i kl kc $$ [HT HG HF Hkl Hkc HFl HFc]
+  · iframe
+    ipureintro
+    exact hne
+  iintro %v ⟨-, Hd⟩
+  iexact Hd
+
 end Spec
+
+/-! ## Traces and the guarantee -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- The main thread `i` returns `1`, and a flag gets created that is `0` until it is `1`, and
+then `1`; in particular, the receiver thread runs the task `set x` (Rocq `R_main`). -/
+def rMain (i : ThreadId) : TrProp Exp State :=
+  ◇ₜ TrProp.state (threadExprSat i [] (.val v1)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
+
+/-- Moreover, a handoff cell gets created that from then on always holds `NONE` or a task
+(Rocq `R_handoff`). -/
+def rHandoff : TrProp Exp State := ◇ₜ (∃ₜ b : Loc, handoffTr b)
+
+/-- What the commitments guarantee (Rocq `G_main`). -/
+def gMain (i : ThreadId) : TrSpec Exp State GF :=
+  ◇ₛ TrSpec.state (threadExprSat i [] (.val v1)) ∧ₛ
+    ◇ₛ ((∃ₛ x : Loc, flagTrSpec x) ∧ₛ (∃ₛ b : Loc, □ₛ handoffInvTrSpec b)) ∧ₛ TrSpec.true
+
+@[lantana_alias handoff_client.G_main_impl]
+theorem gMain_impl (i : ThreadId) :
+    (gMain (GF := GF) i).external ⊆ (rMain i ∧ₜ rHandoff) := by
+  intro τ ⟨hr, ⟨m, hm, ⟨⟨x, hx⟩, ⟨b, hb⟩⟩, hbef⟩, _⟩
+  exact ⟨⟨hr, m, hm, ⟨x, Flag.flagTrSpec_impl x _ hx⟩, hbef⟩,
+    m, hm, ⟨b, Handoff.handoffInvTrSpec_ext b _ hb⟩, hbef⟩
+
+variable [ModelGS GF] [HeapGS GF] [HandoffG GF]
+
+@[lantana_alias handoff_client.guar_Φ_P]
+theorem guar_mainRes (i : ThreadId) (μ : Measure) :
+    ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
+  haveI : GuarOf (Expr := Exp) (State := State)
+      iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)
+      (∃ₛ x : Loc, flagTrSpec x) := ⟨Flag.guar_exFlag⟩
+  haveI : GuarOf (Expr := Exp) (State := State)
+      iprop(∃ (b : Loc) (γ : HandoffName) (ℓ : Layer), isHandoff (GF := GF) b γ ℓ)
+      (∃ₛ b : Loc, □ₛ handoffInvTrSpec b) := ⟨Handoff.guar_exHandoff⟩
+  unfold mainRes gMain finallyI
+  iapply guar_ex_ghost
+  iintro %kl
+  iapply guar_ex_ghost
+  iintro %kc
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nl kl 1 iprop(True)
+      (exits v1 @ i)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nc kc 1 iprop(True)
+      (flagAndHandoff (GF := GF))))
+  iapply guar_true
+
+end Guarantee
+
+/-! ## Adequacy -/
+
+section Adequacy
+
+instance : HandoffG ExGF := {}
+
+/-- The initial pool: the main thread `0`. -/
+abbrev tp0 : ThreadPool Exp := [hl(v(&main) #())]
+
+/-- The initial state: the empty heap. -/
+abbrev σ0 : State := ⟨∅⟩
+
+/-- In every fair behavior from the initial configuration, the main thread returns `1`, a flag
+gets created that is `0` until it is `1` and then `1`, and a handoff cell gets created that
+from then on always holds `NONE` or a task. -/
+@[lantana_alias handoff_client_adequacy]
+theorem handoffClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    rMain 0 τ ∧ rHandoff τ := by
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 (gMain 0) (rMain 0 ∧ₜ rHandoff)
+    (gMain_impl 0) τ hbeh hfair hpos hinit ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imodintro
+  iexists mainRes 0 μ
+  isplitr
+  · iapply guar_mainRes
+  iframe HP
+  iintro HP
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+stuck, and once the main thread has returned, its value is `1`. -/
+@[lantana_alias handoff_client_safety_adequacy]
+theorem handoffClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    safetyIris 0 (fun _ v => v = v1) τ := by
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplit
+  · ipureintro
+    exact fun _ => .rfl
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- Liveness and safety together, over the same fair behaviors. -/
+@[lantana_alias handoff_client_liveness_safety]
+theorem handoffClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    (rMain 0 τ ∧ rHandoff τ) ∧ safetyIris 0 (fun _ v => v = v1) τ :=
+  ⟨handoffClient_adequacy τ hbeh hfair hpos hinit,
+    handoffClient_safety_adequacy τ hbeh hfair hpos hinit⟩
+
+end Adequacy
 
 end Lantana.Examples.HandoffClient
