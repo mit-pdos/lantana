@@ -290,6 +290,108 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       · ipureintro
         exact hng
 
+omit [HeapGS GF] [TicketLockG GF] [QueueG GF] in
+/-- A thread without children pays nothing. -/
+theorem oblFuels_empty (n : Measure) : ⊢ oblFuels (GF := GF) ∅ n := by
+  unfold oblFuels
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
+
+/-- The worker runs tasks forever (it never returns: the postcondition is `False`). With its
+inbox `g` (`b = true`), each iteration renews the inbox, whose fuel pays for the iteration;
+without (`G = ∅`), it pays nothing. By Löb induction (Rocq `TaskQueue_worker_spec`). -/
+@[lantana_alias task_queue.TaskQueue_worker_spec]
+theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids) (γ : QueueName)
+    (ℓ : Layer) (ql : Val) (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&worker) v(&ql)) ∗ thKids i G ∗
+          (if b then iprop(∃ g : Oid, ⌜G = {g} ∧ 1 ≤ ℓ⌝ ∧ (Obl.fuel g ℓ μ ∗ Queue.worker γ g))
+           else iprop(⌜G = ∅⌝)) ∗ isTaskQueue ql γ ℓ }}}
+        hl(v(&worker) v(&ql)) @ i
+      l{{{ RET hl_val(#()); iprop(False) }}} := by
+  obtain ⟨μr, hr⟩ := runTask_spec (GF := GF)
+  refine ⟨((10 : Nat) : Measure) + (μr + 1), fun b i G γ ℓ ql C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HW, #IQ⟩ -
+  cases b with
+  | true =>
+    simp only [↓reduceIte]
+    icases HW with ⟨%g, %⟨hG, hℓ⟩, Fg, Wk⟩
+    subst hG
+    iloeb as IH generalizing %g
+    icases (Obl.fuel_add g ℓ _ _).mp $$ Fg with ⟨Fs, Fr⟩
+    ihave Fs : oblFuels {g} ((10 : Nat) : Measure) $$ [Fs]
+    · unfold oblFuels
+      iapply BigSepS.bigSepS_singleton.mpr
+      iexists ℓ
+      iexact Fs
+    unfold worker
+    lwp_step HT HG Fs
+    lwp_expr_simp
+    lwp_bind hl(v(&runTask) v(&ql)) HT
+    icases (Obl.fuel_add g ℓ μr 1).mp $$ Fr with ⟨Fmr, F1⟩
+    imod Obl.fuel_layer_mono (ℓ₁ := 1) g μr hℓ $$ Fmr with Fmr
+    iapply hr 1 (((2 : Nat) : Measure) + (((10 : Nat) : Measure) + (μr + 1))) true g i {g} γ ℓ
+      ql _ $$ [HT HG Fmr F1 Wk]
+    · simp only [↓reduceIte]
+      iframe HT HG Wk IQ
+      isplitl [Fmr]
+      · iapply BigSepS.bigSepS_singleton.mpr
+        iexact Fmr
+      · iapply BigSepS.bigSepS_singleton.mpr
+        iexact F1
+    simp only [↓reduceIte]
+    iintro %rv ⟨HT, Hc, %ng, HG, %hng, Wk, Kg, Ag, Fng⟩
+    imod Obl.discharge_leaf ⊤ (.thread i) (({g} : Oids).insert ng) g
+      (Std.ExtTreeSet.mem_insert.mpr (.inr (LawfulSet.mem_singleton.mpr rfl))) $$ HG Kg Ag
+      with ⟨HG, -⟩
+    ihave HG := Par.kids_congr (B := {ng}) ?_ $$ HG
+    · intro z
+      simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert, LawfulSet.mem_singleton]
+      simp only [LawfulSet.mem_singleton] at hng
+      grind
+    icases (Obl.fuel_add ng ℓ _ _).mp $$ Fng with ⟨F2, Fng⟩
+    ihave F2 : oblFuels {ng} ((2 : Nat) : Measure) $$ [F2]
+    · unfold oblFuels
+      iapply BigSepS.bigSepS_singleton.mpr
+      iexists ℓ
+      iexact F2
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    lwp_step HT HG F2
+    lwp_step HT HG F2
+    lwp_expr_simp
+    iapply lwp_credit_later $$ Hc
+    inext
+    iapply IH $$ %ng HT HG Fng Wk
+  | false =>
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    icases HW with %hG
+    subst hG
+    iloeb as IH
+    unfold worker
+    ihave HF := oblFuels_empty (GF := GF) ((1 : Nat) : Measure)
+    lwp_step HT HG HF
+    lwp_expr_simp
+    lwp_bind hl(v(&runTask) v(&ql)) HT
+    iapply hr 1 0 false 0 i ∅ γ ℓ ql _ $$ [HT HG]
+    · simp only [Bool.false_eq_true, ↓reduceIte]
+      iframe HT HG IQ
+      isplitl []
+      · iapply BigSepS.bigSepS_empty.mpr
+        iempintro
+      iapply BigSepS.bigSepS_empty.mpr
+      iempintro
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    iintro %rv ⟨HT, Hc, HG⟩
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    ihave HF := oblFuels_empty (GF := GF) ((2 : Nat) : Measure)
+    lwp_step HT HG HF
+    lwp_step HT HG HF
+    lwp_expr_simp
+    iapply lwp_credit_later $$ Hc
+    inext
+    iapply IH $$ HT HG
+
 end Specs
 
 end Lantana.Examples.TaskQueue
