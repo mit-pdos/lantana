@@ -6,10 +6,10 @@ Rocq reference: branch `dev`, commit `0c1515a`.
 
 ## Summary
 
-- **2299** Rocq names aliased (`@[lantana_alias]`), to 2255 Lean declarations in 87 Lean modules.
+- **2295** Rocq names aliased (`@[lantana_alias]`), to 2251 Lean declarations in 87 Lean modules.
 - **484** Rocq names ignored (`#lantana_ignore`), recorded in 46 Lean modules.
 - Coverage: the scanner finds **3586** declarations (definitions, lemmas, instances, inductives, records and classes with their constructors and fields) in 102 Rocq files of `lantana/` and `lantana_heap_lang/` (and 266 section-local `Let`s, notations, tactics and module aliases, matched but not counted): **2277** aliased, **477** ignored, **832** neither (section 3).
-- 4 aliases and 0 ignores name no declaration the scanner finds; they are listed at the end of sections 1 and 2. 68 names match declarations of several Rocq files and are resolved by the Lean module's directory and name.
+- 0 aliases and 0 ignores name no declaration the scanner finds; they are listed at the end of sections 1 and 2. 68 names match declarations of several Rocq files and are resolved by the Lean module's directory and name.
 
 The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`).
 
@@ -716,22 +716,22 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `oforestG_kids_timeless` | `Lantana.Model.OForest.kids_timeless` | [Lantana/BaseLogic/Model/OForest.lean:155](../Lantana/BaseLogic/Model/OForest.lean#L155) |
 | `oforestG_kids_excl` | `Lantana.Model.OForest.kids_excl` | [Lantana/BaseLogic/Model/OForest.lean:192](../Lantana/BaseLogic/Model/OForest.lean#L192) |
 | `oforestG_kids_lookup` | `Lantana.Model.OForest.kidsAuth_lookup` | [Lantana/BaseLogic/Model/OForest.lean:200](../Lantana/BaseLogic/Model/OForest.lean#L200) |
-| `oforest_alloc_thread` | `Lantana.Model.oforest_alloc_thread` | [Lantana/BaseLogic/Model/OForest.lean:1158](../Lantana/BaseLogic/Model/OForest.lean#L1158) |
-| `oforest_alloc_threads` | `Lantana.Model.oforest_alloc_threads` | [Lantana/BaseLogic/Model/OForest.lean:1182](../Lantana/BaseLogic/Model/OForest.lean#L1182) |
-| `oforest_exec_to_done` | `Lantana.Model.oforest_exec_to_done` | [Lantana/BaseLogic/Model/OForest.lean:1206](../Lantana/BaseLogic/Model/OForest.lean#L1206) |
-| `oforest_alloc_obl` | `Lantana.Model.oforest_alloc_obl` | [Lantana/BaseLogic/Model/OForest.lean:1269](../Lantana/BaseLogic/Model/OForest.lean#L1269) |
+| `oforest_alloc_thread` | `Lantana.Model.oforest_alloc_thread` | [Lantana/BaseLogic/Model/OForest.lean:1157](../Lantana/BaseLogic/Model/OForest.lean#L1157) |
+| `oforest_alloc_threads` | `Lantana.Model.oforest_alloc_threads` | [Lantana/BaseLogic/Model/OForest.lean:1181](../Lantana/BaseLogic/Model/OForest.lean#L1181) |
+| `oforest_exec_to_done` | `Lantana.Model.oforest_exec_to_done` | [Lantana/BaseLogic/Model/OForest.lean:1205](../Lantana/BaseLogic/Model/OForest.lean#L1205) |
+| `oforest_alloc_obl` | `Lantana.Model.oforest_alloc_obl` | [Lantana/BaseLogic/Model/OForest.lean:1268](../Lantana/BaseLogic/Model/OForest.lean#L1268) |
 | `osat_fuel_le` | `Lantana.Model.osat_fuel_le` | [Lantana/BaseLogic/Model/OSat.lean:902](../Lantana/BaseLogic/Model/OSat.lean#L902) |
-| `oforest_kids_live` | `Lantana.Model.oforest_kids_live` | [Lantana/BaseLogic/Model/OForest.lean:1051](../Lantana/BaseLogic/Model/OForest.lean#L1051) |
-| `oforest_obl_fuel_bound` | `Lantana.Model.oforest_obl_fuel_bound` | [Lantana/BaseLogic/Model/OForest.lean:1084](../Lantana/BaseLogic/Model/OForest.lean#L1084) |
-| `oforest_alloc_discharged` | `Lantana.Model.oforest_alloc_discharged` | [Lantana/BaseLogic/Model/OForest.lean:1246](../Lantana/BaseLogic/Model/OForest.lean#L1246) |
-| `oforest_step` | `Lantana.Model.oforest_step` | [Lantana/BaseLogic/Model/OForest.lean:1516](../Lantana/BaseLogic/Model/OForest.lean#L1516) |
-| `oforest_discharge_obl` | `Lantana.Model.oforest_discharge_obl` | [Lantana/BaseLogic/Model/OForest.lean:1357](../Lantana/BaseLogic/Model/OForest.lean#L1357) |
+| `oforest_kids_live` | `Lantana.Model.oforest_kids_live` | [Lantana/BaseLogic/Model/OForest.lean:1050](../Lantana/BaseLogic/Model/OForest.lean#L1050) |
+| `oforest_obl_fuel_bound` | `Lantana.Model.oforest_obl_fuel_bound` | [Lantana/BaseLogic/Model/OForest.lean:1083](../Lantana/BaseLogic/Model/OForest.lean#L1083) |
+| `oforest_alloc_discharged` | `Lantana.Model.oforest_alloc_discharged` | [Lantana/BaseLogic/Model/OForest.lean:1245](../Lantana/BaseLogic/Model/OForest.lean#L1245) |
+| `oforest_step` | `Lantana.Model.oforest_step` | [Lantana/BaseLogic/Model/OForest.lean:1515](../Lantana/BaseLogic/Model/OForest.lean#L1515) |
+| `oforest_discharge_obl` | `Lantana.Model.oforest_discharge_obl` | [Lantana/BaseLogic/Model/OForest.lean:1356](../Lantana/BaseLogic/Model/OForest.lean#L1356) |
 | `osat_chown_set` | `Lantana.Model.osat_chown_set` | [Lantana/BaseLogic/Model/OSat.lean:1124](../Lantana/BaseLogic/Model/OSat.lean#L1124) |
 | `big_sepS_filter_dom` | `Lantana.Model.bigSepS_dom_filter` | [Lantana/BaseLogic/Model/OForest.lean:508](../Lantana/BaseLogic/Model/OForest.lean#L508) |
-| `oforest_move_same` | `Lantana.Model.oforest_move_same` | [Lantana/BaseLogic/Model/OForest.lean:1404](../Lantana/BaseLogic/Model/OForest.lean#L1404) |
-| `oforest_move_cross` | `Lantana.Model.oforest_move_cross` | [Lantana/BaseLogic/Model/OForest.lean:1582](../Lantana/BaseLogic/Model/OForest.lean#L1582) |
-| `oforest_move_up` | `Lantana.Model.oforest_move_up` | [Lantana/BaseLogic/Model/OForest.lean:1459](../Lantana/BaseLogic/Model/OForest.lean#L1459) |
-| `oforest_alloc` | `Lantana.Model.oforest_alloc` | [Lantana/BaseLogic/Model/OForest.lean:1753](../Lantana/BaseLogic/Model/OForest.lean#L1753) |
+| `oforest_move_same` | `Lantana.Model.oforest_move_same` | [Lantana/BaseLogic/Model/OForest.lean:1403](../Lantana/BaseLogic/Model/OForest.lean#L1403) |
+| `oforest_move_cross` | `Lantana.Model.oforest_move_cross` | [Lantana/BaseLogic/Model/OForest.lean:1581](../Lantana/BaseLogic/Model/OForest.lean#L1581) |
+| `oforest_move_up` | `Lantana.Model.oforest_move_up` | [Lantana/BaseLogic/Model/OForest.lean:1458](../Lantana/BaseLogic/Model/OForest.lean#L1458) |
+| `oforest_alloc` | `Lantana.Model.oforest_alloc` | [Lantana/BaseLogic/Model/OForest.lean:1752](../Lantana/BaseLogic/Model/OForest.lean#L1752) |
 
 ### `lantana/base_logic/oinv.v`
 
@@ -766,18 +766,18 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `omodel.wit_fuels` | `Lantana.Model.OPreds.witFuels` | [Lantana/BaseLogic/Model/OPredsBase.lean:129](../Lantana/BaseLogic/Model/OPredsBase.lean#L129) |
 | `omodel.oblP_share` | `Lantana.Model.OPreds.oblShare` | [Lantana/BaseLogic/Model/OPredsBase.lean:101](../Lantana/BaseLogic/Model/OPredsBase.lean#L101) |
 | `omodel.parP_kids` | `Lantana.Model.OPreds.parKids` | [Lantana/BaseLogic/Model/OPreds.lean:84](../Lantana/BaseLogic/Model/OPreds.lean#L84) |
-| `omodel.oblP_assigned_discharged_false` | `Lantana.Model.OPreds.oblAssigned_discharged_false` | [Lantana/BaseLogic/Model/OPredsBase.lean:237](../Lantana/BaseLogic/Model/OPredsBase.lean#L237) |
+| `omodel.oblP_assigned_discharged_false` | `Lantana.Model.OPreds.oblAssigned_discharged_false` | [Lantana/BaseLogic/Model/OPredsBase.lean:236](../Lantana/BaseLogic/Model/OPredsBase.lean#L236) |
 | `omodel.oblP_fuel_proper` | `Lantana.Model.OPreds.oblFuel_eq_of_rep` | [Lantana/BaseLogic/Model/OPreds.lean:166](../Lantana/BaseLogic/Model/OPreds.lean#L166) |
-| `omodel.oblP_fuel_mon_gen` | `Lantana.Model.OPreds.oblFuel_mono_gen` | [Lantana/BaseLogic/Model/OPredsBase.lean:244](../Lantana/BaseLogic/Model/OPredsBase.lean#L244) |
-| `omodel.oblP_fuel_add` | `Lantana.Model.OPreds.oblFuel_add` | [Lantana/BaseLogic/Model/OPredsBase.lean:256](../Lantana/BaseLogic/Model/OPredsBase.lean#L256) |
-| `omodel.oblP_fuel_extend` | `Lantana.Model.OPreds.oblFuel_extend` | [Lantana/BaseLogic/Model/OPredsBase.lean:273](../Lantana/BaseLogic/Model/OPredsBase.lean#L273) |
-| `omodel.witP_cred_mon` | `Lantana.Model.OPreds.witCred_mono` | [Lantana/BaseLogic/Model/OPredsBase.lean:283](../Lantana/BaseLogic/Model/OPredsBase.lean#L283) |
-| `omodel.witP_cred_split` | `Lantana.Model.OPreds.witCred_split` | [Lantana/BaseLogic/Model/OPredsBase.lean:293](../Lantana/BaseLogic/Model/OPredsBase.lean#L293) |
-| `omodel.witP_layer_oblG_bound` | `Lantana.Model.OPreds.witLayer_bound` | [Lantana/BaseLogic/Model/OPredsBase.lean:309](../Lantana/BaseLogic/Model/OPredsBase.lean#L309) |
-| `omodel.wit_fuels_init` | `Lantana.Model.OPreds.witFuels_init` | [Lantana/BaseLogic/Model/OPredsBase.lean:318](../Lantana/BaseLogic/Model/OPredsBase.lean#L318) |
-| `omodel.wit_fuels_witP_layer` | `Lantana.Model.OPreds.witFuels_layer` | [Lantana/BaseLogic/Model/OPredsBase.lean:336](../Lantana/BaseLogic/Model/OPredsBase.lean#L336) |
-| `omodel.wit_fuels_add` | `Lantana.Model.OPreds.witFuels_add` | [Lantana/BaseLogic/Model/OPredsBase.lean:350](../Lantana/BaseLogic/Model/OPredsBase.lean#L350) |
-| `omodel.wit_fuels_decr` | `Lantana.Model.OPreds.witFuels_decr` | [Lantana/BaseLogic/Model/OPredsBase.lean:376](../Lantana/BaseLogic/Model/OPredsBase.lean#L376) |
+| `omodel.oblP_fuel_mon_gen` | `Lantana.Model.OPreds.oblFuel_mono_gen` | [Lantana/BaseLogic/Model/OPredsBase.lean:243](../Lantana/BaseLogic/Model/OPredsBase.lean#L243) |
+| `omodel.oblP_fuel_add` | `Lantana.Model.OPreds.oblFuel_add` | [Lantana/BaseLogic/Model/OPredsBase.lean:255](../Lantana/BaseLogic/Model/OPredsBase.lean#L255) |
+| `omodel.oblP_fuel_extend` | `Lantana.Model.OPreds.oblFuel_extend` | [Lantana/BaseLogic/Model/OPredsBase.lean:272](../Lantana/BaseLogic/Model/OPredsBase.lean#L272) |
+| `omodel.witP_cred_mon` | `Lantana.Model.OPreds.witCred_mono` | [Lantana/BaseLogic/Model/OPredsBase.lean:282](../Lantana/BaseLogic/Model/OPredsBase.lean#L282) |
+| `omodel.witP_cred_split` | `Lantana.Model.OPreds.witCred_split` | [Lantana/BaseLogic/Model/OPredsBase.lean:292](../Lantana/BaseLogic/Model/OPredsBase.lean#L292) |
+| `omodel.witP_layer_oblG_bound` | `Lantana.Model.OPreds.witLayer_bound` | [Lantana/BaseLogic/Model/OPredsBase.lean:308](../Lantana/BaseLogic/Model/OPredsBase.lean#L308) |
+| `omodel.wit_fuels_init` | `Lantana.Model.OPreds.witFuels_init` | [Lantana/BaseLogic/Model/OPredsBase.lean:317](../Lantana/BaseLogic/Model/OPredsBase.lean#L317) |
+| `omodel.wit_fuels_witP_layer` | `Lantana.Model.OPreds.witFuels_layer` | [Lantana/BaseLogic/Model/OPredsBase.lean:335](../Lantana/BaseLogic/Model/OPredsBase.lean#L335) |
+| `omodel.wit_fuels_add` | `Lantana.Model.OPreds.witFuels_add` | [Lantana/BaseLogic/Model/OPredsBase.lean:349](../Lantana/BaseLogic/Model/OPredsBase.lean#L349) |
+| `omodel.wit_fuels_decr` | `Lantana.Model.OPreds.witFuels_decr` | [Lantana/BaseLogic/Model/OPredsBase.lean:375](../Lantana/BaseLogic/Model/OPredsBase.lean#L375) |
 | `omodel.layer_dominates` | `Lantana.Measure.layer_dominates` | [Lantana/Algebra/Measure.lean:227](../Lantana/Algebra/Measure.lean#L227) |
 | `omodel.layer_le_bound` | `Lantana.Measure.layer_le_bound` | [Lantana/Algebra/Measure.lean:233](../Lantana/Algebra/Measure.lean#L233) |
 | `omodel.parP_kids_frag` | `Lantana.Model.OPreds.parKids_unfold` | [Lantana/BaseLogic/Model/OPreds.lean:107](../Lantana/BaseLogic/Model/OPreds.lean#L107) |
@@ -793,9 +793,9 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `omodel.obl_check_witnesses_mupd` | `Lantana.Model.OPreds.obl_check_witnesses_mupd` | [Lantana/BaseLogic/Model/OPreds.lean:689](../Lantana/BaseLogic/Model/OPreds.lean#L689) |
 | `omodel.obl_discharge_mupd` | `Lantana.Model.OPreds.obl_discharge_mupd` | [Lantana/BaseLogic/Model/OPreds.lean:740](../Lantana/BaseLogic/Model/OPreds.lean#L740) |
 | `omodel.thP_kids_alloc_threads` | `Lantana.Model.OPreds.thKids_alloc_threads` | [Lantana/BaseLogic/Model/OPreds.lean:790](../Lantana/BaseLogic/Model/OPreds.lean#L790) |
-| `omodel.oblP_inv_alloc_assigned` | `Lantana.Model.OPreds.oblInv_alloc_assigned` | [Lantana/BaseLogic/Model/OPredsBase.lean:423](../Lantana/BaseLogic/Model/OPredsBase.lean#L423) |
-| `omodel.oblP_inv_alloc_discharged` | `Lantana.Model.OPreds.oblInv_alloc_discharged` | [Lantana/BaseLogic/Model/OPredsBase.lean:434](../Lantana/BaseLogic/Model/OPredsBase.lean#L434) |
-| `omodel.oblP_inv_acc` | `Lantana.Model.OPreds.oblInv_acc` | [Lantana/BaseLogic/Model/OPredsBase.lean:469](../Lantana/BaseLogic/Model/OPredsBase.lean#L469) |
+| `omodel.oblP_inv_alloc_assigned` | `Lantana.Model.OPreds.oblInv_alloc_assigned` | [Lantana/BaseLogic/Model/OPredsBase.lean:422](../Lantana/BaseLogic/Model/OPredsBase.lean#L422) |
+| `omodel.oblP_inv_alloc_discharged` | `Lantana.Model.OPreds.oblInv_alloc_discharged` | [Lantana/BaseLogic/Model/OPredsBase.lean:433](../Lantana/BaseLogic/Model/OPredsBase.lean#L433) |
+| `omodel.oblP_inv_acc` | `Lantana.Model.OPreds.oblInv_acc` | [Lantana/BaseLogic/Model/OPredsBase.lean:468](../Lantana/BaseLogic/Model/OPredsBase.lean#L468) |
 | `omodel.mprog_step_kids` | `Lantana.Model.OPreds.mprog_step_kids` | [Lantana/BaseLogic/Model/OPreds.lean:816](../Lantana/BaseLogic/Model/OPreds.lean#L816) |
 | `omodel.mphys_step_kids` | `Lantana.Model.OPreds.mphys_step_kids` | [Lantana/BaseLogic/Model/OPreds.lean:869](../Lantana/BaseLogic/Model/OPreds.lean#L869) |
 
@@ -892,15 +892,15 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `othreadG_exec_to_done` | `Lantana.Model.OForest.exec_to_done` | [Lantana/BaseLogic/Model/OForest.lean:269](../Lantana/BaseLogic/Model/OForest.lean#L269) |
 | `othreadG_exec_valid` | `Lantana.Model.OForest.exec_frac_valid` | [Lantana/BaseLogic/Model/OForest.lean:227](../Lantana/BaseLogic/Model/OForest.lean#L227) |
 | `othreadG_exec_alloc` | `Lantana.Model.OForest.statusAuth_insert` | [Lantana/BaseLogic/Model/OForest.lean:262](../Lantana/BaseLogic/Model/OForest.lean#L262) |
-| `othread_elem` | `Lantana.Model.oforest_exec_lt` | [Lantana/BaseLogic/Model/OForest.lean:1100](../Lantana/BaseLogic/Model/OForest.lean#L1100) |
-| `othread_alloc_thread` | `Lantana.Model.oforest_alloc_thread` | [Lantana/BaseLogic/Model/OForest.lean:1158](../Lantana/BaseLogic/Model/OForest.lean#L1158) |
-| `othread_alloc_threads` | `Lantana.Model.oforest_alloc_threads` | [Lantana/BaseLogic/Model/OForest.lean:1182](../Lantana/BaseLogic/Model/OForest.lean#L1182) |
-| `othread_exec_to_done` | `Lantana.Model.oforest_exec_to_done` | [Lantana/BaseLogic/Model/OForest.lean:1206](../Lantana/BaseLogic/Model/OForest.lean#L1206) |
-| `othread_done_open` | `Lantana.Model.oforest_done_owned` | [Lantana/BaseLogic/Model/OForest.lean:1119](../Lantana/BaseLogic/Model/OForest.lean#L1119) |
+| `othread_elem` | `Lantana.Model.oforest_exec_lt` | [Lantana/BaseLogic/Model/OForest.lean:1099](../Lantana/BaseLogic/Model/OForest.lean#L1099) |
+| `othread_alloc_thread` | `Lantana.Model.oforest_alloc_thread` | [Lantana/BaseLogic/Model/OForest.lean:1157](../Lantana/BaseLogic/Model/OForest.lean#L1157) |
+| `othread_alloc_threads` | `Lantana.Model.oforest_alloc_threads` | [Lantana/BaseLogic/Model/OForest.lean:1181](../Lantana/BaseLogic/Model/OForest.lean#L1181) |
+| `othread_exec_to_done` | `Lantana.Model.oforest_exec_to_done` | [Lantana/BaseLogic/Model/OForest.lean:1205](../Lantana/BaseLogic/Model/OForest.lean#L1205) |
+| `othread_done_open` | `Lantana.Model.oforest_done_owned` | [Lantana/BaseLogic/Model/OForest.lean:1118](../Lantana/BaseLogic/Model/OForest.lean#L1118) |
 | `othread_obls_lookup` | `Lantana.Model.ForestWf.mem_owned_iff` | [Lantana/BaseLogic/Forest.lean:944](../Lantana/BaseLogic/Forest.lean#L944) |
-| `othread_assigned_thread_elem` | `Lantana.Model.oforest_owner_lt` | [Lantana/BaseLogic/Model/OForest.lean:1032](../Lantana/BaseLogic/Model/OForest.lean#L1032) |
-| `othread_assigned_done_false` | `Lantana.Model.oforest_assigned_done_false` | [Lantana/BaseLogic/Model/OForest.lean:1136](../Lantana/BaseLogic/Model/OForest.lean#L1136) |
-| `othread_alloc` | `Lantana.Model.oforest_alloc` | [Lantana/BaseLogic/Model/OForest.lean:1753](../Lantana/BaseLogic/Model/OForest.lean#L1753) |
+| `othread_assigned_thread_elem` | `Lantana.Model.oforest_owner_lt` | [Lantana/BaseLogic/Model/OForest.lean:1031](../Lantana/BaseLogic/Model/OForest.lean#L1031) |
+| `othread_assigned_done_false` | `Lantana.Model.oforest_assigned_done_false` | [Lantana/BaseLogic/Model/OForest.lean:1135](../Lantana/BaseLogic/Model/OForest.lean#L1135) |
+| `othread_alloc` | `Lantana.Model.oforest_alloc` | [Lantana/BaseLogic/Model/OForest.lean:1752](../Lantana/BaseLogic/Model/OForest.lean#L1752) |
 
 ### `lantana/base_logic/owit.v`
 
@@ -2373,12 +2373,12 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | Rocq | Lean | Lean file |
 |---|---|---|
 | `heap_lang.freed_sat` | `Lantana.HeapLang.freedSat` | [Lantana/HeapLang/Semantics.lean:136](../Lantana/HeapLang/Semantics.lean#L136) |
-| `pointsto_state_fact` | `Lantana.HeapLang.pointsTo_stateFact` | [Lantana/HeapLang/TemporalLaws.lean:38](../Lantana/HeapLang/TemporalLaws.lean#L38) |
-| `thread_expr_state_fact` | `Lantana.HeapLang.threadExpr_stateFact` | [Lantana/HeapLang/TemporalLaws.lean:43](../Lantana/HeapLang/TemporalLaws.lean#L43) |
-| `freed_trSpec` | `Lantana.HeapLang.freedTrSpec` | [Lantana/HeapLang/TemporalLaws.lean:57](../Lantana/HeapLang/TemporalLaws.lean#L57) |
-| `freed_state_fact` | `Lantana.HeapLang.freed_stateFact` | [Lantana/HeapLang/TemporalLaws.lean:48](../Lantana/HeapLang/TemporalLaws.lean#L48) |
-| `tr_pointsto_agree` | `Lantana.HeapLang.pointsToTr_agree` | [Lantana/HeapLang/TemporalLaws.lean:62](../Lantana/HeapLang/TemporalLaws.lean#L62) |
-| `tr_pointsto_freed` | `Lantana.HeapLang.state_pointsto_freed` | [Lantana/HeapLang/TemporalLaws.lean:71](../Lantana/HeapLang/TemporalLaws.lean#L71) |
+| `pointsto_state_fact` | `Lantana.HeapLang.pointsTo_stateFact` | [Lantana/HeapLang/TemporalLaws.lean:37](../Lantana/HeapLang/TemporalLaws.lean#L37) |
+| `thread_expr_state_fact` | `Lantana.HeapLang.threadExpr_stateFact` | [Lantana/HeapLang/TemporalLaws.lean:42](../Lantana/HeapLang/TemporalLaws.lean#L42) |
+| `freed_trSpec` | `Lantana.HeapLang.freedTrSpec` | [Lantana/HeapLang/TemporalLaws.lean:56](../Lantana/HeapLang/TemporalLaws.lean#L56) |
+| `freed_state_fact` | `Lantana.HeapLang.freed_stateFact` | [Lantana/HeapLang/TemporalLaws.lean:47](../Lantana/HeapLang/TemporalLaws.lean#L47) |
+| `tr_pointsto_agree` | `Lantana.HeapLang.pointsToTr_agree` | [Lantana/HeapLang/TemporalLaws.lean:61](../Lantana/HeapLang/TemporalLaws.lean#L61) |
+| `tr_pointsto_freed` | `Lantana.HeapLang.state_pointsto_freed` | [Lantana/HeapLang/TemporalLaws.lean:70](../Lantana/HeapLang/TemporalLaws.lean#L70) |
 | `thread_expr_terminate_finally` | `Lantana.Examples.threadExpr_terminate_finally` | [Lantana/Examples/Lib.lean:109](../Lantana/Examples/Lib.lean#L109) |
 
 ### `lantana_heap_lang/examples/cert_discharge.v`
@@ -2864,10 +2864,6 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 
 | Rocq | Lean | Lean file |
 |---|---|---|
-| `oforest_timeless` | `Lantana.Model.oforest_timeless` | [Lantana/BaseLogic/Model/OForest.lean:1013](../Lantana/BaseLogic/Model/OForest.lean#L1013) |
-| `omodel.oblP_variant` | `Lantana.Model.OPreds.oblVariant` | [Lantana/BaseLogic/Model/OPredsBase.lean:136](../Lantana/BaseLogic/Model/OPredsBase.lean#L136) |
-| `freed_state_interp` | `Lantana.HeapLang.freed_stateInterp` | [Lantana/HeapLang/TemporalLaws.lean:27](../Lantana/HeapLang/TemporalLaws.lean#L27) |
-| `heap_stateGpreS` | `Lantana.Examples.HeapStateGpreS` | [Lantana/Examples/Lib.lean:134](../Lantana/Examples/Lib.lean#L134) |
 
 ## 2. Ignored Rocq declarations, by Rocq file
 

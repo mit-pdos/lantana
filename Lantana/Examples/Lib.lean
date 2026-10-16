@@ -133,7 +133,6 @@ end Terminate
 
 /-- The cameras of HeapLang's ghost state, before allocation: the heap (with its meta data)
 and the thread-expression map. -/
-@[lantana_alias heap_stateGpreS]
 class HeapStateGpreS (GF : BundledGFunctors) where
   [genHeapPre : genHeapPreS Loc (Option Val) GF HeapF]
   [threadMapPre : GhostMapG GF ThreadId Exp ThreadMapF]

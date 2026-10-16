@@ -134,7 +134,6 @@ def witFuels [OWitGS GF] (k : Oid) (ℓ : Layer) (α : Fuel) (F : OidMap (Layer 
     collectFuels α F ∗ ∃ μ : Measure, OSat.bound k (Measure.rep ℓ μ))
 
 /-- The content of a user obligation invariant (Rocq `oblP_variant`). -/
-@[lantana_alias omodel.oblP_variant]
 def oblVariant (k : Oid) (P R : IProp GF) : IProp GF :=
   iprop((oblAssigned k (Qp.half 1) ∗ P) ∨ (oblDischarged k ∗ R))
 

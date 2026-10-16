@@ -24,7 +24,6 @@ open Iris Iris.BI Iris.ProofMode Lantana
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 
 omit [ModelGS GF] in
-@[lantana_alias freed_state_interp]
 theorem freed_stateInterp (σ : State) (tp : ThreadPool Exp) (l : Loc) (dq : DFrac) :
     stateInterp (GF := GF) σ tp ∗ l ↦{dq} (none : Option Val) ⊢ ⌜freedSat l σ tp⌝ := by
   unfold stateInterp

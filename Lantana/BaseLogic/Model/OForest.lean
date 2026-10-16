@@ -1010,7 +1010,6 @@ def oforest (Ω : Obls) (tc : Nat) : IProp GF :=
     ([∗list] i ∈ List.range tc, OForest.threadInv Ω Par i) ∗
     [∗map] x ↦ p ∈ Par, forestNode Ω x p)
 
-@[lantana_alias oforest_timeless]
 instance oforest_timeless (Ω : Obls) (tc : Nat) : Timeless (oforest (GF := GF) Ω tc) := by
   unfold oforest; infer_instance
 
