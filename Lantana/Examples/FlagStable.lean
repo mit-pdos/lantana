@@ -19,8 +19,10 @@ The code is `Flag.init`, `Flag.set` and `Flag.wait` (Rocq redefines it identical
 run is `Flag.flagRun`. The Rocq names carry the prefix `flag_stable.` (they are those of
 `flag.v`).
 
-**Skeleton:** the trace-level lemmas are proved; `isFlag_init` and the specifications are
-`sorry` until the HeapLang laws (M7).
+The specifications are proved as `Flag`'s, with the same measures; `set` allocates the
+invariant of the set flag after its store, and `wait` reads the set flag from it. They use the
+obligation-forest interface and the rules of temporal formulas, which are still stated with
+`sorry` (M4–M6); nothing in this file is `sorry`.
 -/
 
 @[expose] public noncomputable section
@@ -296,7 +298,63 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
           flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase k) ∗
-        Obl.discharged k }}} := sorry
+        Obl.discharged k }}} := by
+  refine ⟨10, fun lc i l G k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, %hk, Hkk, HU, #Hflag⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold isFlag Flag.set
+  icases Hflag with ⟨#Wk, #HA⟩
+  lwp_pure HT
+  iexists G, 9, ∅, lc +ₕ 1 +ₕ 1
+  isplitl [HG HF]
+  · iframe HG HF
+    iapply witLayers_empty
+  iintro HG HF - Hlc HT
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  lwp_expr_simp
+  imodintro
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+    (fun _ _ => CoPset.mem_full) $$ HA
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨Hinv, Hclose⟩
+  iapply lwp_credit_later $$ Hc1
+  inext
+  unfold flagInv flagTk
+  icases Hinv with (Hinv | ⟨#Hd, -⟩)
+  rotate_left
+  · iexfalso
+    iapply untilI_discharged_false $$ HU Hd
+  ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
+  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Flag.Np_subseteq $$ HU
+  ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
+  imod HU
+  iapply lwp_credit_later $$ Hc2
+  inext
+  icases HU with ⟨Hl, Hdis⟩
+  iapply lwp_store (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF Hl]
+  · iframe HT Hl
+    iapply stepPre_nil $$ HG HF
+  iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+  rw [show (hl_val(#1) : Val) = v1 from rfl]
+  -- The set flag becomes an invariant: the right formula of the until.
+  imod alwaysI_alloc (N := Nv) (P := iprop(l ↦ some v1)) $$ [Hl] with #Av
+  · inext
+    iexact Hl
+  imod Hdis $$ %(.thread i) %G %hk HG Hkk Av %_ with H
+  imod H with ⟨-, HG, #Hd⟩
+  imodintro
+  imod Hclose $$ []
+  · inext
+    iright
+    isplitl
+    · iexact Hd
+    · iexact Av
+  imodintro
+  iapply HΦ
+  iframe
+  iexact Hd
 
 /-- Waiting is fair: the caller's fuel is at the layer above the flag's witness layer. -/
 @[lantana_alias flag_stable.Flag_wait_spec]
@@ -305,8 +363,153 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&wait) #l) ∗ thKids i G ∗
           ([∗set] g ∈ G, Obl.fuel g ℓ.succ μ) ∗ isFlag l k ℓ }}}
         hl(v(&wait) #l) @ i
-      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} :=
-  sorry
+      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} := by
+  refine ⟨5 * ▽ + 5, fun lc i l G k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, #Hflag⟩ HΦ
+  unfold isFlag
+  icases Hflag with ⟨#Wk, #HA⟩
+  icases (Obl.fuel_add_set G ℓ.succ (5 * ▽) 5).mp $$ HF with ⟨HFw, HF⟩
+  imod Wit.layer_ind k ℓ G ℓ.succ 5
+    iprop(threadExpr i C hl(v(&wait) #l) -∗ thKids i G -∗
+      (threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k -∗ Φ v1) -∗
+      ([∗set] g ∈ G, Obl.fuel g ℓ.succ 5) -∗ lWP hl(v(&wait) #l) @ i {{ Φ }})
+    (Ordinals.Ordinal.lt_succ ℓ) $$ [HFw] with HP
+  · isplitl []
+    · imodintro
+      iintro IH
+      imodintro
+      iintro HT HG HΦ HF
+      ihave HF := oblFuels_init G 5 ℓ.succ $$ HF
+      unfold wait
+      lwp_pure HT
+      iexists G, 4, ∅, 1 +ₕ 1
+      isplitl [HG HF]
+      · iframe HG HF
+        iapply witLayers_empty
+      iintro HG HF - Hc HT
+      icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
+      lwp_expr_simp
+      imodintro
+      lwp_bind hl(!#l) HT
+      ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+        (fun _ _ => CoPset.mem_full) $$ HA
+      ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+      imod Hacc with ⟨Hinv, Hclose⟩
+      iapply lwp_credit_later $$ Hc1
+      inext
+      unfold flagInv
+      icases Hinv with (Hinv | ⟨#Hd, #Av⟩)
+      · ihave Hu := untilI_acc (E := ⊤ \ ↑Na) Flag.Np_subseteq $$ Hinv
+        ihave Hu := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hu
+        imod Hu
+        iapply lwp_credit_later $$ Hc2
+        inext
+        icases Hu with ⟨Hl, Hucl⟩
+        icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+        iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := {k}) $$ [HT HG HF1 Hl]
+        · iframe HT Hl
+          iapply stepPre_wit $$ HG HF1 Wk
+        iintro ⟨HT, ⟨-, HG, HW⟩, Hl⟩
+        icases witCreds_singleton k $$ HW with (Hwc | #Hd)
+        rotate_left
+        · imod Hucl $$ [Hl] with Hu
+          · inext
+            iexact Hl
+          iexfalso
+          iapply untilI_discharged_false $$ Hu Hd
+        imod Hucl $$ [Hl] with Hu
+        · inext
+          iexact Hl
+        imodintro
+        imod Hclose $$ [Hu]
+        · inext
+          ileft
+          iexact Hu
+        imodintro
+        ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+        lwp_expr_simp
+        lwp_pure HT
+        iexists G, 2, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        rw [show (v0 == hl_val(#1)) = false from rfl]
+        imodintro
+        lwp_pure HT
+        iexists G, 1, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        simp only [Bool.not_false]
+        imodintro
+        lwp_pure HT
+        iexists G, 0, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        imod IH $$ Hwc with ⟨HF, HP⟩
+        imodintro
+        iapply HP $$ HT HG HΦ HF
+      · -- The set flag is read from its own invariant.
+        ihave Hvacc := alwaysI_acc (E := ⊤ \ ↑Na) (N := Nv) (P := iprop(l ↦ some v1))
+          (Flag.ndot_subseteq_diff N (by decide)) $$ Av
+        ihave Hvacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hvacc
+        imod Hvacc with ⟨Hl, Hvclose⟩
+        iapply lwp_credit_later $$ Hc2
+        inext
+        icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+        iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hl]
+        · iframe HT Hl
+          iapply stepPre_nil $$ HG HF1
+        iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+        imod Hvclose $$ [Hl]
+        · inext
+          iexact Hl
+        imodintro
+        imod Hclose $$ []
+        · inext
+          iright
+          isplitl
+          · iexact Hd
+          · iexact Av
+        imodintro
+        ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+        lwp_expr_simp
+        lwp_pure HT
+        iexists G, 2, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        rw [show (v1 == hl_val(#1)) = true from rfl]
+        imodintro
+        lwp_pure HT
+        iexists G, 1, ∅, 0
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG HF - - HT
+        simp only [Bool.not_true]
+        imodintro
+        lwp_pure HT
+        iexists G, 0, ∅, lc
+        isplitl [HG HF]
+        · iframe HG HF
+          iapply witLayers_empty
+        iintro HG - - Hlc HT
+        imodintro
+        iapply lwp_value'
+        rw [show Φ hl_val(#1) = Φ v1 from rfl]
+        iapply HΦ
+        iframe
+        iexact Hd
+    isplitl []
+    · iexact Wk
+    · iexact HFw
+  iapply HP $$ HT HG HΦ HF
 
 end Specs
 
