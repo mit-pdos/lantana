@@ -7,3 +7,6 @@ module
 public import Lantana.Examples.Flag
 public import Lantana.Examples.FlagStable
 public import Lantana.Examples.Nondet
+public import Lantana.Examples.Lib
+public import Lantana.Examples.World
+public import Lantana.Examples.FlagFork

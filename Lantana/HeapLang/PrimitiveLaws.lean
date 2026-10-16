@@ -406,7 +406,7 @@ def threadExpr (i : ThreadId) (C : List ECtxItem) (e : Exp) : IProp GF :=
   HeapStateGS.threadMapName (GF := GF) ↪◯MAP[i]{DFrac.own 1} fill C e
 
 /-- Thread `i` has exited with the value `v`. -/
-scoped notation:20 "exits " v " @ " i => threadExpr i [] (Exp.val v)
+scoped notation:20 "exits " v:max " @ " i:max => threadExpr i [] (Exp.val v)
 
 /-- The authoritative thread-expression map of the pool `tp`. -/
 abbrev threadMapAuth (tp : ThreadPool Exp) : IProp GF :=
