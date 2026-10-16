@@ -9,3 +9,4 @@ public import Lantana.ProgramLogic.Trace
 public import Lantana.ProgramLogic.HistoryInterp
 public import Lantana.ProgramLogic.TemporalClass
 public import Lantana.ProgramLogic.OblForest
+public import Lantana.ProgramLogic.Notation
