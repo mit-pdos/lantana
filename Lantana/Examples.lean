@@ -16,3 +16,8 @@ public import Lantana.Examples.HandoffClient
 public import Lantana.Examples.CertDischarge
 public import Lantana.Examples.NonstrictMove
 public import Lantana.Examples.Paradox
+public import Lantana.Examples.FlagStableClient
+public import Lantana.Examples.HandoffFlagStableClient
+public import Lantana.Examples.ExtendedInt
+public import Lantana.Examples.GhostMapP
+public import Lantana.Examples.TicketLock
