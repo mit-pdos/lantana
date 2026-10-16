@@ -4,6 +4,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 -/
 module
 
+public import Lantana.HeapLang.ProofMode
 public import Lantana.HeapLang.TemporalLaws
 public import Lantana.Trace
 
@@ -142,11 +143,48 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
 theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
     parLe (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
-        Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := sorry
+        Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := by
+  iintro #B Ptr Kp
+  imod untilI_alloc (E := E) p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Fk, #Wk, H⟩
+  imod H $$ %E %Np %iprop(l ↦ some v0) %iprop(l ↦ some v1) [Ptr] with H
+  · inext
+    iexact Ptr
+  icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half)
+    (Qp.half_add_half 1).symm $$ H with ⟨H1, H2⟩
+  imod alwaysI_alloc (E := E) (N := Na) (P := flagInv l k) $$ [H1] with #HA
+  · inext
+    unfold flagInv
+    ileft
+    iexact H1
+  imodintro
+  iexists k
+  isplitr
+  · ipureintro
+    exact hk
+  unfold flagTk isFlag
+  iframe Kp Kk Fk H2
+  isplitl
+  · iexact Wk
+  · iexact HA
 
 end Invariant
 
 /-! ## Specifications -/
+
+section Helpers
+variable {GF : BundledGFunctors}
+
+/-- The precondition of a step without witnesses. -/
+theorem stepPre_nil [ModelGS GF] (i : ThreadId) (G : Oids) :
+    thKids i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ stepPre (GF := GF) i G ∅ := by
+  iintro HG HF
+  simp only [stepPre]
+  iframe HG HF
+  unfold witLayers
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
+
+end Helpers
 
 section Specs
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
@@ -160,7 +198,38 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
         thKids i G ∗ ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
         Obl.fuel k ℓ m ∗
-        flagTk x k ∗ isFlag x k ℓ }}} := sorry
+        flagTk x k ∗ isFlag x k ℓ }}} := by
+  refine ⟨10, fun lc i G p K ℓ m C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, #HB, HK⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold init
+  lwp_pure HT
+  iexists G, 9, ∅, lc
+  isplitl [HG HF]
+  · iframe HG
+    isplitl [HF]
+    · iexact HF
+    · unfold witLayers
+      iapply BigSepS.bigSepS_empty.mpr
+      iempintro
+  iintro HG HF - Hlc HT
+  lwp_expr_simp
+  imodintro
+  iapply lwp_mupd
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF
+  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
+  rw [show (hl_val(#0) : Val) = v0 from rfl]
+  imod isFlag_init ⊤ x p K ℓ m $$ HB Hx HK with ⟨%k, %hk, HK, Hkk, Hf, Htk, #Hflag⟩
+  imodintro
+  iapply HΦ $$ %x %k
+  iframe
+  isplitl
+  · ipureintro
+    exact hk
+  · iexact Hflag
 
 @[lantana_alias Flag_set_spec]
 theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids)
