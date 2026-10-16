@@ -7,6 +7,7 @@ module
 public import Iris.Instances.Lib.GhostVar
 public import Iris.BI.Lib.MonoNat
 public import Lantana.Examples.Lib
+public import Lantana.Examples.Queue
 
 /-! # A closed world for the examples
 
@@ -17,8 +18,12 @@ the temporal layer before allocation (slots 0–15, as in the test world of
 the model history, the registry and the history), the heap with its meta data (16–18) and the
 thread-expression map (19) of HeapLang, a ghost variable of obligation ids for the handoff
 (20), and the counters (mono-nat, 21) and the ghost map from indices to obligations (22) of the
-paradox. Its instances are `TemporalGpreS Exp State ExGF`, the premise of the adequacy theorems,
-and `HeapStateGpreS ExGF`, from which `heapState_init` allocates HeapLang's ghost state.
+paradox. Slots 50–55 hold the cameras of the queue of `Lantana.Examples.Queue` (its list of
+elements, 50; its inbox is the ghost variable of slot 20) and of the ticket lock of
+`Lantana.Examples.TicketLock` (51–55), for the task-queue clients. Its instances are
+`TemporalGpreS Exp State ExGF`, the premise of the adequacy theorems, `HeapStateGpreS ExGF`,
+from which `heapState_init` allocates HeapLang's ghost state, and the cameras of the examples
+(`TicketLockG ExGF`, `QueueG ExGF`, …).
 
 Universes: as in `LantanaTest.TrSpecModel`, the slots holding ordinals are `ULiftOF.{4}` of
 `constOFP` of the camera, the others `ULiftOF` of `constOF`.
@@ -37,6 +42,11 @@ abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace Exp State => La
 /-- The contractivity of the ghost variable's functor, as `GhostVarG` expects it (here, instance
 search would find Lantana's `constOFP_rFunctorContractive` instead). -/
 abbrev ghostVarF_contractive : RFunctorContractive (GhostVarF Oid) :=
+  @instRFunctorContractiveProdOF _ _ OFunctor.constOF_RFunctorContractive
+    instRFunctorContractiveAgreeRFOfOFunctorContractive
+
+/-- The contractivity of a ghost variable's functor, as `GhostVarG` expects it. -/
+abbrev ghostVarOfF_contractive (A : Type) : RFunctorContractive (GhostVarF A) :=
   @instRFunctorContractiveProdOF _ _ OFunctor.constOF_RFunctorContractive
     instRFunctorContractiveAgreeRFOfOFunctorContractive
 
@@ -71,6 +81,17 @@ def ExGF : BundledGFunctors.{0} := fun n =>
       @ULiftOF.instRFunctorContractive _ ghostVarF_contractive⟩
   | 21 => ⟨ULiftOF MonoNatRF, by infer_instance⟩
   | 22 => ⟨ULiftOF (constOF (HeapView Nat (Agree (DiscreteO Oid)) OidMap)), by infer_instance⟩
+  | 50 => ⟨ULiftOF (GhostVarF (List (Val × Oids))),
+      @ULiftOF.instRFunctorContractive _ (ghostVarOfF_contractive (List (Val × Oids)))⟩
+  | 51 => ⟨ULiftOF.{4} (constOFP (HeapView Int (Agree (DiscreteO TicketLock.TicketInfo))
+      TicketLock.TMap)), by infer_instance⟩
+  | 52 => ⟨ULiftOF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TicketLock.TMap)),
+      @ULiftOF.instRFunctorContractive _ OFunctor.constOF_RFunctorContractive⟩
+  | 53 => ⟨ULiftOF (GhostVarF Int),
+      @ULiftOF.instRFunctorContractive _ (ghostVarOfF_contractive Int)⟩
+  | 54 => ⟨ULiftOF.{4} (constOFP (AuthMra (α := Layer) (· ≤ ·))), by infer_instance⟩
+  | 55 => ⟨ULiftOF (GhostVarF Unit),
+      @ULiftOF.instRFunctorContractive _ (ghostVarOfF_contractive Unit)⟩
   | _ => ⟨constOFU Unit, by infer_instance⟩
 
 instance : WsatGpreS ExGF where
@@ -133,5 +154,26 @@ instance : MonoNatG ExGF where
   name := 0
 
 instance : GhostMapG ExGF Nat Oid OidMap := ⟨ElemG.ofEqLift 22 (by unfold ExGF; rfl)⟩
+
+/-- The cameras of the ticket lock (slots 51–55). -/
+instance : TicketLock.TicketLockG ExGF where
+  ticketG := ⟨(ElemG.ofEq 51 (by unfold ExGF; rfl) : ElemG ExGF (ULiftOF.{4}
+    (constOFP (HeapView Int (Agree (DiscreteO TicketLock.TicketInfo)) TicketLock.TMap)))).ofLift⟩
+  oblG := ⟨@ElemG.ofEqLift ExGF (constOF (HeapView Int (Agree (DiscreteO (Option Oid)))
+    TicketLock.TMap)) OFunctor.constOF_RFunctorContractive 52 (by unfold ExGF; rfl)⟩
+  tokenG := { elemG :=
+    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarOfF_contractive Int) 53 (by unfold ExGF; rfl) }
+  configG := (ElemG.ofEq 54 (by unfold ExGF; rfl) : ElemG ExGF (ULiftOF.{4}
+    (constOFP (AuthMra (α := Layer) (· ≤ ·))))).ofLift
+  aliveG := { elemG :=
+    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarOfF_contractive Unit) 55 (by unfold ExGF; rfl) }
+
+/-- The cameras of the queue: its list of elements (slot 50) and its inbox (the ghost variable
+of obligation ids of slot 20). -/
+instance : Queue.QueueG ExGF where
+  queueG := { elemG :=
+    (@ElemG.ofEqLift _ (GhostVarF (List (Val × Oids))) (ghostVarOfF_contractive _) 50
+      (by unfold ExGF; rfl)) }
+  dataG := inferInstance
 
 end Lantana.Examples

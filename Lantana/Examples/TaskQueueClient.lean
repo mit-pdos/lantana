@@ -425,6 +425,228 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   · ipureintro
     rfl
 
+/-- The commitments of the main thread `i` and its resources (Rocq `Φ_P`). -/
+def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
+  iprop(∃ kl kc : Oid, finallyI Nl kl 1 (exits v1 @ i) ∗ finallyI Nc kc 1 flagAndQueue ∗
+    (thKids i {kl, kc} ∗ oblKids kl ∅ ∗ oblKids kc ∅ ∗ ⌜kl ≠ kc⌝ ∗
+      [∗set] g ∈ ({kl, kc} : Oids), Obl.fuel g ℓf.succ μ))
+
+/-- The postcondition of the main thread. -/
+abbrev mainPost : ThreadId → Val → IProp GF := fun _ v => iprop(⌜v = v1⌝)
+
+/-- From the main thread's token and its empty set of children: its commitments, and its
+`lWP` from them (Rocq `main_pre`). -/
+@[lantana_alias task_queue_client.main_pre]
+theorem main_pre (i : ThreadId) :
+    threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thKids i ∅ -∗
+      |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
+        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+  obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
+  iintro HT HG
+  imod untilI_alloc (E := ⊤) (.thread i) ∅ ℓf.succ μ $$ [] HG with
+    ⟨%kl, -, HG, Hkl, Fkl, -, Akl⟩
+  · iapply parLe_thread
+  imod Akl $$ %⊤ %Nl %iprop(True) %(exits v1 @ i) [] with Ul
+  · inext
+    ipureintro
+    trivial
+  imod untilI_alloc (E := ⊤) (.thread i) _ ℓf.succ μ $$ [] HG with
+    ⟨%kc, %hkc, HG, Hkc, Fkc, -, Akc⟩
+  · iapply parLe_thread
+  imod Akc $$ %⊤ %Nc %iprop(True) %(flagAndQueue (GF := GF)) [] with Uc
+  · inext
+    ipureintro
+    trivial
+  have hne : kl ≠ kc := by
+    rintro rfl
+    exact hkc Std.ExtTreeSet.mem_insert_self
+  imodintro
+  iexists μ
+  isplitl [Ul Uc HG Hkl Hkc Fkl Fkc]
+  · unfold mainRes finallyI
+    iexists kl, kc
+    iframe Ul Uc Hkl Hkc
+    isplitl [HG]
+    · iapply Par.kids_congr _ $$ HG
+      intro z
+      simp
+      grind
+    isplitr
+    · ipureintro
+      exact hne
+    iapply (bigSepS_pair hne).mpr
+    iframe
+  iintro HP
+  unfold mainRes
+  icases HP with ⟨%kl, %kc, HFl, HFc, HG, Hkl, Hkc, %hne, HF⟩
+  imodintro
+  iapply hmain i kl kc $$ [HT HG HF Hkl Hkc HFl HFc]
+  · iframe
+    ipureintro
+    exact hne
+  iintro %v ⟨-, Hd⟩
+  iexact Hd
+
 end Spec
+
+/-! ## Traces and the guarantee -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- The main thread `i` returns `1`, and a flag gets created that is `0` until it is `1` and
+then stays `1`; in particular, the task chain run by the worker sets it (Rocq `R_main`). -/
+def rMain (i : ThreadId) : TrProp Exp State :=
+  ◇ₜ TrProp.state (threadExprSat i [] (.val v1)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
+
+/-- Moreover, a task queue gets created whose lock makes release progress: whenever its lock
+is held, it is eventually released (Rocq `R_queue`, whose two existentials over the queue's
+pointers are unused and dropped). -/
+def rQueue : TrProp Exp State :=
+  ◇ₜ (∃ₜ (next : Loc) (curr : Loc), releaseProgress next curr)
+
+/-- What the commitments guarantee (Rocq `G_main`). -/
+def gMain (i : ThreadId) : TrSpec Exp State GF :=
+  ◇ₛ TrSpec.state (threadExprSat i [] (.val v1)) ∧ₛ
+    ◇ₛ ((∃ₛ x : Loc, flagTrSpec x) ∧ₛ (∃ₛ ql : Val, taskQueueTrSpec ql)) ∧ₛ TrSpec.true
+
+@[lantana_alias task_queue_client.G_main_impl]
+theorem gMain_impl (i : ThreadId) :
+    (gMain (GF := GF) i).external ⊆ (rMain i ∧ₜ rQueue) := by
+  intro τ ⟨hr, ⟨m, hm, ⟨⟨x, hx⟩, ⟨ql, hq⟩⟩, hbef⟩, _⟩
+  obtain ⟨-, -, next, curr, -, hrp⟩ := TaskQueue.taskQueue_release_progress ql _ hq
+  exact ⟨⟨hr, m, hm, ⟨x, Flag.flagTrSpec_impl x _ hx⟩, hbef⟩, m, hm, ⟨next, curr, hrp⟩, hbef⟩
+
+variable [ModelGS GF] [HeapGS GF] [TicketLockG GF] [QueueG GF]
+
+/-- A task queue exists: its value is trace-visible, its ghost names and layer are not. -/
+theorem guar_exTaskQueue :
+    ⊢@{IProp GF} iprop(∃ (ql : Val) (γ : QueueName) (ℓ : Layer), isTaskQueue ql γ ℓ) ⊨ₜ
+      (∃ₛ ql : Val, taskQueueTrSpec ql) := by
+  iapply guar_ex
+  iintro %ql
+  iapply guar_ex_ghost
+  iintro %γ
+  iapply guar_ex_ghost
+  iintro %ℓ
+  iapply TaskQueue.guar_isTaskQueue
+
+@[lantana_alias task_queue_client.guar_Φ_P]
+theorem guar_mainRes (i : ThreadId) (μ : Measure) :
+    ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
+  haveI : GuarOf (Expr := Exp) (State := State)
+      iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)
+      (∃ₛ x : Loc, flagTrSpec x) := ⟨Flag.guar_exFlag⟩
+  haveI : GuarOf (Expr := Exp) (State := State)
+      iprop(∃ (ql : Val) (γ : QueueName) (ℓ : Layer), isTaskQueue (GF := GF) ql γ ℓ)
+      (∃ₛ ql : Val, taskQueueTrSpec ql) := ⟨guar_exTaskQueue⟩
+  unfold mainRes gMain finallyI
+  iapply guar_ex_ghost
+  iintro %kl
+  iapply guar_ex_ghost
+  iintro %kc
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nl kl 1 iprop(True)
+      (exits v1 @ i)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nc kc 1 iprop(True)
+      (flagAndQueue (GF := GF))))
+  iapply guar_true
+
+end Guarantee
+
+/-! ## Adequacy -/
+
+section Adequacy
+
+/-- The initial pool: the main thread `0`. -/
+abbrev tp0 : ThreadPool Exp := [hl(v(&main) #())]
+
+/-- The initial state: the empty heap. -/
+abbrev σ0 : State := ⟨∅⟩
+
+/-- The initial resources and the `lWP` of the main thread, in the closed world (the common
+part of the adequacy proofs). -/
+theorem taskQueueClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF]
+    (hs : HeapStateGS ExGF) :
+    letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+    ([∗list] j ↦ e ∈ tp0, threadExpr j [] e) ⊢
+      ([∗list] j ∈ List.range tp0.length, thKids j ∅) -∗
+      |={⊤}=>m ∃ μ : Measure, mainRes (GF := ExGF) 0 μ ∗
+        (mainRes 0 μ -∗
+          |={⊤}=>m [∗list] j ↦ e ∈ tp0, lWP e @ j; ⊤ {{ liftTerm j (mainPost (GF := ExGF)) }}) := by
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  iintro HT HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imodintro
+  iexists μ
+  iframe HP
+  iintro HP
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- In every fair behavior from the initial configuration, the main thread returns `1`, a flag
+gets created that is `0` until it is `1` and then `1`, and a task queue gets created whose lock
+makes release progress (Rocq `task_queue_client_adequacy`). -/
+@[lantana_alias task_queue_client_adequacy]
+theorem taskQueueClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    rMain 0 τ ∧ rQueue τ := by
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 (gMain 0) (rMain 0 ∧ₜ rQueue)
+    (gMain_impl 0) τ hbeh hfair hpos hinit ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro - HG
+  imod taskQueueClient_init hs $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imodintro
+  iexists mainRes 0 μ
+  isplitr
+  · iapply guar_mainRes
+  iframe
+
+/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+stuck, and once the main thread has returned, its value is `1` (Rocq
+`task_queue_client_safety_adequacy`). -/
+@[lantana_alias task_queue_client_safety_adequacy]
+theorem taskQueueClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    safetyIris 0 (fun _ v => v = v1) τ := by
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplit
+  · ipureintro
+    exact fun _ => .rfl
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro - HG
+  imod taskQueueClient_init hs $$ HT HG with ⟨%μ, HP, Hwp⟩
+  iapply Hwp $$ HP
+
+/-- Liveness and safety together, over the same fair behaviors (Rocq
+`task_queue_client_liveness_safety`). -/
+@[lantana_alias task_queue_client_liveness_safety]
+theorem taskQueueClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    (rMain 0 τ ∧ rQueue τ) ∧ safetyIris 0 (fun _ v => v = v1) τ :=
+  ⟨taskQueueClient_adequacy τ hbeh hfair hpos hinit,
+    taskQueueClient_safety_adequacy τ hbeh hfair hpos hinit⟩
+
+end Adequacy
 
 end Lantana.Examples.TaskQueueClient
