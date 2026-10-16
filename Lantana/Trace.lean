@@ -11,3 +11,4 @@ public import Lantana.Trace.TrIProp
 public import Lantana.Trace.TrSpec
 public import Lantana.Trace.Guarantee
 public import Lantana.Trace.TemporalFormula
+public import Lantana.Trace.Adequacy
