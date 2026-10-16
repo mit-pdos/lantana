@@ -18,7 +18,8 @@ sets the flag; `wait` spins until the flag is `1`, which is fair by witness-laye
 At the level of traces (`isFlagTr`), the flag is `0` until `1` and `1` afterwards. The guarantee
 does not say that the flag stays `1`: `flagRun` (`0, 1, 0, 1, 1, …`) satisfies it.
 
-**Skeleton (M1):** statements only; the proofs are M8.
+**Skeleton:** the trace-level lemmas are proved; `isFlag_init` and the specifications are
+`sorry` until the HeapLang laws (M7).
 -/
 
 @[expose] public noncomputable section
@@ -109,8 +110,26 @@ abbrev pointsToTr (l : Loc) (v : Val) : TrProp Exp State :=
 def flagResponse (l : Loc) : TrProp Exp State :=
   □ₜ (pointsToTr l v0 →ₜ ◇ₜ pointsToTr l v1)
 
+/-- The flag's two values differ. -/
+theorem v0_ne_v1 : v0 ≠ v1 := by
+  simp [v0, v1]
+
+/-- A location holds one value at a time (Rocq `tr_pointsto_agree`, `temporal_laws.v`). -/
+theorem pointsToTr_agree (l : Loc) (dq₁ dq₂ : DFrac) (v₁ v₂ : Val) :
+    (TrProp.state (pointstoSat l dq₁ v₁) ∧ₜ TrProp.state (pointstoSat l dq₂ v₂) :
+      TrProp Exp State) ⊆ ⌜v₁ = v₂⌝ₜ := by
+  intro τ ⟨h₁, h₂⟩
+  simp only [TrProp.state, pointstoSat] at h₁ h₂
+  exact (by simpa using h₁.symm.trans h₂ : v₁ = v₂)
+
+omit [ModelGS GF] [HeapGS GF] in
+/-- The until gives the eventually; in the other branch the flag is `1`, not `0`. -/
 @[lantana_alias flag_response_ext]
-theorem flagResponse_ext (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ flagResponse l := sorry
+theorem flagResponse_ext (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ flagResponse l := by
+  intro τ ⟨_, h⟩ m hm h₀
+  rcases h m hm with hU | ⟨_, h₁⟩
+  · exact TrProp.until_eventually _ hU
+  · exact absurd (pointsToTr_agree l (.own 1) (.own 1) v0 v1 _ ⟨h₀, h₁⟩) v0_ne_v1
 
 @[lantana_alias is_flag_response]
 theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
@@ -197,7 +216,8 @@ def isFlagTr (l : Loc) : TrProp Exp State :=
   □ₜ ((pointsToTr l v0 𝒰ₜ pointsToTr l v1) ∨ₜ pointsToTr l v1)
 
 @[lantana_alias flag_trSpec_impl]
-theorem flagTrSpec_impl (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l := sorry
+theorem flagTrSpec_impl (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l :=
+  fun _ ⟨_, h⟩ m hm => (h m hm).imp id And.right
 
 /-- The run `0, 1, 0, 1, 1, …` of a single idle thread. -/
 @[lantana_alias flag_run]
@@ -208,18 +228,30 @@ def flagRun (l : Loc) (n : Nat) : TraceState Exp State :=
 
 @[lantana_alias flag_run_at]
 theorem flagRun_at (l : Loc) (m : Nat) (v : Val) :
-    pointsToTr l v ⟨m, flagRun l⟩ ↔ v = if m = 0 ∨ m = 2 then v0 else v1 := sorry
+    pointsToTr l v ⟨m, flagRun l⟩ ↔ v = if m = 0 ∨ m = 2 then v0 else v1 := by
+  simp only [TrProp.state, Trace.cfg, Trace.now, flagRun, pointstoSat]
+  rw [Std.ExtTreeMap.getElem?_insert_self]
+  simp [eq_comm]
 
 /-- The run satisfies the flag's guarantee … -/
 @[lantana_alias flag_run_satisfies_guarantee]
 theorem flagRun_satisfies_guarantee (l : Loc) :
-    (flagTrSpec (GF := GF) l).external ⟨0, flagRun l⟩ := sorry
+    (flagTrSpec (GF := GF) l).external ⟨0, flagRun l⟩ := by
+  refine ⟨trivial, fun m _ => ?_⟩
+  by_cases hm : m = 0 ∨ m = 2
+  · refine .inl ⟨m + 1, Nat.le_succ m, (flagRun_at l _ _).mpr (ite_eq_right (by omega)).symm,
+      fun n (hn : m ≤ n) (hn' : n < m + 1) =>
+        (flagRun_at l _ _).mpr (ite_eq_left (by omega)).symm⟩
+  · exact .inr ⟨trivial, (flagRun_at l _ _).mpr (ite_eq_right hm).symm⟩
 
 /-- … although the flag goes back to `0`: the guarantee describes each state, not the history
 (see `flag_stable.v`). -/
 @[lantana_alias flag_run_goes_back]
 theorem flagRun_goes_back (l : Loc) :
-    ¬ (□ₜ (pointsToTr l v1 →ₜ □ₜ pointsToTr l v1)) ⟨0, flagRun l⟩ := sorry
+    ¬ (□ₜ (pointsToTr l v1 →ₜ □ₜ pointsToTr l v1)) ⟨0, flagRun l⟩ := fun h =>
+  v0_ne_v1 <| ((flagRun_at l 2 v1).mp <|
+    h 1 (Nat.zero_le _) ((flagRun_at l 1 v1).mpr (ite_eq_right (by omega)).symm) 2
+      (Nat.le_succ 1)).symm
 
 end Traces
 
