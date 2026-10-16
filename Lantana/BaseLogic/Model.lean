@@ -12,6 +12,7 @@ public import Lantana.BaseLogic.Model.ModelHistory
 public import Lantana.BaseLogic.Model.OSat
 public import Lantana.BaseLogic.Model.OWit
 public import Lantana.BaseLogic.Model.OInv
+public import Lantana.BaseLogic.Model.OPredsBase
 
 /-! # The obligation model
 
