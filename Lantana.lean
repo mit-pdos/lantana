@@ -5,5 +5,6 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.Init
+public import Lantana.HeapLang
 public import Lantana.ProgramLogic
 public import Lantana.Std
