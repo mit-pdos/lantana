@@ -21,6 +21,7 @@ namespace Lantana.Examples.TicketLock
 
 open Iris Iris.BI Iris.Std Lantana Lantana.HeapLang Lantana.Language
 open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal Lantana.AuthMra
+open scoped Iris.Std.PartialMap
 
 /-! ## The program -/
 
@@ -313,5 +314,119 @@ theorem isFairLockAlive_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp G
   iexact H
 
 end Invariant
+
+/-! ## Specifications
+
+Specs hide implementation details such as the number of steps, so that they survive changes of
+the fuel (Rocq): a function that terminates without witness induction has layer `0` and an
+`∃ μ` in front of its spec. -/
+
+section Specs
+variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TicketLockG GF]
+
+omit [ModelGS GF] [TicketLockG GF] in
+/-- A points-to is a quarter and three quarters. -/
+theorem pointsTo_quarters (l : Loc) (v : Option Val) :
+    l ↦ v ⊣⊢@{IProp GF} l ↦{.own q14} v ∗ l ↦{.own q34} v := by
+  have h := (inferInstance : Fractional (PROP := IProp GF) (l ↦{.own ·} v)).fractional
+    q14 q34
+  rw [Qp.quarter_add_threeQuarters] at h
+  exact h
+
+@[lantana_alias TicketLock_init_spec]
+theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadId) (G : Oids)
+    (E : CoPset) (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
+          ([∗set] g ∈ G, Obl.fuel g 0 μ) }}}
+        hl(v(&init) #()) @ i; E
+      l{{{ (tl : Val) (γ : TicketLockName), RET tl; threadExpr i C hl(&tl) ∗ £ₒ lc ∗
+        thKids i G ∗ (γ ↪LOCK_AL) ∗ (γ ↪LOCK_CF ℓ) ∗
+        (∀ (E₁ : CoPset) (R : IProp GF), R -∗ |={E₁}=>m isFairLock tl γ R) }}} := by
+  refine ⟨10, fun lc ℓ i G E C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold init
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_bind hl(ref(#0)) HT
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF1
+  iintro %curr ⟨HT, ⟨-, HG, -⟩, Hcurr⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_bind hl(ref(#0)) HT
+  icases oblFuels_add 1 7 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF1
+  iintro %next ⟨HT, ⟨-, HG, -⟩, Hnext⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF with Hlc : lc
+  imod Obl.new_discharged E ℓ with ⟨%κu, #Dk, -⟩
+  imod ghostMapP_alloc (GF := GF) (K := Int) (V := TicketInfo) (H := TMap)
+    ({[0 := none]} : TMap TicketInfo) with ⟨%γt, Ht, Hte⟩
+  ihave Hte := BigSepM.bigSepM_singleton.mp $$ Hte
+  imod ghostMapP_elem_persist $$ Hte with #Hte
+  imod ghost_map_alloc (GF := GF) (K := Int) (V := Option Oid) (H := TMap)
+    ({[0 := some κu]} : TMap (Option Oid)) with ⟨%γo, Ho, Hoe⟩
+  ihave Hoe := BigSepM.bigSepM_singleton.mp $$ Hoe
+  imod ghost_map_elem_persist $$ Hoe with #Hoe
+  imod ghost_var_alloc (GF := GF) () with ⟨%γa, Ha⟩
+  imod ghost_var_alloc (GF := GF) (0 : Int) with ⟨%γk, Hk⟩
+  imod iOwn_alloc (E := TicketLockG.configG) (●AM[(· ≤ ·)] ℓ) AuthMra.auth_valid with ⟨%γc, Hc⟩
+  icases (pointsTo_quarters curr _).mp $$ Hcurr with ⟨Hcurr, Hcurr34⟩
+  iapply lwp_value'
+  iapply HΦ $$ %(vLock next curr) %⟨γt, γo, γk, γc, γa⟩
+  iframe HT Hlc HG
+  isplitl [Ha]
+  · unfold ownAlive
+    iexact Ha
+  isplitl [Hc]
+  · unfold ownLayer
+    iexact Hc
+  iintro %E₁ %R HR
+  imod alwaysI_alloc (E := E₁) (N := Ninv) (P := lockInv γt γo γc γa next curr R) $$
+    [Hnext Hcurr Hcurr34 Ht Ho HR] with #HI
+  · inext
+    unfold lockInv lockInvAlive
+    iright
+    iexists 0, 0, ({[0 := none]} : TMap TicketInfo), ({[0 := some κu]} : TMap (Option Oid))
+    iframe Hnext Hcurr Ht Ho
+    isplitr
+    · ipureintro
+      refine ⟨fun t => ?_, fun t => ?_, by omega, by omega⟩ <;>
+        · rw [LawfulPartialMap.get?_singleton]
+          grind
+    isplitl []
+    · iapply BigSepM.bigSepM_singleton.mpr
+      unfold ticketSt
+      ileft
+      iexists κu
+      iframe Hte Hoe Dk
+      ipureintro
+      omega
+    · unfold holderSt
+      ileft
+      iframe Hcurr34 HR
+      ipureintro
+      rfl
+  imod alwaysI_alloc (E := E₁) (N := Ntk) (P := lockTokenInv γo γk curr R) $$ [Hk] with #HK
+  · inext
+    unfold lockTokenInv
+    iexists 0
+    ileft
+    iexact Hk
+  imodintro
+  unfold isFairLock
+  iexists next, curr
+  isplitr
+  · ipureintro
+    rfl
+  iframe HI HK
+
+end Specs
 
 end Lantana.Examples.TicketLock
