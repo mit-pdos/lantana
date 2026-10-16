@@ -104,8 +104,9 @@ end Predicates
 
 /-! ## Notations -/
 
-/-- `|=[n,tc]=>m P`: the base model update. -/
-scoped syntax:max "|=[" term "," term "]=>m " term:40 : term
+/-- `|=[n,tc]=>m P`: the base model update. As for Iris's fancy update, `P` extends as far as
+possible: `|=[n,tc]=>m P ∗ Q` is `|=[n,tc]=>m (P ∗ Q)`. -/
+scoped syntax:max "|=[" term "," term "]=>m " term : term
 scoped macro_rules
   | `(|=[$n,$tc]=>m $P) => `(mupdBase $n $tc iprop($P))
 
@@ -128,10 +129,11 @@ def mupd (E₁ E₂ : CoPset) (P : IProp GF) : IProp GF :=
 
 end
 
-/-- `|={E₁,E₂}=>m P`: the model update. -/
-scoped syntax:max "|={" term "," term "}=>m " term:40 : term
+/-- `|={E₁,E₂}=>m P`: the model update. As for Iris's fancy update, `P` extends as far as
+possible: `|={E₁,E₂}=>m P ∗ Q` is `|={E₁,E₂}=>m (P ∗ Q)`. -/
+scoped syntax:max "|={" term "," term "}=>m " term : term
 /-- `|={E}=>m P`: the model update at one mask. -/
-scoped syntax:max "|={" term "}=>m " term:40 : term
+scoped syntax:max "|={" term "}=>m " term : term
 /-- `P ={E₁,E₂}=∗m Q`: the wand form of the model update. -/
 scoped syntax:25 term:26 " ={" term "," term "}=∗m " term:25 : term
 /-- `P ={E}=∗m Q`. -/
@@ -204,6 +206,42 @@ instance Wit.fuels_timeless (k : Oid) (ℓ : Layer) (α : Fuel) (F : OidMap (Lay
     Timeless (Wit.fuels (GF := GF) k ℓ α F) := sorry
 instance Wit.fuels_empty_persistent (k : Oid) (ℓ : Layer) (α : Fuel) :
     Persistent (Wit.fuels (GF := GF) k ℓ α ∅) := sorry
+
+/-! ## The base model update and the rounds of a step
+
+Their structural rules (Rocq `base_logic/mupd.v` and `model_physical_updates.v`), used by the
+program logic to prove the rules of `lWP`. -/
+
+@[lantana_alias mupd_ne]
+instance mupdBase_ne (n tc : Nat) : OFE.NonExpansive (mupdBase (GF := GF) n tc) := sorry
+
+@[lantana_alias mupd_intro]
+theorem mupdBase_intro (n tc : Nat) (P : IProp GF) : P ⊢ |=[n,tc]=>m P := sorry
+
+/-- A fancy update at the empty mask can be absorbed by the base model update. -/
+@[lantana_alias fupd_mupd_elim]
+theorem fupd_mupdBase_elim (n tc : Nat) (P : IProp GF) :
+    (|={∅}=> |=[n,tc]=>m P) ⊢ |=[n,tc]=>m P := sorry
+
+@[lantana_alias mupd_bind]
+theorem mupdBase_bind (n tc : Nat) (P Q : IProp GF) :
+    (P -∗ |=[n,tc]=>m Q) ⊢ (|=[n,tc]=>m P) -∗ |=[n,tc]=>m Q := sorry
+
+@[lantana_alias mprog_ne]
+instance mprog_ne (n tc : Nat) (i : ThreadId) : OFE.NonExpansive (mprog (GF := GF) n tc i) :=
+  sorry
+
+@[lantana_alias mprog_wand_l]
+theorem mprog_wand (n tc : Nat) (i : ThreadId) (P Q : IProp GF) :
+    (P -∗ Q) ⊢ mprog n tc i P -∗ mprog n tc i Q := sorry
+
+@[lantana_alias mphys_ne]
+instance mphys_ne (n₁ n₂ tc₁ tc₂ : Nat) :
+    OFE.NonExpansive (mphys (GF := GF) n₁ n₂ tc₁ tc₂) := sorry
+
+@[lantana_alias mphys_wand_l]
+theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (P Q : IProp GF) :
+    (P -∗ Q) ⊢ mphys n₁ n₂ tc₁ tc₂ P -∗ mphys n₁ n₂ tc₁ tc₂ Q := sorry
 
 /-! ## The model update: the three core rules (the rest is derived) -/
 
