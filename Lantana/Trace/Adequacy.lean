@@ -6,5 +6,6 @@ module
 
 public import Lantana.Trace.Adequacy.Alloc
 public import Lantana.Trace.Adequacy.Step
+public import Lantana.Trace.Adequacy.RunStep
 public import Lantana.Trace.Adequacy.Temporal
 public import Lantana.Trace.Adequacy.Safety
