@@ -55,6 +55,18 @@ theorem oidMap_insert_eq {V : Type _} (F : OidMap V) (k : Oid) (v : V) :
   change (F.insert k v)[k']? = (F.alter k fun _ => some v)[k']?
   rw [Std.ExtTreeMap.getElem?_insert, Std.ExtTreeMap.getElem?_alter]
 
+/-- `BigSepS.bigSepS_insert` for `Std.ExtTreeSet.insert`. -/
+theorem bigSepS_oids_insert {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids} {k : Oid}
+    (hk : k ∉ K) : ([∗set] x ∈ K.insert k, Φ x) ⊣⊢ Φ k ∗ [∗set] x ∈ K, Φ x := by
+  rw [oids_insert_eq]
+  exact BigSepS.bigSepS_insert hk
+
+/-- `BigSepS.bigSepS_delete` for `Std.ExtTreeSet.erase`. -/
+theorem bigSepS_oids_erase {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids} {k : Oid}
+    (hk : k ∈ K) : ([∗set] x ∈ K, Φ x) ⊣⊢ Φ k ∗ [∗set] x ∈ K.erase k, Φ x := by
+  rw [oids_erase_eq]
+  exact BigSepS.bigSepS_delete hk
+
 variable {GF : BundledGFunctors}
 
 /-! ## Definitions -/
@@ -313,5 +325,170 @@ private theorem mupd_mono_of {n tc : Nat} {P Q : IProp GF} (h : P ⊢ Q) :
   iapply h $$ HP
 
 end Rounds
+
+/-! ## The forest operations as model updates -/
+
+section Operations
+
+variable [ModelGS GF]
+
+/-- A running thread without children terminates (Rocq `thread_terminate_mupd`). -/
+@[lantana_alias omodel.thread_terminate_mupd]
+theorem thread_terminate_mupd (n tc : Nat) (i : ThreadId) :
+    parKids (GF := GF) (.thread i) ∅ ⊢ mupd n tc (thDone i) := by
+  unfold parKids thDone
+  iintro ⟨He, Hk, -⟩
+  iapply mupd_ghost_round
+  iintro %Ω ⟨Hs, Hf⟩
+  imod oforest_exec_to_done Ω tc i $$ [$Hf $He $Hk] with ⟨Hf, Hd⟩
+  imodintro
+  iframe Hs Hf Hd
+
+/-- The owner `t` of a new obligation below `p`, and its piece `ν` at layer `ℓ`: below an
+obligation `q` with a witness at layer `ℓq ≤ ℓ`, above the fuel of `q` (`layer_le_bound`). -/
+theorem parLe_owner (Ω : Obls) (tc : Nat) (p : Parent) (K : Oids) (ℓ : Layer) :
+    oforest Ω tc ∗ OForest.kids p K ∗ parLe p ℓ ⊢@{IProp GF}
+      ⌜∃ (t : ThreadId) (ν : Measure), match p with
+        | .thread j => j = t
+        | .obl q => Ω.ownerOf q = some t ∧ Ω.fuelOf q < Measure.rep ℓ ν⌝ := by
+  cases p with
+  | thread j =>
+    iintro -
+    ipureintro
+    exact ⟨j, ▽, rfl⟩
+  | obl q =>
+    iintro ⟨Hf, Hk, %ℓq, %hℓ, #Hw⟩
+    icases witLayer_bound q ℓq $$ Hw with ⟨%μq, #Hb⟩
+    icases oforest_obl_fuel_bound Ω tc q K _ $$ [$Hf $Hk $Hb] with %⟨hle, hlive⟩
+    obtain ⟨t, ht⟩ := Obls.ownerOf_of_live hlive
+    ipureintro
+    exact ⟨t, μq + 1, ht, Ordinal.lt_of_le_of_lt hle (Measure.layer_le_bound μq hℓ)⟩
+
+/-- The owner `j` of `p`: below an obligation `q` with a witness at a layer `ℓq < ℓ`, the fuel
+of `q` is below `▽` at `ℓ` (`layer_dominates`). -/
+theorem parBelow_owner (Ω : Obls) (tc : Nat) (p : Parent) (K : Oids) (ℓ : Layer) :
+    oforest Ω tc ∗ OForest.kids p K ∗ parBelow p ℓ ⊢@{IProp GF}
+      ⌜∃ j : ThreadId, match p with
+        | .thread j' => j' = j
+        | .obl q => Ω.ownerOf q = some j ∧ Ω.fuelOf q < Measure.rep ℓ ▽⌝ := by
+  cases p with
+  | thread j =>
+    iintro -
+    ipureintro
+    exact ⟨j, rfl⟩
+  | obl q =>
+    iintro ⟨Hf, Hk, %ℓq, %hℓ, #Hw⟩
+    icases witLayer_bound q ℓq $$ Hw with ⟨%μq, #Hb⟩
+    icases oforest_obl_fuel_bound Ω tc q K _ $$ [$Hf $Hk $Hb] with %⟨hle, hlive⟩
+    obtain ⟨t, ht⟩ := Obls.ownerOf_of_live hlive
+    ipureintro
+    exact ⟨t, ht, Ordinal.lt_of_le_of_lt hle (Measure.layer_dominates μq hℓ)⟩
+
+/-- The witness bound of a new obligation keeps the witnesses chosen by the environment below the
+old ones. -/
+private theorem wits_mono_new {Ω₁ : Obls} {W₁ W₂ : Witnesses} {k : Oid} {g : Obl}
+    (hI₁ : owitInvFair Ω₁ W₁) (hW : W₁.ndf W₂) (hI₂ : owitInvFair (insert Ω₁ k g) W₂) :
+    Witnesses.mono (insert W₁ k (match g with
+      | .assigned a _ => .assigned (fairMeasureUb a)
+      | .discharged => .discharged)) W₂ :=
+  wits_ndf_insert_mono hI₁ hW hI₂ fun w₂ hw₂ => by
+    have hr := mapForall2.lookup hI₂ (get?_insert_eq rfl) hw₂
+    cases g <;> cases w₂ <;> simp_all [owitRel, Witness.ndLe]
+
+private theorem get?_none_wits {Ω : Obls} {W : Witnesses} {k : Oid} (hI : owitInvFair Ω W)
+    (hk : get? Ω k = none) : get? W k = none := by
+  have h := hI.dom k
+  rw [hk] at h
+  cases e : get? W k
+  · rfl
+  · simp [e] at h
+
+/-- A new live obligation below `p` (Rocq `obl_new_mupd`): its owner is the owner of `p`, its
+model fuel is the user's fuel, an extra `▽` and its piece above the fuel of the parent. -/
+@[lantana_alias omodel.obl_new_mupd]
+theorem obl_new_mupd (n tc : Nat) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
+    parLe (GF := GF) p ℓ ⊢ parKids p K -∗
+      mupd n tc iprop(∃ k : Oid, ⌜k ∉ K⌝ ∗ parKids p (K.insert k) ∗ parKids (.obl k) ∅ ∗
+        oblAssigned k 1 ∗ oblFuel k ℓ μ ∗ witLayer k ℓ) := by
+  unfold parKids
+  iintro Hb ⟨Hx, Hk, Hs⟩
+  iapply mupd_nd_step
+  iintro %h %i %Ω₁ %W₁ HM
+  unfold modelInterp
+  icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
+  icases parLe_owner Ω₁ tc p K ℓ $$ [$Hf $Hk $Hb] with %⟨t, ν, hpt⟩
+  have hk := Obls.get?_fresh Ω₁
+  have hkW := get?_none_wits hI₁ hk
+  have hpiece : ∀ q, p = .obl q → Ω₁.fuelOf q < Measure.rep ℓ ν := by
+    rintro q rfl
+    exact hpt.2
+  have hpa : match (generalizing := false) p with
+      | .thread j => j = t
+      | .obl q => Ω₁.ownerOf q = some t ∧
+        Ω₁.fuelOf q < modelFuel ℓ μ +ₕ Measure.rep ℓ ▽ +ₕ Measure.rep ℓ ν := by
+    cases p with
+    | thread j => exact hpt
+    | obl q => exact ⟨hpt.1, Ordinal.lt_of_lt_of_le hpt.2 (le_nadd_self _ _)⟩
+  have hrep : Measure.rep ℓ ((1 + ▽) * μ + ▽ + ν) =
+      modelFuel ℓ μ +ₕ Measure.rep ℓ ▽ +ₕ Measure.rep ℓ ν := by
+    rw [Measure.rep_add, Measure.rep_add]
+    rfl
+  imod osat_alloc_obl_assigned hk (modelFuel ℓ μ +ₕ Measure.rep ℓ ▽ +ₕ Measure.rep ℓ ν) t
+    $$ Hos with ⟨Hos, #Hβ, #He, Ha, Hfu, -⟩
+  icases (OSat.fuel_split Ω₁.fresh _ _).mp $$ Hfu with ⟨Hfu, Hπ⟩
+  icases (OSat.fuel_split Ω₁.fresh _ _).mp $$ Hfu with ⟨Hfu, -⟩
+  ihave Hπ := fuel_forestPiece hpiece $$ Hπ
+  imod oforest_alloc_obl hk hpa Ordinal.le_rfl $$ [$Hf $Hk $Hβ $Hπ] with ⟨Hf, %hkK, Hk, Hkk⟩
+  imod owit_alloc_witness_assigned hkW
+    (fairMeasureUb (modelFuel ℓ μ +ₕ Measure.rep ℓ ▽ +ₕ Measure.rep ℓ ν)) $$ Hw with ⟨Hw, #Hwb⟩
+  have hnd := Obls.ndf_insert_fresh (.assigned
+    (modelFuel ℓ μ +ₕ Measure.rep ℓ ▽ +ₕ Measure.rep ℓ ν) t) hk
+  imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.lef.le $$ HH with HH
+  icases (oblAssigned_shares Ω₁.fresh).mp $$ [$He $Ha] with ⟨Ha, Hsh₁, Hsh₂⟩
+  imodintro
+  iexists _
+  isplitr
+  · ipureintro
+    exact hnd
+  iintro %W₂ %⟨hW, hI₂⟩
+  imodintro
+  iframe HH Hos Hf
+  isplitl [Hw]
+  · isplitl [Hw]
+    · iapply owit_mon (wits_mono_new hI₁ hW hI₂) $$ Hw
+    · ipureintro
+      exact hI₂
+  iapply mupd_intro
+  iexists Ω₁.fresh
+  isplitr
+  · ipureintro
+    exact hkK
+  isplitl [Hx Hk Hs Hsh₁]
+  · iframe Hx
+    isplitl [Hk]
+    · rw [oids_insert_eq]
+      iexact Hk
+    · iapply (bigSepS_oids_insert hkK).mpr
+      iframe Hsh₁ Hs
+  isplitl [Hkk Hsh₂]
+  · iframe Hsh₂ Hkk
+    iapply BigSepS.bigSepS_empty.mpr
+    iempintro
+  iframe Ha
+  unfold oblFuel oblFuelVal witLayer witBoundVal
+  isplitl [Hfu]
+  · iframe Hfu
+    iexact He
+  isplitl []
+  · iexists (1 + ▽) * μ + ▽ + ν
+    rw [hrep]
+    isplitl []
+    · iexact He
+    · iexact Hwb
+  · iexists (1 + ▽) * μ + ▽ + ν
+    rw [hrep]
+    iexact Hβ
+
+end Operations
 
 end Lantana.Model.OPreds
