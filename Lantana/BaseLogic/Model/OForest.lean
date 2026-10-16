@@ -499,66 +499,6 @@ theorem update (h : StatusMap tc T) {i : ThreadId} (s : ThreadStatus) (hi : i < 
 
 end StatusMap
 
-/-! ## OSat additions (to be moved)
-
-Owner changes and owner-preserving progress rounds of a set of obligations, by iterating
-`osat_progress_one_owner` (Rocq `osat_chown`, `osat_chown_set` in `oforest.v`; there, the owner
-tokens forced every progress round to keep the owners, here the round must say it). -/
-
-section OSatAdditions
-
-variable {GF : BundledGFunctors} [OSatGS GF]
-
-/-- The obligations of `S`, owned by `t`, each with positive cash, get the new owner `j` and less
-fuel (Rocq `osat_chown_set`, without the owner and per-thread tokens). -/
-@[lantana_alias osat_chown_set]
-theorem osat_chown_set {Ω : Obls} (S : Oids) {t : ThreadId} (j : ThreadId)
-    (hS : ∀ x, x ∈ S → Ω.ownerOf x = some t) :
-    osat Ω ∗ ([∗set] x ∈ S, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) ⊢@{IProp GF}
-      |==> ∃ Ω', osat Ω' ∗ ⌜chownRel S t j Ω Ω'⌝ := by
-  induction S using FiniteSet.set_ind with
-  | hemp =>
-    iintro ⟨Hs, -⟩
-    imodintro
-    iexists Ω
-    iframe Hs
-    ipureintro
-    exact chownRel.empty t j Ω
-  | hadd x X hx ih =>
-    have hX : ∀ y, y ∈ X → Ω.ownerOf y = some t := fun y hy =>
-      hS y (LawfulSet.mem_insert.2 (.inr hy))
-    obtain ⟨a, ha⟩ := Obls.ownerOf_eq_some.1 (hS x (LawfulSet.mem_insert.2 (.inl rfl)))
-    iintro ⟨Hs, Hu⟩
-    icases (BigSepS.bigSepS_insert hx).mp $$ Hu with ⟨⟨%c, %hc, Hf⟩, Hu⟩
-    imod ih hX $$ [$Hs $Hu] with ⟨%Ω₁, Hs, %h₁⟩
-    have hx₁ : get? Ω₁ x = some (.assigned a t) := (h₁.1 x hx).trans ha
-    imod osat_progress_one_owner j hx₁ hc $$ [$Hs $Hf] with ⟨%a', Hs, %hpr⟩
-    imodintro
-    iexists insert Ω₁ x (.assigned a' j)
-    iframe Hs
-    ipureintro
-    exact chownRel.insert hx h₁ hx₁ hpr
-
-#lantana_ignore osat_chown "`osat_chown_set` iterates `osat_progress_one_owner`"
-
-/-- The obligations of thread `i`, each with positive cash, make progress and keep their owner:
-a progress round of `i` as `oforest_step` needs it (Rocq `osat_progress` with the owner tokens of
-`othread`). -/
-theorem osat_progress_owner {Ω : Obls} (i : ThreadId) (G : Oids)
-    (hG : ∀ x, x ∈ G ↔ Ω.ownerOf x = some i) :
-    osat Ω ∗ ([∗set] x ∈ G, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) ⊢@{IProp GF}
-      |==> ∃ Ω', osat Ω' ∗
-        ⌜Obls.condProgress (Obl.condOwner i) Ω Ω' ∧ ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ := by
-  iintro H
-  imod osat_chown_set G i (fun x hx => (hG x).1 hx) $$ H with ⟨%Ω', Hs, %h⟩
-  imodintro
-  iexists Ω'
-  iframe Hs
-  ipureintro
-  exact ⟨h.condProgress fun x hx => (hG x).2 hx, h.ownerOf_self⟩
-
-end OSatAdditions
-
 /-! ## Big operators over the forest -/
 
 section BigOp

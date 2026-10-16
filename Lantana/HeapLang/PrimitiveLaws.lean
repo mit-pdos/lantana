@@ -665,7 +665,7 @@ Rocq `obl_move_thread_set` (`obl_forest_rules.v`), which `lwp_fork` needs: the c
 of `p` move below the thread `j`, each paying one unit of fuel. Derived here from `Obl.move` by
 induction on `X`; a set version in the obligation interface can replace it. -/
 
-omit [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF] in
+omit [HeapGS GF] [TemporalInterp Exp State GF] in
 theorem Par.kids_congr {p : Parent} {A B : Oids} (h : ∀ k, k ∈ A ↔ k ∈ B) :
     Par.kids (GF := GF) p A ⊢ Par.kids p B := by
   rw [Std.ExtTreeSet.ext_mem h]
