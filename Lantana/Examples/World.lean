@@ -5,6 +5,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Iris.Instances.Lib.GhostVar
+public import Iris.BI.Lib.MonoNat
 public import Lantana.Examples.Lib
 
 /-! # A closed world for the examples
@@ -14,8 +15,9 @@ The world `ExGF` in which the adequacy corollaries of the examples are stated (R
 the temporal layer before allocation (slots 0–15, as in the test world of
 `LantanaTest.TrSpecModel`: world satisfaction and credits, obligations, witnesses, the forest,
 the model history, the registry and the history), the heap with its meta data (16–18) and the
-thread-expression map (19) of HeapLang, and a ghost variable of obligation ids for the handoff
-(20). Its instances are `TemporalGpreS Exp State ExGF`, the premise of the adequacy theorems,
+thread-expression map (19) of HeapLang, a ghost variable of obligation ids for the handoff
+(20), and the counters (mono-nat, 21) and the ghost map from indices to obligations (22) of the
+paradox. Its instances are `TemporalGpreS Exp State ExGF`, the premise of the adequacy theorems,
 and `HeapStateGpreS ExGF`, from which `heapState_init` allocates HeapLang's ghost state.
 
 Universes: as in `LantanaTest.TrSpecModel`, the slots holding ordinals are `ULiftOF.{4}` of
@@ -67,6 +69,8 @@ def ExGF : BundledGFunctors.{0} := fun n =>
       by infer_instance⟩
   | 20 => ⟨ULiftOF (GhostVarF Oid),
       @ULiftOF.instRFunctorContractive _ ghostVarF_contractive⟩
+  | 21 => ⟨ULiftOF MonoNatRF, by infer_instance⟩
+  | 22 => ⟨ULiftOF (constOF (HeapView Nat (Agree (DiscreteO Oid)) OidMap)), by infer_instance⟩
   | _ => ⟨constOFU Unit, by infer_instance⟩
 
 instance : WsatGpreS ExGF where
@@ -123,5 +127,11 @@ instance : HeapStateGpreS ExGF where
 instance : GhostVarG ExGF Oid where
   elemG := @ElemG.ofEqLift _ (GhostVarF Oid) ghostVarF_contractive 20
     (by unfold ExGF; rfl)
+
+instance : MonoNatG ExGF where
+  elem := ElemG.ofEqLift 21 (by unfold ExGF; rfl)
+  name := 0
+
+instance : GhostMapG ExGF Nat Oid OidMap := ⟨ElemG.ofEqLift 22 (by unfold ExGF; rfl)⟩
 
 end Lantana.Examples
