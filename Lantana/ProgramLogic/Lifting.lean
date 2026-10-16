@@ -37,14 +37,14 @@ variable {Expr : Type} {State : Type} {Val : Type} {GF : BundledGFunctors}
 variable [Λ : Language Expr State Val] [ModelGS GF]
 variable [L : LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
 
-/-- A pure step of thread `i` from `K e₁` to `K e₂` updates the token `ς i e₁` and the state
-interpretation together (Rocq `PureExecSI`; `ς i e` is the thread-expression token of HeapLang,
-which the state interpretation also knows). -/
+/-- A pure step of thread `i` from `ctxApply K e₁` to `ctxApply K e₂` updates the token `ς i e₁`
+and the state interpretation together (Rocq `PureExecSI`; `ς i e` is the thread-expression token
+of HeapLang, which the state interpretation also knows). -/
 @[lantana_alias PureExecSI]
 class PureExecSI (ς : ThreadId → Expr → IProp GF) (i : ThreadId) : Prop where
-  pureExecSI {K : Expr → Expr} {e₁ e₂ : Expr} {σ : State} {tp : ThreadPool Expr} :
-    Language.Context K → tp[i]? = some (K e₁) → primStep e₁ σ e₂ σ [] →
-      ς i e₁ ∗ stateInterp σ tp ⊢ |==> (ς i e₂ ∗ stateInterp σ (tp.set i (K e₂)))
+  pureExecSI {K : Λ.Ctx} {e₁ e₂ : Expr} {σ : State} {tp : ThreadPool Expr} :
+    Language.Context K → tp[i]? = some (ctxApply K e₁) → primStep e₁ σ e₂ σ [] →
+      ς i e₁ ∗ stateInterp σ tp ⊢ |==> (ς i e₂ ∗ stateInterp σ (tp.set i (ctxApply K e₂)))
 
 attribute [lantana_alias pure_exec_si] PureExecSI.pureExecSI
 
@@ -90,9 +90,9 @@ theorem length_set_append {tp efs : List Expr} {j : ThreadId} {e' : Expr} :
 `lwp_lift_step`). -/
 @[lantana_alias lwp_lift_step, lantana_alias lwp_step_step]
 theorem lwp_lift_step (he : toVal e₁ = none) :
-    (∀ (K : Expr → Expr) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+    (∀ (K : Λ.Ctx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e₁)⌝ →
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n, tp.length]=>m
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
@@ -100,8 +100,8 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
             ALC (mupdFancy ∅ E (n + 1) (tp.length + efs.length)
-              iprop(historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
-                  (tp.set i (K e₂) ++ efs) ∗
+              iprop(historyTInterp (h ++ [(σ₂, tp.set i (ctxApply K e₂) ++ efs)]) (n + 1) σ₂
+                  (tp.set i (ctxApply K e₂) ++ efs) ∗
                 |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                   [∗list] j ↦ ef ∈ efs,
                     lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }}))))
@@ -143,15 +143,15 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
 temporal layer are threaded, and no model update is taken around the step. -/
 @[lantana_alias lwp_lift_step_si]
 theorem lwp_lift_step_si (he : toVal e₁ = none) :
-    (∀ (K : Expr → Expr) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
+    (∀ (K : Λ.Ctx) (σ₁ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜primStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
-            ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (K e₂) ++ efs) ∗
+            ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (ctxApply K e₂) ++ efs) ∗
               |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                 [∗list] j ↦ ef ∈ efs,
                   lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))
@@ -182,7 +182,7 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) :
   imodintro
   imodintro
   imod H with ⟨Hs, H⟩
-  imod histAuth_append h [(σ₂, tp.set i (K e₂) ++ efs)] $$ Ha with Ha
+  imod histAuth_append h [(σ₂, tp.set i (ctxApply K e₂) ++ efs)] $$ Ha with Ha
   imodintro
   iunfold historyTInterp, historyInterp
   iframe Hs Ha HT H
@@ -191,8 +191,8 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) :
 
 @[lantana_alias lwp_lift_stuck]
 theorem lwp_lift_stuck (he : toVal e = none) :
-    (∀ (K : Expr → Expr) (σ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e)⌝ →
+    (∀ (K : Λ.Ctx) (σ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e)⌝ →
       stateInterp σ tp ={E,∅}=∗ ⌜Language.Stuck e σ⌝)
       ⊢ lWP e @ i; E ?{{ Φ }} := by
   iintro H
@@ -270,15 +270,15 @@ theorem lwp_lift_pure_stuck [Inhabited State] (hstuck : ∀ σ, Language.Stuck e
 /-- An atomic step: the thread reaches a value. -/
 @[lantana_alias lwp_lift_atomic_step]
 theorem lwp_lift_atomic_step (he : toVal e₁ = none) :
-    (∀ (K : Expr → Expr) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
+    (∀ (K : Λ.Ctx) (σ₁ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜primStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
-            ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (K e₂) ++ efs) ∗
+            ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (ctxApply K e₂) ++ efs) ∗
               |={E₁}=>m ((∃ v, ⌜toVal e₂ = some v⌝ ∗ Φ v) ∗
                 [∗list] j ↦ ef ∈ efs,
                   lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))

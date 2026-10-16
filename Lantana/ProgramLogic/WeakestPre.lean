@@ -17,9 +17,11 @@ physical rounds of the step, the allocation of later credits, a model update aft
 structure follows Iris-Lean's total weakest precondition (`Iris.ProgramLogic.TotalWeakestPre`),
 which is also a `bi_least_fixpoint`.
 
-Thread ids are positions in the pool (D14): a step of thread `i` running `K e₁` in the pool
-`tp` leads to the pool `tp.set i (K e₂) ++ efs`, and the forked threads get the ids
-`tp.length, tp.length + 1, …`.
+Thread ids are positions in the pool (D14): a step of thread `i` running `ctxApply K e₁` in the
+pool `tp` leads to the pool `tp.set i (ctxApply K e₂) ++ efs`, and the forked threads get the ids
+`tp.length, tp.length + 1, …`. The context `K` ranges over the contexts `Language.Ctx` of the
+language (D31), which for HeapLang are syntactic: the thread-expression token then determines
+`K`.
 
 Induction (`lwp_ind_strong`, `lwp_ind`) needs no non-expansiveness of the predicate: it is
 done on the predicate's closure under internal equality. The file also derives the rules of the
@@ -49,16 +51,17 @@ variable {Expr : Type} {State : Type} {Val : Type} {GF : BundledGFunctors}
 variable [Λ : Language Expr State Val] [ModelGS GF]
 variable [L : LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
 
-/-- One step of `lWP` for thread `i` running `K e₁`: a model update before the step (it may
+/-- One step of `lWP` for thread `i` running `ctxApply K e₁`, for every evaluation context `K` of
+the language: a model update before the step (it may
 discharge an until), the progress round `mprog` of `i` and the physical round `mphys` of the
 step, the allocation of later credits `ALC`, and a model update after it; `ν e₂ len efs`
 holds after a step to `e₂` that forks `efs` with ids from `len` (the old pool length). -/
 @[lantana_alias lwp_step]
 def lwpStep (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
     (ν : Expr → Nat → List Expr → IProp GF) : IProp GF :=
-  iprop(∀ (K : Expr → Expr) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+  iprop(∀ (K : Λ.Ctx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
     (tp : ThreadPool Expr),
-    ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
+    ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e₁)⌝ →
     historyTInterp h n σ₁ tp ={E,∅}=∗
     |=[n, tp.length]=>m
     ⌜s.maybeReducible e₁ σ₁⌝ ∗
@@ -66,8 +69,8 @@ def lwpStep (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
       mprog n tp.length i
         (mphys n (n + 1) tp.length (tp.length + efs.length)
           (ALC (|=[n + 1, tp.length + efs.length]=>m |={∅,E}=>
-            historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
-              (tp.set i (K e₂) ++ efs) ∗
+            historyTInterp (h ++ [(σ₂, tp.set i (ctxApply K e₂) ++ efs)]) (n + 1) σ₂
+              (tp.set i (ctxApply K e₂) ++ efs) ∗
             ν e₂ tp.length efs))))
 
 @[lantana_alias lwp_step_mono]
@@ -482,7 +485,7 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic s.toAtomicity e] :
     imod H with H
     iapply fupd_mupdBase_elim
     imod H with ⟨Hσ, H, Hefs⟩
-    have hlen : (tp.set i (K e₂) ++ efs).length = tp.length + efs.length := by simp
+    have hlen : (tp.set i (ctxApply K e₂) ++ efs).length = tp.length + efs.length := by simp
     have hat := hatom.atomic hstep
     cases s with
     | NotStuck =>
@@ -500,12 +503,13 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic s.toAtomicity e] :
       iapply lwp_atomic_value he₂ hlen $$ H Hσ Hefs
 
 @[lantana_alias lwp_bind]
-theorem lwp_bind (K : Expr → Expr) [hK : Language.Context K] :
-    lWP e @ s; i; E {{ v, lWP (K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢
-      lWP (K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind (K : Λ.Ctx) [hK : Language.Context K] :
+    lWP e @ s; i; E {{ v, lWP (ctxApply K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (ctxApply K e) @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_ind_strong s (fun i E e Ψ => iprop(∀ Φ,
-      (∀ v, Ψ v -∗ lWP (K (↑v : Val)) @ s; i; E {{ Φ }}) -∗ lWP (K e) @ s; i; E {{ Φ }}))
+      (∀ v, Ψ v -∗ lWP (ctxApply K (↑v : Val)) @ s; i; E {{ Φ }}) -∗
+        lWP (ctxApply K e) @ s; i; E {{ Φ }}))
     $$ [] %i %e %E %_ H %Φ []
   · iintro !> %i %e %E %Ψ IH %Φ HΦ
     unfold lwpPre
@@ -517,12 +521,14 @@ theorem lwp_bind (K : Expr → Expr) [hK : Language.Context K] :
       imodintro
       iapply HΦ $$ IH
     | none =>
-      rw [(lwp_unfold (e := K e)).to_eq]
+      rw [(lwp_unfold (e := ctxApply K e)).to_eq]
       simp only [lwpPre, hK.toVal_eq_none_fill he]
       unfold lwpStep
       iintro %K₁ %h %n %σ₁ %tp %hK₁ %hi Hσ
-      imod IH $$ %(fun x => K₁ (K x)) %h %n %σ₁ %tp %(Language.Context.instComp K₁ K) %hi Hσ
+      rw [← Language.ctxApply_comp] at hi
+      imod IH $$ %(ctxComp K₁ K) %h %n %σ₁ %tp %(Language.Context.instComp K₁ K) %hi Hσ
         with IH
+      isimp only [Language.ctxApply_comp] at IH
       imodintro
       imod IH with ⟨%hred, IH⟩
       imodintro
@@ -552,9 +558,9 @@ theorem lwp_bind (K : Expr → Expr) [hK : Language.Context K] :
     iexact Hv
 
 @[lantana_alias lwp_bind_step]
-theorem lwp_bind_step (K : Expr → Expr) [Language.Context K] :
-    lWP e @ s; i; E {{ v, |={E}=>m lWP (K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢
-      lWP (K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind_step (K : Λ.Ctx) [Language.Context K] :
+    lWP e @ s; i; E {{ v, |={E}=>m lWP (ctxApply K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (ctxApply K e) @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_bind K
   iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
@@ -563,9 +569,9 @@ theorem lwp_bind_step (K : Expr → Expr) [Language.Context K] :
   iapply mupd_lwp $$ Hv
 
 @[lantana_alias lwp_bind_sfmupd]
-theorem lwp_bind_mupd (K : Expr → Expr) [Language.Context K] :
-    (|={E}=>m lWP e @ s; i; E {{ v, |={E}=>m lWP (K (↑v : Val)) @ s; i; E {{ Φ }} }}) ⊢
-      |={E}=>m lWP (K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind_mupd (K : Λ.Ctx) [Language.Context K] :
+    (|={E}=>m lWP e @ s; i; E {{ v, |={E}=>m lWP (ctxApply K (↑v : Val)) @ s; i; E {{ Φ }} }}) ⊢
+      |={E}=>m lWP (ctxApply K e) @ s; i; E {{ Φ }} := by
   iintro H
   imod H
   imodintro

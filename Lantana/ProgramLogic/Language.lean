@@ -16,6 +16,12 @@ trace part, which is `Lantana.ProgramLogic.Trace`). A step knows nothing about t
 thread pool is a list and a thread id is a position in it, so forked threads get fresh ids by
 being appended (design decision D14), and there are no observations (D15). Hence a Lantana
 language is Iris-Lean's `ToVal` plus a primitive step relation `primStep e σ e' σ' efs`.
+
+As in Rocq (and unlike Iris-Lean), a language also carries a *type* of contexts `Ctx`, with
+`ctxApply`, the identity `ctxId` and the composition `ctxComp` (design decision D31): `lWP`
+quantifies over these contexts, so that a language whose contexts are syntactic (HeapLang:
+lists of items, `ctxApply := fill`) can recover the context of a thread from its expression.
+`Context K` says that the context `K` is an evaluation context (Rocq `LanguageCtx`).
 -/
 
 @[expose] public section
@@ -36,8 +42,29 @@ class Language (Expr : Type) (State : outParam (Type)) (Val : outParam (Type))
   primStep : Expr → State → Expr → State → List Expr → Prop
   /-- Values do not step. -/
   val_stuck {e : Expr} {σ : State} {e' σ' efs} : primStep e σ e' σ' efs → toVal e = none
+  /-- The contexts of the language: the language chooses their representation; only the
+  identity and the composition are prescribed, and contexts need not be injective. -/
+  Ctx : Type
+  /-- Plug an expression into a context. -/
+  ctxApply : Ctx → Expr → Expr
+  /-- The empty context. -/
+  ctxId : Ctx
+  /-- `ctxComp K₁ K₂` is `K₂` plugged into `K₁` (`ctxApply_comp`). -/
+  ctxComp : Ctx → Ctx → Ctx
+  ctxApply_id (e : Expr) : ctxApply ctxId e = e
+  ctxApply_comp (K₁ K₂ : Ctx) (e : Expr) :
+    ctxApply (ctxComp K₁ K₂) e = ctxApply K₁ (ctxApply K₂ e)
 
-export Language (primStep val_stuck)
+export Language (primStep val_stuck ctxApply ctxId ctxComp)
+
+attribute [lantana_alias ctx] Language.Ctx
+attribute [lantana_alias ctx_apply] Language.ctxApply
+attribute [lantana_alias ctx_id] Language.ctxId
+attribute [lantana_alias ctx_comp] Language.ctxComp
+attribute [lantana_alias ctx_id_apply, simp] Language.ctxApply_id
+attribute [lantana_alias ctx_comp_apply, simp] Language.ctxApply_comp
+
+#lantana_ignore LanguageCtxMixin "the context fields `Ctx`, …, `ctxApply_comp` of `Language`"
 
 namespace Language
 
@@ -111,57 +138,64 @@ theorem Atomic.of_stronglyAtomic {e : Expr} (h : Atomic .StronglyAtomic e) (a : 
 
 /-! ## Evaluation contexts -/
 
-/-- `Context K`: `K` is an evaluation context (the analogue of Iris's `LanguageCtx`). -/
+/-- `Context K`: the context `K` is an evaluation context. -/
 @[lantana_alias LanguageCtx]
-class Context (K : Expr → Expr) : Prop where
-  toVal_eq_none_fill {e : Expr} : toVal e = none → toVal (K e) = none
+class Context (K : Λ.Ctx) : Prop where
+  toVal_eq_none_fill {e : Expr} : toVal e = none → toVal (ctxApply K e) = none
   primStep_fill {e : Expr} {σ : State} {e' σ' efs} :
-    primStep e σ e' σ' efs → primStep (K e) σ (K e') σ' efs
+    primStep e σ e' σ' efs → primStep (ctxApply K e) σ (ctxApply K e') σ' efs
   primStep_fill_inv {e : Expr} {σ : State} {Ke' σ' efs} :
-    toVal e = none → primStep (K e) σ Ke' σ' efs →
-    ∃ e', Ke' = K e' ∧ primStep e σ e' σ' efs
+    toVal e = none → primStep (ctxApply K e) σ Ke' σ' efs →
+    ∃ e', Ke' = ctxApply K e' ∧ primStep e σ e' σ' efs
 
 namespace Context
 
 @[lantana_alias language_ctx_id]
-instance instId : Context (Expr := Expr) (State := State) (Val := Val) id where
-  toVal_eq_none_fill h := h
-  primStep_fill h := h
-  primStep_fill_inv _ h := ⟨_, rfl, h⟩
+instance instId : Context (ctxId : Λ.Ctx) where
+  toVal_eq_none_fill h := by rwa [ctxApply_id]
+  primStep_fill h := by rwa [ctxApply_id, ctxApply_id]
+  primStep_fill_inv _ h := ⟨_, (ctxApply_id _).symm, by rwa [ctxApply_id] at h⟩
 
 @[lantana_alias language_ctx_compose]
-instance instComp (K₁ K₂ : Expr → Expr) [Context K₁] [Context K₂] : Context (K₁ ∘ K₂) where
-  toVal_eq_none_fill h := toVal_eq_none_fill (K := K₁) (toVal_eq_none_fill (K := K₂) h)
-  primStep_fill h := primStep_fill (K := K₁) (primStep_fill (K := K₂) h)
+instance instComp (K₁ K₂ : Λ.Ctx) [Context K₁] [Context K₂] : Context (ctxComp K₁ K₂) where
+  toVal_eq_none_fill h := by
+    rw [ctxApply_comp]
+    exact toVal_eq_none_fill (K := K₁) (toVal_eq_none_fill (K := K₂) h)
+  primStep_fill h := by
+    rw [ctxApply_comp, ctxApply_comp]
+    exact primStep_fill (K := K₁) (primStep_fill (K := K₂) h)
   primStep_fill_inv hv h := by
+    rw [ctxApply_comp] at h
     obtain ⟨e₁, rfl, h₁⟩ := primStep_fill_inv (K := K₁) (toVal_eq_none_fill (K := K₂) hv) h
     obtain ⟨e₂, rfl, h₂⟩ := primStep_fill_inv (K := K₂) hv h₁
-    exact ⟨e₂, rfl, h₂⟩
+    exact ⟨e₂, (ctxApply_comp ..).symm, h₂⟩
 
-variable (K : Expr → Expr) [Context K]
+variable (K : Λ.Ctx) [Context K]
 
 @[lantana_alias reducible_fill]
-theorem reducible_fill {e : Expr} {σ : State} (h : Reducible e σ) : Reducible (K e) σ :=
+theorem reducible_fill {e : Expr} {σ : State} (h : Reducible e σ) :
+    Reducible (ctxApply K e) σ :=
   let ⟨_, _, _, h⟩ := h; ⟨_, _, _, primStep_fill (K := K) h⟩
 
 @[lantana_alias reducible_fill_inv]
 theorem reducible_fill_inv {e : Expr} {σ : State} (hv : toVal e = none)
-    (h : Reducible (K e) σ) : Reducible e σ :=
+    (h : Reducible (ctxApply K e) σ) : Reducible e σ :=
   let ⟨_, _, _, h⟩ := h
   let ⟨_, _, h⟩ := primStep_fill_inv (K := K) hv h; ⟨_, _, _, h⟩
 
 @[lantana_alias irreducible_fill]
 theorem irreducible_fill {e : Expr} {σ : State} (hv : toVal e = none) (h : Irreducible e σ) :
-    Irreducible (K e) σ :=
+    Irreducible (ctxApply K e) σ :=
   not_reducible_iff.mp fun hr => not_reducible_iff.mpr h (reducible_fill_inv K hv hr)
 
 @[lantana_alias irreducible_fill_inv]
-theorem irreducible_fill_inv {e : Expr} {σ : State} (h : Irreducible (K e) σ) :
+theorem irreducible_fill_inv {e : Expr} {σ : State} (h : Irreducible (ctxApply K e) σ) :
     Irreducible e σ :=
   not_reducible_iff.mp fun hr => not_reducible_iff.mpr h (reducible_fill K hr)
 
 @[lantana_alias not_stuck_fill_inv]
-theorem notStuck_fill_inv {e : Expr} {σ : State} (h : NotStuck (K e) σ) : NotStuck e σ := by
+theorem notStuck_fill_inv {e : Expr} {σ : State} (h : NotStuck (ctxApply K e) σ) :
+    NotStuck e σ := by
   rcases h with h | h
   · by_cases hv : toVal e = none
     · simp [toVal_eq_none_fill (K := K) hv] at h
@@ -171,7 +205,7 @@ theorem notStuck_fill_inv {e : Expr} {σ : State} (h : NotStuck (K e) σ) : NotS
     · exact .inl (Option.isSome_iff_ne_none.mpr hv)
 
 @[lantana_alias stuck_fill]
-theorem stuck_fill {e : Expr} {σ : State} (h : Stuck e σ) : Stuck (K e) σ :=
+theorem stuck_fill {e : Expr} {σ : State} (h : Stuck e σ) : Stuck (ctxApply K e) σ :=
   not_notStuck_iff.mp fun hn => not_notStuck_iff.mpr h (notStuck_fill_inv K hn)
 
 end Context
@@ -192,8 +226,8 @@ class PureExec (φ : outParam Prop) (n : outParam Nat) (e₁ : Expr) (e₂ : out
   pureExec : φ → Relation.Iterate PureStep n e₁ e₂
 
 @[lantana_alias pure_step_ctx]
-theorem PureStep.fill (K : Expr → Expr) [Context K] {e₁ e₂ : Expr} (h : PureStep e₁ e₂) :
-    PureStep (K e₁) (K e₂) where
+theorem PureStep.fill (K : Λ.Ctx) [Context K] {e₁ e₂ : Expr} (h : PureStep e₁ e₂) :
+    PureStep (ctxApply K e₁) (ctxApply K e₂) where
   safe σ := Context.reducible_fill K (h.safe σ)
   det {σ _ _ _} hs := by
     obtain ⟨e', rfl, hs'⟩ :=
@@ -202,16 +236,17 @@ theorem PureStep.fill (K : Expr → Expr) [Context K] {e₁ e₂ : Expr} (h : Pu
     exact ⟨rfl, rfl, rfl⟩
 
 @[lantana_alias pure_step_nsteps_ctx]
-theorem PureStep.iterate_fill (K : Expr → Expr) [Context K] {n : Nat} {e₁ e₂ : Expr}
-    (h : Relation.Iterate PureStep n e₁ e₂) : Relation.Iterate PureStep n (K e₁) (K e₂) := by
+theorem PureStep.iterate_fill (K : Λ.Ctx) [Context K] {n : Nat} {e₁ e₂ : Expr}
+    (h : Relation.Iterate PureStep n e₁ e₂) :
+    Relation.Iterate PureStep n (ctxApply K e₁) (ctxApply K e₂) := by
   induction h with
   | rfl => exact .rfl _
   | tail _ _ hs ih => exact .tail _ ih (hs.fill K)
 
 /-- Not an instance: too general. -/
 @[lantana_alias pure_exec_ctx]
-theorem PureExec.fill (K : Expr → Expr) [Context K] {φ n} {e₁ e₂ : Expr}
-    (h : PureExec φ n e₁ e₂) : PureExec φ n (K e₁) (K e₂) :=
+theorem PureExec.fill (K : Λ.Ctx) [Context K] {φ n} {e₁ e₂ : Expr}
+    (h : PureExec φ n e₁ e₂) : PureExec φ n (ctxApply K e₁) (ctxApply K e₂) :=
   ⟨fun hφ => PureStep.iterate_fill K (h.pureExec hφ)⟩
 
 /-- No chain of pure steps of positive length starts from a value. -/
