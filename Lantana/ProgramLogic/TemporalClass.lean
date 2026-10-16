@@ -32,7 +32,7 @@ class ModelGS (GF : BundledGFunctors) extends InvGS GF
 
 /-- The ghost state of the temporal registry (it saves trace predicates, hence the
 language). (Placeholder.) -/
-@[lantana_alias tregGS]  -- Rocq `tregGS.tregGS`
+@[lantana_alias tregGS] -- Rocq `tregGS.tregGS`
 class RegGS (Expr : Type) (State : Type) (GF : BundledGFunctors) : Type where
 
 /-- The language-dependent ghost state of the temporal layer: the history and the registry.

@@ -29,7 +29,7 @@ open Iris Iris.BI Iris.ProofMode
 abbrev HistEntry (Expr : Type) (State : Type) := State × ThreadPool Expr
 
 /-- The ghost state of the history: a monotone list of history entries. -/
-@[lantana_alias histGS]  -- Rocq `histGS.histGS`; the module prefix would duplicate the namespace
+@[lantana_alias histGS] -- Rocq `histGS.histGS`; the module prefix would duplicate the namespace
 class HistGS (Expr : Type) (State : Type) (GF : BundledGFunctors) where
   [elemG : MonoListG GF (HistEntry Expr State)]
   /-- The ghost name of the history. -/
