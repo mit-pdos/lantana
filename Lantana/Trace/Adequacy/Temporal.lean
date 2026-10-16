@@ -27,13 +27,14 @@ namespace Lantana
 open Iris Iris.BI
 open scoped Lantana.TrSpec Lantana.TrProp
 
-/-- The ghost state a world must provide before the temporal layer is allocated
-(Rocq `mupdGpreS`, `histGpreS`, `tregGpreS`). PLACEHOLDER: the fields come with the model (M4)
-and the registry (M5). -/
+/-- The ghost state a world must provide before the temporal layer is allocated: the model's
+(Rocq `mupdGpreS`), the history's (`histGpreS`) and the registry's (`tregGpreS`). -/
 class TemporalGpreS (Expr State : Type) (GF : BundledGFunctors) where
+  [modelG : ModelGpreS GF]
   [histG : MonoListG GF (HistEntry Expr State)]
+  [regG : RegGpreS Expr State GF]
 
-attribute [reducible, instance] TemporalGpreS.histG
+attribute [reducible, instance] TemporalGpreS.modelG TemporalGpreS.histG TemporalGpreS.regG
 
 /-- **Theorem 1 (adequacy).** Let `G` be a trace specification and `R` a trace property implied
 by its trace reading. If, for every allocation of the temporal ghost state, the user can
