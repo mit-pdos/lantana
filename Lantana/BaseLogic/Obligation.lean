@@ -461,3 +461,41 @@ theorem condProgress_dom {C : Oid → Obl → Prop} {Ω₁ Ω₂ : Obls} (h : co
 end Obls
 
 end Lantana.Model
+
+/-! ## Fresh ids -/
+
+namespace Lantana.Model
+
+open Iris.Std LawfulPartialMap
+
+private theorem le_foldr_max {l : List Nat} {x : Nat} (h : x ∈ l) : x ≤ l.foldr max 0 := by
+  induction l with
+  | nil => cases h
+  | cons y l ih =>
+    rw [List.foldr_cons]
+    rcases List.mem_cons.mp h with rfl | h
+    · exact Nat.le_max_left _ _
+    · exact Nat.le_trans (ih h) (Nat.le_max_right _ _)
+
+/-- An id above every key of `m`, hence not in `m`. -/
+def freshOid {V : Type _} (m : OidMap V) : Oid :=
+  ((toList m).map Prod.fst).foldr max 0 + 1
+
+theorem get?_freshOid {V : Type _} (m : OidMap V) : get? m (freshOid m) = none := by
+  cases e : get? m (freshOid m) with
+  | none => rfl
+  | some v =>
+    have hmem : freshOid m ∈ (toList m).map Prod.fst :=
+      List.mem_map.mpr ⟨(freshOid m, v), toList_get.mpr e, rfl⟩
+    have := le_foldr_max hmem
+    simp only [freshOid] at this
+    omega
+
+/-- A fresh obligation id: not in `Ω`. -/
+def Obls.fresh (Ω : Obls) : Oid :=
+  freshOid Ω
+
+theorem Obls.get?_fresh (Ω : Obls) : get? Ω Ω.fresh = none :=
+  get?_freshOid Ω
+
+end Lantana.Model

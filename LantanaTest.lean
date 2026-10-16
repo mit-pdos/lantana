@@ -8,6 +8,7 @@ public import LantanaTest.HeapLang
 public import LantanaTest.Measure
 public import LantanaTest.Model
 public import LantanaTest.Notation
+public import LantanaTest.OSat
 public import LantanaTest.Registry
 public import LantanaTest.Trace
 public import LantanaTest.WeakestPre
