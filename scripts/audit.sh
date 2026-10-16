@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) The Lantana-Lean Contributors
+# Released under Apache 2.0 license as described in the file LICENSE.
+#
 # Audit the Lean sources: no sorry/admit/axiom/native_decide and no disabled checks.
 # Usage: scripts/audit.sh [dir]   (default: the package root)
 set -euo pipefail

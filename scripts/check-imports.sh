@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) The Lantana-Lean Contributors
+# Released under Apache 2.0 license as described in the file LICENSE.
+#
 # Check the layering of the library: a module of Lantana/ imports only modules of its own layer
 # or of earlier ones, in the order
 #   Std, Init < Prelude < Algebra < BaseLogic < ProgramLogic < Trace < HeapLang < Examples

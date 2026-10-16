@@ -1,6 +1,12 @@
 /-
 Copyright (c) The Lantana-Lean Contributors
-Released under BSD-3-Clause license as described in the file LICENSE.
+Released under Apache 2.0 license as described in the file LICENSE.
+
+Based on Iris-Lean's `Iris.ProgramLogic.Language`, whose header reads:
+  Copyright (c) The Iris-Lean Contributors
+  Released under Apache 2.0 license as described in the file LICENSE.
+  Authors: Fernando Leal
+Modified by the Lantana-Lean Contributors; the module documentation describes the changes.
 -/
 module
 

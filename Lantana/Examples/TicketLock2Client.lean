@@ -1,6 +1,6 @@
 /-
 Copyright (c) The Lantana-Lean Contributors
-Released under BSD-3-Clause license as described in the file LICENSE.
+Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 

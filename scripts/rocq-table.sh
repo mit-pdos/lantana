@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) The Lantana-Lean Contributors
+# Released under Apache 2.0 license as described in the file LICENSE.
+#
 # Generate the Rocq↔Lean correspondence table (scripts/RocqTable.lean) into
 # docs/rocq-correspondence.md.
 # Usage: scripts/rocq-table.sh [rocq-checkout] [output]

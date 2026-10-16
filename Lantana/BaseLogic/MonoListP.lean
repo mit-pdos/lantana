@@ -1,7 +1,12 @@
 /-
 Copyright (c) The Lantana-Lean Contributors
-Released under BSD-3-Clause license as described in the file LICENSE.
-Adapted from Iris-Lean's `Iris.BI.Lib.MonoList` (Apache 2.0, Markus de Medeiros).
+Released under Apache 2.0 license as described in the file LICENSE.
+
+Adapted from Iris-Lean's `Iris.BI.Lib.MonoList`, whose header reads:
+  Copyright (c) The Iris-Lean Contributors
+  Released under Apache 2.0 license as described in the file LICENSE.
+  Authors: Markus de Medeiros
+Modified by the Lantana-Lean Contributors; the module documentation describes the changes.
 -/
 module
 
