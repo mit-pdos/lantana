@@ -80,11 +80,14 @@ abbrev pointsToSpec (l : Loc) (v : Val) : TrSpec Exp State GF :=
 /-- The specification inferred from `isFlag`: always, `0` until `1` or `1`. -/
 @[lantana_alias flag_trSpec]
 def flagTrSpec (l : Loc) : TrSpec Exp State GF :=
-  TrSpec.true ∧ₛ □ₛ ((pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) ∨ₛ (TrSpec.true ∧ₛ pointsToSpec l v1))
+  TrSpec.true ∧ₛ
+    □ₛ ((pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) ∨ₛ
+      (TrSpec.true ∧ₛ pointsToSpec l v1))
 
 instance guarOf_flagInv (l : Loc) (k : Oid) :
     GuarOf (flagInv (GF := GF) l k)
-      ((pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) ∨ₛ (TrSpec.true ∧ₛ pointsToSpec l v1)) := by
+      ((pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) ∨ₛ
+        (TrSpec.true ∧ₛ pointsToSpec l v1)) := by
   unfold flagInv; infer_instance
 
 @[lantana_alias guar_is_flag]
@@ -111,15 +114,16 @@ theorem flagResponse_ext (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ flag
 
 @[lantana_alias is_flag_response]
 theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
-    ⊢@{IProp GF} isFlag l k ℓ ⊨ₜ (flagTrSpec l).cast (flagResponse l) (flagResponse_ext l) :=
+    ⊢@{IProp GF} isFlag l k ℓ ⊨ₜ
+      (flagTrSpec l).cast (flagResponse l) (flagResponse_ext l) :=
   (guar_isFlag l k ℓ).trans (guar_cast _ _)
 
 /-- Initialization: a new obligation below `p` carrying the flag. -/
 @[lantana_alias is_flag_init]
 theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
     parLe (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗
-      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗
-        flagTk l k ∗ isFlag l k ℓ := sorry
+      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
+        Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := sorry
 
 end Invariant
 
@@ -129,21 +133,22 @@ section Specs
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 
 @[lantana_alias Flag_init_spec]
-theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent) (K : Oids)
-    (ℓ : Layer) (m : Measure) (C : List ECtxItem),
+theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent)
+    (K : Oids) (ℓ : Layer) (m : Measure) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
           ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ parLe p ℓ ∗ Par.kids p K }}}
         hl(v(&init) #()) @ i
-      l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗ thKids i G ∗
-        ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ m ∗
+      l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
+        thKids i G ∗ ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
+        Obl.fuel k ℓ m ∗
         flagTk x k ∗ isFlag x k ℓ }}} := sorry
 
 @[lantana_alias Flag_set_spec]
-theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids) (p : Parent)
-    (K : Oids) (k : Oid) (ℓ : Layer) (C : List ECtxItem),
+theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids)
+    (p : Parent) (K : Oids) (k : Oid) (ℓ : Layer) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&set) #l) ∗ thKids i G ∗
-          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ Par.kids p K ∗ ⌜k ∈ K⌝ ∗ oblKids k ∅ ∗
-          flagTk l k ∗ isFlag l k ℓ }}}
+          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ Par.kids p K ∗ ⌜k ∈ K⌝ ∗
+          oblKids k ∅ ∗ flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗
         Par.kids p (K.erase k) ∗ Obl.discharged k }}} := sorry
@@ -176,7 +181,8 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&wait) #l) ∗ thKids i G ∗
           ([∗set] g ∈ G, Obl.fuel g ℓ.succ μ) ∗ isFlag l k ℓ }}}
         hl(v(&wait) #l) @ i
-      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} := sorry
+      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} :=
+  sorry
 
 end Specs
 
