@@ -1127,6 +1127,20 @@ obligation): `50` per credit of the holder's unlock obligation. -/
 abbrev witMap (G : Oids) (ℓ : Layer) : OidMap (Layer × Measure) :=
   ∅ ∪ (FiniteMap.ofSet (ℓ.succ, (50 : Measure)) G : OidMap (Layer × Measure))
 
+omit [HeapGS GF] [TicketLockG GF] in
+theorem bigSepM_embedMap (G : Oids) (ℓ : Layer) :
+    ([∗map] f ↦ lm ∈ embedMap G ℓ, Obl.fuel (GF := GF) f lm.1 lm.2) ⊣⊢
+      [∗set] g ∈ G, Obl.fuel g ℓ.succ (50 + 50 * ▽) := by
+  rw [embedMap, OidMap.empty_union]
+  exact BigSepM.bigSepM_ofSet _ G _
+
+omit [HeapGS GF] [TicketLockG GF] in
+theorem bigSepM_witMap (G : Oids) (ℓ : Layer) :
+    ([∗map] f ↦ lm ∈ witMap G ℓ, Obl.fuel (GF := GF) f lm.1 lm.2) ⊣⊢
+      [∗set] g ∈ G, Obl.fuel g ℓ.succ 50 := by
+  rw [witMap, OidMap.empty_union]
+  exact BigSepM.bigSepM_ofSet _ G _
+
 /-- The loop of `acquire` for the ticket `my + 1`, `ν` tickets after the holder of ticket
 `prev + 1`, whose unlock obligation is `κ` at layer `ℓ₀`. The thread waits in the container
 `gu` (at the lock's layer `ℓ`); the outer induction is on `ν` (`embedFuels`), the inner one on
@@ -1155,7 +1169,6 @@ theorem acquire_loop_inner (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLoc
     (dq₁ dq₂ : DFrac) (ℓ : Layer) (m : Measure) (R : IProp GF) (E : CoPset) (hE : ↑N ⊆ E)
     (C : List ECtxItem) (Φ : Val → IProp GF) (next curr : Loc) (my : Int) (ν : Nat)
     (prev : Int) (κ : Oid) (ℓ₀ : Layer) (hν : ν = (my - prev).toNat) (hprev : prev < my)
-    (hℓ₀ : ℓ₀ ≤ ℓ)
     (IH : ∀ ν' < ν, AcqLoopSpec lc i G γ dq₁ dq₂ ℓ m R E C Φ next curr my ν') :
     ∀ (α : Fuel) (gu : Oid), gu ∉ G →
     ⊢@{IProp GF} alwaysI (Expr := Exp) (State := State) Ninv
@@ -1170,7 +1183,224 @@ theorem acquire_loop_inner (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLoc
       thKids i (G.insert gu) -∗ oblFuels (G.insert gu) 4 -∗
       threadExpr i C hl(v(&(loopV curr my)) #()) -∗
       lWP hl(v(&(loopV curr my)) #()) @ i; E {{ Φ }} := by
-  sorry
+  intro α
+  induction α using WellFounded.induction Ordinals.Ordinal.lt_wf with
+  | h α IHα =>
+  intro gu hgu
+  iintro #INV #ITK #CFl #CFl0 #Wl0 #GMEo0 #Wgu HΦ AL CF EFs WFs Agu GMEt0 HG HF HT
+  lwp_step HT HG HF with Hc : 1
+  lwp_expr_simp
+  lwp_bind hl(!#curr) HT
+  -- The atomic load, in the lock invariant: it observes the holder's unlock obligation.
+  ihave Hacc := alwaysI_acc (E := E) (N := Ninv)
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (Ninv_subseteq hE) $$ INV
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨H, Hclose⟩
+  iclear Hacc
+  iapply lwp_credit_later $$ Hc
+  inext
+  iunfold lockInv at H
+  icases H with (Hdel | H)
+  · iexfalso
+    iapply ownAlive_full_false $$ AL Hdel
+  iunfold lockInvAlive at H
+  icases H with ⟨%n, %c, %tickets, %obls, PtrNext, PtrCurr, GMAt, GMAo, %⟨Domt, Domo, hc0, hcn⟩,
+    HMt, Hc⟩
+  icases oblFuels_add 1 2 _ $$ HF with ⟨HF1, HF⟩
+  iapply lwp_load (o := 0) (G := G.insert gu) (R := {κ}) $$ [HT HG HF1 PtrCurr]
+  · iframe HT PtrCurr
+    iapply stepPre_wit _ _ κ ℓ₀ $$ HG HF1 Wl0
+  iintro ⟨HT, ⟨-, HG, HW⟩, PtrCurr⟩
+  ihave Wc := witCreds_singleton κ $$ HW
+  ihave %hlt := ghostMapP_lookup $$ GMAt GMEt0
+  have hmy := (Domt (my + 1)).mp (by simp [hlt])
+  by_cases hc : c = my
+  · -- My turn.
+    obtain rfl : my = c := hc.symm
+    iunfold holderSt at Hc
+    icases Hc with (⟨%h, -⟩ | ⟨%hcn', %ℓ₁, %κu, #CFl1, #Wl1, #GMEo1, HE0, (Hn | #GMEt1)⟩)
+    · iexfalso
+      ipureintro
+      omega
+    · iunfold nextOwner at Hn
+      icases Hn with ⟨%g, %μ, GMEt1, HE, Gg, Kk, Of, PtrCurr0, HR⟩
+      icases ghostMapP_elem_combine_halves _ _ _ _ $$ [GMEt0 GMEt1] with ⟨GMEt, %h⟩
+      · iframe
+      obtain ⟨rfl, rfl, rfl⟩ : gu = g ∧ ℓ = ℓ₁ ∧ m = μ := by
+        simp only [Option.some.injEq, Prod.mk.injEq] at h
+        exact ⟨h.1.symm, h.2.1.symm, h.2.2.symm⟩
+      imod ghostMapP_update (none : TicketInfo) $$ GMAt GMEt with ⟨GMAt, GMEt⟩
+      imod ghostMapP_elem_persist $$ GMEt with #GMEt
+      imod Hclose $$ [PtrNext PtrCurr GMAt GMAo HMt HE0] with -
+      · inext
+        iunfold lockInv
+        iright
+        iunfold lockInvAlive
+        iexists n, my, insert tickets (my + 1) (none : TicketInfo), obls
+        iframe PtrNext PtrCurr GMAt GMAo
+        isplitr
+        · ipureintro
+          exact ⟨dom_insert_same Domt hmy _, Domo, hc0, hcn⟩
+        isplitl [HMt]
+        · iapply tickets_update _ _ _ hlt _ $$ HMt
+        · iunfold holderSt
+          iright
+          isplitr
+          · ipureintro
+            exact hcn'
+          iexists ℓ, κu
+          iframe CFl1 Wl1 GMEo1 HE0
+          iright
+          iexact GMEt
+      imodintro
+      ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+      lwp_expr_simp
+      iapply acquire_end lc i G γ dq₁ dq₂ ℓ m R E hE C Φ curr my gu κu hgu $$ ITK GMEt GMEo1 HΦ
+        AL CF HG HF Gg Agu Kk Of PtrCurr0 HR HE HT
+    · iexfalso
+      ihave %h := ghostMapP_elem_agree _ _ _ _ (none : TicketInfo) (some (gu, ℓ, m)) $$ [GMEt0]
+      · iframe GMEt1 GMEt0
+      simp at h
+  · -- Not my turn: renew the container.
+    icases (BigSepM.bigSepM_delete hlt).mp $$ HMt with ⟨Ht, HMt⟩
+    iunfold ticketSt at Ht
+    icases Ht with (⟨%κ', %h, #H1, -⟩ | %h | ⟨%g, %ℓ', %μ, %h, GMEt1, GMEo1, -, Kg, -⟩)
+    · iexfalso
+      ihave %h := ghostMapP_elem_agree _ _ _ _ (none : TicketInfo) (some (gu, ℓ, m)) $$ [GMEt0]
+      · iframe H1 GMEt0
+      simp at h
+    · iexfalso
+      ipureintro
+      omega
+    icases ghostMapP_elem_combine_halves _ _ _ _ $$ [GMEt0 GMEt1] with ⟨GMEt, %h'⟩
+    · iframe
+    obtain ⟨rfl, rfl, rfl⟩ : gu = g ∧ ℓ = ℓ' ∧ m = μ := by
+      simp only [Option.some.injEq, Prod.mk.injEq] at h'
+      exact ⟨h'.1.symm, h'.2.1.symm, h'.2.2.symm⟩
+    imod Obl.discharge_leaf (E \ ↑Ninv) (.thread i) (G.insert gu) gu (by simp) $$ HG Kg Agu
+      with ⟨HG, -⟩
+    have hGgu : ∀ z, z ∈ (G.insert gu).erase gu ↔ z ∈ G := by
+      intro z
+      simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
+      grind
+    ihave HG := Par.kids_congr hGgu $$ HG
+    ihave HF := oblFuels_remove_obl gu _ _ $$ HF
+    ihave HF := oblFuels_subset (B := G) _ (fun z hz => (hGgu z).mpr hz) $$ HF
+    imod Obl.new (E \ ↑Ninv) (.thread i) G ℓ (2 + 4) $$ [] HG with
+      ⟨%gu', %hgu', HG, Kgu', Agu', Fgu', #Wgu'⟩
+    · iapply parLe_thread
+    icases (Obl.fuel_add gu' ℓ 2 4).mp $$ Fgu' with ⟨F2, F4⟩
+    ihave HF := oblFuels_add_obl G gu' ℓ 2 $$ F2 HF
+    imod ghostMapP_update (some (gu', ℓ, m) : TicketInfo) $$ GMAt GMEt with ⟨GMAt, GMEt⟩
+    icases ghostMapP_elem_halves $$ GMEt with ⟨GMEt, GMEt0⟩
+    have hDomt' := dom_insert_same Domt hmy (some (gu', ℓ, m) : TicketInfo)
+    have hne : (vz c == vz my) = false := by simpa [vz] using hc
+    icases Wc with (Wc | #Dκ)
+    · -- A credit of `κ`: the next iteration, by witness induction.
+      imod Hclose $$ [PtrNext PtrCurr GMAt GMAo HMt Hc GMEt GMEo1 Kgu'] with -
+      · inext
+        iunfold lockInv
+        iright
+        iunfold lockInvAlive
+        iexists n, c, insert tickets (my + 1) (some (gu', ℓ, m) : TicketInfo), obls
+        iframe PtrNext PtrCurr GMAt GMAo Hc
+        isplitr
+        · ipureintro
+          exact ⟨hDomt', Domo, hc0, hcn⟩
+        iapply BigSepM.bigSepM_insert_delete.mpr
+        iframe HMt
+        iunfold ticketSt
+        iright
+        iright
+        iexists gu', ℓ, m
+        iframe GMEt GMEo1 CFl Kgu' Wgu'
+        ipureintro
+        omega
+      imodintro
+      ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+      lwp_expr_simp
+      lwp_step HT HG HF
+      rw [hne]
+      lwp_step HT HG HF
+      lwp_expr_simp
+      imod Wit.fuels_decr κ ℓ₀ α _ $$ WFs Wc with ⟨%α₀, %hα, WFs, Fs⟩
+      ihave Fs := (bigSepM_witMap G ℓ).mp $$ Fs
+      ihave Fs := oblFuels_init G 50 ℓ.succ $$ Fs
+      icases oblFuels_add_nat 4 46 50 G rfl $$ Fs with ⟨Fs, -⟩
+      ihave HF4 := oblFuels_add_obl G gu' ℓ 4 $$ F4 Fs
+      iapply IHα α₀ hα gu' hgu' $$ INV ITK CFl CFl0 Wl0 GMEo0 Wgu' HΦ AL CF EFs WFs Agu' GMEt0 HG
+        HF4 HT
+    · -- `κ` is discharged: the holder has changed, by the outer induction.
+      iunfold holderSt at Hc
+      icases Hc with (⟨%h2, -⟩ | ⟨%hcn', %ℓ₁, %κ₁, #CFl1, #Wl1, #GMEo1', HE1, Hn1⟩)
+      · iexfalso
+        ipureintro
+        omega
+      by_cases hpc' : prev = c
+      · -- The same holder: its `finallyI` on `κ` is still in the invariant.
+        iexfalso
+        subst hpc'
+        ihave %h := ghost_map_elem_agree _ _ _ _ (some κ₁) (some κ) $$ [GMEo1']
+        · iframe GMEo1' GMEo0
+        cases h
+        iunfold finallyI at HE1
+        iapply untilI_discharged_false $$ HE1 Dκ
+      ihave %hlo := ghost_map_lookup $$ GMAo GMEo0
+      have hp := (Domo (prev + 1)).mp (by simp [hlo])
+      obtain ⟨v', hv'⟩ := Option.isSome_iff_exists.mp ((Domt (prev + 1)).mpr hp)
+      have hv'' : get? (PartialMap.delete tickets (my + 1)) (prev + 1) = some v' := by
+        rw [LawfulPartialMap.get?_delete]
+        split
+        next h => exact absurd h (by omega)
+        next => exact hv'
+      icases (BigSepM.bigSepM_lookup_acc hv'').mp $$ HMt with ⟨Ht, HMt⟩
+      icases ticketSt_obl _ _ _ c n (prev + 1) κ $$ Ht GMEo0 with ⟨%hle, Ht⟩
+      ihave HMt := HMt $$ Ht
+      have hpc : prev < c := by omega
+      imod Hclose $$ [PtrNext PtrCurr GMAt GMAo HMt HE1 Hn1 GMEt GMEo1 Kgu'] with -
+      · inext
+        iunfold lockInv
+        iright
+        iunfold lockInvAlive
+        iexists n, c, insert tickets (my + 1) (some (gu', ℓ, m) : TicketInfo), obls
+        iframe PtrNext PtrCurr GMAt GMAo
+        isplitr
+        · ipureintro
+          exact ⟨hDomt', Domo, hc0, hcn⟩
+        isplitl [HMt GMEt GMEo1 Kgu']
+        · iapply BigSepM.bigSepM_insert_delete.mpr
+          iframe HMt
+          iunfold ticketSt
+          iright
+          iright
+          iexists gu', ℓ, m
+          iframe GMEt GMEo1 CFl Kgu' Wgu'
+          ipureintro
+          omega
+        · iunfold holderSt
+          iright
+          isplitr
+          · ipureintro
+            exact hcn'
+          iexists ℓ₁, κ₁
+          iframe CFl1 Wl1 GMEo1' HE1 Hn1
+      imodintro
+      ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+      lwp_expr_simp
+      lwp_step HT HG HF
+      rw [hne]
+      lwp_step HT HG HF
+      lwp_expr_simp
+      have hν' : (my - c).toNat < ν := by omega
+      imod embedFuels_decr Nat.lt_wfRel.wf _ hν' $$ EFs with ⟨EFs, Fs⟩
+      ihave Fs := (bigSepM_embedMap G ℓ).mp $$ Fs
+      icases (Obl.fuel_add_set G ℓ.succ 50 (50 * ▽)).mp $$ Fs with ⟨Fs, Fsloop⟩
+      ihave Fs := oblFuels_init G 50 ℓ.succ $$ Fs
+      icases oblFuels_add_nat 4 46 50 G rfl $$ Fs with ⟨Fs, -⟩
+      ihave HF4 := oblFuels_add_obl G gu' ℓ 4 $$ F4 Fs
+      icases ownLayer_lb_le γ dq₂ ℓ ℓ₁ $$ CF CFl1 with ⟨%hℓ₁, CF⟩
+      iapply IH _ hν' c κ₁ ℓ₁ gu' rfl (by omega) hℓ₁ hgu' $$ INV ITK CFl CFl1 Wl1 GMEo1' Wgu'
+        HΦ AL CF EFs Fsloop Agu' GMEt0 HG HF4 HT
 
 /-- The loop of `acquire`, by embedded well-founded induction on the number of tickets ahead
 (Rocq: the outer `iInduction ν`). -/
@@ -1186,7 +1416,7 @@ theorem acquire_loop (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLockName)
     imod Wit.fuels_add_map κ ℓ₀ α ∅ G ℓ.succ 50 (Ordinals.Ordinal.lt_succ_iff.mpr hℓ₀) $$
       WFs Fsloop with WFs
     iapply acquire_loop_inner lc i G γ dq₁ dq₂ ℓ m R E hE C Φ next curr my ν prev κ ℓ₀ hν hprev
-      hℓ₀ IH α gu hgu $$ INV ITK CFl CFl0 Wl0 GMEo0 Wgu HΦ AL CF EFs WFs Agu GMEt0 HG HF HT
+      IH α gu hgu $$ INV ITK CFl CFl0 Wl0 GMEo0 Wgu HΦ AL CF EFs WFs Agu GMEt0 HG HF HT
 
 @[lantana_alias TicketLock_acquire_spec]
 theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : ThreadId) (G : Oids)
