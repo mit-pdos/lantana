@@ -6,3 +6,5 @@ module
 
 public import Lantana.Init
 public import Lantana.Std
+public import Lantana.Prelude
+public import Lantana.Algebra
