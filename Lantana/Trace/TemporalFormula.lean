@@ -4,7 +4,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.Trace.Guarantee
+public import Lantana.Trace.GuaranteeRules
 
 /-! # Temporal formulas: `alwaysI`, `untilI`, `finallyI`
 
@@ -25,7 +25,7 @@ namespace Lantana
 open Iris Iris.BI
 open scoped Lantana.TrSpec Lantana.TrProp
 
-variable {Expr State : Type} {GF : BundledGFunctors}
+variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
 variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- The registry state: the interpretation of the temporal layer (Rocq `reg_state`).

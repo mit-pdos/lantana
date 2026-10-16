@@ -403,4 +403,80 @@ theorem guar_state_fact (P : IProp GF) (φ : State → ThreadPool Expr → Prop)
 
 end State
 
+/-! ## Big separating conjunctions
+
+A big separating conjunction guarantees the guarded family of its elements' guarantees. -/
+
+section BigOps
+
+open Iris.Std LawfulPartialMap
+
+@[lantana_alias guar_big_sepL]
+theorem guar_bigSepL {A : Type _} (l : List A) (Φ : Nat → A → IProp GF)
+    (G : Nat → A → TrSpec Expr State GF) :
+    (∀ k x, Φ k x ⊨ₜ G k x) ⊢
+      iprop([∗list] k ↦ x ∈ l, Φ k x) ⊨ₜ ∀ₛ k, ∀ₛ x, (⌜l[k]? = some x⌝ₛ →ₛ G k x) := by
+  iintro #HG
+  iapply guar_mono (P := iprop(∀ k x, ⌜l[k]? = some x⌝ → Φ k x)) $$ []
+  · imodintro
+    iintro H %k %x %hk
+    iapply BigSepL.bigSepL_lookup hk $$ H
+  · iapply guar_all
+    iintro %k
+    iapply guar_all
+    iintro %x
+    iapply guar_imp
+    iapply HG
+
+@[lantana_alias guar_big_sepM]
+theorem guar_bigSepM {K V : Type _} {M : Type _ → Type _} [LawfulFiniteMap M K] (m : M V)
+    (Φ : K → V → IProp GF) (G : K → V → TrSpec Expr State GF) :
+    (∀ k x, Φ k x ⊨ₜ G k x) ⊢
+      iprop([∗map] k ↦ x ∈ m, Φ k x) ⊨ₜ ∀ₛ k, ∀ₛ x, (⌜get? m k = some x⌝ₛ →ₛ G k x) := by
+  iintro #HG
+  iapply guar_mono (P := iprop(∀ k x, ⌜get? m k = some x⌝ → Φ k x)) $$ []
+  · imodintro
+    iintro H %k %x %hk
+    iapply BigSepM.bigSepM_lookup hk $$ H
+  · iapply guar_all
+    iintro %k
+    iapply guar_all
+    iintro %x
+    iapply guar_imp
+    iapply HG
+
+@[lantana_alias guar_big_sepS]
+theorem guar_bigSepS {S A : Type _} [LawfulFiniteSet S A] (X : S) (Φ : A → IProp GF)
+    (G : A → TrSpec Expr State GF) :
+    (∀ x, Φ x ⊨ₜ G x) ⊢ iprop([∗set] x ∈ X, Φ x) ⊨ₜ ∀ₛ x, (⌜x ∈ X⌝ₛ →ₛ G x) := by
+  iintro #HG
+  iapply guar_mono (P := iprop(∀ x, ⌜x ∈ X⌝ → Φ x)) $$ []
+  · imodintro
+    iintro H %x %hx
+    iapply BigSepS.bigSepS_elem_of hx $$ H
+  · iapply guar_all
+    iintro %x
+    iapply guar_imp
+    iapply HG
+
+end BigOps
+
+/-! ## Inference (D21): `GuarOf` infers from the shape, `IntoGuar` checks against a target -/
+
+/-- The specification inferred from the shape of `P`. -/
+class GuarOf (P : IProp GF) (G : outParam (TrSpec Expr State GF)) : Prop where
+  guar_of : ⊢ P ⊨ₜ G
+
+/-- `P` guarantees the given `G`. -/
+@[lantana_alias IntoGuar]
+class IntoGuar (P : IProp GF) (G : TrSpec Expr State GF) : Prop where
+  into_guar : ⊢ P ⊨ₜ G
+
+instance (priority := low) intoGuar_of_guarOf (P : IProp GF) (G : TrSpec Expr State GF)
+    [GuarOf P G] : IntoGuar P G := ⟨GuarOf.guar_of⟩
+
+instance (priority := low) guarOf_default (P : IProp GF) :
+    GuarOf P (TrSpec.true (Expr := Expr) (State := State)) :=
+  ⟨guar_true⟩
+
 end Lantana
