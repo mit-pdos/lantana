@@ -4,7 +4,8 @@ Written 2026-10-16, after Lantana-Lean became sorry-free. Audience: the maintain
 `dongjaelee1/iris-lean` (branch `transfinite`, pinned at `fdc7402f`). Each item says what Lantana
 had to copy or work around, what upstream change would remove it, and how much Lantana code would
 go. Nothing here is required: Lantana builds and is complete against the pinned Iris-Lean. The
-items are independent; (1)–(3) are mechanical, (4) is the substantial one.
+items are independent; (1)–(3) and (6) are mechanical, (4) is the substantial one. (6) is a
+ten-line change that made Lantana's build a quarter faster.
 
 ## 1. Universe-polymorphic constant functor (`constOF`)
 
@@ -76,3 +77,27 @@ items are independent; (1)–(3) are mechanical, (4) is the substantial one.
   (`*_alloc_names`, `XGS.ofNames`; `Trace/Adequacy/Alloc.lean`).
 - **Option:** if `GS` classes took their `GpreS` as an instance parameter instead of extending it,
   the `GS` types would be small; upstream conventions decide this, so it is only noted here.
+
+## 6. `@[rocq_alias]` waits for asynchronous proofs
+
+- **Finding:** the attribute reads the declaration with `Environment.find?`
+  (`Iris/Std/RocqPorting.lean`), which returns the complete `ConstantInfo` and so waits until the
+  proof of a theorem has been elaborated. Every aliased theorem's command therefore waits for its
+  proof, and the proofs of a module are elaborated one after another instead of in parallel
+  (`Elab.async`). Lantana's `@[lantana_alias]` was a copy of this code. Switching it to
+  `findAsync?` cut a full rebuild of Lantana from 66–67 s to about 49 s (`LEAN_NUM_THREADS=6`,
+  two alternating runs each; `docs/performance.md`), with the same aliases.
+- **Proposal:** read the kind and the signature without waiting for the value:
+  ```lean
+  if env.contains aliasName then throwError ...
+  let some info := env.findAsync? declName | throwError ...
+  let sig := info.sig.get
+  let value := mkConst declName (sig.levelParams.map mkLevelParam)
+  match info.kind with
+  | .thm => addDecl (.thmDecl { name := aliasName, levelParams := sig.levelParams, type := sig.type, value })
+  | _ => addDecl (.defnDecl { name := aliasName, levelParams := sig.levelParams, type := sig.type,
+                              value, hints := .abbrev, safety := .safe })
+  ```
+  Iris-Lean has about 6 000 `rocq_alias` uses, so its own build should gain in the same way
+  (not measured here).
+- **Removes:** nothing; it is a build-time fix.

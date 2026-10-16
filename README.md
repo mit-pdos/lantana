@@ -7,9 +7,11 @@ POPL 2027), on top of Transfinite Iris-Lean.
 - Lean `v4.34.1`; depends on the `Iris/` package of
   [dongjaelee1/iris-lean](https://github.com/dongjaelee1/iris-lean), branch `transfinite`
   (step index `Iris.SI := Ordinal.{3}`), and through it on its `Ordinals` package.
-- Reference: the Rocq development of Lantana (`dev`, commit `0c1515a`). This is a
-  reimplementation, not a line-by-line port: definitions, rules and theorem statements follow
-  Rocq, the implementation is redesigned for Lean (see *Design* below).
+- Reference: the Rocq development of Lantana,
+  [dongjaelee1/liveness](https://github.com/dongjaelee1/liveness) (branch `dev`, commit
+  `0c1515a`). This is a reimplementation, not a line-by-line port: definitions, rules and
+  theorem statements follow Rocq, the implementation is redesigned for Lean (see *Design*
+  below).
 - The development is free of `sorry`, `admit` and `axiom`; its theorems depend only on
   `propext`, `Classical.choice` and `Quot.sound`.
 
@@ -22,6 +24,7 @@ scripts/audit.sh      # no sorry / admit / axiom / native_decide in Lantana/ and
 scripts/check-imports.sh  # layering: Std, Init < Prelude < Algebra < BaseLogic < ProgramLogic
                           #   < Trace < HeapLang < Examples; no module imports a later layer
 scripts/rocq-table.sh     # regenerate docs/rocq-correspondence.md (see below)
+scripts/profile.py        # build-time profile per layer, module and declaration (docs/performance.md)
 ```
 
 ## The main theorems
@@ -100,3 +103,26 @@ no coverage report).
   instances are rebuilt (used by both adequacy theorems).
 - **Guarantee inference** is split into inference (`GuarOf`, an output parameter) and checking
   (`IntoGuar`) by instance search; existentials are ghost or trace-visible by their type.
+
+## Documents
+
+All documents live in `docs/`:
+
+- [`docs/rocq-correspondence.md`](docs/rocq-correspondence.md): the generated Rocq↔Lean table
+  (above).
+- [`docs/performance.md`](docs/performance.md): where the build time goes, by layer, module and
+  declaration, and how to measure it (`scripts/profile.py`).
+- [`docs/iris-lean-proposal.md`](docs/iris-lean-proposal.md): changes to Iris-Lean that would
+  remove code Lantana-Lean had to copy or work around.
+
+## License
+
+Lantana-Lean is licensed under the Apache License 2.0 ([`LICENSE`](LICENSE)); [`NOTICE`](NOTICE)
+gives the attributions. It reimplements the Rocq development of Lantana (3-clause BSD license),
+whose notice `NOTICE` reproduces. Twenty files are adapted from or based on files of Iris-Lean
+(Apache 2.0): the header of each names the Iris-Lean file, reproduces its copyright notice and
+authors, and says that the file was modified. To list them:
+
+```
+grep -rlE "^(Adapted from|Based on|The section .* is adapted from) " Lantana
+```
