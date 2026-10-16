@@ -4,7 +4,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.Trace.TemporalFormula
+public import Lantana.Trace.TemporalFormulaRules
 public import Lantana.Trace.FairScheduling
 public import Lantana.Trace.Adequacy.Alloc
 

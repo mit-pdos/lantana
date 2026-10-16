@@ -219,6 +219,47 @@ theorem fupd_mupd_elim (n tc : Nat) (P : IProp GF) :
   imodintro
   iframe
 
+/-- A model update that only reads the model, which it returns unchanged (a trivial round;
+Rocq `mupd_read` in `temporal_formula.v`). -/
+theorem mupd_read (n tc : Nat) (P : IProp GF) :
+    (∀ (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
+      modelInterp h i Ω W n tc -∗ modelInterp h i Ω W n tc ∗ P) ⊢ mupd n tc P := by
+  iintro H
+  iapply (mupd_unfold n tc P).2
+  unfold mupdPre
+  iright
+  iintro %h %i %Ω₁ %W₁ HM
+  icases H $$ %h %i %Ω₁ %W₁ HM with ⟨HM, HP⟩
+  imodintro
+  iexists Ω₁
+  isplitr
+  · ipureintro
+    exact Obls.lef_refl Ω₁
+  iintro %W₂ %⟨hW, hI₂⟩
+  imod modelInterp_trivial_round h i Ω₁ W₁ W₂ n tc hW hI₂ $$ HM with HM
+  imodintro
+  iframe HM
+  iapply mupd_intro n tc P $$ HP
+
+/-- A snapshot of the current obligation `k` (Rocq `model_interp_event_obl`). -/
+@[lantana_alias model_interp_event_obl]
+theorem modelInterp_eventObl {h : List MEvent} {i : Nat} {Ω : Obls} {W : Witnesses}
+    {n tc : Nat} {k : Oid} {o : Obl} (hk : get? Ω k = some o) :
+    modelInterp h i Ω W n tc ⊢ eventObl (GF := GF) i (n, Ω) k o := by
+  unfold modelInterp
+  iintro ⟨HH, -, -, -, -⟩
+  iapply modelHistoryInterp_eventObl_now h i n Ω hk $$ HH
+
+/-- What a snapshot says about the current model (`eventObl_modelHistoryInterp_lookup`). -/
+theorem modelInterp_eventObl_lookup (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses)
+    (n tc j : Nat) (e : MEvent) (k : Oid) (o : Obl) :
+    modelInterp h i Ω W n tc ∗ eventObl (GF := GF) j e k o ⊢
+      ⌜h[j]? = some e ∧ get? e.2 k = some o ∧ j ≤ i ∧ e.1 ≤ n ∧ Obls.le e.2 Ω⌝ := by
+  unfold modelInterp
+  iintro ⟨⟨HH, -, -, -, -⟩, He⟩
+  iapply eventObl_modelHistoryInterp_lookup h i n Ω j e k o
+  iframe HH He
+
 /-- Sequencing (Rocq `mupd_bind`). -/
 theorem mupd_bind (n tc : Nat) (P Q : IProp GF) :
     (P -∗ mupd n tc Q) ⊢ mupd n tc P -∗ mupd n tc Q := by

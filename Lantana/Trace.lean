@@ -14,4 +14,6 @@ public import Lantana.Trace.TrSpecModel
 public import Lantana.Trace.Guarantee
 public import Lantana.Trace.GuaranteeRules
 public import Lantana.Trace.TemporalFormula
+public import Lantana.Trace.TemporalFormulaRun
+public import Lantana.Trace.TemporalFormulaRules
 public import Lantana.Trace.Adequacy
