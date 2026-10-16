@@ -7,6 +7,7 @@ module
 public import Lantana.Trace.TemporalFormulaRules
 public import Lantana.Trace.FairScheduling
 public import Lantana.Trace.Adequacy.Alloc
+public import Lantana.Trace.Adequacy.RunStep
 
 /-! # Adequacy (Theorem 1)
 
