@@ -298,4 +298,109 @@ theorem guar_imp (φ : Prop) : (P ⊨ₜ G) ⊢ iprop(⌜φ⌝ → P) ⊨ₜ (�
 
 end Rules
 
+/-! ## The canonical specification -/
+
+section Canon
+
+
+@[lantana_alias guar_canon]
+theorem guar_canon (Q : IProp GF) :
+    ⊢@{IProp GF} Q ⊨ₜ TrSpec.canon (Expr := Expr) (State := State) Q := by
+  iapply guar_mono (P := iprop(∀ _ : {G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G}, Q)) $$ []
+  · imodintro
+    iintro HQ %_
+    iexact HQ
+  · have hall : (∀ G : {G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G}, Q ⊨ₜ G.1) ⊢
+        iprop(∀ _ : {G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G}, Q) ⊨ₜ TrSpec.canon Q :=
+      guar_all _ _
+    iapply hall
+    iintro %G
+    have hG : ⊢ Q ⊨ₜ G.1 := G.2
+    iapply hG
+
+@[lantana_alias trSpec_canon_le]
+theorem TrSpec.canon_le {Q : IProp GF} {G : TrSpec Expr State GF} (h : ⊢ Q ⊨ₜ G) :
+    TrSpec.canon Q ⊑ₛ G := by
+  let Sub := {G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G}
+  intro _ _ τ
+  exact forall_elim (Ψ := fun G' : Sub => G'.1.internal τ) ⟨G, h⟩
+
+@[lantana_alias trSpec_canon_ext]
+theorem TrSpec.canon_external {Q : IProp GF} {G : TrSpec Expr State GF} (h : ⊢ Q ⊨ₜ G)
+    {τ : Trace Expr State} (hτ : (TrSpec.canon Q).external τ) : G.external τ :=
+  hτ ⟨G, h⟩
+
+/-- `TrSpec.canon Q` is the greatest lower bound of what `Q` validly guarantees: through it,
+the rules are complete up to in-logic entailment. -/
+@[lantana_alias guar_canon_complete]
+theorem guar_canon_complete (Q : IProp GF) (G : TrSpec Expr State GF) :
+    (⊢ Q ⊨ₜ G) ↔ TrSpec.canon Q ⊑ₛ G :=
+  ⟨TrSpec.canon_le, fun h => (guar_canon Q).trans (guar_weaken h)⟩
+
+/-- The trace reading of the canonical specification: the strongest trace property that `Q`
+validly guarantees. -/
+@[lantana_alias tr_canon]
+def trCanon (Q : IProp GF) : TrProp Expr State := (TrSpec.canon Q).external
+
+@[lantana_alias tr_canon_le]
+theorem trCanon_le (Q : IProp GF) (R : TrProp Expr State) :
+    trCanon Q ⊆ R ↔ ∃ G : TrSpec Expr State GF, (⊢ Q ⊨ₜ G) ∧ G.external ⊆ R := by
+  constructor
+  · intro hR
+    exact ⟨TrSpec.canon Q, guar_canon Q, hR⟩
+  · rintro ⟨G, hG, hR⟩ τ hτ
+    exact hR τ (TrSpec.canon_external hG hτ)
+
+end Canon
+
+/-! ## State atoms
+
+The atoms of temporal properties are facts about the current state: an iProp `P` determines
+`φ` when the state interpretation and `P` entail `φ` (`StateFact`), and then `P` guarantees
+`TrSpec.state φ` (`guar_state_fact`). A language provides the facts of its assertions, e.g.
+`l ↦ v` for HeapLang (`Lantana.HeapLang.TemporalLaws`). -/
+
+section State
+
+/-- The state fact is read now from the history interpretation; the position is pinned by a
+history event, which after the step is looked up in the new history and, through
+`histTrace`, on the trace. -/
+@[lantana_alias guar_state]
+theorem guar_state (φ : State → ThreadPool Expr → Prop) (P : IProp GF)
+    (hφ : ∀ σ tp, stateInterp σ tp ∗ P ⊢ ⌜φ σ tp⌝) :
+    ⊢@{IProp GF} P ⊨ₜ TrSpec.state φ := by
+  have hs : ∀ (h : List (HistEntry Expr State)) n σ tp,
+      historyInterp (GF := GF) h n σ tp ∗ P ⊢ ⌜φ σ tp⌝ := by
+    intro h n σ tp
+    unfold historyInterp
+    iintro ⟨⟨-, -, HS⟩, HP⟩
+    iapply hφ σ tp
+    iframe
+  iapply guar_intro
+  imodintro
+  iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, -, HP⟩
+  ihave #HE := historyInterp_histEvent_now h n σ tp $$ HI
+  ihave %hσ := hs h n σ tp $$ [HI HP]
+  · iframe
+  iapply record_intro
+  imodintro
+  iintro %Sys %l %h' %g %v %Ω' %W' %τf %γ %σ' %tp' - %Hf - ⟨HI', -, -⟩
+  ihave %hh := historyInterp_histEvent_lookup h' (n + 1) σ' tp' n (σ, tp) $$ [HI']
+  · isplitl [HI']
+    · iexact HI'
+    · iexact HE
+  obtain ⟨i', hτ⟩ := Hf.2.2.2 n σ tp hh
+  have hst : ⊢@{IProp GF} (TrSpec.state φ).internal (⟨n, τf⟩ : Trace Expr State) := by
+    change ⊢@{IProp GF} iprop(⌜φ (τf n).cfg.2 (τf n).cfg.1⌝)
+    rw [hτ]
+    exact pure_intro hσ
+  iapply hst
+
+@[lantana_alias guar_state_fact]
+theorem guar_state_fact (P : IProp GF) (φ : State → ThreadPool Expr → Prop) [StateFact P φ] :
+    ⊢@{IProp GF} P ⊨ₜ TrSpec.state φ :=
+  guar_state φ P StateFact.state_fact
+
+end State
+
 end Lantana
