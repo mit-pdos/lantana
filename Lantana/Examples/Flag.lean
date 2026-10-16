@@ -4,6 +4,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 -/
 module
 
+public import Lantana.HeapLang.ProofMode
 public import Lantana.HeapLang.TemporalLaws
 public import Lantana.Trace
 
@@ -18,8 +19,10 @@ sets the flag; `wait` spins until the flag is `1`, which is fair by witness-laye
 At the level of traces (`isFlagTr`), the flag is `0` until `1` and `1` afterwards. The guarantee
 does not say that the flag stays `1`: `flagRun` (`0, 1, 0, 1, 1, …`) satisfies it.
 
-**Skeleton:** the trace-level lemmas are proved; `isFlag_init` and the specifications are
-`sorry` until the HeapLang laws (M7).
+The specifications are proved as in Rocq, with the measures `10` (`init`, `set`) and
+`5 * ▽ + 5` (`wait`: five steps per iteration, by witness-layer induction `Wit.layer_ind`, and
+five for the last one). Everything here is proved, from the obligation-forest interface and
+the rules of temporal formulas (whose own proofs are M4–M6).
 -/
 
 @[expose] public noncomputable section
@@ -27,7 +30,7 @@ does not say that the flag stays `1`: `flagRun` (`0, 1, 0, 1, 1, …`) satisfies
 namespace Lantana.Examples.Flag
 
 open Iris Iris.BI Lantana Lantana.HeapLang Lantana.Language
-open scoped Lantana.TrSpec Lantana.TrProp
+open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 
 /-! ## The program -/
 
@@ -48,6 +51,17 @@ def v1 : Val := hl_val(#1)
 def N : Namespace := nroot.@"flag"
 def Na : Namespace := N.@"always"
 def Np : Namespace := N.@"pointsto"
+
+/-- A namespace is outside its siblings. -/
+theorem ndot_subseteq_diff (N : Namespace) {x y : String} (h : x ≠ y) :
+    (↑(N.@x) : CoPset) ⊆ ⊤ \ ↑(N.@y) := by
+  intro p hp
+  refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
+  exact ndot_ne_disjoint N h p ⟨hp, h'⟩
+
+/-- The until's namespace is outside the invariant's. -/
+theorem Np_subseteq : (↑Np : CoPset) ⊆ ⊤ \ ↑Na :=
+  ndot_subseteq_diff N (by decide)
 
 /-! ## The invariant -/
 
@@ -142,7 +156,29 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
 theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
     parLe (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
-        Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := sorry
+        Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := by
+  iintro #B Ptr Kp
+  imod untilI_alloc (E := E) p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Fk, #Wk, H⟩
+  imod H $$ %E %Np %iprop(l ↦ some v0) %iprop(l ↦ some v1) [Ptr] with H
+  · inext
+    iexact Ptr
+  icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half)
+    (Qp.half_add_half 1).symm $$ H with ⟨H1, H2⟩
+  imod alwaysI_alloc (E := E) (N := Na) (P := flagInv l k) $$ [H1] with #HA
+  · inext
+    unfold flagInv
+    ileft
+    iexact H1
+  imodintro
+  iexists k
+  isplitr
+  · ipureintro
+    exact hk
+  unfold flagTk isFlag
+  iframe Kp Kk Fk H2
+  isplitl
+  · iexact Wk
+  · iexact HA
 
 end Invariant
 
@@ -160,7 +196,28 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
         thKids i G ∗ ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
         Obl.fuel k ℓ m ∗
-        flagTk x k ∗ isFlag x k ℓ }}} := sorry
+        flagTk x k ∗ isFlag x k ℓ }}} := by
+  refine ⟨10, fun lc i G p K ℓ m C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, #HB, HK⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold init
+  lwp_step HT HG HF with Hlc : lc
+  lwp_expr_simp
+  iapply lwp_mupd
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF
+  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
+  rw [show (hl_val(#0) : Val) = v0 from rfl]
+  imod isFlag_init ⊤ x p K ℓ m $$ HB Hx HK with ⟨%k, %hk, HK, Hkk, Hf, Htk, #Hflag⟩
+  imodintro
+  iapply HΦ $$ %x %k
+  iframe
+  isplitl
+  · ipureintro
+    exact hk
+  · iexact Hflag
 
 @[lantana_alias Flag_set_spec]
 theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids)
@@ -170,7 +227,52 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
           oblKids k ∅ ∗ flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗
-        Par.kids p (K.erase k) ∗ Obl.discharged k }}} := sorry
+        Par.kids p (K.erase k) ∗ Obl.discharged k }}} := by
+  refine ⟨10, fun lc i l G p K k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, HK, %hk, Hkk, HU, #Hflag⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold isFlag set
+  icases Hflag with ⟨#Wk, #HA⟩
+  lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  lwp_expr_simp
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+    (fun _ _ => CoPset.mem_full) $$ HA
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨Hinv, Hclose⟩
+  iapply lwp_credit_later $$ Hc1
+  inext
+  unfold flagInv flagTk
+  icases Hinv with (Hinv | ⟨#Hd, -⟩)
+  rotate_left
+  · iexfalso
+    iapply untilI_discharged_false $$ HU Hd
+  ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
+  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Np_subseteq $$ HU
+  ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
+  imod HU
+  iapply lwp_credit_later $$ Hc2
+  inext
+  icases HU with ⟨Hl, Hdis⟩
+  iapply lwp_store (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF Hl]
+  · iframe HT Hl
+    iapply stepPre_nil $$ HG HF
+  iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+  rw [show (hl_val(#1) : Val) = v1 from rfl]
+  imod Hdis $$ %p %K %hk HK Hkk Hl %_ with H
+  imod H with ⟨Hl, HK, #Hd⟩
+  imodintro
+  imod Hclose $$ [Hl]
+  · inext
+    iright
+    iframe Hl
+    iexact Hd
+  imodintro
+  iapply HΦ
+  iframe
+  iexact Hd
 
 /-- The same operations when the flag's obligation is a child of the calling thread itself. -/
 @[lantana_alias Flag_init_thread_spec]
@@ -181,7 +283,30 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
         hl(v(&init) #()) @ i
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
         ⌜k ∉ G⌝ ∗ thKids i (G.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ m ∗
-        flagTk x k ∗ isFlag x k ℓ }}} := sorry
+        flagTk x k ∗ isFlag x k ℓ }}} := by
+  refine ⟨10, fun lc i G ℓ m C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold init
+  lwp_step HT HG HF with Hlc : lc
+  lwp_expr_simp
+  iapply lwp_mupd
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF
+  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
+  rw [show (hl_val(#0) : Val) = v0 from rfl]
+  imod isFlag_init ⊤ x (.thread i) G ℓ m $$ [] Hx HG with
+    ⟨%k, %hk, HG, Hkk, Hf, Htk, #Hflag⟩
+  · iapply parLe_thread
+  imodintro
+  iapply HΦ $$ %x %k
+  iframe
+  isplitl
+  · ipureintro
+    exact hk
+  · iexact Hflag
 
 @[lantana_alias Flag_set_thread_spec]
 theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids)
@@ -191,7 +316,52 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
           flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase k) ∗
-        Obl.discharged k }}} := sorry
+        Obl.discharged k }}} := by
+  refine ⟨10, fun lc i l G k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, %hk, Hkk, HU, #Hflag⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold isFlag set
+  icases Hflag with ⟨#Wk, #HA⟩
+  lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  lwp_expr_simp
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+    (fun _ _ => CoPset.mem_full) $$ HA
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨Hinv, Hclose⟩
+  iapply lwp_credit_later $$ Hc1
+  inext
+  unfold flagInv flagTk
+  icases Hinv with (Hinv | ⟨#Hd, -⟩)
+  rotate_left
+  · iexfalso
+    iapply untilI_discharged_false $$ HU Hd
+  ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
+  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Np_subseteq $$ HU
+  ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
+  imod HU
+  iapply lwp_credit_later $$ Hc2
+  inext
+  icases HU with ⟨Hl, Hdis⟩
+  iapply lwp_store (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF Hl]
+  · iframe HT Hl
+    iapply stepPre_nil $$ HG HF
+  iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+  rw [show (hl_val(#1) : Val) = v1 from rfl]
+  imod Hdis $$ %(.thread i) %G %hk HG Hkk Hl %_ with H
+  imod H with ⟨Hl, HG, #Hd⟩
+  imodintro
+  imod Hclose $$ [Hl]
+  · inext
+    iright
+    iframe Hl
+    iexact Hd
+  imodintro
+  iapply HΦ
+  iframe
+  iexact Hd
 
 /-- Waiting is fair: the caller's fuel is at the layer above the flag's witness layer. -/
 @[lantana_alias Flag_wait_spec]
@@ -200,8 +370,99 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&wait) #l) ∗ thKids i G ∗
           ([∗set] g ∈ G, Obl.fuel g ℓ.succ μ) ∗ isFlag l k ℓ }}}
         hl(v(&wait) #l) @ i
-      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} :=
-  sorry
+      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} := by
+  refine ⟨5 * ▽ + 5, fun lc i l G k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, #Hflag⟩ HΦ
+  unfold isFlag
+  icases Hflag with ⟨#Wk, #HA⟩
+  icases (Obl.fuel_add_set G ℓ.succ (5 * ▽) 5).mp $$ HF with ⟨HFw, HF⟩
+  imod Wit.layer_ind k ℓ G ℓ.succ 5
+    iprop(threadExpr i C hl(v(&wait) #l) -∗ thKids i G -∗
+      (threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k -∗ Φ v1) -∗
+      ([∗set] g ∈ G, Obl.fuel g ℓ.succ 5) -∗ lWP hl(v(&wait) #l) @ i {{ Φ }})
+    (Ordinals.Ordinal.lt_succ ℓ) $$ [HFw] with HP
+  · isplitl []
+    · imodintro
+      iintro IH
+      imodintro
+      iintro HT HG HΦ HF
+      ihave HF := oblFuels_init G 5 ℓ.succ $$ HF
+      unfold wait
+      lwp_step HT HG HF with Hc : 1 +ₕ 1
+      icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
+      lwp_expr_simp
+      lwp_bind hl(!#l) HT
+      ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+        (fun _ _ => CoPset.mem_full) $$ HA
+      ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+      imod Hacc with ⟨Hinv, Hclose⟩
+      iapply lwp_credit_later $$ Hc1
+      inext
+      unfold flagInv
+      icases Hinv with (Hinv | ⟨#Hd, Hl⟩)
+      · ihave Hu := untilI_acc (E := ⊤ \ ↑Na) Np_subseteq $$ Hinv
+        ihave Hu := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hu
+        imod Hu
+        iapply lwp_credit_later $$ Hc2
+        inext
+        icases Hu with ⟨Hl, Hucl⟩
+        icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+        iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := {k}) $$ [HT HG HF1 Hl]
+        · iframe HT Hl
+          iapply stepPre_wit $$ HG HF1 Wk
+        iintro ⟨HT, ⟨-, HG, HW⟩, Hl⟩
+        icases witCreds_singleton k $$ HW with (Hwc | #Hd)
+        rotate_left
+        · imod Hucl $$ [Hl] with Hu
+          · inext
+            iexact Hl
+          iexfalso
+          iapply untilI_discharged_false $$ Hu Hd
+        imod Hucl $$ [Hl] with Hu
+        · inext
+          iexact Hl
+        imodintro
+        imod Hclose $$ [Hu]
+        · inext
+          ileft
+          iexact Hu
+        imodintro
+        ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+        lwp_expr_simp
+        lwp_step HT HG HF
+        rw [show (v0 == hl_val(#1)) = false from rfl]
+        lwp_step HT HG HF
+        simp only [Bool.not_false]
+        lwp_step HT HG HF
+        imod IH $$ Hwc with ⟨HF, HP⟩
+        iapply HP $$ HT HG HΦ HF
+      · icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+        iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hl]
+        · iframe HT Hl
+          iapply stepPre_nil $$ HG HF1
+        iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+        imod Hclose $$ [Hl]
+        · inext
+          iright
+          iframe Hl
+          iexact Hd
+        imodintro
+        ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+        lwp_expr_simp
+        lwp_step HT HG HF
+        rw [show (v1 == hl_val(#1)) = true from rfl]
+        lwp_step HT HG HF
+        simp only [Bool.not_true]
+        lwp_step HT HG HF with Hlc : lc
+        iapply lwp_value'
+        rw [show Φ hl_val(#1) = Φ v1 from rfl]
+        iapply HΦ
+        iframe
+        iexact Hd
+    isplitl []
+    · iexact Wk
+    · iexact HFw
+  iapply HP $$ HT HG HΦ HF
 
 end Specs
 
