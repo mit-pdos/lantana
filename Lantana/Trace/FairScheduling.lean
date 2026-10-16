@@ -34,6 +34,6 @@ def fairScheduling : TrProp Expr State :=
 @[lantana_alias fair_scheduling_next]
 theorem fairScheduling_next {τ : Trace Expr State} (h : fairScheduling τ) :
     fairScheduling τ.next :=
-  TrProp.always_next τ h
+  fun m hm => h m (Nat.le_of_succ_le hm)
 
 end Lantana

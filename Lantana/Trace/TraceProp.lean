@@ -85,9 +85,9 @@ scoped notation:max "⌜" p "⌝ₜ" => TrProp.pure p
 scoped infixr:35 " ∧ₜ " => TrProp.and
 scoped infixr:30 " ∨ₜ " => TrProp.or
 scoped infixr:25 " →ₜ " => TrProp.imp
-scoped prefix:max "□ₜ " => TrProp.always
-scoped prefix:max "◇ₜ " => TrProp.eventually
-scoped prefix:max "○ₜ " => TrProp.next
+scoped notation:max "□ₜ " P:40 => TrProp.always P
+scoped notation:max "◇ₜ " P:40 => TrProp.eventually P
+scoped notation:max "○ₜ " P:40 => TrProp.next P
 scoped infixr:40 " 𝒰ₜ " => TrProp.strongUntil
 
 open Lean in
