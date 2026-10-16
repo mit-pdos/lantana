@@ -5,17 +5,33 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.Trace.TrSpec
+public import Lantana.Trace.Adequacy.Step
 public import Lantana.ProgramLogic.WeakestPre
 
-/-! # Temporal guarantees `P ⊨ₜ G`
+/-! # Temporal guarantees `P ⊨ₜ G`: records, certificates and the one-step property
 
-Rocq `lantana/trace/guarantee.v` and `guarantee_rules.v`: a persistent guarantee `P ⊨ₜ G`
-states that whenever `P` holds, the rest of the execution satisfies the trace specification
-`G`. Guarantees are inferred from the shape of `P` (`GuarOf`) and checked against a target
-(`IntoGuar`); `TrSpec.canon P` is the canonical (strongest) specification guaranteed by `P`.
+Rocq `lantana/trace/guarantee.v`: a persistent guarantee `P ⊨ₜ G` states that whenever `P`
+holds, the rest of the execution satisfies the trace specification `G`; adequacy concludes
+`G.external`.
 
-**Skeleton (M1):** `Guar` is opaque (its definition through records, certificates, bundles and
-the one-step property `sysStep` comes with the adequacy proof, M6); the rules are `sorry`.
+At position `n`, `P ⊨ₜ G` turns `P` (with the history and model interpretations) into a
+persistent **record** `record G n`, which gives the internal reading of `G` at `n` once the step
+from `n` is made. A record may be written in the pre-step update of step `n` (e.g. by
+discharging an until), so it is eliminated after the step, against the **bundle** of
+certificates for `n`: each registered structure (`TemporalRegistry`) has its content certified
+at every position (`certPre`, a later-guarded record). A record holds for any running system
+with the **one-step property** `sysStep` (`lWP` is one, `Adequacy/Temporal`).
+
+The pure facts about the run (D18): the trace is a behavior from the current position, the
+fairness counters are an explicit sequence `γ : Nat → ThreadId → Nat` along the trace
+(`BehFscnt`), the witnesses are bounded below by the fair-scheduler measure of the current
+counters (`owitInvLb`), the ghost history is a prefix of the trace (`histTrace`), and across a
+step every assigned obligation's measure drops (`oblsDrop`). Records are a guarded fixpoint
+(`recordTrI`): the certificates hold the records under a later.
+
+`TrSpec.canon P` is the canonical (strongest) specification guaranteed by `P`. The rules are in
+`Lantana.Trace.GuaranteeRules`; the class `StateFact` of the atoms of trace specifications is
+here, so that a language can provide its instances without the rules.
 -/
 
 @[expose] public noncomputable section
@@ -23,127 +39,235 @@ the one-step property `sysStep` comes with the adequacy proof, M6); the rules ar
 namespace Lantana
 
 open Iris Iris.BI
+open Lantana.Model
 open scoped Lantana.TrSpec Lantana.TrProp
 
-variable {Expr State : Type} {GF : BundledGFunctors}
-variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable {Expr State Val : Type} {GF : BundledGFunctors}
 
-/-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`. (The instance
-arguments are bound explicitly: an `opaque` includes only the variables its type mentions.) -/
-@[lantana_alias guar]
-opaque Guar [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF
+/-! ## Records, certificates and the one-step property -/
 
-scoped infix:25 " ⊨ₜ " => Guar
+/-- The ghost history `h` is a prefix of the trace `τf`. -/
+@[lantana_alias hist_trace]
+def histTrace (h : List (HistEntry Expr State)) (τf : Nat → TraceState Expr State) : Prop :=
+  ∀ n' σ' tp', h[n']? = some (σ', tp') → ∃ i', τf n' = ⟨(tp', σ'), i'⟩
 
-instance Guar.persistent (P : IProp GF) (G : TrSpec Expr State GF) : Persistent (P ⊨ₜ G) := sorry
+/-- Records: a reading `f` at a position (Rocq `recT`). -/
+abbrev RecT (Expr State : Type) (GF : BundledGFunctors) :=
+  (Trace Expr State → IProp GF) → Nat → IProp GF
 
-instance Guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF => P ⊨ₜ G) :=
-  sorry
+/-- A running system: a resource indexed by the position and the configuration
+(Rocq `sysT`). -/
+abbrev SysT (Expr State : Type) (GF : BundledGFunctors) :=
+  Nat → State → ThreadPool Expr → IProp GF
 
-/-! ## Rules -/
+section Pre
+variable [ModelGS GF] [TemporalGS Expr State GF]
 
-section Rules
-variable {P Q : IProp GF} {G G₁ G₂ H : TrSpec Expr State GF}
+/-- The certificate of a registered item at `n`: a later-guarded record of its content at `n`.
+For an until, the record of its left or right formula at `n`, or, if it was discharged at
+`n' ≤ n`, the record of its right formula at `n'`. -/
+@[lantana_alias cert_pre]
+def certPre (tg : RecT Expr State GF) (n : Nat) : RegEntry → IProp GF
+  | .mark => iprop(True)
+  | .always _ γ => iprop(∃ f : Trace Expr State → IProp GF, savedTrI γ f ∗ ▷ tg f n)
+  | .until _ k γP γQ => iprop(∃ fP fQ : Trace Expr State → IProp GF,
+      savedTrI γP fP ∗ savedTrI γQ fQ ∗
+      (▷ (tg fP n ∨ tg fQ n) ∨
+        ▷ (∃ (n' i' : Nat) (Ω' : Obls),
+          ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗ tg fQ n')))
 
-@[lantana_alias guar_weaken]
-theorem guar_weaken (h : G ⊑ₛ H) : (P ⊨ₜ G) ⊢ P ⊨ₜ H := sorry
+/-- The bundle for position `n`: a registry prefix ending with the marker of `n` and the
+certificates of its entries. -/
+@[lantana_alias bundle_pre]
+def bundlePre (tg : RecT Expr State GF) (l : List (Nat × RegEntry)) (n : Nat) : IProp GF :=
+  iprop(regLb l ∗ ⌜l.getLast? = some (n, .mark)⌝ ∗ [∗list] pe ∈ l, certPre tg n pe.2)
 
-/-- Exporting trace-level consequences. -/
-@[lantana_alias guar_cast]
-theorem guar_cast (R : TrProp Expr State) (pf : G.external ⊆ R) : (P ⊨ₜ G) ⊢ P ⊨ₜ G.cast R pf :=
-  sorry
+variable [Language Expr State Val] [StateInterp Expr State GF]
 
-@[lantana_alias guar_mono]
-theorem guar_mono : □ (Q -∗ P) ⊢ (P ⊨ₜ G) -∗ Q ⊨ₜ G := sorry
+/-- The one-step property of `Sys`: from a consistent system at `n`, the bundle for `n` (the
+check), then after the step the system at `n + 1`, the facts about the step and `c` later
+credits. The modalities are those of `TrIProp.defer`. -/
+@[lantana_alias sys_step_pre]
+def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :=
+  iprop(□ ∀ (c : Nat) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
+      (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+      (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat),
+    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n, τf⟩ γ ∧
+      owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
+    historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
+    |={⊤,∅}=> ∃ l, bundlePre tg l n ∗ ▷ |={∅,⊤}=> |={⊤,∅}=> ALC iprop(|={∅,⊤}=>
+      ∃ (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent) (v' : Nat) (Ω' : Obls)
+        (W' : Witnesses),
+        ⌜IsBehavior (⟨n + 1, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+          owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
+          oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ ∗
+        £ₙ c ∗ historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
+        modelInterp g' v' Ω' W' (n + 1) tp'.length ∗ Sys (n + 1) σ' tp'))
 
-@[lantana_alias guar_true]
-theorem guar_true : ⊢@{IProp GF} P ⊨ₜ TrSpec.true (Expr := Expr) (State := State) := sorry
+/-- A record for `f` at `n`: for any system with the one-step property, given the bundle for
+`n` and the system at `n + 1` consistent with the trace, `f` holds at `n` on the trace. -/
+@[lantana_alias record_pre]
+def recordPre (tg : RecT Expr State GF) : RecT Expr State GF := fun f n =>
+  iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
+      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+      (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat) (σ : State)
+      (tp : ThreadPool Expr),
+    sysStepPre tg Sys -∗
+    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    bundlePre tg l n -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    f ⟨n, τf⟩)
 
-@[lantana_alias guar_pure]
-theorem guar_pure (φ : Prop) :
-    ⊢@{IProp GF} iprop(⌜φ⌝) ⊨ₜ TrSpec.pure (Expr := Expr) (State := State) φ := sorry
+end Pre
 
-@[lantana_alias guar_and]
-theorem guar_and : (P ⊨ₜ G₁) ⊢ (Q ⊨ₜ G₂) -∗ iprop(P ∧ Q) ⊨ₜ (G₁ ∧ₛ G₂) := sorry
+/-! ### Contractiveness: the certificates hold the records under a later -/
 
-@[lantana_alias guar_sep]
-theorem guar_sep : (P ⊨ₜ G₁) ⊢ (Q ⊨ₜ G₂) -∗ iprop(P ∗ Q) ⊨ₜ (G₁ ∧ₛ G₂) := sorry
+section Contractive
+variable [ModelGS GF] [TemporalGS Expr State GF]
 
-@[lantana_alias guar_or]
-theorem guar_or : (P ⊨ₜ G₁) ⊢ (Q ⊨ₜ G₂) -∗ iprop(P ∨ Q) ⊨ₜ (G₁ ∨ₛ G₂) := sorry
+@[lantana_alias cert_pre_contractive]
+theorem certPre_contractive {k : SI} {tg₁ tg₂ : RecT Expr State GF} (h : OFE.DistLater k tg₁ tg₂)
+    (n : Nat) (e : RegEntry) : certPre tg₁ n e ≡{k}≡ certPre tg₂ n e := by
+  rcases e with _ | ⟨N, γ⟩ | ⟨N, o, γP, γQ⟩
+  · exact .rfl
+  · exact exists_ne fun f => sep_ne.ne .rfl <|
+      OFE.Contractive.distLater_dist (f := BIBase.later) fun m hm => h m hm f n
+  · exact exists_ne fun fP => exists_ne fun fQ => sep_ne.ne .rfl <| sep_ne.ne .rfl <|
+      or_ne.ne
+        (OFE.Contractive.distLater_dist (f := BIBase.later) fun m hm =>
+          or_ne.ne (h m hm fP n) (h m hm fQ n))
+        (OFE.Contractive.distLater_dist (f := BIBase.later) fun m hm =>
+          exists_ne fun n' => exists_ne fun _ => exists_ne fun _ =>
+            sep_ne.ne .rfl (sep_ne.ne .rfl (h m hm fQ n')))
 
-/-- An until fulfilled now (rank `0`; the until's step strips the later). -/
-@[lantana_alias guar_until_now]
-theorem guar_until_now : ▷ (P ⊨ₜ G₂) ⊢ P ⊨ₜ (G₁ 𝒰ₛ G₂) := sorry
+@[lantana_alias bundle_pre_contractive]
+theorem bundlePre_contractive {k : SI} {tg₁ tg₂ : RecT Expr State GF}
+    (h : OFE.DistLater k tg₁ tg₂) (l : List (Nat × RegEntry)) (n : Nat) :
+    bundlePre tg₁ l n ≡{k}≡ bundlePre tg₂ l n :=
+  sep_ne.ne .rfl <| sep_ne.ne .rfl <|
+    BigSepL.bigSepL_dist fun _ => certPre_contractive h n _
 
-@[lantana_alias guar_forall]
-theorem guar_all {X : Type _} (P : X → IProp GF) (G : X → TrSpec Expr State GF) :
-    (∀ x, P x ⊨ₜ G x) ⊢ iprop(∀ x, P x) ⊨ₜ TrSpec.all G := sorry
+variable [Language Expr State Val] [StateInterp Expr State GF]
 
-@[lantana_alias guar_exist]
-theorem guar_ex {X : Type _} [SIdxLarge SI X] (P : X → IProp GF) (G : X → TrSpec Expr State GF) :
-    (∀ x, P x ⊨ₜ G x) ⊢ iprop(∃ x, P x) ⊨ₜ TrSpec.ex G := sorry
+@[lantana_alias sys_step_pre_contractive]
+theorem sysStepPre_contractive {k : SI} {tg₁ tg₂ : RecT Expr State GF}
+    (h : OFE.DistLater k tg₁ tg₂) (Sys : SysT Expr State GF) :
+    sysStepPre tg₁ Sys ≡{k}≡ sysStepPre tg₂ Sys := by
+  unfold sysStepPre
+  refine intuitionistically_ne.ne ?_
+  iterate 11 refine forall_ne fun _ => ?_
+  exact wand_ne.ne .rfl <| wand_ne.ne .rfl <| fupd_ne.ne <| exists_ne fun l =>
+    sep_ne.ne (bundlePre_contractive h l _) .rfl
 
-/-- A ghost existential: the witness is not trace-visible. -/
-@[lantana_alias guar_exist_ghost]
-theorem guar_ex_ghost {X : Type _} (P : X → IProp GF) :
-    (∀ x, P x ⊨ₜ G) ⊢ iprop(∃ x, P x) ⊨ₜ G := sorry
+@[lantana_alias record_pre_contractive]
+instance recordPre_contractive :
+    OFE.Contractive (recordPre (Expr := Expr) (State := State) (GF := GF)) where
+  distLater_dist h f n := by
+    unfold recordPre
+    refine intuitionistically_ne.ne ?_
+    iterate 11 refine forall_ne fun _ => ?_
+    exact wand_ne.ne (sysStepPre_contractive h _) <| wand_ne.ne .rfl <|
+      wand_ne.ne (bundlePre_contractive h _ _) .rfl
 
-@[lantana_alias guar_persistently]
-theorem guar_persistently : (P ⊨ₜ G) ⊢ iprop(□ P) ⊨ₜ G := sorry
+end Contractive
 
-@[lantana_alias guar_impl]
-theorem guar_imp (φ : Prop) : (P ⊨ₜ G) ⊢ iprop(⌜φ⌝ → P) ⊨ₜ (⌜φ⌝ₛ →ₛ G) := sorry
+/-! ### Records, bundles, certificates and the one-step property -/
 
-end Rules
+section Records
+variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Val]
+  [StateInterp Expr State GF]
 
-/-! ## The canonical specification -/
+/-- Records of step-indexed readings: the guarded fixpoint of `recordPre`. -/
+@[lantana_alias record_trI]
+def recordTrI : RecT Expr State GF := fixpoint recordPre
 
-/-- The canonical specification guaranteed by `Q`: the meet of all specifications validly
-guaranteed by `Q`. -/
-@[lantana_alias trSpec_canon]
-def TrSpec.canon (Q : IProp GF) : TrSpec Expr State GF :=
-  TrSpec.all fun G : { G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G } => G.1
+theorem recordTrI_eq (f : Trace Expr State → IProp GF) (n : Nat) :
+    recordTrI f n = recordPre recordTrI f n :=
+  congrFun (congrFun (fixpoint_unfold (recordPre (Expr := Expr) (State := State)
+    (GF := GF)).toContractiveHom) f) n
 
-@[lantana_alias guar_canon]
-theorem guar_canon (Q : IProp GF) :
-    ⊢@{IProp GF} Q ⊨ₜ TrSpec.canon (Expr := Expr) (State := State) Q := sorry
+@[lantana_alias record_trI_unfold]
+theorem recordTrI_unfold (f : Trace Expr State → IProp GF) (n : Nat) :
+    recordTrI f n ⊣⊢ recordPre recordTrI f n :=
+  BiEntails.of_eq (recordTrI_eq f n)
 
-@[lantana_alias trSpec_canon_le]
-theorem TrSpec.canon_le {Q : IProp GF} {G : TrSpec Expr State GF} (h : ⊢ Q ⊨ₜ G) :
-    TrSpec.canon Q ⊑ₛ G := sorry
+@[lantana_alias record_trI_persistent]
+instance recordTrI_persistent (f : Trace Expr State → IProp GF) (n : Nat) :
+    Persistent (recordTrI f n) := by
+  rw [recordTrI_eq]
+  unfold recordPre
+  infer_instance
 
-@[lantana_alias guar_canon_complete]
-theorem guar_canon_complete (Q : IProp GF) (G : TrSpec Expr State GF) :
-    (⊢ Q ⊨ₜ G) ↔ TrSpec.canon Q ⊑ₛ G := sorry
+@[lantana_alias record_trI_ne]
+instance recordTrI_ne (n : Nat) :
+    OFE.NonExpansive (fun f : Trace Expr State → IProp GF => recordTrI f n) where
+  ne k f₁ f₂ hf := by
+    simp only [recordTrI_eq]
+    unfold recordPre
+    refine intuitionistically_ne.ne ?_
+    iterate 11 refine forall_ne fun _ => ?_
+    exact wand_ne.ne .rfl <| wand_ne.ne .rfl <| wand_ne.ne .rfl <| wand_ne.ne .rfl (hf _)
 
-/-! ## State facts -/
+/-- Records of internally equal readings (the agreement of saved readings is internal). -/
+@[lantana_alias record_trI_eq]
+theorem recordTrI_internalEq (f g : Trace Expr State → IProp GF) (n : Nat) :
+    iprop(f ≡ g) ⊢ recordTrI f n -∗ recordTrI g n :=
+  wand_intro <| sep_and.trans <| imp_elim (internalEq.rewrite (fun f => recordTrI f n))
 
-/-- `StateFact P φ`: the state interpretation and `P` determine the state predicate `φ`; the
-atoms of trace properties. -/
-@[lantana_alias StateFact]
-class StateFact (P : IProp GF) (φ : outParam (State → ThreadPool Expr → Prop)) : Prop where
-  state_fact : ∀ (σ : State) (tp : ThreadPool Expr), stateInterp σ tp ∗ P ⊢ ⌜φ σ tp⌝
+/-- The record of a trace specification at `n`. -/
+@[lantana_alias record]
+def record (G : TrSpec Expr State GF) (n : Nat) : IProp GF := recordTrI G.internal n
 
-@[lantana_alias guar_state_fact]
-theorem guar_state_fact (P : IProp GF) (φ : State → ThreadPool Expr → Prop) [StateFact P φ] :
-    ⊢@{IProp GF} P ⊨ₜ TrSpec.state φ := sorry
+/-- The bundle for `n`, with records as the certified readings. Irreducible, so that `inext`
+does not strip the laters of the certificates. -/
+@[lantana_alias bundle, irreducible]
+def bundle (l : List (Nat × RegEntry)) (n : Nat) : IProp GF :=
+  bundlePre (recordTrI (Expr := Expr) (State := State)) l n
 
-/-! ## Inference (D21): `GuarOf` infers from the shape, `IntoGuar` checks against a target -/
+/-- The certificate of an entry at `n` (irreducible, as `bundle`). -/
+@[lantana_alias cert, irreducible]
+def cert (n : Nat) (e : RegEntry) : IProp GF :=
+  certPre (recordTrI (Expr := Expr) (State := State)) n e
 
-/-- The specification inferred from the shape of `P`. -/
-class GuarOf (P : IProp GF) (G : outParam (TrSpec Expr State GF)) : Prop where
-  guar_of : ⊢ P ⊨ₜ G
+/-- The one-step property of a running system (irreducible, as `bundle`). -/
+@[lantana_alias sys_step, irreducible]
+def sysStep (Sys : SysT Expr State GF) : IProp GF := sysStepPre recordTrI Sys
 
-/-- `P` guarantees the given `G`. -/
-@[lantana_alias IntoGuar]
-class IntoGuar (P : IProp GF) (G : TrSpec Expr State GF) : Prop where
-  into_guar : ⊢ P ⊨ₜ G
+theorem bundle_eq (l : List (Nat × RegEntry)) (n : Nat) :
+    bundle (Expr := Expr) (State := State) (GF := GF) l n = bundlePre recordTrI l n := by
+  unfold bundle; rfl
 
-instance (priority := low) intoGuar_of_guarOf (P : IProp GF) (G : TrSpec Expr State GF)
-    [GuarOf P G] : IntoGuar P G := ⟨GuarOf.guar_of⟩
+theorem cert_eq (n : Nat) (e : RegEntry) :
+    cert (Expr := Expr) (State := State) (GF := GF) n e = certPre recordTrI n e := by
+  unfold cert; rfl
 
-instance (priority := low) guarOf_default (P : IProp GF) : GuarOf P (TrSpec.true (Expr := Expr) (State := State)) :=
-  ⟨guar_true⟩
+theorem sysStep_eq (Sys : SysT Expr State GF) : sysStep Sys = sysStepPre recordTrI Sys := by
+  unfold sysStep; rfl
+
+@[lantana_alias record_persistent]
+instance record_persistent (G : TrSpec Expr State GF) (n : Nat) : Persistent (record G n) := by
+  unfold record; infer_instance
+
+@[lantana_alias cert_pre_persistent]
+instance certPre_persistent (n : Nat) (e : RegEntry) :
+    Persistent (certPre (recordTrI (Expr := Expr) (State := State) (GF := GF)) n e) := by
+  rcases e with _ | ⟨N, γ⟩ | ⟨N, o, γP, γQ⟩ <;> unfold certPre <;> infer_instance
+
+@[lantana_alias cert_persistent]
+instance cert_persistent (n : Nat) (e : RegEntry) :
+    Persistent (cert (Expr := Expr) (State := State) (GF := GF) n e) := by
+  rw [cert_eq]; infer_instance
+
+@[lantana_alias bundle_persistent]
+instance bundle_persistent (l : List (Nat × RegEntry)) (n : Nat) :
+    Persistent (bundle (Expr := Expr) (State := State) (GF := GF) l n) := by
+  rw [bundle_eq]; unfold bundlePre; infer_instance
+
+@[lantana_alias sys_step_persistent]
+instance sysStep_persistent (Sys : SysT Expr State GF) : Persistent (sysStep Sys) := by
+  rw [sysStep_eq]; unfold sysStepPre; infer_instance
+
+end Records
 
 end Lantana
