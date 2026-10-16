@@ -164,6 +164,10 @@ theorem until_unfold (P Q : TrIProp Expr State GF) (a : Fuel) (τ : Trace Expr S
 
 /-! ## Reading the fixpoints off a trace, by satisfiability -/
 
+#lantana_ignore ordSI "The step index is Iris-Lean's `Iris.SI := Ordinal.{3}`."
+#lantana_ignore iProp_sat_lc_SatisfiableExists
+  "The instances `SatExists (iPropSatLcAtFrame F E) X` follow from `iPropSat_exists`."
+
 /-- Satisfiability of `always P` at `τ` gives `P` at `τ` and `always P` at the next position. -/
 theorem always_sat_unfold {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace Expr State}
     (hs : (iPropSatLcAtFrame F ⊤).sat (always P τ)) :
@@ -175,6 +179,15 @@ theorem always_trace_next {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace
     (hs : (iPropSatLcAtFrame F ⊤).sat (always P τ)) :
     (iPropSatLcAtFrame F ⊤).sat (always P τ.next) :=
   (always_sat_unfold hs).2
+
+@[lantana_alias trI_always_trace_later]
+theorem always_trace_later {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace Expr State}
+    (hs : (iPropSatLcAtFrame F ⊤).sat (always P τ)) (m : Nat) (hm : τ.pos ≤ m) :
+    (iPropSatLcAtFrame F ⊤).sat (always P { τ with pos := m }) := by
+  obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le hm
+  induction k with
+  | zero => exact hs
+  | succ k ih => exact always_trace_next (ih (Nat.le_add_right _ _))
 
 @[lantana_alias trI_always_tr_always]
 theorem always_tr_always (F : IProp GF) (P : TrIProp Expr State GF) (R : TrProp Expr State)
