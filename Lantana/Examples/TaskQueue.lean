@@ -22,15 +22,17 @@ fresh container they move into (`Queue.dequeue_spec`), lifted to the task's laye
 ## Specifications
 
 All proved, with Rocq's statements (thread `i`, mask `⊤`, `∃ μ` in front): `putTask_spec`
-(measure `100 + μ_enqueue`), `runTask_spec` (`100 + μ_dequeue`), `worker_spec` (the worker
-never returns: `RET #(); False`, by Löb induction; with its inbox it renews it at every
-iteration, without it it pays nothing) and `init_spec` (`100 + μ_init + …`).
+(measure `100 + μ_enqueue`), `runTask_spec` (`100 + μ_dequeue`; the dequeued container and
+the new inbox get `m + 99 + 1`), `worker_spec` (`10 + (μ_runTask + 1)`; the worker never
+returns: `RET #(); False`, by Löb induction; with its inbox it renews it at every iteration,
+without it it pays nothing) and `init_spec` (`100 + μ_init`). The step counts differ from
+Rocq's, as the Lean programs' do.
 
 Unlike Rocq, which forks with `lwp_fork_step` and creates the worker's inbox in the child,
 `init` creates the inbox below the main thread just before the fork (with the fuel of the fork
-step, of its move and of the worker), installs the queue's invariant with it, and `lwp_fork`
-moves it to the worker (as `HandoffClient` does); the measure of `init` then also pays for the
-inbox (`2 + μ_worker`).
+step, of its move and of the worker, `1 + (1 + μ_worker)`; a new obligation's fuel is free),
+installs the queue's invariant with it, and `lwp_fork` moves it to the worker (as
+`HandoffClient` does).
 
 ## Guarantees and traces
 
