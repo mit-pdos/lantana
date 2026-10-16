@@ -110,7 +110,7 @@ instance instLantanaGS {GF : BundledGFunctors} [HeapGS GF] : LantanaGS Exp State
 
 section Laws
 
-variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TlcGS GF] [BIFUpdate (IProp GF)]
+variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
   [TemporalInterp Exp State GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem} {G R : Oids} {o : Fuel}
 

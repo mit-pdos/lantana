@@ -26,8 +26,7 @@ open Iris Iris.BI
 open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State : Type} {GF : BundledGFunctors}
-variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] [TlcGS GF]
-  [BIFUpdate (IProp GF)]
+variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- The registry state: the interpretation of the temporal layer (Rocq `reg_state`).
 PLACEHOLDER until the registry (M5/M6). -/
@@ -40,13 +39,11 @@ instance regTemporalInterp : TemporalInterp Expr State GF := ⟨regState⟩
 
 /-- `alwaysI N P`: a registered invariant holding `P` (Rocq `alwaysI`). -/
 @[lantana_alias alwaysI]
-opaque alwaysI [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] [TlcGS GF]
-    [BIFUpdate (IProp GF)] (N : Namespace) (P : IProp GF) : IProp GF
+opaque alwaysI [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] (N : Namespace) (P : IProp GF) : IProp GF
 
 /-- `untilI N k q P Q`: `P` until `Q`, on the obligation `k` (fraction `q`). -/
 @[lantana_alias untilI]
-opaque untilI [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] [TlcGS GF]
-    [BIFUpdate (IProp GF)] (N : Namespace) (k : Oid) (q : Qp) (P Q : IProp GF) : IProp GF
+opaque untilI [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] (N : Namespace) (k : Oid) (q : Qp) (P Q : IProp GF) : IProp GF
 
 /-- `finallyI N k q Q`: eventually `Q`, on the obligation `k`. -/
 @[lantana_alias finallyI]
@@ -55,8 +52,7 @@ def finallyI (N : Namespace) (k : Oid) (q : Qp) (Q : IProp GF) : IProp GF :=
 
 /-- A fulfilled until: `Q` holds and `k` is discharged. -/
 @[lantana_alias untilI_done]
-opaque untilIDone [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] [TlcGS GF]
-    [BIFUpdate (IProp GF)] (k : Oid) (Q : IProp GF) : IProp GF
+opaque untilIDone [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] (k : Oid) (Q : IProp GF) : IProp GF
 
 instance alwaysI_persistent (N : Namespace) (P : IProp GF) : Persistent (alwaysI N P) := sorry
 instance alwaysI_contractive (N : Namespace) : OFE.Contractive (alwaysI (GF := GF) N) := sorry

@@ -111,7 +111,6 @@ scoped macro_rules
 
 section
 variable {Expr : Type} {State : Type} {GF : BundledGFunctors} [ModelGS GF]
-  [BIFUpdate (IProp GF)]
 
 /-- The fancy model update `|={E₁,E₂:n,tc}=>m P` (Rocq `fmupd`). -/
 @[lantana_alias fmupd]
@@ -209,7 +208,7 @@ instance Wit.fuels_empty_persistent (k : Oid) (ℓ : Layer) (α : Fuel) :
 /-! ## The model update: the three core rules (the rest is derived) -/
 
 section ModelUpdate
-variable [BIFUpdate (IProp GF)] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
   [TemporalInterp Expr State GF]
 
 instance mupd_ne (E₁ E₂ : CoPset) :
@@ -277,7 +276,6 @@ theorem Wit.cred_split (k : Oid) (a₀ a₁ : Fuel) :
 /-! ## Invariants over obligations -/
 
 section FUpd
-variable [BIFUpdate (IProp GF)]
 
 @[lantana_alias oblf.oblP_inv_alloc_assigned]
 theorem Obl.inv_alloc_assigned (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF) :
@@ -330,7 +328,7 @@ end BUpd
 /-! ## Model updates that keep every obligation live -/
 
 section ModelUpdate
-variable [BIFUpdate (IProp GF)] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
   [TemporalInterp Expr State GF]
 
 @[lantana_alias oblf.thread_terminate]
@@ -375,7 +373,6 @@ end ModelUpdate
 /-! ## Physical steps -/
 
 section Physical
-variable [BIFUpdate (IProp GF)]
 
 /-- A step of thread `i` burns one unit of fuel of each child of `i` and gives one credit for
 each live witness in `R`. -/

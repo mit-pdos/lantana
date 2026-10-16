@@ -31,14 +31,14 @@ reading. The internal reading is stated for every instance of the ghost state. -
 @[lantana_alias trSpec]
 structure TrSpec (Expr State : Type) (GF : BundledGFunctors) where
   /-- The step-indexed reading, which a run establishes. -/
-  internal : ∀ [ModelGS GF] [TemporalGS Expr State GF] [TlcGS GF] [BIFUpdate (IProp GF)],
+  internal : ∀ [ModelGS GF] [TemporalGS Expr State GF],
     TrIProp Expr State GF
   /-- The trace reading, which adequacy concludes. -/
   external : TrProp Expr State
   /-- Adequacy: satisfiability of the internal reading at `τ` (with any frame, under the
   credit supply and world satisfaction) gives the external reading at `τ`. -/
-  adeq : ∀ [ModelGS GF] [TemporalGS Expr State GF] [TlcGS GF] [BIFUpdate (IProp GF)]
-    (F : IProp GF) (τ : Trace Expr State), satLcAtFrame F ⊤ (internal τ) → external τ
+  adeq : ∀ [ModelGS GF] [TemporalGS Expr State GF]
+    (F : IProp GF) (τ : Trace Expr State), (iPropSatLcAtFrame F ⊤).sat (internal τ) → external τ
 
 namespace TrSpec
 
@@ -47,7 +47,7 @@ variable {Expr State : Type} {GF : BundledGFunctors}
 /-- In-logic entailment of trace specifications. -/
 @[lantana_alias trSpec_le]
 def le (G H : TrSpec Expr State GF) : Prop :=
-  ∀ [ModelGS GF] [TemporalGS Expr State GF] [TlcGS GF] [BIFUpdate (IProp GF)]
+  ∀ [ModelGS GF] [TemporalGS Expr State GF]
     (τ : Trace Expr State), G.internal τ ⊢ H.internal τ
 
 scoped infix:50 " ⊑ₛ " => TrSpec.le
@@ -152,13 +152,13 @@ scoped macro_rules
 /-- The trace reading gives the in-logic reading. -/
 @[lantana_alias TrSpecComplete]
 class Complete (G : TrSpec Expr State GF) : Prop where
-  complete : ∀ [ModelGS GF] [TemporalGS Expr State GF] [TlcGS GF] [BIFUpdate (IProp GF)]
+  complete : ∀ [ModelGS GF] [TemporalGS Expr State GF]
     (τ : Trace Expr State), G.external τ → ⊢ G.internal τ
 
 /-- The in-logic reading gives the trace reading, internally. -/
 @[lantana_alias TrSpecInstant]
 class Instant (G : TrSpec Expr State GF) : Prop where
-  instant : ∀ [ModelGS GF] [TemporalGS Expr State GF] [TlcGS GF] [BIFUpdate (IProp GF)]
+  instant : ∀ [ModelGS GF] [TemporalGS Expr State GF]
     (τ : Trace Expr State), G.internal τ ⊢ ⌜G.external τ⌝
 
 instance pure_complete (p : Prop) : Complete (pure (Expr := Expr) (State := State) (GF := GF) p) :=

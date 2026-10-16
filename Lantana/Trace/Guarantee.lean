@@ -26,14 +26,12 @@ open Iris Iris.BI
 open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State : Type} {GF : BundledGFunctors}
-variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] [TlcGS GF]
-  [BIFUpdate (IProp GF)]
+variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`. (The instance
 arguments are bound explicitly: an `opaque` includes only the variables its type mentions.) -/
 @[lantana_alias guar]
-opaque Guar [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] [TlcGS GF]
-    [BIFUpdate (IProp GF)] (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF
+opaque Guar [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF
 
 scoped infix:25 " ⊨ₜ " => Guar
 

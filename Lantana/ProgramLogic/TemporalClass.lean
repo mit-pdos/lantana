@@ -5,6 +5,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.ProgramLogic.HistoryInterp
+public import Lantana.BaseLogic.FUpd
 
 /-! # The ghost state of the temporal layer
 
@@ -24,9 +25,10 @@ namespace Lantana
 open Iris
 
 
-/-- The ghost state of the obligation model. (Placeholder.) -/
+/-- The ghost state of the obligation model: invariants and transfinite later credits (`InvGS`)
+and the model's own components (placeholder: M4). -/
 @[lantana_alias mupdGS]
-class ModelGS (GF : BundledGFunctors) : Type where
+class ModelGS (GF : BundledGFunctors) extends InvGS GF
 
 /-- The ghost state of the temporal registry (it saves trace predicates, hence the
 language). (Placeholder.) -/

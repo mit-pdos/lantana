@@ -43,7 +43,7 @@ class LantanaGS (Expr : Type) (State : Type) (Val : outParam Type) (GF : Bundled
 section Lwp
 
 variable {Expr : Type} {State : Type} {Val : Type} {GF : BundledGFunctors}
-variable [Λ : Language Expr State Val] [ModelGS GF] [TlcGS GF] [BIFUpdate (IProp GF)]
+variable [Λ : Language Expr State Val] [ModelGS GF]
 variable [L : LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
 
 /-- One step of `lWP` for thread `i` running `K e₁`: a model update before the step (it may

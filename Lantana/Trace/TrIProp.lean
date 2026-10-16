@@ -5,7 +5,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.Prelude.Ordinal
-public import Lantana.BaseLogic.LaterCredits
+public import Lantana.BaseLogic.Satisfiable
 public import Lantana.ProgramLogic.TemporalClass
 public import Lantana.Trace.TracePropRules
 
@@ -18,9 +18,7 @@ current position (a fancy update with a later, where adequacy certifies the regi
 invariants) followed by the step (a fancy update that allocates later credits); everything
 about a position is established after the step from it.
 
-**Skeleton (M1):** the satisfiability predicate `satLcAtFrame` is a placeholder for
-`Lantana.BaseLogic.Satisfiable`'s `iPropSatLcAtFrame`; contractiveness and the reading lemmas
-are `sorry`.
+**Skeleton (M1):** contractiveness and the reading lemmas are `sorry`.
 -/
 
 @[expose] public noncomputable section
@@ -33,10 +31,6 @@ open scoped Lantana.TrProp
 /-- A step-indexed trace predicate. -/
 @[lantana_alias trIProp]
 abbrev TrIProp (Expr State : Type) (GF : BundledGFunctors) := Trace Expr State → IProp GF
-
-/-- Satisfiability of an `IProp` under the credit supply, world satisfaction at mask `E` and a
-frame `F` (Rocq `iProp_sat_lc_at_frame`). PLACEHOLDER until `Lantana.BaseLogic.Satisfiable`. -/
-opaque satLcAtFrame {GF : BundledGFunctors} (F : IProp GF) (E : CoPset) (P : IProp GF) : Prop
 
 namespace TrIProp
 
@@ -65,7 +59,7 @@ def ex {A : Type _} (P : A → TrIProp Expr State GF) : TrIProp Expr State GF :=
   fun τ => iprop(∃ a, P a τ)
 
 section Fixpoints
-variable [TlcGS GF] [BIFUpdate (IProp GF)]
+variable [ModelGS GF]
 
 /-- The deferred shape: the check at the current position (a later under a fancy update), then
 the step (a fancy update that allocates later credits). -/
@@ -118,13 +112,14 @@ theorem until_unfold (P Q : TrIProp Expr State GF) (a : Fuel) (τ : Trace Expr S
 
 @[lantana_alias trI_always_tr_always]
 theorem always_tr_always (F : IProp GF) (P : TrIProp Expr State GF) (R : TrProp Expr State)
-    (h : ∀ τ, satLcAtFrame F ⊤ (P τ) → R τ) (τ : Trace Expr State)
-    (hs : satLcAtFrame F ⊤ (always P τ)) : (□ₜ R) τ := sorry
+    (h : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (P τ) → R τ) (τ : Trace Expr State)
+    (hs : (iPropSatLcAtFrame F ⊤).sat (always P τ)) : (□ₜ R) τ := sorry
 
 @[lantana_alias trI_until_tr_until_gen]
 theorem until_tr_until (F : IProp GF) (P Q : TrIProp Expr State GF) (R S : TrProp Expr State)
-    (hP : ∀ τ, satLcAtFrame F ⊤ (P τ) → R τ) (hQ : ∀ τ, satLcAtFrame F ⊤ (Q τ) → S τ)
-    (τ : Trace Expr State) (hs : satLcAtFrame F ⊤ (ex (fun a => strongUntil P Q a) τ)) :
+    (hP : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (P τ) → R τ)
+    (hQ : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (Q τ) → S τ)
+    (τ : Trace Expr State) (hs : (iPropSatLcAtFrame F ⊤).sat (ex (fun a => strongUntil P Q a) τ)) :
     (R 𝒰ₜ S) τ := sorry
 
 /-! ## In-logic monotonicity (one step later) -/

@@ -47,7 +47,7 @@ theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
     (R : TrProp Expr State) (hGR : G.external ⊆ R) (τ : Trace Expr State)
     (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = ⟨(tp, σ), i⟩)
-    (hwp : ∀ [ModelGS GF] [TemporalGS Expr State GF] [TlcGS GF] [BIFUpdate (IProp GF)],
+    (hwp : ∀ [ModelGS GF] [TemporalGS Expr State GF],
       ∃ c : Fuel, ⊢@{IProp GF} |={⊤}=>
         ∃ (SI : StateInterp Expr State GF) (forkPost : ThreadId → Val → IProp GF)
           (Ψ : ThreadId → Val → IProp GF),
