@@ -33,6 +33,8 @@ open Iris Lean
 class Lwp (PROP Expr : Type _) (Val : outParam (Type _)) (A B : Type _) where
   lwp : A → B → CoPset → Expr → (Val → PROP) → PROP
 
+attribute [lantana_alias lwp] Lwp.lwp
+
 /-- `e @ s ; i ; E`, `e @ i ; E`, `e @ i`, each optionally followed by `?` (`MaybeStuck`). -/
 syntax lwpExpr := term:max " @ " term:max (" ; " term:max)? (" ; " term:max)? (" ?")?
 

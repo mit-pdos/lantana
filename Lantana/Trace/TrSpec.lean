@@ -54,6 +54,10 @@ def le (G H : TrSpec Expr State GF) : Prop :=
 
 scoped infix:50 " ⊑ₛ " => TrSpec.le
 
+attribute [lantana_alias trSpec_internal] TrSpec.internal
+attribute [lantana_alias trSpec_external] TrSpec.external
+attribute [lantana_alias trSpec_adeq] TrSpec.adeq
+
 #lantana_ignore trSpec_sqsubseteq "The notation `⊑ₛ`."
 #lantana_ignore trSpec_le_preorder "`TrSpec.le_refl` and `TrSpec.le_trans`."
 

@@ -425,6 +425,9 @@ theorem obl_move_thread_set (E : CoPset) (p : Parent) (j : ThreadId) (X : Oids) 
         Iris.Std.LawfulSet.mem_insert]
       grind
 
+#lantana_ignore heap_lang.lwp_fork_step
+  "`lwp_fork` is proved directly from `lwp_lift_atomic_base_step`, without a step lemma."
+
 /-- Fork: the children `K ⊆ G` move to the new thread, each paying one unit of fuel. -/
 @[lantana_alias heap_lang.lwp_fork]
 theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :

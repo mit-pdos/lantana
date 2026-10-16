@@ -456,6 +456,10 @@ theorem Wit.cred_split (k : Oid) (a₀ a₁ : Fuel) :
   rw [Wit.cred_unfold]; exact Model.OPreds.witCred_split k a₀ a₁
 
 #lantana_ignore oblf.witP_cred_proper "ordinal equality is Leibniz: rewrite"
+#lantana_ignore oblf.obl_forest_interface
+  "No class: this file's irreducible definitions over the model, with unfolding lemmas."
+#lantana_ignore obl_forest_lantana
+  "No instance: this file defines the interface directly by the model (`Model.OPreds`)."
 
 /-! ## Invariants over obligations -/
 

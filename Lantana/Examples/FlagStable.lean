@@ -493,6 +493,9 @@ theorem isFlagTr_stays (l : Loc) : isFlagTr l ⊆ flagStaysTr l := by
 theorem flagTrSpec_stays (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ flagStaysTr l :=
   TrProp.le_trans (flagTrSpec_impl l) (isFlagTr_stays l)
 
+#lantana_ignore flag_stable.Flag.init "Rocq redefines the code identically: `Flag.init`."
+#lantana_ignore flag_stable.Flag.set "`Flag.set`."
+#lantana_ignore flag_stable.Flag.wait "`Flag.wait`."
 #lantana_ignore flag_stable.flag_run "The run is `Flag.flagRun`."
 #lantana_ignore flag_stable.flag_run_at "`Flag.flagRun_at`."
 

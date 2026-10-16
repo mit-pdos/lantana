@@ -7,7 +7,7 @@ Lantana-Lean is licensed under the Apache License, Version 2.0 (the file LICENSE
 Lantana (Rocq)
 
 Lantana-Lean is a Lean 4 reimplementation of the Rocq development of Lantana,
-https://github.com/dongjaelee1/liveness (branch `dev`, commit 0c1515a): its
+https://github.com/dongjaelee1/liveness (branch `main`, commit 08838e2): its
 definitions, rules and theorem statements follow that development, which is
 distributed under the 3-clause BSD license with the following notice.
 

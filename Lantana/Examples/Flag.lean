@@ -35,12 +35,15 @@ open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 /-! ## The program -/
 
 /-- `λ _, ref 0`. -/
+@[lantana_alias Flag.init]
 def init : Val := hl_val(λ _, ref(#0))
 
 /-- `λ x, x ← 1`. -/
+@[lantana_alias Flag.set]
 def set : Val := hl_val(λ x, x ← #1)
 
 /-- `rec wait x := if !x ≠ 1 then wait x else 1`. -/
+@[lantana_alias Flag.wait]
 def wait : Val := hl_val(rec wait x := if ~(!x = #1) then wait x else #1)
 
 /-- The values `0` and `1`. -/
