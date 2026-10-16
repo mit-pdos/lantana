@@ -21,8 +21,8 @@ does not say that the flag stays `1`: `flagRun` (`0, 1, 0, 1, 1, …`) satisfies
 
 The specifications are proved as in Rocq, with the measures `10` (`init`, `set`) and
 `5 * ▽ + 5` (`wait`: five steps per iteration, by witness-layer induction `Wit.layer_ind`, and
-five for the last one). They use the obligation-forest interface and the rules of temporal
-formulas, which are still stated with `sorry` (M4–M6); nothing in this file is `sorry`.
+five for the last one). Everything here is proved, from the obligation-forest interface and
+the rules of temporal formulas (whose own proofs are M4–M6).
 -/
 
 @[expose] public noncomputable section
@@ -201,18 +201,8 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   iintro %Φ !> ⟨HT, HG, HF, #HB, HK⟩ HΦ
   ihave HF := oblFuels_init G 10 0 $$ HF
   unfold init
-  lwp_pure HT
-  iexists G, 9, ∅, lc
-  isplitl [HG HF]
-  · iframe HG
-    isplitl [HF]
-    · iexact HF
-    · unfold witLayers
-      iapply BigSepS.bigSepS_empty.mpr
-      iempintro
-  iintro HG HF - Hlc HT
+  lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
-  imodintro
   iapply lwp_mupd
   icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
   iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
@@ -243,20 +233,10 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
   ihave HF := oblFuels_init G 10 0 $$ HF
   unfold isFlag set
   icases Hflag with ⟨#Wk, #HA⟩
-  lwp_pure HT
-  iexists G, 9, ∅, lc +ₕ 1 +ₕ 1
-  isplitl [HG HF]
-  · iframe HG
-    isplitl [HF]
-    · iexact HF
-    · unfold witLayers
-      iapply BigSepS.bigSepS_empty.mpr
-      iempintro
-  iintro HG HF - Hlc HT
+  lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
-  imodintro
   icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
   ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
@@ -308,18 +288,8 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
   iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
   ihave HF := oblFuels_init G 10 0 $$ HF
   unfold init
-  lwp_pure HT
-  iexists G, 9, ∅, lc
-  isplitl [HG HF]
-  · iframe HG
-    isplitl [HF]
-    · iexact HF
-    · unfold witLayers
-      iapply BigSepS.bigSepS_empty.mpr
-      iempintro
-  iintro HG HF - Hlc HT
+  lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
-  imodintro
   iapply lwp_mupd
   icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
   iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
@@ -352,20 +322,10 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   ihave HF := oblFuels_init G 10 0 $$ HF
   unfold isFlag set
   icases Hflag with ⟨#Wk, #HA⟩
-  lwp_pure HT
-  iexists G, 9, ∅, lc +ₕ 1 +ₕ 1
-  isplitl [HG HF]
-  · iframe HG
-    isplitl [HF]
-    · iexact HF
-    · unfold witLayers
-      iapply BigSepS.bigSepS_empty.mpr
-      iempintro
-  iintro HG HF - Hlc HT
+  lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
-  imodintro
   icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
   ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
@@ -428,15 +388,9 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       iintro HT HG HΦ HF
       ihave HF := oblFuels_init G 5 ℓ.succ $$ HF
       unfold wait
-      lwp_pure HT
-      iexists G, 4, ∅, 1 +ₕ 1
-      isplitl [HG HF]
-      · iframe HG HF
-        iapply witLayers_empty
-      iintro HG HF - Hc HT
+      lwp_step HT HG HF with Hc : 1 +ₕ 1
       icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
       lwp_expr_simp
-      imodintro
       lwp_bind hl(!#l) HT
       ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
         (fun _ _ => CoPset.mem_full) $$ HA
@@ -475,30 +429,12 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         imodintro
         ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
         lwp_expr_simp
-        lwp_pure HT
-        iexists G, 2, ∅, 0
-        isplitl [HG HF]
-        · iframe HG HF
-          iapply witLayers_empty
-        iintro HG HF - - HT
+        lwp_step HT HG HF
         rw [show (v0 == hl_val(#1)) = false from rfl]
-        imodintro
-        lwp_pure HT
-        iexists G, 1, ∅, 0
-        isplitl [HG HF]
-        · iframe HG HF
-          iapply witLayers_empty
-        iintro HG HF - - HT
+        lwp_step HT HG HF
         simp only [Bool.not_false]
-        imodintro
-        lwp_pure HT
-        iexists G, 0, ∅, 0
-        isplitl [HG HF]
-        · iframe HG HF
-          iapply witLayers_empty
-        iintro HG HF - - HT
+        lwp_step HT HG HF
         imod IH $$ Hwc with ⟨HF, HP⟩
-        imodintro
         iapply HP $$ HT HG HΦ HF
       · icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
         iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hl]
@@ -513,29 +449,11 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         imodintro
         ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
         lwp_expr_simp
-        lwp_pure HT
-        iexists G, 2, ∅, 0
-        isplitl [HG HF]
-        · iframe HG HF
-          iapply witLayers_empty
-        iintro HG HF - - HT
+        lwp_step HT HG HF
         rw [show (v1 == hl_val(#1)) = true from rfl]
-        imodintro
-        lwp_pure HT
-        iexists G, 1, ∅, 0
-        isplitl [HG HF]
-        · iframe HG HF
-          iapply witLayers_empty
-        iintro HG HF - - HT
+        lwp_step HT HG HF
         simp only [Bool.not_true]
-        imodintro
-        lwp_pure HT
-        iexists G, 0, ∅, lc
-        isplitl [HG HF]
-        · iframe HG HF
-          iapply witLayers_empty
-        iintro HG - - Hlc HT
-        imodintro
+        lwp_step HT HG HF with Hlc : lc
         iapply lwp_value'
         rw [show Φ hl_val(#1) = Φ v1 from rfl]
         iapply HΦ

@@ -19,8 +19,8 @@ for the forked thread), so `nest_spec` fixes it as in Rocq and is proved by indu
 layer `n.toNat` (which drops in the forked thread), where Rocq uses Löb induction on the whole
 `∃ μ, ∀ …` statement.
 
-The proofs use the obligation-forest interface and the rules of temporal formulas, which are
-still stated with `sorry` (M4–M6); nothing in this file is `sorry`.
+Everything here is proved, from the obligation-forest interface and the rules of temporal
+formulas (whose own proofs are M4–M6).
 -/
 
 @[expose] public noncomputable section
