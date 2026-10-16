@@ -163,6 +163,16 @@ theorem oblShare_discharged_false (k : Oid) :
   iintro ⟨⟨-, Ha⟩, ⟨-, Hd⟩⟩
   iapply OSat.assigned_discharged_false k _ $$ [$Ha $Hd]
 
+/-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_proper`, which also
+assumes `ℓ1 == ℓ2`: across layers, the model fuels differ by the `▽` of the encoding). -/
+@[lantana_alias omodel.oblP_fuel_proper]
+theorem oblFuel_eq_of_rep (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
+    (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) :
+    oblFuel (GF := GF) k ℓ μ₁ ⊣⊢ oblFuel k ℓ μ₂ := by
+  unfold oblFuel modelFuel
+  rw [Measure.rep_mul, Measure.rep_mul, h]
+  exact .rfl
+
 end Shares
 
 section Facts

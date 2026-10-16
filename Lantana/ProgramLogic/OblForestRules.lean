@@ -12,9 +12,9 @@ Rocq `lantana/program_logic/obl_forest_rules.v`: the usual rules of the model up
 `|={E₁,E₂}=>m P` and its proof-mode instances, derived from the three core rules of the
 interface (`mupd_ne`, `fupd_mupd`, `mupd_bind`); the rules of obligation invariants, witness
 induction, parents, fuel and credits; the model updates and the physical steps in their usual
-shapes. Everything here is derived from the statements of `Lantana.ProgramLogic.OblForest`,
-except the two interface additions below. This file also holds the rules of the base model
-update `|=[n,tc]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
+shapes. Everything here is derived from the statements of `Lantana.ProgramLogic.OblForest`.
+This file also holds the rules of the base model update `|=[n,tc]=>m P` that the program logic
+uses (Rocq `base_logic/mupd.v`).
 
 Porting notes:
 * The union of `OidMap = Std.ExtTreeMap` takes the values of its *right* argument, so Rocq's
@@ -31,24 +31,6 @@ namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Iris.Std
 open scoped Lantana.Measure Ordinals.Ordinal
-
-/-! ## Interface additions (to be moved to OblForest.lean)
-
-A fancy update at the empty mask before a round of a step can be eliminated (Rocq `fupd_mprog`
-and `fupd_mphys`, `base_logic/model_physical_updates.v`). `mprog_step` and `mphys_step` need
-them; the interface does not state them yet. -/
-
-section InterfaceAdditions
-
-variable {GF : BundledGFunctors} [ModelGS GF]
-
-theorem fupd_mprog (n tc : Nat) (i : ThreadId) (P : IProp GF) :
-    (|={∅}=> mprog n tc i P) ⊢ mprog n tc i P := sorry
-
-theorem fupd_mphys (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) :
-    (|={∅}=> mphys n₁ n₂ tc₁ tc₂ P) ⊢ mphys n₁ n₂ tc₁ tc₂ P := sorry
-
-end InterfaceAdditions
 
 /-! ## Sets of obligations -/
 
