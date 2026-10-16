@@ -707,4 +707,31 @@ end Adequacy
 
 end Rules
 
+/-! ## Adequacy bridges (run step)
+
+What the single-step simulation of adequacy (`Lantana.Trace.Adequacy.RunStep`) reads of the
+model through the sealed predicates: a terminated thread owns no obligation. -/
+
+section AdequacyRunStep
+
+open Iris.Std LawfulPartialMap
+
+variable {GF : BundledGFunctors} [ModelGS GF]
+
+/-- A terminated thread owns no obligation of the model (Rocq `othread_assigned_done_false`,
+through the model interpretation). -/
+theorem Th.done_modelInterp_not_owner (i : ThreadId) (h : List Model.MEvent) (a : Nat)
+    (Ω : Model.Obls) (W : Model.Witnesses) (n tc : Nat) :
+    Th.done i ∗ Model.modelInterp h a Ω W n tc ⊢@{IProp GF}
+      ⌜∀ k fu, get? Ω k ≠ some (.assigned fu i)⌝ := by
+  rw [Th.done_unfold]
+  unfold Model.modelInterp Model.OPreds.thDone
+  iintro ⟨Hd, -, -, Hf, -, -⟩
+  icases Model.oforest_done_owned Ω tc i $$ [$Hf $Hd] with %h
+  ipureintro
+  intro k fu hk
+  exact h k (Model.Obls.ownerOf_eq hk)
+
+end AdequacyRunStep
+
 end Lantana
