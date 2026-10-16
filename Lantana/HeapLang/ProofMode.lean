@@ -26,6 +26,8 @@ step, and the witness layers; it gives back the witnesses' credits and later cre
   `≤`, `<` on integers), which the generic ones of `Instances` cannot provide to instance search.
 * `stepPre_nil`, `stepPre_wit`, `witLayers_empty`, `witCreds_singleton`: the bookkeeping of the
   witnesses of a step.
+* `lwp_step`, `lwp_pure`, `lwp_bind e'` without hypothesis names, `lwp_expr_eval` and
+  `lwp_pures` (the last section): the token, the children and the fuel found by their shape.
 -/
 
 @[expose] public noncomputable section
