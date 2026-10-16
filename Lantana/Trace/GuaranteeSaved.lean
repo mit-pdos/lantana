@@ -85,20 +85,21 @@ theorem guar_savedGuar_sep (γ : GName) (P : IProp GF) (G : TrSpec Expr State GF
   · iapply guar_packed_sep
 
 /-- Inferred before the guarantee of a separating conjunction (Rocq priority 5). -/
-@[lantana_alias into_guar_packed]
 instance (priority := high) guarOf_packed (P : IProp GF) (G : TrSpec Expr State GF) :
     GuarOf iprop((P ⊨ₜ G) ∗ P) G :=
   ⟨guar_packed_sep P G⟩
 
-@[lantana_alias into_guar_saved_guar]
 instance (priority := high) guarOf_savedGuar (γ : GName) (P : IProp GF)
     (G : TrSpec Expr State GF) : GuarOf iprop(savedGuar γ P G ∗ P) G :=
   ⟨guar_savedGuar_sep γ P G⟩
 
+/-- Checked before the guarantee of a separating conjunction (Rocq priority 5). -/
+@[lantana_alias into_guar_packed]
 instance (priority := high) intoGuar_packed (P : IProp GF) (G : TrSpec Expr State GF) :
     IntoGuar iprop((P ⊨ₜ G) ∗ P) G :=
   ⟨guar_packed_sep P G⟩
 
+@[lantana_alias into_guar_saved_guar]
 instance (priority := high) intoGuar_savedGuar (γ : GName) (P : IProp GF)
     (G : TrSpec Expr State GF) : IntoGuar iprop(savedGuar γ P G ∗ P) G :=
   ⟨guar_savedGuar_sep γ P G⟩

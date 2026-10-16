@@ -45,7 +45,6 @@ open scoped Lantana.TrSpec Lantana.TrProp
 universe u
 
 variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
--- Named, to be passed explicitly to `TrSpec.canon_le`.
 variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 #lantana_ignore trSpec_inferred "`trSpecOf`."
@@ -61,6 +60,7 @@ variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Ex
 #lantana_ignore into_guar_exist "`guarOf_ex` and `intoGuar_ex_visible/ghost`."
 
 attribute [lantana_alias into_guar_default] guarOf_default
+attribute [lantana_alias into_guar] IntoGuar.into_guar
 
 /-! ## Existentials -/
 
