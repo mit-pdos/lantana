@@ -175,6 +175,198 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     · ipureintro
       trivial
 
+/-- The commitments of the main thread `i` and its resources (Rocq `Φ_P`). -/
+def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
+  iprop(∃ kr kc : Oid, finallyI Nr kr 1 (exits v42 @ i) ∗ finallyI Nc kc 1 someFairLock ∗
+    (thKids i {kr, kc} ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ ⌜kr ≠ kc⌝ ∗
+      [∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g aleph μ))
+
+/-- The postcondition of the main thread. -/
+abbrev mainPost : ThreadId → Val → IProp GF := fun _ w => iprop(⌜w = v42⌝)
+
+/-- From the main thread's token and its empty set of children: its commitments, and its
+`lWP` from them (Rocq `main_pre`). -/
+@[lantana_alias ticket_lock2_client.main_pre]
+theorem main_pre (i : ThreadId) :
+    threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thKids i ∅ -∗
+      |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
+        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+  obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
+  iintro HT HG
+  imod untilI_alloc (E := ⊤) (.thread i) ∅ aleph μ $$ [] HG with
+    ⟨%kr, -, HG, Hkr, Fkr, -, Akr⟩
+  · iapply parLe_thread
+  imod Akr $$ %⊤ %Nr %iprop(True) %(exits v42 @ i) [] with Ur
+  · inext
+    ipureintro
+    trivial
+  imod untilI_alloc (E := ⊤) (.thread i) _ aleph μ $$ [] HG with
+    ⟨%kc, %hkc, HG, Hkc, Fkc, -, Akc⟩
+  · iapply parLe_thread
+  imod Akc $$ %⊤ %Nc %iprop(True) %(someFairLock (GF := GF)) [] with Uc
+  · inext
+    ipureintro
+    trivial
+  have hne : kr ≠ kc := by
+    rintro rfl
+    exact hkc Std.ExtTreeSet.mem_insert_self
+  imodintro
+  iexists μ
+  isplitl [Ur Uc HG Hkr Hkc Fkr Fkc]
+  · unfold mainRes finallyI
+    iexists kr, kc
+    iframe Ur Uc Hkr Hkc
+    isplitl [HG]
+    · iapply Par.kids_congr _ $$ HG
+      intro z
+      simp
+      grind
+    isplitr
+    · ipureintro
+      exact hne
+    iapply (bigSepS_pair hne).mpr
+    iframe
+  iintro HP
+  unfold mainRes
+  icases HP with ⟨%kr, %kc, HFr, HFc, HG, Hkr, Hkc, %hne, HF⟩
+  imodintro
+  iapply hmain i kr kc $$ [HT HG HF Hkr Hkc HFr HFc]
+  · iframe
+    ipureintro
+    exact hne
+  iintro %w ⟨-, %hw, Hd⟩
+  unfold liftTerm
+  icases Hd with ⟨Hd, -⟩
+  iframe Hd
+  ipureintro
+  exact hw
+
 end Spec
+
+/-! ## Traces and the guarantee -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- The main thread `i` returns `42`, and a ticket lock gets created that is starvation free
+(Rocq `client_spec`). -/
+@[lantana_alias ticket_lock2_client.client_spec]
+def clientSpec (i : ThreadId) : TrProp Exp State :=
+  ◇ₜ TrProp.state (threadExprSat i [] (.val v42)) ∧ₜ
+    ◇ₜ (∃ₜ (next : Loc) (curr : Loc), starvationFree next curr)
+
+/-- What the commitments guarantee (Rocq `G_main`). -/
+def gMain (i : ThreadId) : TrSpec Exp State GF :=
+  ◇ₛ TrSpec.state (threadExprSat i [] (.val v42)) ∧ₛ ◇ₛ (∃ₛ tl : Val, fairLockTrSpec tl) ∧ₛ
+    TrSpec.true
+
+@[lantana_alias ticket_lock2_client.G_main_impl]
+theorem gMain_impl (i : ThreadId) : (gMain (GF := GF) i).external ⊆ clientSpec i := by
+  rintro τ ⟨hr, ⟨m, hm, ⟨tl, htl⟩, hbef⟩, -⟩
+  obtain ⟨next, curr, -, hsf⟩ := fairLock_starvationFree (GF := GF) tl _ htl
+  exact ⟨hr, m, hm, ⟨next, curr, hsf⟩, hbef⟩
+
+variable [ModelGS GF] [HeapGS GF] [TicketLock2G GF]
+
+@[lantana_alias ticket_lock2_client.guar_Φ_P]
+theorem guar_mainRes (i : ThreadId) (μ : Measure) :
+    ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
+  unfold mainRes gMain finallyI
+  iapply guar_ex_ghost
+  iintro %kr
+  iapply guar_ex_ghost
+  iintro %kc
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nr kr 1 iprop(True)
+      (exits v42 @ i)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nc kc 1 iprop(True)
+      (someFairLock (GF := GF))))
+  iapply guar_true
+
+end Guarantee
+
+/-! ## Adequacy -/
+
+section Adequacy
+
+instance : TicketLock2G ExGF := {}
+
+/-- The initial pool: the main thread `0`. -/
+abbrev tp0 : ThreadPool Exp := [hl(v(&main) #())]
+
+/-- The initial state: the empty heap. -/
+abbrev σ0 : State := ⟨∅⟩
+
+/-- In every fair behavior from the initial configuration, the main thread returns `42`, and a
+ticket lock gets created that is starvation free. -/
+@[lantana_alias ticket_lock2_client.ticket_lock_client_adequacy]
+theorem ticketLockClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    clientSpec 0 τ := by
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 (gMain 0) (clientSpec 0)
+    (gMain_impl 0) τ hbeh hfair hpos hinit ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imodintro
+  iexists mainRes 0 μ
+  isplitr
+  · iapply guar_mainRes
+  iframe HP
+  iintro HP
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+stuck, and once the main thread has returned, its value is `42`. -/
+@[lantana_alias ticket_lock2_client.ticket_lock_client_safety_adequacy]
+theorem ticketLockClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    safetyIris 0 (fun _ w => w = v42) τ := by
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplit
+  · ipureintro
+    exact fun _ => .rfl
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- Liveness and safety together, over the same fair behaviors: the main thread returns `42`,
+a starvation-free lock gets created, and no scheduled thread is ever stuck. -/
+@[lantana_alias ticket_lock2_client.ticket_lock_client_liveness_safety]
+theorem ticketLockClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    clientSpec 0 τ ∧ safetyIris 0 (fun _ w => w = v42) τ :=
+  ⟨ticketLockClient_adequacy τ hbeh hfair hpos hinit,
+    ticketLockClient_safety_adequacy τ hbeh hfair hpos hinit⟩
+
+end Adequacy
 
 end Lantana.Examples.TicketLock2Client
