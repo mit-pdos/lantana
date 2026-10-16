@@ -8,6 +8,7 @@ public import Lantana.HeapLang.Syntax
 public import Lantana.HeapLang.Semantics
 public import Lantana.HeapLang.Notation
 public import Lantana.HeapLang.Instances
+public import Lantana.HeapLang.PrimitiveLaws
 
 /-! # HeapLang
 
