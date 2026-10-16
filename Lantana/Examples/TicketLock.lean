@@ -511,6 +511,39 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadI
     rfl
   iframe HI HK
 
+/-- The holder of ticket `c + 1` exchanges its half of the token's ghost variable for its part
+of `curr` and its half of the `finallyI` on its unlock obligation `κu`. -/
+theorem lockToken_exchange (E : CoPset) (hE : ↑N ⊆ E) (γ : TicketLockName) (curr : Loc)
+    (R : IProp GF) (κu : Oid) (c : Int) :
+    alwaysI (Expr := Exp) (State := State) Ntk (lockTokenInv γ.γo γ.γk curr R) ⊢ £ₙ 1 -∗
+      (γ.γk ↪VAR{.own (1 : Qp).half} c) -∗ (γ.γo ↪◯MAP[c + 1]{.discard} some κu) -∗
+      |={E}=> curr ↦{.own q34} some (vz c) ∗ finallyI Nev κu (1 : Qp).half (released curr c R) := by
+  iintro #ITK Hc1 GV #GMEo
+  ihave Hacc := alwaysI_acc (E := E) (N := Ntk) (P := lockTokenInv γ.γo γ.γk curr R)
+    (Ntk_subseteq hE) $$ ITK
+  imod Hacc with ⟨H, Hclose⟩
+  imod lc_fupd_elim_later $$ Hc1 H with H
+  iunfold lockTokenInv at H
+  icases H with ⟨%c', (TK | ⟨%κ, GV0, PtrCurr0, #GMEo0, GEku⟩)⟩
+  · iexfalso
+    iapply ghostVar_half_whole_false $$ [GV TK]
+    iframe
+  ihave %h := ghost_var_agree _ _ _ _ _ $$ GV0 GV
+  subst h
+  ihave %h := ghost_map_elem_agree _ _ _ _ (some κu) (some κ) $$ [GMEo GMEo0]
+  · iframe GMEo GMEo0
+  cases h
+  icases ghostVar_combine_halves _ _ _ $$ [GV0 GV] with ⟨GV, -⟩
+  · iframe
+  imod Hclose $$ [GV] with -
+  · inext
+    iunfold lockTokenInv
+    iexists c'
+    ileft
+    iexact GV
+  imodintro
+  iframe
+
 @[lantana_alias TicketLock_release_spec]
 theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (tl : Val)
     (γ : TicketLockName) (dq : DFrac) (R : IProp GF) (κu : Oid) (E : CoPset) (_ : ↑N ⊆ E)
@@ -535,31 +568,8 @@ theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   -- Exchange the token.
-  iapply fupd_lwp
-  ihave Hacc := alwaysI_acc (E := E) (N := Ntk) (P := lockTokenInv γ.γo γ.γk curr R)
-    (Ntk_subseteq hE) $$ ITK
-  imod Hacc with ⟨H, Hclose⟩
   ihave Hc1 := tlc_one_nat.mpr $$ Hc1
-  imod lc_fupd_elim_later $$ Hc1 H with H
-  iunfold lockTokenInv at H
-  icases H with ⟨%c', (TK | ⟨%κ, GV0, PtrCurr0, #GMEo0, GEku⟩)⟩
-  · iexfalso
-    iapply ghostVar_half_whole_false $$ [GV TK]
-    iframe
-  ihave %h := ghost_var_agree _ _ _ _ _ $$ GV0 GV
-  subst h
-  ihave %h := ghost_map_elem_agree _ _ _ _ (some κu) (some κ) $$ [GMEo GMEo0]
-  · iframe GMEo GMEo0
-  cases h
-  icases ghostVar_combine_halves _ _ _ $$ [GV0 GV] with ⟨GV, -⟩
-  · iframe
-  imod Hclose $$ [GV] with -
-  · inext
-    iunfold lockTokenInv
-    iexists c'
-    ileft
-    iexact GV
-  imodintro
+  imod lockToken_exchange E hE γ curr R κu c $$ ITK Hc1 GV GMEo with ⟨PtrCurr0, GEku⟩
   lwp_expr_simp
   lwp_step HT HG HF
   lwp_expr_simp
@@ -578,7 +588,6 @@ theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   lwp_step HT HG HF
   lwp_expr_simp
   -- The store, in the lock invariant.
-  iclear GMEo0
   ihave Hacc := alwaysI_acc (E := E) (N := Ninv)
     (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (Ninv_subseteq hE) $$ INV
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -591,11 +600,11 @@ theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   · iexfalso
     iapply ownAlive_full_false $$ AL Hdel
   iunfold lockInvAlive at H
-  icases H with ⟨%n, %c, %tickets, %obls, PtrNext, PtrCurr, GMAt, GMAo, %⟨Domt, Domo, hc0, hcn⟩,
+  icases H with ⟨%n, %c', %tickets, %obls, PtrNext, PtrCurr, GMAt, GMAo, %⟨Domt, Domo, hc0, hcn⟩,
     HMt, Hc⟩
   ihave %h := pointsTo_agree (l := curr) $$ [PtrCurr PtrCurr0]
   · iframe
-  obtain rfl : c = c' := by simpa [vz] using h
+  obtain rfl : c = c' := by simpa [vz] using h.symm
   ihave PtrCurr := (pointsTo_quarters curr _).mpr $$ [PtrCurr PtrCurr0]
   · iframe
   ihave %hlt := ghostMapP_lookup $$ GMAt GMEtku
@@ -735,6 +744,142 @@ theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
     imodintro
     iapply HΦ
     iframe
+
+@[lantana_alias TicketLock_delete_spec]
+theorem delete_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (tl : Val)
+    (γ : TicketLockName) (R : IProp GF) (κu : Oid) (E : CoPset) (_ : ↑N ⊆ E)
+    (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&delete) v(&tl)) ∗ thKids i G ∗
+          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ ⌜κu ∈ G⌝ ∗ oblKids κu ∅ ∗ lockToken γ κu ∗ R ∗
+          (γ ↪LOCK_AL) ∗ isFairLock tl γ R }}}
+        hl(v(&delete) v(&tl)) @ i; E
+      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase κu) ∗ R }}} := by
+  refine ⟨20, fun lc i G tl γ R κu E hE C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, %hκu, Kku, LT, HR, AL, #IFL⟩ HΦ
+  ihave HF := oblFuels_init G 20 0 $$ HF
+  rw [lockToken_unfold]
+  icases LT with ⟨%c, GV, #GMEtku, #GMEo⟩
+  unfold isFairLock
+  icases IFL with ⟨%next, %curr, %htl, #INV, #ITK⟩
+  subst htl
+  unfold delete
+  lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1 +ₕ 1
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc3⟩
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  -- Exchange the token.
+  ihave Hc1 := tlc_one_nat.mpr $$ Hc1
+  imod lockToken_exchange E hE γ curr R κu c $$ ITK Hc1 GV GMEo with ⟨PtrCurr0, GEku⟩
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_bind hl(!#curr) HT
+  icases oblFuels_add 1 12 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_load (o := 0) (G := G) (R := ∅) $$ [HT HG HF1 PtrCurr0]
+  · iframe HT PtrCurr0
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨-, HG, -⟩, PtrCurr0⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  -- The store, in the lock invariant.
+  lwp_bind hl(#curr ← #((c + 1 : Int))) HT
+  ihave Hacc := alwaysI_acc (E := E) (N := Ninv)
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (Ninv_subseteq hE) $$ INV
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨H, Hclose⟩
+  iclear Hacc
+  iapply lwp_credit_later $$ Hc2
+  inext
+  iunfold lockInv at H
+  icases H with (Hdel | H)
+  · iexfalso
+    iapply ownAlive_full_false $$ AL Hdel
+  iunfold lockInvAlive at H
+  icases H with ⟨%n, %c', %tickets, %obls, PtrNext, PtrCurr, GMAt, GMAo, %⟨Domt, Domo, hc0, hcn⟩,
+    HMt, Hc⟩
+  ihave %h := pointsTo_agree (l := curr) $$ [PtrCurr PtrCurr0]
+  · iframe
+  obtain rfl : c = c' := by simpa [vz] using h.symm
+  ihave PtrCurr := (pointsTo_quarters curr _).mpr $$ [PtrCurr PtrCurr0]
+  · iframe
+  ihave %hlt := ghostMapP_lookup $$ GMAt GMEtku
+  have hc1 := (Domt (c + 1)).mp (by simp [hlt])
+  iunfold holderSt at Hc
+  icases Hc with (⟨%hcn', -⟩ | ⟨%hcn', %ℓ0, %κ, #CFl, #Wl, #GMEo1, HE, -⟩)
+  · iexfalso
+    ipureintro
+    omega
+  ihave %h := ghost_map_elem_agree _ _ _ _ (some κu) (some κ) $$ [GMEo GMEo1]
+  · iframe GMEo GMEo1
+  cases h
+  iunfold finallyI at GEku HE
+  ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ GEku HE
+  ihave HU := untilI_discharge (E := E \ ↑Ninv) (Nev_subseteq hE) $$ HU
+  ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
+  imod HU
+  iapply lwp_credit_later $$ Hc3
+  inext
+  icases HU with ⟨-, Hdis⟩
+  icases oblFuels_add 1 10 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_store (o := 0) (G := G) (R := ∅) $$ [HT HG HF1 PtrCurr]
+  · iframe HT PtrCurr
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨-, HG, -⟩, PtrCurr⟩
+  icases (pointsTo_quarters curr _).mp $$ PtrCurr with ⟨PtrCurr, PtrCurr34⟩
+  imod Hdis $$ %(Parent.thread i) %G %hκu HG Kku [PtrCurr34 HR] %_ with H
+  · isplitl [PtrCurr34]
+    · iexact PtrCurr34
+    · iexact HR
+  imod H with ⟨⟨PtrCurr34, HR⟩, HG, -⟩
+  imodintro
+  -- The lock is deleted: the full alive token goes to the invariant.
+  imod Hclose $$ [AL] with -
+  · inext
+    iunfold lockInv
+    ileft
+    unfold ownAlive
+    iexact AL
+  imodintro
+  ihave PtrCurr := (pointsTo_quarters curr _).mpr $$ [PtrCurr PtrCurr34]
+  · iframe
+  ihave HF := oblFuels_remove_obl κu G _ $$ HF
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_bind hl(free(#next)) HT
+  icases oblFuels_add 1 7 _ $$ HF with ⟨HF1, HF⟩
+  iapply lwp_free (o := 0) (G := G.erase κu) (R := ∅) $$ [HT HG HF1 PtrNext]
+  · iframe HT PtrNext
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨-, HG, -⟩, -⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  icases oblFuels_add 1 4 _ $$ HF with ⟨HF1, -⟩
+  iapply lwp_free (o := 0) (G := G.erase κu) (R := ∅) $$ [HT HG HF1 PtrCurr]
+  · iframe HT PtrCurr
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨-, HG, -⟩, -⟩
+  iapply HΦ
+  iframe
 
 end Specs
 
