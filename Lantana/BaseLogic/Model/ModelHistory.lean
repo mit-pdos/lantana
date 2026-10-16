@@ -5,7 +5,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.BaseLogic.MonoListP
-public import Lantana.BaseLogic.Model
+public import Lantana.BaseLogic.Obligation
 
 /-! # The model history
 
