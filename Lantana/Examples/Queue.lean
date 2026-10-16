@@ -168,6 +168,20 @@ def contents (φ : Val → Oids → IProp GF) : List (Val × Oids) → Loc → L
   | [], lh, lt => iprop(⌜lh = lt⌝ ∗ lh ↦ some vNone)
   | (v, B) :: vs, lh, lt => iprop(∃ l : Loc, lh ↦ some (vCell v l) ∗ φ v B ∗ contents φ vs l lt)
 
+omit [ModelGS GF] [TicketLockG GF] [QueueG GF] in
+theorem contents_nil (φ : Val → Oids → IProp GF) (lh lt : Loc) :
+    contents φ [] lh lt ⊣⊢ iprop(⌜lh = lt⌝ ∗ lh ↦ some vNone) := by
+  rw [contents]
+  exact .rfl
+
+omit [ModelGS GF] [TicketLockG GF] [QueueG GF] in
+theorem contents_cons (φ : Val → Oids → IProp GF) (v : Val) (B : Oids)
+    (vs : List (Val × Oids)) (lh lt : Loc) :
+    contents φ ((v, B) :: vs) lh lt ⊣⊢
+      iprop(∃ l : Loc, lh ↦ some (vCell v l) ∗ φ v B ∗ contents φ vs l lt) := by
+  rw [contents]
+  exact .rfl
+
 /-- The invariant: the inbox `g` (at layer `ℓ`) has the obligations of the queued elements as
 children, and the obligations of the `n`-th element have `n + 1` units of fuel at layer
 `ℓ.succ` (Rocq `queue_inv`). -/
@@ -200,6 +214,65 @@ def isQueueInit (ql : Val) (γ : QueueName) (φ : Val → Oids → IProp GF) : I
   iprop(∃ (lhptr ltptr : Loc) (tl : Val), ⌜ql = vQueue lhptr ltptr tl⌝ ∧
     qgQueue γ.γq [] (1 : Qp).half ∗ (γ.γd ↪VAR (0 : Oid)) ∗ (γ.tl ↪LOCK_AL{.discard}) ∗
     (γ.tl ↪LOCK_CF{.discard} 0) ∗ isFairLockAlive tl γ.tl (queueLock φ γ.γq lhptr ltptr))
+
+/-- What `dequeue` gives back, by the shape of its result (Rocq: the `match` in the
+postcondition of `Queue_dequeue_spec`). The worker (`b = true`) gets a fresh inbox `ng` and
+gives back its old inbox `wg`, now without children; a dequeued element comes with a fresh
+container `g` of its obligations, a child of the thread. Rocq's `{[ng]} ∪ G` is
+`G.insert ng` and `{[g; ng]} ∪ G` is `(G.insert g).insert ng`. -/
+def dequeueRes (m : Measure) (b : Bool) (wg : Oid) (i : ThreadId) (G : Oids)
+    (φ : Val → Oids → IProp GF) (γ : QueueName) (ℓ : Layer) : Val → IProp GF
+  | .injL (.lit .unit) =>
+    if b then iprop(∃ ng : Oid, thKids i (G.insert ng) ∗ ⌜ng ∉ G⌝ ∗ worker γ ng ∗
+      oblKids wg ∅ ∗ Obl.assigned wg 1 ∗ Obl.fuel ng ℓ m)
+    else thKids i G
+  | .injR v => iprop(∃ (g : Oid) (B : Oids), φ v B ∗ oblKids g B ∗ Obl.assigned g 1 ∗
+      Obl.fuel g ℓ m ∗ ⌜g ∉ G⌝ ∗
+      if b then iprop(∃ ng : Oid, thKids i ((G.insert g).insert ng) ∗ ⌜ng ∉ G ∧ g ≠ ng⌝ ∗
+        worker γ ng ∗ oblKids wg ∅ ∗ Obl.assigned wg 1 ∗ Obl.fuel ng ℓ m)
+      else thKids i (G.insert g))
+  | _ => iprop(False)
+
+omit [HeapGS GF] [TicketLockG GF] in
+/-- The result of `dequeue` is `none` or `some v`. -/
+theorem dequeueRes_cases (m : Measure) (b : Bool) (wg : Oid) (i : ThreadId) (G : Oids)
+    (φ : Val → Oids → IProp GF) (γ : QueueName) (ℓ : Layer) (x : Val) :
+    dequeueRes m b wg i G φ γ ℓ x ⊢ ⌜x = vNone ∨ ∃ v, x = .injR v⌝ := by
+  match x with
+  | .injL (.lit .unit) => exact pure_intro (.inl rfl)
+  | .injR v => exact pure_intro (.inr ⟨v, rfl⟩)
+  | .lit _ | .rec_ _ _ _ | .pair _ _ | .injL (.lit (.int _)) | .injL (.lit (.bool _))
+  | .injL (.lit .poison) | .injL (.lit (.loc _)) | .injL (.rec_ _ _ _) | .injL (.pair _ _)
+  | .injL (.injL _) | .injL (.injR _) => exact false_elim
+
+omit [HeapGS GF] [TicketLockG GF] [QueueG GF] in
+/-- A big separating conjunction over a list of sets gives one over their union. -/
+theorem bigSepL_bigSepS_unionList (L : List Oids) (P : Oid → IProp GF) :
+    ([∗list] B ∈ L, [∗set] b ∈ B, P b) ⊢ [∗set] b ∈ unionList L, P b := by
+  induction L with
+  | nil =>
+    rw [unionList_nil]
+    iintro -
+    iapply BigSepS.bigSepS_empty.mpr
+    iempintro
+  | cons B L ih =>
+    rw [unionList_cons]
+    iintro H
+    icases BigSepL.bigSepL_cons.mp $$ H with ⟨HB, HL⟩
+    ihave HL := ih $$ HL
+    iapply BigSepS.bigSepS_union_elim $$ HB HL
+
+omit [HeapGS GF] [TicketLockG GF] [QueueG GF] in
+/-- The fuel of the elements behind the head, which move up one position: one unit each pays
+for their move to a new inbox. -/
+theorem queueFuels_shift (L : List Oids) (ℓ : Layer) :
+    ([∗list] n ↦ B ∈ L, [∗set] b ∈ B, Obl.fuel (GF := GF) b ℓ ((n + 1 + 1 : Nat) : Measure)) ⊢
+      ([∗list] n ↦ B ∈ L, [∗set] b ∈ B, Obl.fuel b ℓ ((n + 1 : Nat) : Measure)) ∗
+      ([∗list] B ∈ L, [∗set] b ∈ B, Obl.fuel b ℓ 1) :=
+  (BigSepL.bigSepL_mono_of_forall fun {n _} =>
+    (BigSepS.bigSepS_mono fun {b} _ =>
+      (Obl.fuel_add_nat b ℓ (m₁ := n + 1) (m₂ := 1) rfl).mp).trans
+      BigSepS.bigSepS_sep.mp).trans BigSepL.bigSepL_sep_eqv.mp
 
 omit [ModelGS GF] [HeapGS GF] [QueueG GF] in
 /-- The discarded layer of a lock is persistent (Rocq: `↪LOCK_CF□` is persistent). -/
@@ -540,6 +613,228 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   intro z
   simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
   grind
+
+/-- Dequeuing. The worker (`b = true`, with its inbox `wg`) gets a fresh inbox `ng` (with fuel
+`m`), into which the obligations of the remaining elements move, and gets back `wg` without
+children; a dequeued element's obligations move into a fresh container `g` (with fuel `m`)
+below the thread (Rocq `Queue_dequeue_spec`). -/
+@[lantana_alias queue.Queue_dequeue_spec]
+theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool) (wg : Oid)
+    (i : ThreadId) (G : Oids) (φ : Val → Oids → IProp GF) (γ : QueueName) (ℓ : Layer)
+    (ql : Val) (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&dequeue) v(&ql)) ∗ thKids i G ∗
+          ([∗set] g ∈ G, Obl.fuel g 1 μ) ∗ (if b then worker γ wg else iprop(True)) ∗
+          isQueue ql γ ℓ φ }}}
+        hl(v(&dequeue) v(&ql)) @ i
+      l{{{ (x : Val), RET x; threadExpr i C hl(&x) ∗ £ₒ lc ∗
+        dequeueRes m b wg i G φ γ ℓ x }}} := by
+  obtain ⟨μa, ha⟩ := TicketLock.acquire_spec (GF := GF)
+  obtain ⟨μr, hr⟩ := TicketLock.release_spec (GF := GF)
+  refine ⟨100 + μa + μr, fun lc m b wg i G φ γ ℓ ql C => ?_⟩
+  rw [Ordinals.Ordinal.one_eq_succ_zero]
+  iintro %Φ !> ⟨HT, HG, HF, HW, #IQ⟩ HΦ
+  icases (Obl.fuel_add_set G _ (100 + μa) μr).mp $$ HF with ⟨HF, Fr⟩
+  icases (Obl.fuel_add_set G _ 100 μa).mp $$ HF with ⟨HF, Fa⟩
+  ihave HF := oblFuels_init G 100 _ $$ HF
+  imod Obl.fuel_layer_mono_set (ℓ₁ := 0) (ℓ₂ := Ordinals.Ordinal.succ 0) G μr
+    (Ordinals.Ordinal.zero_le _) $$ Fr with Fr
+  unfold isQueue
+  icases IQ with ⟨%lhptr, %ltptr, %tl, %hql, #IQ, #AL, #CF, #IFLA⟩
+  subst hql
+  ihave #IFL := TicketLock.isFairLockAlive_isFairLock _ _ _ $$ IFLA
+  unfold dequeue
+  lwp_step HT HG HF with Hlc : lc +ₕ 1
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  -- Take the lock: the unlock obligation `κu` gets fuel for the critical section and release.
+  lwp_bind hl(v(&TicketLock.acquire) v(&tl)) HT
+  iapply ha 0 (((96 : Nat) : Measure) + μr) i G tl γ.tl .discard .discard 0
+    (queueLock φ γ.γq lhptr ltptr) ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HG Fa]
+  · iframe HT HG Fa AL CF IFL
+  iintro %κu ⟨HT, -, %hκu, HG, Kκ, Fκ, -, -, LT, HR⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  icases (Obl.fuel_add κu 0 _ _).mp $$ Fκ with ⟨Fκ, Fκr⟩
+  ihave HF := oblFuels_add_obl G κu 0 _ $$ Fκ HF
+  ihave Fr := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g 0 μr) hκu).mpr $$ [Fκr Fr]
+  · iframe Fκr Fr
+  unfold queueLock
+  icases HR with ⟨%lh, %lt, %vs, Plh, Plt, Q, QC⟩
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_bind hl(!#lhptr) HT
+  icases oblFuels_add 1 89 _ $$ HF with ⟨HF1, HF⟩
+  iapply lwp_load (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Plh]
+  · iframe HT Plh
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨-, HG, -⟩, Plh⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  cases vs with
+  | nil =>
+    icases (contents_nil φ lh lt).mp $$ QC with ⟨%hlt, Pl⟩
+    subst hlt
+    lwp_bind hl(!#lh) HT
+    icases oblFuels_add 1 86 _ $$ HF with ⟨HF1, HF⟩
+    iapply lwp_load (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Pl]
+    · iframe HT Pl
+      iapply stepPre_nil $$ HG HF1
+    iintro ⟨HT, ⟨-, HG, -⟩, Pl⟩
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    lwp_step HT HG HF
+    lwp_step HT HG HF
+    lwp_step HT HG HF
+    lwp_expr_simp
+    lwp_bind hl(v(&TicketLock.release) v(&tl)) HT
+    cases b with
+    | false =>
+      iapply hr 0 i (G.insert κu) tl γ.tl .discard (queueLock φ γ.γq lhptr ltptr) κu ⊤
+        (fun _ _ => CoPset.mem_full) _ $$ [HT HG Fr Kκ LT Plh Plt Q Pl]
+      · unfold queueLock
+        iframe HT HG Fr Kκ LT AL IFL
+        isplitr
+        · ipureintro
+          simp
+        iexists lh, lh, []
+        iframe Plh Plt Q
+        iapply (contents_nil φ lh lh).mpr
+        iframe Pl
+        ipureintro
+        rfl
+      iintro ⟨HT, -, HG, -⟩
+      ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+      lwp_expr_simp
+      ihave HG := Par.kids_congr (B := G) ?_ $$ HG
+      · intro z
+        simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
+        grind
+      ihave HF := oblFuels_subset (B := G) _
+        (fun z hz => Std.ExtTreeSet.mem_insert.mpr (.inr hz)) $$ HF
+      lwp_step HT HG HF
+      lwp_step HT HG HF
+      lwp_expr_simp
+      lwp_step HT HG HF
+      iapply lwp_value'
+      iapply HΦ
+      iframe HT Hlc
+      simp only [dequeueRes, Bool.false_eq_true, ite_false]
+      iexact HG
+    | true =>
+      -- The worker renews its inbox: the old one `wg` has no children.
+      simp only [↓reduceIte]
+      unfold worker
+      icases HW with ⟨Gw, Aw⟩
+      ihave Hup : |={⊤}=>m (∃ ng : Oid, ⌜ng ∉ G.insert κu⌝ ∗
+          thKids i ((G.insert κu).insert ng) ∗ oblKids wg ∅ ∗
+          (γ.γd ↪VAR{.own (1 : Qp).half} ng) ∗ Obl.assigned ng 1 ∗
+          Obl.fuel ng ℓ (m + ((83 : Nat) : Measure) + μr) ∗ qgQueue γ.γq [] (1 : Qp).half) $$
+          [HG Gw Q Hc1]
+      · ihave Hacc := inv_acc (E := ⊤) (N := Ni) (P := queueInv ℓ γ.γq γ.γd)
+          (fun _ _ => CoPset.mem_full) $$ IQ
+        ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+        imod Hacc with ⟨Hinv, Hclose⟩
+        ihave Hc1 := tlc_one_nat.mpr $$ Hc1
+        iapply lc_mupd_add_later $$ Hc1
+        inext
+        unfold queueInv
+        icases Hinv with ⟨%vs0, %g, Q0, Gd, %hdis, Kg, #Wg, Fq⟩
+        unfold qgQueue
+        ihave %h := ghost_var_agree γ.γq [] _ vs0 _ $$ Q Q0
+        subst vs0
+        ihave %h := ghost_var_agree γ.γd wg _ g _ $$ Gw Gd
+        subst g
+        imod Obl.new (⊤ \ ↑Ni) (.thread i) (G.insert κu) ℓ (m + ((83 : Nat) : Measure) + μr)
+          $$ [] HG with ⟨%ng, %hng, HG, Kng, Ang, Fng, #Wng⟩
+        · iapply parLe_thread
+        imod ghost_var_update_halves ng γ.γd wg wg $$ Gw Gd with ⟨Gw, Gd⟩
+        imod Hclose $$ [Q0 Gd Kng Fq] with -
+        · inext
+          iexists [], ng
+          iframe Q0 Gd Wng Fq
+          isplitr
+          · ipureintro
+            exact disjointList_nil
+          iapply Par.kids_congr _ $$ Kng
+          intro z
+          exact Iff.rfl
+        imodintro
+        iexists ng
+        iframe HG Gw Ang Fng Q
+        isplitr
+        · ipureintro
+          exact hng
+        iapply Par.kids_congr _ $$ Kg
+        intro z
+        exact Iff.rfl
+      imod Hup with ⟨%ng, %hng, HG, Kwg, Gw, Ang, Fng, Q⟩
+      icases (Obl.fuel_add ng ℓ _ μr).mp $$ Fng with ⟨Fng, Fngr⟩
+      icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng83⟩
+      ihave HF := oblFuels_add_obl (G.insert κu) ng ℓ _ $$ Fng83 HF
+      imod Obl.fuel_layer_mono (ℓ₁ := 0) ng μr (Ordinals.Ordinal.zero_le ℓ) $$ Fngr with Fngr
+      ihave Fr := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g 0 μr) hng).mpr $$ [Fngr Fr]
+      · iframe Fngr Fr
+      iapply hr 0 i ((G.insert κu).insert ng) tl γ.tl .discard (queueLock φ γ.γq lhptr ltptr)
+        κu ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HG Fr Kκ LT Plh Plt Q Pl]
+      · unfold queueLock
+        iframe HT HG Fr Kκ LT AL IFL
+        isplitr
+        · ipureintro
+          simp
+        iexists lh, lh, []
+        iframe Plh Plt Q
+        iapply (contents_nil φ lh lh).mpr
+        iframe Pl
+        ipureintro
+        rfl
+      iintro ⟨HT, -, HG, -⟩
+      ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+      lwp_expr_simp
+      ihave HG := Par.kids_congr (B := G.insert ng) ?_ $$ HG
+      · intro z
+        simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
+        grind
+      ihave HF := oblFuels_subset (B := G.insert ng) _
+        (fun z hz => by simp only [Std.ExtTreeSet.mem_insert] at hz ⊢; grind) $$ HF
+      lwp_step HT HG HF
+      lwp_step HT HG HF
+      lwp_expr_simp
+      lwp_step HT HG HF
+      iapply lwp_value'
+      iapply HΦ
+      iframe HT Hlc
+      simp only [dequeueRes, ↓reduceIte]
+      iexists ng
+      unfold worker
+      iframe HG Gw Ang Kwg Aw Fng
+      ipureintro
+      intro h
+      exact hng (Std.ExtTreeSet.mem_insert.mpr (.inr h))
+  | cons a vs =>
+    obtain ⟨v, B⟩ := a
+    icases (contents_cons φ v B vs lh lt).mp $$ QC with ⟨%ln, Pl, Hφ, QC⟩
+    lwp_bind hl(!#lh) HT
+    icases oblFuels_add 1 86 _ $$ HF with ⟨HF1, HF⟩
+    iapply lwp_load (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Pl]
+    · iframe HT Pl
+      iapply stepPre_nil $$ HG HF1
+    iintro ⟨HT, ⟨-, HG, -⟩, Pl⟩
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    sorry
 
 end Specs
 
