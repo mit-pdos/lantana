@@ -130,6 +130,29 @@ def cast (G : TrSpec Expr State GF) (R : TrProp Expr State) (pf : G.external ⊆
   external := R
   adeq _ τ h := pf τ (G.adeq _ τ h)
 
+/-! ## In-logic monotonicity (one step later) -/
+
+@[lantana_alias trSpec_always_mono_i]
+theorem always_mono_i [ModelGS GF] [TemporalGS Expr State GF] (G G' : TrSpec Expr State GF) :
+    ▷ □ (∀ τ, G.internal τ -∗ G'.internal τ) ⊢
+      ∀ τ, (always G).internal τ -∗ (always G').internal τ :=
+  TrIProp.always_mono_i _ _
+
+@[lantana_alias trSpec_until_mono_i]
+theorem strongUntil_mono_i [ModelGS GF] [TemporalGS Expr State GF]
+    (G H G' H' : TrSpec Expr State GF) :
+    ▷ □ (∀ τ, G.internal τ -∗ G'.internal τ) ⊢ ▷ □ (∀ τ, H.internal τ -∗ H'.internal τ) -∗
+      ∀ τ, (strongUntil G H).internal τ -∗ (strongUntil G' H').internal τ := by
+  iintro #HG #HH %τ HU
+  have h₁ : (strongUntil G H).internal τ ⊢
+      iprop(∃ a : Fuel, TrIProp.strongUntil G.internal H.internal a τ) := .rfl
+  have h₂ : iprop(∃ a : Fuel, TrIProp.strongUntil G'.internal H'.internal a τ) ⊢
+      (strongUntil G' H').internal τ := .rfl
+  iapply h₂
+  ihave ⟨%a, HU⟩ := h₁ $$ HU
+  iexists a
+  iapply TrIProp.until_mono_i G.internal G'.internal H.internal H'.internal $$ HG HH HU
+
 /-! ## Notations -/
 
 scoped notation:max "⌜" p "⌝ₛ" => TrSpec.pure p
@@ -214,6 +237,9 @@ instance strongUntil_complete (G H : TrSpec Expr State GF) [Complete G] [Complet
         or_intro_r.trans <| TrIProp.defer_intro.trans
           (TrIProp.until_unfold G.internal H.internal _ τ).mpr⟩) τ h
     exact ha.trans (exists_intro (Ψ := fun a => TrIProp.strongUntil G.internal H.internal a τ) a)
+@[lantana_alias trSpec_complete_finally]
+instance eventually_complete (G : TrSpec Expr State GF) [Complete G] : Complete (◇ₛ G) :=
+  @strongUntil_complete _ _ _ true G (pure_complete True) _
 instance state_complete (φ : State → ThreadPool Expr → Prop) :
     Complete (state (GF := GF) φ) :=
   ⟨fun _ h => pure_intro h⟩
@@ -337,6 +363,58 @@ theorem cast_le (R : TrProp Expr State) (pf : G.external ⊆ R) : G ⊑ₛ G.cas
 @[lantana_alias trSpec_le_cast]
 theorem le_cast (R : TrProp Expr State) (pf : G.external ⊆ R) : G.cast R pf ⊑ₛ G :=
   fun _ => .rfl
+
+@[lantana_alias trSpec_cast_ext]
+theorem cast_external (R : TrProp Expr State) (pf : G.external ⊆ R) : (G.cast R pf).external = R :=
+  rfl
+
+@[lantana_alias trSpec_cast_complete]
+theorem cast_complete [Complete G] (R : TrProp Expr State) (pf : G.external ⊆ R)
+    (hR : R ⊆ G.external) : Complete (G.cast R pf) :=
+  ⟨fun τ h => Complete.complete (G := G) τ (hR τ h)⟩
+
+/-! ### Antecedents, read on the trace -/
+
+/-- An implication is the disjunction of its consequent with the negated antecedent
+(classical). -/
+@[lantana_alias trSpec_impl_or_not]
+theorem imp_or_not : (A →ₛ G) ⊑ₛ ((A →ₛ ⌜False⌝ₛ) ∨ₛ G) := fun τ => by
+  by_cases hA : A.external τ
+  · exact ((BI.and_intro (pure_intro hA) .rfl).trans imp_elim_right).trans or_intro_r
+  · exact (pure_intro (P := iprop(⌜A.external τ⌝ → G.internal τ)) hA).trans <|
+      (BI.imp_intro <| pure_elim _ BI.and_elim_r fun h => absurd h hA).trans or_intro_l
+
+@[lantana_alias trSpec_or_not_impl]
+theorem or_not_imp : ((A →ₛ ⌜False⌝ₛ) ∨ₛ G) ⊑ₛ (A →ₛ G) := fun _ =>
+  or_elim (BI.imp_mono .rfl (pure_elim' False.elim)) (BI.imp_intro BI.and_elim_l)
+
+@[lantana_alias trSpec_impl_curry]
+theorem imp_curry : (A →ₛ (A' →ₛ G)) ⊑ₛ ((A ∧ₛ A') →ₛ G) := fun _ =>
+  BI.imp_intro <| pure_elim _ BI.and_elim_r fun h =>
+    BI.and_elim_l.trans <| ((BI.and_intro (pure_intro h.1) .rfl).trans imp_elim_right).trans <|
+      (BI.and_intro (pure_intro h.2) .rfl).trans imp_elim_right
+
+@[lantana_alias trSpec_impl_uncurry]
+theorem imp_uncurry : ((A ∧ₛ A') →ₛ G) ⊑ₛ (A →ₛ (A' →ₛ G)) := fun _ =>
+  BI.imp_intro <| pure_elim _ BI.and_elim_r fun h₁ => BI.imp_intro <|
+    pure_elim _ BI.and_elim_r fun h₂ => BI.and_elim_l.trans <| BI.and_elim_l.trans <|
+      (BI.and_intro (pure_intro (And.intro h₁ h₂)) .rfl).trans imp_elim_right
+
+@[lantana_alias trSpec_impl_or_split]
+theorem imp_or_split : ((A →ₛ G) ∧ₛ (A' →ₛ G)) ⊑ₛ ((A ∨ₛ A') →ₛ G) := fun _ =>
+  BI.imp_intro <| pure_elim _ BI.and_elim_r fun h => BI.and_elim_l.trans <| h.elim
+    (fun h => BI.and_elim_l.trans <| (BI.and_intro (pure_intro h) .rfl).trans imp_elim_right)
+    (fun h => BI.and_elim_r.trans <| (BI.and_intro (pure_intro h) .rfl).trans imp_elim_right)
+
+@[lantana_alias trSpec_impl_or_join]
+theorem imp_or_join : ((A ∨ₛ A') →ₛ G) ⊑ₛ ((A →ₛ G) ∧ₛ (A' →ₛ G)) := fun _ =>
+  BI.and_intro (BI.imp_mono (pure_mono Or.inl) .rfl) (BI.imp_mono (pure_mono Or.inr) .rfl)
+
+@[lantana_alias trSpec_impl_exist]
+theorem imp_ex {Y : Type _} [SIdxLarge SI Y] {A : Y → TrSpec Expr State GF} :
+    (∀ₛ y, A y →ₛ G) ⊑ₛ (ex A →ₛ G) := fun _ =>
+  BI.imp_intro <| pure_elim _ BI.and_elim_r fun ⟨y, h⟩ => BI.and_elim_l.trans <|
+    (forall_elim y).trans <| (BI.and_intro (pure_intro h) .rfl).trans imp_elim_right
 
 end Rules
 
