@@ -27,10 +27,16 @@ and either the ten credits or a lower bound of thread `0`'s counter past `a` (th
 been taken), and either half of the until on `k` or its discharge with the next entry.
 
 The assumed rule is a hypothesis of the theorems (the class, assumed for every instance of the
-ghost state of the closed world `ExGF`), never an axiom. Statement adaptations: thread ids are
-list positions (Rocq `i`, `j` are `0`, `1`); the counters are two mono-nat ghost names (Rocq: one
-`gmap positive mono_nat` camera with fresh keys); the hypothesis is over `ExGF` only (Rocq: over
-every `Σ` with `heapGS Σ`), which makes the theorems stronger.
+ghost state of the closed world `ExGF`, whose slots 21–22 hold the counters and the ghost map),
+never an axiom. Statement adaptations: thread ids are list positions (Rocq `i`, `j` are `0`, `1`);
+the counters are two mono-nat ghost names (Rocq: one `gmap positive mono_nat` camera with fresh
+keys); the hypothesis is over `ExGF` only (Rocq: over every `Σ` with `heapGS Σ`), which makes the
+theorems stronger. Proof adaptations: the witness induction of thread `0` is `Wit.fuels_ind` with
+no fuels (Rocq: `iInduction` on the ordinal of `wit_fuels_init`); the later credits strip the
+later of the invariant (and of the Löb hypothesis) with `lc_fupd_add_later`/`lc_mupd_add_later`;
+the specs are stated with an arbitrary caller context `C`, as in Rocq. Rocq's derived forms of the
+rule and their tactics (`lwp_pure_step_no_lc_alt`, `tac_lwp_pure_no_lc`, `lwp_pure_no_lc`) are not
+needed: the rule is applied once, directly.
 -/
 
 @[expose] public noncomputable section
@@ -186,10 +192,13 @@ def pxEntry (rm ci cj : GName) (a : Nat) (k : Oid) : IProp GF :=
     (finallyI Nu k (1 : Qp).half (nextQ rm cj a) ∨ (Obl.discharged k ∗ nextQ rm cj a)))
 
 omit [ModelGS GF] [HeapGS GF] in
+/-- `nextQ` unfolded (for `icases`, which does not unfold definitions). -/
 theorem nextQ_iff (rm cj : GName) (a : Nat) :
     nextQ (GF := GF) rm cj a ⊣⊢ cntLb cj (a + 1) ∗ ∃ k' : Oid, mapElem rm (a + 1) k' := by
   unfold nextQ; exact .rfl
 
+/-- `pxEntry` unfolded: a big separating conjunction over the entries keeps them folded, so that
+an entry taken out with `bigSepM_delete` can be put back. -/
 theorem pxEntry_iff (rm ci cj : GName) (a : Nat) (k : Oid) :
     pxEntry (GF := GF) rm ci cj a k ⊣⊢
       ((£ₙ 10 ∨ cntLb ci a) ∗ mapElem rm a k ∗ cntLb cj a ∗ Wit.layer k 0) ∗

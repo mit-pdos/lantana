@@ -16,16 +16,17 @@ always on `y ↦ 7` is allocated in the same modality, and the nested commitment
 `kf`) is discharged after the store, before the thread terminates. Adequacy records the nested
 always and until at the discharge position.
 
-`cert_discharge_adequacy` is the end-to-end statement, from `lwp_adequacy_temporal` in the
-closed world `ExGF` (as `FlagFork.main_adequacy`): the initial heap holds `x ↦ 0` and `y ↦ 7`,
-whose points-tos come from `heapState_init`; the main thread allocates both obligations in
-`main_pre`. At the level of traces (`rMain`): eventually `x` holds `1` while `y` holds `7` from
-then on and `x` later holds `2`, and eventually `x` holds `2`. `cert_discharge_safety_adequacy`
-is the safety statement.
+`certDischarge_adequacy` (Rocq `cert_discharge_adequacy`) is the end-to-end statement, from
+`lwp_adequacy_temporal` in the closed world `ExGF` (as `FlagFork.main_adequacy`): the initial heap
+holds `x ↦ 0` and `y ↦ 7`, whose points-tos come from `heapState_init` (`heap0_pointsTo`); the
+main thread allocates both obligations in `main_pre`. At the level of traces (`rMain`):
+eventually `x` holds `1` while `y` holds `7` from then on and `x` later holds `2`, and eventually
+`x` holds `2`. `certDischarge_safety_adequacy` is the safety statement.
 
 Statement adaptations: thread ids are list positions, so the main thread is `0`; locations
 `x = ⟨0⟩`, `y = ⟨1⟩`. The guarantee of a `finallyI` is inferred as `⌜True⌝ₛ 𝒰ₛ G`, which is
-`◇ₛ G` by definition.
+`◇ₛ G` by definition. The measure is `10` per obligation, as in Rocq; the two later credits of
+the discharges come from the first step.
 -/
 
 @[expose] public noncomputable section
