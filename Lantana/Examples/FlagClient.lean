@@ -21,9 +21,8 @@ commitment with its final value (`threadExpr_terminate_finally`). The measures a
 `flagClient_adequacy` is the end-to-end statement, from `lwp_adequacy_temporal` in the closed
 world `ExGF` (the points-to of the flag comes from the initial heap through `heapState_init`);
 `flagClient_safety_adequacy` the safety statement, from `lwp_adequacy_safety`, once per thread.
-The guarantee `gClient` of the resources `clientRes` is assembled with `guar_sep`,
-`guar_ex_ghost` and `guar_true`, from the flag's guarantees and the inferred ones of the
-`finallyI`s.
+The guarantee `gClient` of the resources `clientRes` is inferred (`IntoGuar`), from the
+flag's instances `Flag.guarOf_isFlag` and `Flag.guarOf_flagTk`; the names are ghost.
 
 Everything here is proved; the end-to-end corollaries depend only on the standard axioms
 (checked in `LantanaTest.Examples`).
@@ -294,26 +293,8 @@ variable [ModelGS GF] [HeapGS GF]
 
 @[lantana_alias flag_client.guar_Φ_P]
 theorem guar_clientRes (μ₁ μ₂ : Measure) : ⊢@{IProp GF} clientRes μ₁ μ₂ ⊨ₜ gClient := by
-  unfold clientRes gClient finallyI
-  iapply guar_ex_ghost
-  iintro %k
-  iapply guar_ex_ghost
-  iintro %kl₁
-  iapply guar_ex_ghost
-  iintro %kl₂
-  iapply guar_sep
-  · iapply guar_true
-  iapply guar_sep
-  · iapply Flag.guar_isFlag
-  iapply guar_sep
-  · iapply Flag.guar_flagTk
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nl kl₁ 1 iprop(True)
-      (exits vUnit @ 0)))
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nl kl₂ 1 iprop(True)
-      (exits v1 @ 1)))
-  iapply guar_true
+  unfold clientRes gClient
+  exact IntoGuar.into_guar
 
 end Guarantee
 

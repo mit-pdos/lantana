@@ -193,49 +193,30 @@ def handoffInvTrSpec (b : Loc) : TrSpec Exp State GF :=
 theorem guar_handoffInv (b : Loc) (γd : GName) (ℓ : Layer) :
     ⊢@{IProp GF} handoffInv b γd ℓ ⊨ₜ handoffInvTrSpec b := by
   unfold handoffInv handoffInvTrSpec
-  iapply guar_ex_ghost
-  iintro %g
-  iapply guar_or
-  · iapply guar_sep
-    · iapply (GuarOf.guar_of (P := b ↦{.own (1 : Qp).half} some vNone))
-    · iapply guar_true
-  iapply guar_or
-  · iapply guar_ex
-    iintro %f
-    iapply guar_ex
-    iintro %a
-    iapply guar_ex_ghost
-    iintro %K
-    iapply guar_sep
-    · iapply (GuarOf.guar_of (P := b ↦ some (vSome f a)))
-    · iapply guar_true
-  · iapply guar_ex
-    iintro %f
-    iapply guar_ex
-    iintro %a
-    iapply guar_sep
-    · iapply (GuarOf.guar_of (P := b ↦ some (vSome f a)))
-    · iapply guar_true
+  exact IntoGuar.into_guar
+
+/-- The invariant's guarantee as an instance. -/
+instance guarOf_handoffInv (b : Loc) (γd : GName) (ℓ : Layer) :
+    GuarOf (handoffInv (GF := GF) b γd ℓ) (handoffInvTrSpec b) :=
+  ⟨guar_handoffInv b γd ℓ⟩
 
 @[lantana_alias guar_is_handoff]
 theorem guar_isHandoff (b : Loc) (γ : HandoffName) (ℓ : Layer) :
     ⊢@{IProp GF} isHandoff b γ ℓ ⊨ₜ □ₛ handoffInvTrSpec b := by
-  haveI : GuarOf (handoffInv (GF := GF) b γ.γd ℓ) (handoffInvTrSpec b) :=
-    ⟨guar_handoffInv b γ.γd ℓ⟩
   unfold isHandoff
   exact IntoGuar.into_guar
+
+/-- The handoff's guarantee as an instance, for the inference (and checking) of the guarantees
+of formulas containing `isHandoff`. -/
+instance guarOf_isHandoff (b : Loc) (γ : HandoffName) (ℓ : Layer) :
+    GuarOf (isHandoff (GF := GF) b γ ℓ) (□ₛ handoffInvTrSpec b) :=
+  ⟨guar_isHandoff b γ ℓ⟩
 
 /-- A handoff exists: its cell is trace-visible, its ghost name and layer are not. -/
 theorem guar_exHandoff :
     ⊢@{IProp GF} iprop(∃ (b : Loc) (γ : HandoffName) (ℓ : Layer), isHandoff b γ ℓ) ⊨ₜ
-      (∃ₛ b : Loc, □ₛ handoffInvTrSpec b) := by
-  iapply guar_ex
-  iintro %b
-  iapply guar_ex_ghost
-  iintro %γ
-  iapply guar_ex_ghost
-  iintro %ℓ
-  iapply guar_isHandoff
+      (∃ₛ b : Loc, □ₛ handoffInvTrSpec b) :=
+  IntoGuar.into_guar
 
 /-- The invariant is registered: a model update. The inbox `g` is an obligation at layer `0`
 without children. -/

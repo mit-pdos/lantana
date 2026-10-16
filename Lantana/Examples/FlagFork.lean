@@ -25,9 +25,10 @@ the fork, one unit for its move, and the forked thread.
 `main_adequacy` is the end-to-end statement (Rocq `main_adequacy`), from the adequacy theorem
 `lwp_adequacy_temporal` in the closed world `ExGF`: HeapLang's ghost state is allocated with
 `heapState_init`, the state interpretation is HeapLang's and forked threads have the
-postcondition `True`. The guarantee `gMain` of the commitments `mainRes` is inferred for the
-`finallyI`s (with an instance for the existential flag: its location is trace-visible, its
-obligation and layer are ghost) and assembled with `guar_sep`, `guar_ex_ghost` and `guar_true`.
+postcondition `True`. The guarantee `gMain` of the commitments `mainRes` is inferred
+(`IntoGuar`, from the flag's instance `Flag.guarOf_isFlag`): the flag's location is
+trace-visible (the target is a `TrSpec.ex` over `Loc`), its obligation, its layer and the names
+of the commitments are ghost.
 `main_safety_adequacy` is the safety statement from `lwp_adequacy_safety`.
 
 Everything here is proved; the end-to-end corollaries depend only on the standard axioms
@@ -293,21 +294,8 @@ variable [ModelGS GF] [HeapGS GF]
 @[lantana_alias flag_fork.guar_Φ_P]
 theorem guar_mainRes (i : ThreadId) (μ : Measure) :
     ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
-  haveI : GuarOf (Expr := Exp) (State := State)
-      iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)
-      (∃ₛ x : Loc, flagTrSpec x) := ⟨Flag.guar_exFlag⟩
-  unfold mainRes gMain finallyI
-  iapply guar_ex_ghost
-  iintro %kr
-  iapply guar_ex_ghost
-  iintro %kc
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nr kr 1 iprop(True)
-      (exits v42 @ i)))
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nc kc 1 iprop(True)
-      iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)))
-  iapply guar_true
+  unfold mainRes gMain
+  exact IntoGuar.into_guar
 
 end Guarantee
 

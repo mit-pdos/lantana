@@ -394,24 +394,8 @@ variable [ModelGS GF] [HeapGS GF] [HandoffG GF]
 @[lantana_alias handoff_client.guar_Φ_P]
 theorem guar_mainRes (i : ThreadId) (μ : Measure) :
     ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
-  haveI : GuarOf (Expr := Exp) (State := State)
-      iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)
-      (∃ₛ x : Loc, flagTrSpec x) := ⟨Flag.guar_exFlag⟩
-  haveI : GuarOf (Expr := Exp) (State := State)
-      iprop(∃ (b : Loc) (γ : HandoffName) (ℓ : Layer), isHandoff (GF := GF) b γ ℓ)
-      (∃ₛ b : Loc, □ₛ handoffInvTrSpec b) := ⟨Handoff.guar_exHandoff⟩
-  unfold mainRes gMain finallyI
-  iapply guar_ex_ghost
-  iintro %kl
-  iapply guar_ex_ghost
-  iintro %kc
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nl kl 1 iprop(True)
-      (exits v1 @ i)))
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nc kc 1 iprop(True)
-      (flagAndHandoff (GF := GF))))
-  iapply guar_true
+  unfold mainRes gMain
+  exact IntoGuar.into_guar
 
 end Guarantee
 

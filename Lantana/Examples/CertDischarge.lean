@@ -254,22 +254,8 @@ variable [ModelGS GF] [HeapGS GF]
 @[lantana_alias cert_discharge.guar_Φ_P]
 theorem guar_mainRes (x y : Loc) (i : ThreadId) (μ : Measure) :
     ⊢@{IProp GF} mainRes x y i μ ⊨ₜ gMain x y := by
-  unfold mainRes gMain finallyI
-  iapply guar_ex_ghost
-  iintro %kq
-  iapply guar_ex_ghost
-  iintro %kf
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nq kq 1 iprop(True)
-      (cdQ (GF := GF) x y kf)))
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nf kf 1 iprop(True)
-      iprop(x ↦ some v2)))
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := iprop(x ↦ some v0 : IProp GF)))
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := iprop(y ↦ some v7 : IProp GF)))
-  iapply guar_true
+  unfold mainRes gMain
+  exact IntoGuar.into_guar
 
 end Guarantee
 

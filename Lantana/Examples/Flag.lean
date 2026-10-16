@@ -115,6 +115,17 @@ theorem guar_flagTk (l : Loc) (k : Oid) :
     ⊢@{IProp GF} flagTk l k ⊨ₜ (pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) := by
   unfold flagTk; exact IntoGuar.into_guar
 
+/-- The flag's guarantee as an instance, for the inference (and checking) of the guarantees of
+formulas containing `isFlag`. -/
+instance guarOf_isFlag (l : Loc) (k : Oid) (ℓ : Layer) :
+    GuarOf (isFlag (GF := GF) l k ℓ) (flagTrSpec l) :=
+  ⟨guar_isFlag l k ℓ⟩
+
+/-- The setter's token's guarantee as an instance. -/
+instance guarOf_flagTk (l : Loc) (k : Oid) :
+    GuarOf (flagTk (GF := GF) l k) (pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) :=
+  ⟨guar_flagTk l k⟩
+
 /-- `l ↦ v` as a trace property. -/
 abbrev pointsToTr (l : Loc) (v : Val) : TrProp Exp State :=
   TrProp.state (pointstoSat l (DFrac.own 1) v)
@@ -154,14 +165,8 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
 /-- A flag exists: its location is trace-visible, its obligation and layer are not. -/
 theorem guar_exFlag :
     ⊢@{IProp GF} iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ⊨ₜ
-      (∃ₛ x : Loc, flagTrSpec x) := by
-  iapply guar_ex
-  iintro %x
-  iapply guar_ex_ghost
-  iintro %k
-  iapply guar_ex_ghost
-  iintro %ℓ
-  iapply guar_isFlag
+      (∃ₛ x : Loc, flagTrSpec x) :=
+  IntoGuar.into_guar
 
 /-- Initialization: a new obligation below `p` carrying the flag. -/
 @[lantana_alias is_flag_init]

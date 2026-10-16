@@ -28,8 +28,8 @@ stable flag for some `x`: `0` until always `1`, or always `1`; in particular, on
 
 The guarantee `guar_mainRes` is inferred (`IntoGuar`): the existentials of the commitment are
 trace-visible for the flag's location and the handoff's cell (the target is a `TrSpec.ex` over
-`Loc`) and ghost for the names and layers, from the guarantees of `isFlag` and `isHandoff` as
-local instances.
+`Loc`) and ghost for the names and layers, from the instances of the guarantees of `isFlag`
+and `isHandoff` (`FlagStable.guarOf_isFlag`, `Handoff.guarOf_isHandoff`).
 
 Everything here is proved; the end-to-end corollaries depend only on the standard axioms
 (checked in `LantanaTest.Examples`).
@@ -377,10 +377,6 @@ location and the handoff's cell are trace-visible, the names and layers ghost. -
 @[lantana_alias handoff_flag_stable_client.guar_Φ_P]
 theorem guar_mainRes (i : ThreadId) (μ : Measure) :
     ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
-  haveI : ∀ x k ℓ, IntoGuar (Expr := Exp) (State := State) (isFlag (GF := GF) x k ℓ)
-      (flagTrSpec x) := fun x k ℓ => ⟨FlagStable.guar_isFlag x k ℓ⟩
-  haveI : ∀ b γ ℓ, IntoGuar (Expr := Exp) (State := State) (isHandoff (GF := GF) b γ ℓ)
-      (□ₛ handoffInvTrSpec b) := fun b γ ℓ => ⟨Handoff.guar_isHandoff b γ ℓ⟩
   unfold mainRes gMain
   exact IntoGuar.into_guar
 

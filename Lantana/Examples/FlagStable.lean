@@ -86,6 +86,17 @@ theorem guar_flagTk (l : Loc) (k : Oid) :
     ⊢@{IProp GF} flagTk l k ⊨ₜ (pointsToSpec l v0 𝒰ₛ □ₛ pointsToSpec l v1) := by
   unfold flagTk; exact IntoGuar.into_guar
 
+/-- The flag's guarantee as an instance, for the inference (and checking) of the guarantees of
+formulas containing `isFlag`. -/
+instance guarOf_isFlag (l : Loc) (k : Oid) (ℓ : Layer) :
+    GuarOf (isFlag (GF := GF) l k ℓ) (flagTrSpec l) :=
+  ⟨guar_isFlag l k ℓ⟩
+
+/-- The setter's token's guarantee as an instance. -/
+instance guarOf_flagTk (l : Loc) (k : Oid) :
+    GuarOf (flagTk (GF := GF) l k) (pointsToSpec l v0 𝒰ₛ □ₛ pointsToSpec l v1) :=
+  ⟨guar_flagTk l k⟩
+
 /-- The response property: whenever the flag is `0`, it is eventually `1` forever. -/
 @[lantana_alias flag_stable.flag_response]
 def flagResponse (l : Loc) : TrProp Exp State :=
