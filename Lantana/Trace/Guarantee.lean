@@ -268,6 +268,174 @@ instance bundle_persistent (l : List (Nat × RegEntry)) (n : Nat) :
 instance sysStep_persistent (Sys : SysT Expr State GF) : Persistent (sysStep Sys) := by
   rw [sysStep_eq]; unfold sysStepPre; infer_instance
 
+/-! ### Introducing and eliminating records -/
+
+@[lantana_alias record_trI_intro]
+theorem recordTrI_intro (f : Trace Expr State → IProp GF) (n : Nat) :
+    iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
+      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+      (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat) (σ : State)
+      (tp : ThreadPool Expr),
+    sysStep Sys -∗
+    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    bundle l n -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    f ⟨n, τf⟩) ⊢ recordTrI f n := by
+  rw [recordTrI_eq]
+  unfold recordPre
+  simp only [sysStep_eq, bundle_eq]
+  exact .rfl
+
+@[lantana_alias record_trI_elim]
+theorem recordTrI_elim (f : Trace Expr State → IProp GF) {Sys : SysT Expr State GF}
+    {l : List (Nat × RegEntry)} {h : List (HistEntry Expr State)} {n : Nat} {g : List MEvent}
+    {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → TraceState Expr State}
+    {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
+    recordTrI f n ⊢ sysStep Sys -∗
+    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    bundle l n -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    f ⟨n, τf⟩ := by
+  rw [recordTrI_eq]
+  unfold recordPre
+  simp only [sysStep_eq, bundle_eq]
+  exact intuitionistically_elim.trans <| (forall_elim Sys).trans <| (forall_elim l).trans <|
+    (forall_elim h).trans <| (forall_elim g).trans <| (forall_elim v).trans <|
+    (forall_elim Ω).trans <| (forall_elim W).trans <| (forall_elim τf).trans <|
+    (forall_elim γ).trans <| (forall_elim σ).trans <| forall_elim tp
+
+@[lantana_alias record_intro]
+theorem record_intro (G : TrSpec Expr State GF) (n : Nat) :
+    iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
+      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+      (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat) (σ : State)
+      (tp : ThreadPool Expr),
+    sysStep Sys -∗
+    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    bundle l n -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    G.internal ⟨n, τf⟩) ⊢ record G n :=
+  recordTrI_intro G.internal n
+
+@[lantana_alias record_elim]
+theorem record_elim (G : TrSpec Expr State GF) {Sys : SysT Expr State GF}
+    {l : List (Nat × RegEntry)} {h : List (HistEntry Expr State)} {n : Nat} {g : List MEvent}
+    {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → TraceState Expr State}
+    {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
+    record G n ⊢ sysStep Sys -∗
+    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    bundle l n -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    G.internal ⟨n, τf⟩ :=
+  recordTrI_elim G.internal
+
+/-- Records are monotone in the reading. -/
+theorem recordTrI_mono {f f' : Trace Expr State → IProp GF} (hf : ∀ τ, f τ ⊢ f' τ) (n : Nat) :
+    recordTrI f n ⊢ recordTrI f' n := by
+  rw [recordTrI_eq, recordTrI_eq]
+  unfold recordPre
+  refine intuitionistically_mono ?_
+  iterate 11 refine forall_mono fun _ => ?_
+  exact wand_mono_right <| wand_mono_right <| wand_mono_right <| wand_mono_right (hf _)
+
+@[lantana_alias record_mono]
+theorem record_mono {G G' : TrSpec Expr State GF} (hG : G ⊑ₛ G') (n : Nat) :
+    record G n ⊢ record G' n :=
+  recordTrI_mono (fun τ => hG τ) n
+
+/-! ## Guarantees -/
+
+/-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`. -/
+@[lantana_alias guar]
+def Guar (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF :=
+  iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
+      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
+    historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n)
+
+@[inherit_doc] scoped infix:25 " ⊨ₜ " => Guar
+
+@[lantana_alias guar_persistent]
+instance Guar.persistent (P : IProp GF) (G : TrSpec Expr State GF) : Persistent (P ⊨ₜ G) := by
+  unfold Guar; infer_instance
+
+@[lantana_alias guar_ne]
+instance Guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF => P ⊨ₜ G) where
+  ne k P₁ P₂ hP := by
+    unfold Guar
+    refine intuitionistically_ne.ne ?_
+    iterate 8 refine forall_ne fun _ => ?_
+    exact wand_ne.ne (sep_ne.ne .rfl (sep_ne.ne .rfl hP)) .rfl
+
+#lantana_ignore guar_proper "OFE is Leibniz: `Guar.ne` gives the equalities."
+#lantana_ignore guar_proper_ne "`Guar.ne`."
+#lantana_ignore record_trI_proper "OFE is Leibniz: `recordTrI_ne` gives the equalities."
+
+theorem guar_intro (P : IProp GF) (G : TrSpec Expr State GF) :
+    iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
+      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
+    historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n) ⊢ P ⊨ₜ G :=
+  .rfl
+
+@[lantana_alias guar_elim]
+theorem guar_elim (P : IProp GF) (G : TrSpec Expr State GF) (h : List (HistEntry Expr State))
+    (n : Nat) (σ : State) (tp : ThreadPool Expr) (m : List MEvent) (i : Nat) (Ω : Obls)
+    (W : Witnesses) :
+    (P ⊨ₜ G) ⊢ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n :=
+  intuitionistically_elim.trans <| (forall_elim h).trans <| (forall_elim n).trans <|
+    (forall_elim σ).trans <| (forall_elim tp).trans <| (forall_elim m).trans <|
+    (forall_elim i).trans <| (forall_elim Ω).trans <| forall_elim W
+
+/-- For the certificates: a later-guarded content gives a later-guarded record. -/
+@[lantana_alias guar_elim_later]
+theorem guar_elim_later (P : IProp GF) (G : TrSpec Expr State GF)
+    (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
+    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) :
+    (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length -∗
+      ▷ record G n := by
+  iintro #HG ⟨HP, HI, MI⟩
+  inext
+  iapply guar_elim P G h n σ tp m i Ω W $$ HG
+  iframe
+
+/-- The same with a later-guarded guarantee, as stored with a registered structure. -/
+@[lantana_alias guar_elim_later_guar]
+theorem guar_elim_later_guar (P : IProp GF) (G : TrSpec Expr State GF)
+    (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
+    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) :
+    ▷ (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length -∗
+      ▷ record G n := by
+  iintro HG ⟨HP, HI, MI⟩
+  inext
+  iapply guar_elim P G h n σ tp m i Ω W $$ HG
+  iframe
+
 end Records
+
+/-! ## The canonical specification -/
+
+section Canon
+variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Val]
+  [StateInterp Expr State GF]
+
+/-- The canonical specification guaranteed by `Q`: the meet of all specifications validly
+guaranteed by `Q`. -/
+@[lantana_alias trSpec_canon]
+def TrSpec.canon (Q : IProp GF) : TrSpec Expr State GF :=
+  TrSpec.all fun G : { G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G } => G.1
+
+end Canon
+
+/-! ## State facts -/
+
+/-- `StateFact P φ`: the state interpretation and `P` determine the state predicate `φ`; the
+atoms of trace properties (Rocq `guarantee_rules.v`; the rule is `guar_state_fact`). -/
+@[lantana_alias StateFact]
+class StateFact [StateInterp Expr State GF] (P : IProp GF)
+    (φ : outParam (State → ThreadPool Expr → Prop)) : Prop where
+  state_fact : ∀ (σ : State) (tp : ThreadPool Expr), stateInterp σ tp ∗ P ⊢ ⌜φ σ tp⌝
 
 end Lantana
