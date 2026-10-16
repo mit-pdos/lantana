@@ -392,6 +392,130 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     inext
     iapply IH $$ HT HG
 
+/-- Creating a task queue at layer `ℓ ≥ 1`, with its worker thread (Rocq
+`TaskQueue_init_spec`). The worker's inbox is created below this thread before the fork, and
+the fork moves it to the worker. -/
+@[lantana_alias task_queue.TaskQueue_init_spec]
+theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (ℓ : Layer)
+    (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
+          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ ⌜1 ≤ ℓ⌝ }}}
+        hl(v(&init) #()) @ i
+      l{{{ (ql : Val) (γ : QueueName), RET ql; threadExpr i C hl(&ql) ∗ £ₒ lc ∗ thKids i G ∗
+        isTaskQueue ql γ ℓ }}} := by
+  obtain ⟨μi, hi⟩ := Queue.init_spec (GF := GF)
+  obtain ⟨μw, hw⟩ := worker_spec (GF := GF)
+  refine ⟨100 + μi, fun lc i G ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, %hℓ⟩ HΦ
+  icases (Obl.fuel_add_set G _ 100 μi).mp $$ HF with ⟨HF, Fi⟩
+  ihave HF := oblFuels_init G 100 _ $$ HF
+  unfold init
+  lwp_step HT HG HF with Hlc : lc
+  lwp_expr_simp
+  lwp_bind hl(v(&Queue.init) #()) HT
+  iapply hi 0 (taskElem ℓ) i G _ $$ [HT HG Fi]
+  · iframe
+  iintro %ql %γ ⟨HT, -, HG, IQI⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  -- The worker's inbox, at the queue's layer: a child of this thread until the fork moves it
+  -- to the worker. It pays the fork step, its move, and the worker.
+  imod Obl.new ⊤ (.thread i) G ℓ (((1 : Nat) : Measure) + (((1 : Nat) : Measure) + μw)) $$ []
+    HG with ⟨%gj, %hgj, HG, Kgj, Agj, Fgj, #Wgj⟩
+  · iapply parLe_thread
+  imod Queue.isQueue_initialize ⊤ ql γ ℓ (taskElem ℓ) gj $$ IQI Kgj Wgj Agj with ⟨#IQ, Wk⟩
+  icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨F1, Fgj⟩
+  icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨Fmv, Fw⟩
+  icases oblFuels_add 1 96 _ $$ HF with ⟨HF1, HF⟩
+  ihave HF1 := oblFuels_add_obl _ gj ℓ _ $$ F1 HF1
+  lwp_bind hl(fork(v(&worker) v(&ql))) HT
+  have hsub : ({gj} : Oids) ⊆ G.insert gj := fun z hz => by
+    rw [LawfulSet.mem_singleton] at hz
+    subst hz
+    exact Std.ExtTreeSet.mem_insert_self
+  iapply lwp_fork (o := 0) (G := G.insert gj) (R := ∅) {gj}
+    iprop(Obl.fuel gj ℓ μw ∗ Queue.worker γ gj) hl(v(&worker) v(&ql)) hsub $$ []
+    [HT HG HF1 Fmv Fw Wk]
+  · -- The worker thread runs forever.
+    iintro %j %Φ' !> ⟨HTj, HGj, Fw, Wk⟩ -
+    iapply hw true j {gj} γ ℓ ql [] $$ [HTj HGj Fw Wk]
+    · simp only [↓reduceIte]
+      iframe HTj HGj
+      isplitl [Fw Wk]
+      · iexists gj
+        isplitr
+        · ipureintro
+          exact ⟨rfl, hℓ⟩
+        iframe
+      · unfold isTaskQueue
+        iexact IQ
+    iintro H
+    iexfalso
+    iexact H
+  · iframe HT Fw Wk
+    isplitl [HG HF1]
+    · iapply stepPre_nil $$ HG HF1
+    · unfold oblFuels
+      iapply BigSepS.bigSepS_singleton.mpr
+      iexists _
+      iexact Fmv
+  iintro ⟨HT, -, HG, -⟩
+  ihave HG := Par.kids_congr (B := G) ?_ $$ HG
+  · intro z
+    simp only [Std.ExtTreeSet.mem_diff_iff, Std.ExtTreeSet.mem_insert, LawfulSet.mem_singleton]
+    grind
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  iapply lwp_value'
+  iapply HΦ
+  iframe HT Hlc HG
+  unfold isTaskQueue
+  iexact IQ
+
 end Specs
+
+/-! ## Temporal guarantees
+
+A task queue guarantees what its queue does: the tasks (`isTask`) are Hoare triples with
+ghost resources. That every task runs is expressed by obligations. -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- The guarantee of a task queue (Rocq `task_queue_trSpec`). -/
+@[lantana_alias task_queue.task_queue_trSpec]
+def taskQueueTrSpec (ql : Val) : TrSpec Exp State GF := queueTrSpec ql
+
+variable [ModelGS GF] [HeapGS GF] [TicketLockG GF] [QueueG GF]
+
+@[lantana_alias task_queue.guar_is_task_queue]
+theorem guar_isTaskQueue (ql : Val) (γ : QueueName) (ℓ : Layer) :
+    ⊢@{IProp GF} isTaskQueue ql γ ℓ ⊨ₜ taskQueueTrSpec ql :=
+  Queue.guar_isQueue ql γ ℓ _
+
+@[lantana_alias task_queue.into_guar_is_task_queue]
+instance intoGuar_isTaskQueue (ql : Val) (γ : QueueName) (ℓ : Layer) :
+    IntoGuar (Expr := Exp) (State := State) (isTaskQueue (GF := GF) ql γ ℓ)
+      (taskQueueTrSpec ql) :=
+  ⟨guar_isTaskQueue ql γ ℓ⟩
+
+end Guarantee
+
+/-! ## Progress of the task queue's lock, at the level of traces -/
+
+/-- Every `putTask` or `runTask` that takes the queue's lock eventually releases it (Rocq
+`task_queue_release_progress`). -/
+@[lantana_alias task_queue.task_queue_release_progress]
+theorem taskQueue_release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace Exp State)
+    (h : (taskQueueTrSpec (GF := GF) ql).external τ) :
+    ∃ lhptr ltptr next curr : Loc,
+      ql = vQueue lhptr ltptr (vLock next curr) ∧ releaseProgress next curr τ :=
+  Queue.queue_release_progress ql τ h
 
 end Lantana.Examples.TaskQueue

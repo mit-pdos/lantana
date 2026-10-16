@@ -22,3 +22,4 @@ public import Lantana.Examples.ExtendedInt
 public import Lantana.Examples.GhostMapP
 public import Lantana.Examples.TicketLock
 public import Lantana.Examples.Queue
+public import Lantana.Examples.TaskQueue
