@@ -24,3 +24,4 @@ public import Lantana.Examples.TicketLock
 public import Lantana.Examples.LockLevel
 public import Lantana.Examples.TicketLock2
 public import Lantana.Examples.TicketLock2Client
+public import Lantana.Examples.TicketLockMono

@@ -67,7 +67,7 @@ Aliases are prefixed with `ticket_lock_mono.`. Everything here is proved.
 namespace Lantana.Examples.TicketLockMono
 
 open Iris Iris.BI Iris.Std Lantana Lantana.HeapLang Lantana.Language
-open Lantana.Examples.TicketLock (vz vLock N Ninv Nev Ntk TicketInfo TMap q14 q34 ptsSpec)
+open Lantana.Examples.TicketLock (vz vLock N Ninv Nev Ntk TicketInfo TMap q14 ptsSpec)
 open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal Lantana.AuthMra
 open scoped Iris.Std.PartialMap
 
@@ -1116,7 +1116,7 @@ theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : Thre
   icases H with ⟨%n, %c, %tickets, %obls, PtrNext, #NG, PtrCurr, GMAt, GMAo,
     %⟨Domt, Domo, hc0, hcn⟩, HMt, Hc⟩
   -- The mono cell, open for the step, holds the other half of `next`.
-  ihave Hacc := TicketLockMono.nextGe_acc (E := E \ ↑Ninv) γ.γm next n (Nmono_subseteq hE) $$ NG
+  ihave Hacc := nextGe_acc (E := E \ ↑Ninv) γ.γm next n (Nmono_subseteq hE) $$ NG
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨HJ, CloseJ⟩
   iclear Hacc
@@ -1362,5 +1362,231 @@ theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : Thre
 
 
 end Acquire
+
+/-! ## Temporal guarantees
+
+As in `TicketLock`: the guarantees keep the trace content of the invariants (the values of
+`next` and `curr`, the `finallyI` of the unlock obligation of ticket `c + 1`) and, here, the
+mono cell's registration for the current `n`, `□ₛ nextGeTrSpec next n`; the ghost conjuncts are
+dropped. The token's invariant and its guarantee are those of `TicketLock`. -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- The guarantee of the alive branch of the lock invariant (Rocq `lock_inv_alive_trSpec`): that
+of `TicketLock`, with the mono cell's registration for `n`. -/
+@[lantana_alias ticket_lock_mono.lock_inv_alive_trSpec]
+def lockInvAliveTrSpec (next curr : Loc) : TrSpec Exp State GF :=
+  ∃ₛ (n : Int) (c : Int), ptsSpec next (1 : Qp).half (vz n) ∧ₛ □ₛ nextGeTrSpec next n ∧ₛ
+    ptsSpec curr q14 (vz c) ∧ₛ ⌜0 ≤ c ∧ c ≤ n⌝ₛ ∧ₛ TicketLock.holderTrSpec curr c n
+
+/-- The guarantee of the lock invariant: its left disjunct (a deleted lock) is ghost state
+(Rocq `lock_inv_trSpec`). -/
+@[lantana_alias ticket_lock_mono.lock_inv_trSpec]
+def lockInvTrSpec (next curr : Loc) : TrSpec Exp State GF :=
+  TrSpec.true ∨ₛ lockInvAliveTrSpec next curr
+
+attribute [lantana_alias ticket_lock_mono.lock_token_inv_trSpec] TicketLock.lockTokenInvTrSpec
+
+/-- The guarantee of `isFairLock`, vacuous on traces since the lock can be deleted (Rocq
+`fair_lock_trSpec`); see `guar_isFairLockAlive`. -/
+@[lantana_alias ticket_lock_mono.fair_lock_trSpec]
+def fairLockTrSpec (tl : Val) : TrSpec Exp State GF :=
+  ∃ₛ (next : Loc) (curr : Loc), ⌜tl = vLock next curr⌝ₛ ∧ₛ □ₛ lockInvTrSpec next curr ∧ₛ
+    □ₛ TicketLock.lockTokenInvTrSpec curr
+
+/-- The guarantee of a lock that cannot be deleted (Rocq `alive_fair_lock_trSpec`). -/
+@[lantana_alias ticket_lock_mono.alive_fair_lock_trSpec]
+def aliveFairLockTrSpec (tl : Val) : TrSpec Exp State GF :=
+  fairLockTrSpec tl ∧ₛ
+    ∃ₛ (next : Loc) (curr : Loc), ⌜tl = vLock next curr⌝ₛ ∧ₛ □ₛ lockInvAliveTrSpec next curr
+
+variable [ModelGS GF] [HeapGS GF] [TicketLockMonoG GF]
+
+/-- A registration of the mono cell guarantees its reading from then on. -/
+theorem guar_nextGe (γm : GName) (next : Loc) (v : Int) :
+    ⊢@{IProp GF} nextGe γm next v ⊨ₜ □ₛ nextGeTrSpec next v := by
+  unfold nextGe
+  exact guar_alwaysIGuar
+
+theorem guar_lockInvAlive (γt γo γc γm : GName) (next curr : Loc) (R : IProp GF) :
+    ⊢@{IProp GF} lockInvAlive γt γo γc γm next curr R ⊨ₜ lockInvAliveTrSpec next curr := by
+  unfold lockInvAlive lockInvAliveTrSpec
+  iapply guar_ex
+  iintro %n
+  iapply guar_ex
+  iintro %c
+  iapply guar_ex_ghost
+  iintro %tickets
+  iapply guar_ex_ghost
+  iintro %obls
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := next ↦{.own (1 : Qp).half} some (vz n)))
+  iapply guar_sep
+  · iapply guar_nextGe
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := curr ↦{.own q14} some (vz c)))
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_sep_drop
+  iapply guar_sep
+  · iapply TicketLock.guar_pure_weaken (by exact fun h => ⟨h.2.2.1, h.2.2.2⟩)
+  iapply TicketLock.guar_sep_drop
+  iapply TicketLock.guar_holderSt
+
+theorem guar_lockInv (γt γo γc γa γm : GName) (next curr : Loc) (R : IProp GF) :
+    ⊢@{IProp GF} lockInv γt γo γc γa γm next curr R ⊨ₜ lockInvTrSpec next curr := by
+  unfold lockInv lockInvTrSpec
+  iapply guar_or
+  · iapply guar_true
+  · iapply guar_lockInvAlive
+
+@[lantana_alias ticket_lock_mono.guar_is_fair_lock]
+theorem guar_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    ⊢@{IProp GF} isFairLock tl γ R ⊨ₜ fairLockTrSpec tl := by
+  unfold isFairLock fairLockTrSpec
+  iapply guar_ex
+  iintro %next
+  iapply guar_ex
+  iintro %curr
+  iapply guar_sep
+  · iapply guar_pure
+  iapply guar_sep
+  · iapply guar_alwaysI_valid (guar_lockInv γ.γt γ.γo γ.γc γ.γa γ.γm next curr R)
+  · iapply guar_alwaysI_valid (TicketLock.guar_lockTokenInv γ.γo γ.γk curr R)
+
+/-- Clients see the lock's guarantee, not its invariant. -/
+@[lantana_alias ticket_lock_mono.into_guar_is_fair_lock]
+instance intoGuar_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    IntoGuar (Expr := Exp) (State := State) (isFairLock tl γ R) (fairLockTrSpec tl) :=
+  ⟨guar_isFairLock tl γ R⟩
+
+@[lantana_alias ticket_lock_mono.guar_is_fair_lock_alive]
+theorem guar_isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    ⊢@{IProp GF} isFairLockAlive tl γ R ⊨ₜ aliveFairLockTrSpec tl := by
+  unfold isFairLockAlive aliveFairLockTrSpec
+  iapply guar_sep
+  · iapply guar_isFairLock
+  iapply guar_ex
+  iintro %next
+  iapply guar_ex
+  iintro %curr
+  iapply guar_sep
+  · iapply guar_pure
+  · iapply guar_alwaysIAs_valid (guar_lockInvAlive γ.γt γ.γo γ.γc γ.γm next curr R)
+
+@[lantana_alias ticket_lock_mono.into_guar_is_fair_lock_alive]
+instance intoGuar_isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    IntoGuar (Expr := Exp) (State := State) (isFairLockAlive tl γ R) (aliveFairLockTrSpec tl) :=
+  ⟨guar_isFairLockAlive tl γ R⟩
+
+/-- A persistent alive token (as the queue keeps) rules out deletion, hence the left disjunct
+of `lockInv`: the lock invariant is registered under its alive branch (Rocq
+`is_fair_lock_register_alive`). -/
+@[lantana_alias ticket_lock_mono.is_fair_lock_register_alive]
+theorem isFairLock_register_alive (E : CoPset) (tl : Val) (γ : TicketLockName) (R : IProp GF)
+    (hE : ↑Ninv ⊆ E) :
+    isFairLock tl γ R ⊢ (γ ↪LOCK_AL{.discard}) -∗ |={E}=>m isFairLockAlive tl γ R := by
+  iintro #H #AL
+  unfold isFairLock
+  icases H with ⟨%next, %curr, %htl, #I, #K⟩
+  imod alwaysI_register (Expr := Exp) (State := State) (E := E) (N := Ninv)
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa γ.γm next curr R)
+    (V := lockInvAlive γ.γt γ.γo γ.γc γ.γm next curr R) hE $$ [] [] with #IA
+  · iapply alwaysI_inv $$ I
+  · imodintro
+    iintro H
+    iunfold lockInv at H
+    icases H with (H | H)
+    · iexfalso
+      iapply TicketLock.ownAlive_full_false $$ AL H
+    · iexact H
+  imodintro
+  unfold isFairLockAlive isFairLock
+  isplitl []
+  · iexists next, curr
+    isplitr
+    · ipureintro
+      exact htl
+    iframe I K
+  · iexists next, curr
+    isplitr
+    · ipureintro
+      exact htl
+    iexact IA
+
+end Guarantee
+
+/-! ## Progress of the lock, at the level of traces
+
+The notions of `TicketLock` (`TicketLock.releaseProgress`, `TicketLock.nextMonotone`,
+`TicketLock.starvationFree`): a lock that cannot be deleted makes release progress, and here its
+`next` never decreases, hence it is starvation free. -/
+
+section Trace
+
+/-- A location is not both allocated and freed (Rocq `tr_pointsto_freed`, `temporal_laws.v`). -/
+theorem state_pointsto_freed {l : Loc} {dq : DFrac} {v : Val} {τ : Trace Exp State}
+    (h₁ : TrProp.state (pointstoSat l dq v) τ) (h₂ : TrProp.state (freedSat l) τ) : False := by
+  simp only [TrProp.state, pointstoSat, freedSat] at h₁ h₂
+  exact absurd (h₁.symm.trans h₂) (by simp)
+
+@[lantana_alias ticket_lock_mono.lock_inv_alive_trSpec_release_progress]
+theorem lockInvAliveTrSpec_release_progress {GF : BundledGFunctors} (next curr : Loc) :
+    (□ₛ lockInvAliveTrSpec (GF := GF) next curr).external ⊆
+      TicketLock.releaseProgress next curr := by
+  intro τ h m hm n c hn hc hlt
+  obtain ⟨n', c', hn', -, hc', -, hcase⟩ := h m hm
+  obtain rfl : n = n' := by
+    simpa [vz] using TicketLock.state_pointsto_agree (dq₁ := .own 1)
+      (dq₂ := .own (1 : Qp).half) hn hn'
+  obtain rfl : c = c' := by
+    simpa [vz] using TicketLock.state_pointsto_agree (dq₁ := .own 1) (dq₂ := .own q14) hc hc'
+  rcases hcase with ⟨h, -⟩ | ⟨-, m', hm', ⟨hpts, -⟩, -⟩
+  · exact absurd (show c = n from h) (by have : c < n := hlt; omega)
+  · exact ⟨m', hm', hpts, fun _ _ _ => trivial⟩
+
+/-- `next` never decreases: at each position, the mono cell's registration for the current `n`
+gives `next ≥ n` or `next` freed from then on, and the alive branch keeps `next` allocated
+(Rocq `lock_inv_alive_trSpec_next_monotone`). -/
+@[lantana_alias ticket_lock_mono.lock_inv_alive_trSpec_next_monotone]
+theorem lockInvAliveTrSpec_next_monotone {GF : BundledGFunctors} (next curr : Loc) :
+    (□ₛ lockInvAliveTrSpec (GF := GF) next curr).external ⊆ TicketLock.nextMonotone next := by
+  rintro ⟨k, τf⟩ hal m hm n hn m' hm'
+  dsimp only at hm hm'
+  obtain ⟨n₀, c₀, hn₀, hge, -⟩ := hal m hm
+  obtain ⟨n₁, c₁, hn₁, -⟩ := hal m' (by dsimp only; omega)
+  obtain rfl : n = n₀ := by
+    simpa [vz] using TicketLock.state_pointsto_agree (dq₁ := .own 1)
+      (dq₂ := .own (1 : Qp).half) hn hn₀
+  rcases hge m' hm' with ⟨w, hw, hnw⟩ | hfr
+  · exact ⟨w, hnw, hw⟩
+  · exact (state_pointsto_freed (dq := .own (1 : Qp).half) hn₁ hfr).elim
+
+@[lantana_alias ticket_lock_mono.alive_fair_lock_release_progress]
+theorem aliveFairLock_release_progress {GF : BundledGFunctors} (tl : Val)
+    (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
+    ∃ next curr : Loc, tl = vLock next curr ∧ TicketLock.releaseProgress next curr τ := by
+  obtain ⟨-, next, curr, htl, hal⟩ := h
+  exact ⟨next, curr, htl, lockInvAliveTrSpec_release_progress (GF := GF) next curr τ hal⟩
+
+@[lantana_alias ticket_lock_mono.alive_fair_lock_next_monotone]
+theorem aliveFairLock_next_monotone {GF : BundledGFunctors} (tl : Val)
+    (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
+    ∃ next curr : Loc, tl = vLock next curr ∧ TicketLock.nextMonotone next τ := by
+  obtain ⟨-, next, curr, htl, hal⟩ := h
+  exact ⟨next, curr, htl, lockInvAliveTrSpec_next_monotone (GF := GF) next curr τ hal⟩
+
+/-- Hence a lock that cannot be deleted is starvation free, with no hypothesis about `next`
+(Rocq `alive_fair_lock_starvation_free`). -/
+@[lantana_alias ticket_lock_mono.alive_fair_lock_starvation_free]
+theorem aliveFairLock_starvationFree {GF : BundledGFunctors} (tl : Val)
+    (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
+    ∃ next curr : Loc, tl = vLock next curr ∧ TicketLock.starvationFree next curr τ := by
+  obtain ⟨-, next, curr, htl, hal⟩ := h
+  exact ⟨next, curr, htl, TicketLock.releaseProgress_starvationFree next curr τ
+    (lockInvAliveTrSpec_release_progress (GF := GF) next curr τ hal)
+    (lockInvAliveTrSpec_next_monotone (GF := GF) next curr τ hal)⟩
+
+end Trace
 
 end Lantana.Examples.TicketLockMono
