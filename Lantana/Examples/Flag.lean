@@ -28,7 +28,7 @@ does not say that the flag stays `1`: `flagRun` (`0, 1, 0, 1, 1, …`) satisfies
 namespace Lantana.Examples.Flag
 
 open Iris Iris.BI Lantana Lantana.HeapLang Lantana.Language
-open scoped Lantana.TrSpec Lantana.TrProp
+open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 
 /-! ## The program -/
 
@@ -49,6 +49,12 @@ def v1 : Val := hl_val(#1)
 def N : Namespace := nroot.@"flag"
 def Na : Namespace := N.@"always"
 def Np : Namespace := N.@"pointsto"
+
+/-- The until's namespace is outside the invariant's. -/
+theorem Np_subseteq : (↑Np : CoPset) ⊆ ⊤ \ ↑Na := by
+  intro x hx
+  refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h => ?_⟩
+  exact ndot_ne_disjoint N (by decide : "pointsto" ≠ "always") x ⟨hx, h⟩
 
 /-! ## The invariant -/
 
@@ -239,7 +245,64 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
           oblKids k ∅ ∗ flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗
-        Par.kids p (K.erase k) ∗ Obl.discharged k }}} := sorry
+        Par.kids p (K.erase k) ∗ Obl.discharged k }}} := by
+  refine ⟨10, fun lc i l G p K k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, HK, %hk, Hkk, HU, #Hflag⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold isFlag set
+  icases Hflag with ⟨#Wk, #HA⟩
+  lwp_pure HT
+  iexists G, 9, ∅, lc +ₕ 1 +ₕ 1
+  isplitl [HG HF]
+  · iframe HG
+    isplitl [HF]
+    · iexact HF
+    · unfold witLayers
+      iapply BigSepS.bigSepS_empty.mpr
+      iempintro
+  iintro HG HF - Hlc HT
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  lwp_expr_simp
+  imodintro
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+    (fun _ _ => CoPset.mem_full) $$ HA
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  rw [val_to_ofVal]
+  imod Hacc with ⟨Hinv, Hclose⟩
+  iapply lwp_credit_later $$ Hc1
+  inext
+  unfold flagInv flagTk
+  icases Hinv with (Hinv | ⟨#Hd, -⟩)
+  rotate_left
+  · iexfalso
+    iapply untilI_discharged_false $$ HU Hd
+  ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
+  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Np_subseteq $$ HU
+  ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
+  imod HU
+  iapply lwp_credit_later $$ Hc2
+  inext
+  icases HU with ⟨Hl, Hdis⟩
+  rw [← val_to_ofVal]
+  iapply lwp_store (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF Hl]
+  · iframe HT Hl
+    iapply stepPre_nil $$ HG HF
+  iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+  rw [show (hl_val(#1) : Val) = v1 from rfl]
+  imod Hdis $$ %p %K %hk HK Hkk Hl %_ with H
+  imod H with ⟨Hl, HK, #Hd⟩
+  imodintro
+  imod Hclose $$ [Hl]
+  · inext
+    iright
+    iframe Hl
+    iexact Hd
+  imodintro
+  iapply HΦ
+  iframe
+  iexact Hd
 
 /-- The same operations when the flag's obligation is a child of the calling thread itself. -/
 @[lantana_alias Flag_init_thread_spec]
