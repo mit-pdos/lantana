@@ -24,13 +24,17 @@ Environment variables:
   report is added; without it they are grouped by Lean module.
 - `ROCQ_LANTANA_REV`: a description of that checkout (branch, commit), printed in the header.
 
-The Rocq scanner is a heuristic: it strips comments and reads the sentences that start a line
-(`Definition`, `Lemma`, `Instance`, …, with their attributes), tracking `Module`/`Section`/`End`.
-A Rocq declaration `n` of the file `lantana/d/f.v` inside the modules `M₁.….Mₖ` is matched by
-every name `S.M'.n` with `S` a suffix of its logical path `lantana.d.f` and `M'` a suffix of
-`M₁.….Mₖ` (so `n`, `Mₖ.n`, `f.n`, `f.M₁.….Mₖ.n`, … all refer to it); a name matching several
-declarations is resolved to the one whose file is in the directory of the Lean module, then whose
-file stem is the Lean module's name.
+The Rocq scanner is a heuristic: it strips comments, splits the files into sentences (ended by
+`.` and whitespace) and reads the declaring ones (`Definition`, `Lemma`, `Instance`, …, with
+their attributes and qualifiers; the constructors of inductives, the constructors and fields of
+records and classes; notations, tactics and `Let`s are matched but not counted), tracking
+`Module`/`Section`/`End`. A Rocq declaration `n` of the file `lantana/d/f.v` (logical path
+`lantana.d.f`; `lantana_heap_lang/f.v` is `lantana.heap_lang.f`) inside the modules
+`M₁.….Mₖ` is matched by every name `S.M'.n` with `S` a suffix of its logical path or of its
+logical directory and `M'` a suffix of `M₁.….Mₖ` (so `n`, `Mₖ.n`, `f.n`, `heap_lang.n`,
+`f.M₁.….Mₖ.n`, … all refer to it). A name matching declarations of several files is resolved
+to the one whose file is in the Rocq directory of the Lean module's layer, then whose file stem
+is the Lean module's name in `snake_case`.
 -/
 
 open Lean Elab Command
