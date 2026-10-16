@@ -376,7 +376,6 @@ instance Obl.assigned_asFractional (k : Oid) (q : Qp) {ioΦ ioq} :
   as_fractional := .rfl
   as_fractional_fractional := Obl.assigned_fractional k
 
-omit [ModelGS GF] in
 /-- The assignment of `k` splits in two halves. -/
 theorem Obl.assigned_halves (k : Oid) :
     Obl.assigned (GF := GF) k 1 ⊣⊢ Obl.assigned k (Qp.half 1) ∗ Obl.assigned k (Qp.half 1) := by
@@ -393,7 +392,6 @@ instance Obl.variant_timeless (k : Oid) (P R : IProp GF) [Timeless P] [Timeless 
     Timeless (Obl.variant k P R) := by
   unfold Obl.variant; infer_instance
 
-omit [ModelGS GF] in
 @[lantana_alias oblP_variant_unfold]
 theorem Obl.variant_unfold (k : Oid) (P R : IProp GF) :
     Obl.variant k P R ⊣⊢ (Obl.assigned k (Qp.half 1) ∗ P) ∨ (Obl.discharged k ∗ R) :=
@@ -461,7 +459,7 @@ end Preds
 
 section Parents
 
-variable {GF : BundledGFunctors}
+variable {GF : BundledGFunctors} [ModelGS GF]
 
 @[lantana_alias parent_below_persistent]
 instance parBelow_persistent (p : Parent) (ℓ : Layer) : Persistent (parBelow (GF := GF) p ℓ) := by
@@ -555,6 +553,8 @@ private theorem bigSepS_union_2 {Φ : Oid → IProp GF} {X Y : Oids} :
 
 /-! ### Fuel -/
 
+variable [ModelGS GF]
+
 @[lantana_alias oblP_fuel_layer_eq]
 theorem Obl.fuel_layer_eq (k : Oid) {ℓ₁ ℓ₂ : Layer} (μ : Measure) (h : ℓ₁ = ℓ₂) :
     Obl.fuel (GF := GF) k ℓ₁ μ ⊣⊢ Obl.fuel k ℓ₂ μ :=
@@ -562,8 +562,6 @@ theorem Obl.fuel_layer_eq (k : Oid) {ℓ₁ ℓ₂ : Layer} (μ : Measure) (h : 
 
 #lantana_ignore oblP_fuel_layer_eq_list "Layer equality is Leibniz: rewrite."
 #lantana_ignore oblP_fuel_layer_eq_set "Layer equality is Leibniz: rewrite."
-
-variable [ModelGS GF]
 
 /-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_eq`; the general
 version is `Obl.fuel_eq`). -/
@@ -822,13 +820,11 @@ theorem oblFuels_add_nat (m₁ m₂ n : Nat) (K : Oids) (h : n = m₁ + m₂) :
     oblFuels (GF := GF) K (n : Measure) ⊢ oblFuels K (m₁ : Measure) ∗ oblFuels K (m₂ : Measure) :=
   h ▸ oblFuels_add m₁ m₂ K
 
-omit [ModelGS GF] in
 @[lantana_alias oblP_fuels_init]
 theorem oblFuels_init (K : Oids) (m : Measure) (ℓ : Layer) :
     ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ m) ⊢ oblFuels K m :=
   bigSepS_mono_of_forall fun k => exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ m) ℓ
 
-omit [ModelGS GF] in
 @[lantana_alias oblP_fuels_add_obl]
 theorem oblFuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
     Obl.fuel (GF := GF) k ℓ n ⊢ oblFuels K n -∗ oblFuels (K.insert k) n := by
@@ -839,19 +835,16 @@ theorem oblFuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
   exact (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ n) ℓ).trans
     (bigSepS_singleton (Φ := fun k => iprop(∃ ℓ, Obl.fuel k ℓ n))).2
 
-omit [ModelGS GF] in
 @[lantana_alias oblP_fuels_add_obls]
 theorem oblFuels_add_obls (K₁ K₂ : Oids) (n : Measure) :
     oblFuels (GF := GF) K₁ n ⊢ oblFuels K₂ n -∗ oblFuels (K₁ ∪ K₂) n :=
   wand_intro bigSepS_union_2
 
-omit [ModelGS GF] in
 @[lantana_alias oblP_fuels_remove_obl]
 theorem oblFuels_remove_obl (k : Oid) (K : Oids) (n : Measure) :
     oblFuels (GF := GF) K n ⊢ oblFuels (K.erase k) n :=
   bigSepS_subseteq fun _ hx => (Std.ExtTreeSet.mem_erase.mp hx).2
 
-omit [ModelGS GF] in
 @[lantana_alias oblP_fuels_remove_obls]
 theorem oblFuels_remove_obls (K₂ K₁ : Oids) (n : Measure) :
     oblFuels (GF := GF) K₁ n ⊢ oblFuels (K₁ \ K₂) n :=
@@ -985,7 +978,6 @@ def embedFuels {A : Type} {r : A → A → Prop} (hwf : WellFounded r) (a : A)
     (F : OidMap (Layer × Measure)) : IProp GF :=
   iprop([∗map] f ↦ lm ∈ F, Obl.fuel f lm.1 (lm.2 * ⟪hwf, a⟫))
 
-omit [ModelGS GF] in
 @[lantana_alias embed_fuels_init]
 theorem embedFuels_init {A : Type} {r : A → A → Prop} (hwf : WellFounded r) (a : A) :
     ⊢ embedFuels (GF := GF) hwf a ∅ := by
