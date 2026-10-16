@@ -346,6 +346,27 @@ theorem witCreds_singleton [ModelGS GF] (k : Oid) :
   unfold witCreds
   exact BigSepS.bigSepS_singleton.mp
 
+variable [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]
+variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem}
+
+/-- A pure step of the redex of `e` that observes no witness (`tac_lwp_pure` with `R = ∅`),
+paid with one of the `m + 1` units of fuel of the children `G`; it gives back `£ₒ o`. -/
+theorem tac_lwp_step {e e' : Exp} {φ : Prop} [PureExecCtx φ 1 e e'] (hφ : φ) (o : Fuel)
+    (Φ : Val → IProp GF) {G : Oids} {m : Nat} :
+    threadExpr i C e ⊢ thKids i G -∗ oblFuels G ((m + 1 : Nat) : Measure) -∗
+      (thKids i G -∗ oblFuels G (m : Measure) -∗ £ₒ o -∗ threadExpr i C e' -∗
+        |={E}=>m lWP e' @ s; i; E {{ Φ }}) -∗
+      lWP e @ s; i; E {{ Φ }} := by
+  iintro HT HG HF H
+  iapply tac_lwp_pure hφ Nat.one_pos Φ $$ HT
+  iexists G, m, ∅, o
+  isplitl [HG HF]
+  · rw [Nat.add_comm 1 m]
+    iframe HG HF
+    iapply witLayers_empty
+  iintro HG HF - Ho HT
+  iapply H $$ HG HF Ho HT
+
 end Steps
 
 /-- `lwp_pure H`: a pure step of the redex of the goal `lWP e @ s; i; E {{ Φ }}`, paid with the
@@ -358,6 +379,28 @@ macro_rules
   | `(tactic| lwp_pure $H:ident) =>
     `(tactic| (iapply tac_lwp_pure ?hφ (by decide) $$ $H:ident
                try case hφ => first | trivial | decide))
+
+/-- `lwp_step H HG HF`: a one-step pure reduction of the redex of the goal
+`lWP e @ s; i; E {{ Φ }}` that observes no witness (`tac_lwp_step`), with the token
+`H : threadExpr i C e`, the children `HG : thKids i G` and their fuel
+`HF : oblFuels G ((m + 1 : Nat) : Measure)` (a numeral `oblFuels G 5` unifies too); the three
+hypotheses are given back (`HF` with `m` units of fuel, `H` for the new expression) and the
+goal is `lWP e' @ s; i; E {{ Φ }}`. `lwp_step H HG HF with Hc : o` also gives the later
+credits `Hc : £ₒ o`. The pure condition is handled as by `lwp_pure`. -/
+syntax (name := lwpStep) "lwp_step " ident ppSpace ident ppSpace ident
+  (" with " ident " : " term)? : tactic
+
+macro_rules
+  | `(tactic| lwp_step $H:ident $HG:ident $HF:ident) =>
+    `(tactic| (iapply tac_lwp_step ?hφ 0 $$ $H:ident $HG:ident $HF:ident
+               try case hφ => first | trivial | decide
+               iintro $HG:ident $HF:ident - $H:ident
+               imodintro))
+  | `(tactic| lwp_step $H:ident $HG:ident $HF:ident with $Hc:ident : $o) =>
+    `(tactic| (iapply tac_lwp_step ?hφ $o $$ $H:ident $HG:ident $HF:ident
+               try case hφ => first | trivial | decide
+               iintro $HG:ident $HF:ident $Hc:ident $H:ident
+               imodintro))
 
 /-- `lwp_bind e' H`: focus on the subexpression `e'` of the goal `lWP e @ s; i; E {{ Φ }}`
 (Rocq `lwp_bind`); the token `H : threadExpr i C e` becomes `H : threadExpr i (K ++ C) e'`. -/
