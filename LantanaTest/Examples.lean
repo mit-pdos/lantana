@@ -79,6 +79,51 @@ example : @RocqLantana.flag_fork.main_adequacy = @FlagFork.main_adequacy := rfl
 set_option linter.deprecated false in
 example : @RocqLantana.handoff_client_adequacy = @HandoffClient.handoffClient_adequacy := rfl
 
+/-- The clients of the stable flag export its stronger property: once the flag is `1`, it stays
+`1`. -/
+example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (hinit : τ.seq 0 = ⟨(FlagClient.tp0, FlagClient.σ0), 0⟩) :
+    FlagStable.flagStaysTr FlagClient.xLoc τ :=
+  FlagStable.isFlagTr_stays _ τ (FlagStableClient.flagClient_adequacy τ hbeh hfair hpos hinit).1
+
+example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (hinit : τ.seq 0 = ⟨(HandoffClient.tp0, HandoffClient.σ0), 0⟩) :
+    (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ :=
+  HandoffFlagStableClient.handoffClient_flag_stays τ hbeh hfair hpos hinit
+
+set_option linter.deprecated false in
+example : @RocqLantana.flag_stable_client.flag_client_adequacy =
+    @FlagStableClient.flagClient_adequacy := rfl
+
+set_option linter.deprecated false in
+example : @RocqLantana.handoff_flag_stable_client.handoff_client_adequacy =
+    @HandoffFlagStableClient.handoffClient_adequacy := rfl
+
+section ExtendedInt
+open ExtendedInt ExtendedInt.ExtInt
+open scoped ExtendedInt
+
+/-- The representations, the order, and its decision by cases. -/
+example : intoVal ((3 : Int) : ExtInt) = hl_val((#1, #(3 : Int))) := rfl
+example : intoVal -∞ = hl_val((#0, #())) ∧ intoVal +∞ = hl_val((#2, #())) := ⟨rfl, rfl⟩
+example : ltRel -∞ ((-7 : Int) : ExtInt) ∧ ¬ ltRel +∞ +∞ := by decide
+example : decide (ltRel ((2 : Int) : ExtInt) ((5 : Int) : ExtInt)) = true := rfl
+example (x y : ExtInt) : decide (ltRel x y) = ltb x y := decide_ltRel x y
+
+/-- `lt` compares the tags, then the integers. -/
+example : ExtendedInt.lt = hl_val(λ a b,
+    let ta := fst(a);
+    let tb := fst(b);
+    if ta < tb then #true
+    else if tb < ta then #false
+    else if ta = #1 then snd(a) < snd(b)
+    else #false) := rfl
+
+set_option linter.deprecated false in
+example : @RocqLantana.Int.lwp_lt = @ExtendedInt.lwp_lt := rfl
+
+end ExtendedInt
+
 /-! The end-to-end corollaries of the examples depend only on the standard axioms. -/
 
 /--
@@ -101,5 +146,26 @@ info: 'Lantana.Examples.HandoffClient.handoffClient_liveness_safety' depends on 
 -/
 #guard_msgs (whitespace := lax) in
 #print axioms HandoffClient.handoffClient_liveness_safety
+
+/--
+info: 'Lantana.Examples.FlagStableClient.flagClient_liveness_safety' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms FlagStableClient.flagClient_liveness_safety
+
+/--
+info: 'Lantana.Examples.HandoffFlagStableClient.handoffClient_liveness_safety' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms HandoffFlagStableClient.handoffClient_liveness_safety
+
+/--
+info: 'Lantana.Examples.ExtendedInt.lwp_lt' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms ExtendedInt.lwp_lt
 
 end LantanaTest.Examples
