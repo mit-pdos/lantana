@@ -98,6 +98,12 @@ abbrev ℓf : Layer := ℓq.succ.succ
 @[lantana_alias task_queue_client.ℓq_cond]
 theorem ℓq_cond : (1 : Layer) < ℓq := Ordinals.Ordinal.ofNat_lt_ofNat_iff.mpr (by decide)
 
+theorem one_le_ℓf : (1 : Layer) ≤ ℓf :=
+  (Ordinals.Ordinal.ofNat_le_ofNat_iff (m := 1) (n := 4)).mpr (by decide)
+
+theorem one_le_ℓf_succ : (1 : Layer) ≤ ℓf.succ :=
+  (Ordinals.Ordinal.ofNat_le_ofNat_iff (m := 1) (n := 5)).mpr (by decide)
+
 /-! ## The specifications -/
 
 section Spec
@@ -250,6 +256,174 @@ theorem decrReentrant_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G
     iintro ⟨HT, -, HG, HK⟩
     iapply HΦ
     iframe
+
+/-- What the main thread commits to: a flag and a task queue exist. -/
+abbrev flagAndQueue : IProp GF :=
+  iprop((∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ∗
+    (∃ (ql : Val) (γ : QueueName) (ℓ : Layer), isTaskQueue ql γ ℓ))
+
+/-- The main proof. Besides returning `1`, the main thread commits to creating a flag and a task
+queue (`kc`). The flag's obligation `k` is allocated in a container `g0` at the flag's layer,
+with fuel `ℵ` lowered to `n` once `n` is chosen (Rocq `main_spec`). -/
+@[lantana_alias task_queue_client.main_spec]
+theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
+    ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #()) ∗ thKids i {kl, kc} ∗
+          ([∗set] g ∈ ({kl, kc} : Oids), Obl.fuel g ℓf.succ μ) ∗ ⌜kl ≠ kc⌝ ∗ oblKids kl ∅ ∗
+          oblKids kc ∅ ∗ finallyI Nl kl 1 (exits v1 @ i) ∗ finallyI Nc kc 1 flagAndQueue }}}
+        hl(v(&main) #()) @ i
+      l{{{ (v : Val), RET v; threadExpr i [] hl(&v) ∗
+        liftTerm i (fun _ v => iprop(⌜v = v1⌝)) v }}} := by
+  obtain ⟨μti, hti⟩ := TaskQueue.init_spec (GF := GF)
+  obtain ⟨μfi, hfi⟩ := Flag.init_spec (GF := GF)
+  obtain ⟨μd, hd⟩ := decrReentrant_spec (GF := GF)
+  obtain ⟨μfw, hfw⟩ := Flag.wait_spec (GF := GF)
+  refine ⟨100 + μti + μfi + μd + μfw, fun i kl kc => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, %hne, Hkl, Hkc, HFl, HFc⟩ HΦ
+  icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Ffw⟩
+  icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Fd⟩
+  icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Ffi⟩
+  icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Fti⟩
+  ihave HF := oblFuels_init _ _ _ $$ HF
+  unfold main
+  lwp_step HT HG HF with Hlc : 1 +ₕ 1
+  icases tlc_split.mp $$ Hlc with ⟨Hc1, Hc2⟩
+  lwp_expr_simp
+  -- The task queue, at layer `ℓq`.
+  lwp_bind hl(v(&TaskQueue.init) #()) HT
+  imod Obl.fuel_layer_mono_set _ (ℓ₁ := 0) μti (Ordinals.Ordinal.zero_le _) $$ Fti with Fti
+  iapply hti 0 i {kl, kc} ℓq _ $$ [HT HG Fti]
+  · iframe
+    ipureintro
+    exact Ordinals.Ordinal.le_of_lt ℓq_cond
+  iintro %ql %γ ⟨HT, -, HG, #ITQ⟩
+  ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  -- A container for the flag's obligation, at the flag's layer.
+  imod Obl.new ⊤ (.thread i) {kl, kc} ℓf (((7 : Nat) : Measure) + (μfi + μd)) $$ [] HG with
+    ⟨%g0, %hg0, HG, Kg0, Ag0, Fg0, #Wg0⟩
+  · iapply parLe_thread
+  icases (Obl.fuel_add g0 _ _ _).mp $$ Fg0 with ⟨F0, Fg0⟩
+  icases (Obl.fuel_add g0 _ _ _).mp $$ Fg0 with ⟨F0fi, F0d⟩
+  imod Obl.fuel_layer_mono_set _ (ℓ₁ := 0) μfi (Ordinals.Ordinal.zero_le _) $$ Ffi with Ffi
+  imod Obl.fuel_layer_mono g0 (ℓ₁ := 0) μfi (Ordinals.Ordinal.zero_le _) $$ F0fi with F0fi
+  -- The flag, with fuel `ℵ` for its obligation: `n` is not known yet.
+  lwp_bind hl(v(&Flag.init) #()) HT
+  iapply hfi 0 i (({kl, kc} : Oids).insert g0) (.obl g0) ∅ ℓf ℵ _ $$ [HT HG Ffi F0fi Kg0]
+  · iframe HT HG Kg0
+    isplitl [Ffi F0fi]
+    · iapply (bigSepS_insert_oids hg0).mpr
+      iframe
+    · iapply parLe_obl (ℓq := ℓf) g0 (Ordinals.Ordinal.le_refl _) $$ Wg0
+  iintro %x %k ⟨HT, -, HG, -, Kg0, Hkk, Fk, Htk, #Hflag⟩
+  ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
+  lwp_expr_simp
+  -- Keep the commitment: the flag and the task queue exist.
+  ihave Hc1 := tlc_one_nat.mpr $$ Hc1
+  imod finallyI_discharge (E := ⊤) (.thread i) (({kl, kc} : Oids).insert g0)
+    (fun _ _ => CoPset.mem_full) (by simp) $$ Hc1 HG Hkc HFc [] with ⟨-, HG, -⟩
+  · isplitl
+    · iexists x, k, ℓf
+      iexact Hflag
+    · iexists ql, γ, ℓq
+      iexact ITQ
+  ihave HG := Par.kids_congr (B := ({kl} : Oids).insert g0) ?_ $$ HG
+  · intro z
+    simp at hg0 ⊢
+    grind
+  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
+  icases oblFuels_add 7 90 _ $$ HF with ⟨HF7, HF⟩
+  ihave HF7 := oblFuels_add_obl _ g0 ℓf _ $$ F0 HF7
+  lwp_step HT HG HF7
+  lwp_step HT HG HF7
+  lwp_expr_simp
+  -- Choose `n`.
+  lwp_bind hl(chooseNat()) HT
+  icases oblFuels_add 1 4 _ $$ HF7 with ⟨HF1, HF7⟩
+  iapply lwp_chooseNat (o := 0) (G := ({kl} : Oids).insert g0) (R := ∅) $$ [HT HG HF1]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF1
+  iintro %n ⟨HT, ⟨-, HG, -⟩⟩
+  ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF7
+  lwp_step HT HG HF7
+  lwp_expr_simp
+  lwp_step HT HG HF7
+  lwp_step HT HG HF7
+  lwp_expr_simp
+  -- The task, with the flag's obligation `k` and fuel `n` for it.
+  lwp_bind hl(v(&decrReentrant) v(&(vArg ql x n))) HT
+  have hg0' : g0 ∉ ({kl} : Oids) := fun h => hg0 (by simp_all)
+  ihave Fd := BigSepS.bigSepS_subseteq (Y := ({kl} : Oids)) (fun z hz => by simp_all) $$ Fd
+  imod Obl.fuel_layer_mono_set {kl} μd one_le_ℓf_succ $$ Fd with Fd
+  imod Obl.fuel_layer_mono g0 μd one_le_ℓf $$ F0d with F0d
+  imod Obl.fuel_mono k ℓf (μ₁ := (((n : Int).toNat : Nat) : Measure))
+    (Ordinals.Ordinal.le_of_lt (Measure.rep_large_lt _ _ _)) $$ Fk with Fk
+  iapply hd 0 i (({kl} : Oids).insert g0) (.obl g0) k ((∅ : Oids).insert k) γ (vArg ql x n) _
+    $$ [HT HG Fd F0d Kg0 Hkk Fk Htk]
+  · iframe HT HG Kg0 Hkk
+    isplitl [Fd F0d]
+    · iapply (bigSepS_insert_oids hg0').mpr
+      iframe
+    isplitr
+    · ipureintro
+      exact Std.ExtTreeSet.mem_insert_self
+    iexists ql, x, n
+    iframe Fk Htk
+    isplitr
+    · ipureintro
+      rfl
+    unfold isDecrReentrant
+    iexists ql, x, n
+    isplitr
+    · ipureintro
+      rfl
+    iframe Hflag ITQ
+  iintro ⟨HT, -, HG, Kg0⟩
+  -- The container is empty: discharge it.
+  imod Obl.discharge_leaf ⊤ (.thread i) _ g0 Std.ExtTreeSet.mem_insert_self $$ HG [Kg0] Ag0
+    with ⟨HG, -⟩
+  · iapply Par.kids_congr _ $$ Kg0
+    intro z
+    simp
+  ihave HG := Par.kids_congr (B := {kl}) ?_ $$ HG
+  · intro z
+    simp at hg0' ⊢
+    grind
+  ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  -- Wait for the flag, above its layer.
+  lwp_bind hl(v(&Flag.wait) #x) HT
+  ihave Ffw := BigSepS.bigSepS_subseteq (Y := ({kl} : Oids)) (fun z hz => by simp_all) $$ Ffw
+  iapply hfw 0 i x {kl} k ℓf _ $$ [HT HG Ffw]
+  · iframe HT HG Ffw
+    iexact Hflag
+  iintro ⟨HT, -, HG, -⟩
+  ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
+  lwp_expr_simp
+  unfold v1
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  rw [show (hl(#1) : Exp) = .val hl_val(#1) from rfl]
+  iapply lwp_value_mupd'.mpr
+  ihave Hc2 := tlc_one_nat.mpr $$ Hc2
+  imod threadExpr_terminate_finally i ⊤ hl_val(#1) kl Nl (fun _ _ => CoPset.mem_full)
+    $$ HT Hc2 HG Hkl HFl with ⟨HT, #Hd⟩
+  imodintro
+  iapply HΦ
+  iframe HT
+  unfold liftTerm
+  isplitl
+  · iexact Hd
+  · ipureintro
+    rfl
 
 end Spec
 
