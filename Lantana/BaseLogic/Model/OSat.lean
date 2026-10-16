@@ -138,14 +138,6 @@ theorem bankOwn_op (γ : GName) (x y : Bank Fuel) :
     bankOwn γ (x • y) ⊣⊢@{IProp GF} bankOwn γ x ∗ bankOwn γ y := by
   unfold bankOwn; exact iOwn_op
 
-theorem bankOwn_valid_2 (γ : GName) (x y : Bank Fuel) :
-    bankOwn γ x ∗ bankOwn γ y ⊢@{IProp GF} ⌜✓ (x • y)⌝ := by
-  unfold bankOwn
-  iintro ⟨H₁, H₂⟩
-  icombine H₁ H₂ gives %h
-  ipureintro
-  exact h
-
 theorem bankOwn_valid (γ : GName) (x : Bank Fuel) :
     bankOwn γ x ⊢@{IProp GF} ⌜✓ x⌝ := by
   unfold bankOwn
