@@ -5,6 +5,7 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.BaseLogic.Model
+public import Lantana.ProgramLogic.OblForest
 public import Lantana.Trace.FairScheduling
 
 /-! # Adequacy: facts about one step
@@ -16,8 +17,11 @@ fair-scheduler measure `fairMeasure (γ (τ.pos + 1)) o a` of the next position:
 scheduled thread's obligations dropped, the fairness counter of every other active owner dropped
 (D18: the counters are an explicit sequence `γ`, so no choice is needed for them).
 
-The ghost-state part of the Rocq file (`get_obls_thread_active`, from the model interpretation
-and the `Th.done` tokens of finished threads) comes with the adequacy proof (M6).
+The ghost-state part: from the model interpretation and the `Th.done` tokens of the finished
+threads, every assigned obligation's owner is active (`getOblsThreadActive`); a stutter of a
+finished thread keeps the witnesses' lower bound with the next counters
+(`owitInvLb_step_na_turn`) and moves the model to the next step index
+(`modelInterp_step_idx`).
 -/
 
 @[expose] public section
@@ -224,5 +228,110 @@ theorem oblsDrop_na {τ : Trace Expr State} {γ : Nat → ThreadId → Nat} (hcn
   refine fairMeasure_next_lt hcnt rfl (hact k fu o hk) (.inr ⟨?_, rfl, rfl⟩)
   intro ho
   exact TraceState.not_active_and_inactive o _ ⟨hact k fu o hk, by rw [ho]; exact hna⟩
+
+/-! ## A stutter of a finished thread -/
+
+/-- A stutter of a finished thread keeps the lower bound of the witnesses with the counters of
+the next position (Rocq `owit_inv_lb_step_na_turn`): the counter of every active owner
+dropped. -/
+@[lantana_alias owit_inv_lb_step_na_turn]
+theorem owitInvLb_step_na_turn {τ : Trace Expr State} {γ : Nat → ThreadId → Nat}
+    (hcnt : BehFscnt τ γ) (hna : τ.now.inactive τ.thread) {Ω : Obls} {W : Witnesses}
+    (hact : oblsThreadActive Ω τ) (hLb : owitInvLb (fairMeasure (γ τ.pos)) Ω W) :
+    owitInvLb (fairMeasure (γ (τ.pos + 1))) Ω W := by
+  refine mapForall2_intro fun k => (hLb.inv k).imp id fun ⟨g, w, eg, ew, hr⟩ => ⟨g, w, eg, ew, ?_⟩
+  cases g with
+  | discharged => cases w <;> first | exact hr.elim | trivial
+  | assigned a o =>
+    cases w with
+    | discharged => exact hr.elim
+    | assigned b =>
+      refine Ordinals.Ordinal.le_trans (Ordinals.Ordinal.le_of_lt ?_) (show _ ≤ b from hr)
+      refine fairMeasure_next_lt hcnt rfl (hact k a o eg) (.inr ⟨?_, rfl, rfl⟩)
+      intro ho
+      exact TraceState.not_active_and_inactive o _ ⟨hact k a o eg, by rw [ho]; exact hna⟩
+
+/-! ## The owners of the obligations are active -/
+
+section Ghost
+
+open Iris Iris.BI Iris.ProofMode
+open Iris.ProgramLogic (toVal)
+
+variable {GF : BundledGFunctors} [ModelGS GF]
+
+/-- The `Th.done` token of a finished thread `j` running `e` (`True` for a running one). -/
+noncomputable def doneToken (j : ThreadId) (e : Expr) : IProp GF :=
+  match toVal e with
+  | some _ => Th.done j
+  | none => iprop(True)
+
+instance doneToken_persistent (j : ThreadId) (e : Expr) :
+    Persistent (doneToken (GF := GF) j e) := by
+  unfold doneToken
+  split <;> infer_instance
+
+/-- The `Th.done` tokens of the finished threads of the pool `tp`. -/
+noncomputable def doneTokens (tp : ThreadPool Expr) : IProp GF :=
+  iprop([∗list] j ↦ e ∈ tp, doneToken j e)
+
+instance doneTokens_persistent (tp : ThreadPool Expr) :
+    Persistent (doneTokens (GF := GF) tp) := by
+  unfold doneTokens
+  infer_instance
+
+/-- The owners of the obligations are threads of the pool (Rocq
+`othread_assigned_thread_elem`, through the model interpretation). -/
+theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
+    (n tc : Nat) :
+    modelInterp (GF := GF) h a Ω W n tc ⊢
+      ⌜∀ k fu o, get? Ω k = some (.assigned fu o) → o < tc⌝ := by
+  unfold modelInterp
+  iintro ⟨-, -, Hf, -, -⟩
+  icases oforest_owner_lt Ω tc $$ Hf with %h
+  ipureintro
+  intro k fu o hk
+  exact h k o (Obls.ownerOf_eq hk)
+
+/-- Every assigned obligation's owner is active at a position whose pool is `tp`: it is a
+thread of the pool, and not a finished one since a finished thread owns no obligation (Rocq
+`get_obls_thread_active_gen`). -/
+@[lantana_alias get_obls_thread_active_gen]
+theorem getOblsThreadActive {tp : ThreadPool Expr} {τ : Trace Expr State}
+    (hτ : τ.now.cfg.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses) (n : Nat) :
+    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length ⊢ ⌜oblsThreadActive Ω τ⌝ := by
+  classical
+  by_cases hact : oblsThreadActive Ω τ
+  · exact pure_intro hact
+  simp only [oblsThreadActive, Classical.not_forall] at hact
+  obtain ⟨k, fu, o, hk, hna⟩ := hact
+  unfold doneTokens
+  iintro ⟨#HD, HM⟩
+  icases persistent_entails_left (modelInterp_owner_lt h a Ω W n tp.length) $$ HM
+    with ⟨HM, %hlt⟩
+  obtain ⟨e, he⟩ : ∃ e, tp[o]? = some e :=
+    Option.isSome_iff_exists.mp (by simpa using hlt k fu o hk)
+  rcases hv : toVal e with _ | v
+  · exact absurd ⟨e, by rw [hτ]; exact he, hv⟩ hna
+  ihave Hd := BigSepL.bigSepL_lookup he $$ HD
+  have hd : doneToken (GF := GF) o e = Th.done o := by simp [doneToken, hv]
+  rw [hd]
+  icases Th.done_modelInterp_not_owner o h a Ω W n tp.length $$ [$Hd $HM] with %hno
+  exact (hno k fu hk).elim
+
+/-- A stutter moves the model to the next step index (Rocq `model_history_interp_step`). -/
+theorem modelInterp_step_idx (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
+    (n tc : Nat) :
+    modelInterp (GF := GF) h a Ω W n tc ⊢
+      |==> modelInterp (h ++ [(n + 1, Ω)]) (a + 1) Ω W (n + 1) tc := by
+  unfold modelInterp
+  iintro ⟨HH, Hs, Hf, Hw, %hI⟩
+  imod modelHistoryInterp_step h a (Nat.le_succ n) (Obls.le_refl Ω) $$ HH with HH
+  imodintro
+  iframe HH Hs Hf Hw
+  ipureintro
+  exact hI
+
+end Ghost
 
 end Lantana
