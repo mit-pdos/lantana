@@ -10,4 +10,5 @@ public import Lantana.BaseLogic.FUpd
 public import Lantana.BaseLogic.Satisfiable
 public import Lantana.BaseLogic.Invariants
 public import Lantana.BaseLogic.InvHeap
+public import Lantana.BaseLogic.MonoListP
 public import Lantana.BaseLogic.Model
