@@ -933,4 +933,79 @@ theorem move_cross (wf : ForestWf Ω tc Par) {k : Oid} {p₂ : Parent} {t j : Th
 
 end ForestWf
 
+/-! ## Additions for the forest invariant (`Model.OForest`) -/
+
+namespace ForestWf
+
+variable {Ω : Obls} {tc : Nat} {Par : OidMap Parent}
+
+open Forest
+
+/-- The nodes owned by `i` are the obligations with owner `i` (Rocq `othread_obls_lookup` and
+`othread_assigned_obls_lookup`, which relate the set of obligations of a thread to `Ω`). -/
+@[lantana_alias othread_obls_lookup]
+theorem mem_owned_iff (wf : ForestWf Ω tc Par) {i : ThreadId} {x : Oid} :
+    x ∈ owned Ω Par i ↔ Ω.ownerOf x = some i := by
+  rw [mem_owned]
+  exact ⟨And.right, fun h => ⟨wf.isSome_of_ownerOf h, h⟩⟩
+
+#lantana_ignore othread_assigned_obls_lookup "`ForestWf.mem_owned_iff`"
+
+/-- An obligation that is a parent of a node is a node. -/
+theorem kids_obl_isSome (wf : ForestWf Ω tc Par) {q : Oid} {x : Oid}
+    (hx : x ∈ kids Par (.obl q)) : (get? Par q).isSome :=
+  wf.par_obl (mem_kids.1 hx)
+
+end ForestWf
+
+namespace chownRel
+
+variable {S : Oids} {t j : ThreadId} {Ω Ω' : Obls}
+
+/-- An owner change keeps the domain. -/
+theorem isSome_iff (h : chownRel S t j Ω Ω') (x : Oid) :
+    (get? Ω' x).isSome ↔ (get? Ω x).isSome := by
+  by_cases hS : x ∈ S
+  · obtain ⟨a, a', ha, ha', _⟩ := h.2 x hS
+    simp [ha, ha']
+  · rw [h.1 x hS]
+
+/-- An owner change to the same owner keeps the owners. -/
+theorem ownerOf_self {i : ThreadId} (h : chownRel S i i Ω Ω') (x : Oid) :
+    Ω'.ownerOf x = Ω.ownerOf x := by
+  by_cases hS : x ∈ S
+  · rw [h.owner_of_mem hS, (h.fuel_in hS).1]
+  · exact h.owner_of_not_mem hS
+
+/-- An owner change to the same owner `i` of all the obligations of `i` is a progress round of
+`i`. -/
+theorem condProgress {i : ThreadId} (h : chownRel S i i Ω Ω')
+    (hS : ∀ x, Ω.ownerOf x = some i → x ∈ S) :
+    Obls.condProgress (Obl.condOwner i) Ω Ω' := by
+  have hrel : ∀ x, (get? Ω x = none ∧ get? Ω' x = none) ∨ ∃ g g', get? Ω x = some g ∧
+      get? Ω' x = some g' ∧
+        ((Obl.condOwner i x g ∧ Obl.step g g') ∨ (¬Obl.condOwner i x g ∧ g = g')) ∧
+        Obl.keep g g' := by
+    intro x
+    by_cases hxS : x ∈ S
+    · obtain ⟨a, a', ha, ha', hlt⟩ := h.2 x hxS
+      exact .inr ⟨_, _, ha, ha', .inl ⟨rfl, .inl hlt⟩, trivial⟩
+    · rw [h.1 x hxS]
+      cases e : get? Ω x with
+      | none => exact .inl ⟨rfl, rfl⟩
+      | some g =>
+        refine .inr ⟨g, g, rfl, rfl, .inr ⟨fun hc => hxS (hS x ?_), rfl⟩, Obl.keep_refl g⟩
+        cases g with
+        | assigned a t => cases hc; exact Obls.ownerOf_eq e
+        | discharged => exact hc.elim
+  refine ⟨mapForall2_intro fun x => ?_, mapForall2_intro fun x => ?_⟩
+  · rcases hrel x with h₀ | ⟨g, g', e, e', hr, _⟩
+    · exact .inl h₀
+    · exact .inr ⟨g, g', e, e', hr⟩
+  · rcases hrel x with h₀ | ⟨g, g', e, e', _, hk⟩
+    · exact .inl h₀
+    · exact .inr ⟨g, g', e, e', hk⟩
+
+end chownRel
+
 end Lantana.Model
