@@ -104,8 +104,9 @@ end Predicates
 
 /-! ## Notations -/
 
-/-- `|=[n,tc]=>m P`: the base model update. -/
-scoped syntax:max "|=[" term "," term "]=>m " term:40 : term
+/-- `|=[n,tc]=>m P`: the base model update. Like Iris-Lean's `|={E}=> P` (and unlike `|==> P`),
+the argument extends as far as possible: `|=[n,tc]=>m A ∗ B` is `|=[n,tc]=>m (A ∗ B)`. -/
+scoped syntax:max "|=[" term "," term "]=>m " term : term
 scoped macro_rules
   | `(|=[$n,$tc]=>m $P) => `(mupdBase $n $tc iprop($P))
 
@@ -129,9 +130,9 @@ def mupd (E₁ E₂ : CoPset) (P : IProp GF) : IProp GF :=
 end
 
 /-- `|={E₁,E₂}=>m P`: the model update. -/
-scoped syntax:max "|={" term "," term "}=>m " term:40 : term
+scoped syntax:max "|={" term "," term "}=>m " term : term
 /-- `|={E}=>m P`: the model update at one mask. -/
-scoped syntax:max "|={" term "}=>m " term:40 : term
+scoped syntax:max "|={" term "}=>m " term : term
 /-- `P ={E₁,E₂}=∗m Q`: the wand form of the model update. -/
 scoped syntax:25 term:26 " ={" term "," term "}=∗m " term:25 : term
 /-- `P ={E}=∗m Q`. -/
