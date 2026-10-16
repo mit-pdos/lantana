@@ -313,7 +313,40 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
         hl(v(&init) #()) @ i
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
         ⌜k ∉ G⌝ ∗ thKids i (G.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ m ∗
-        flagTk x k ∗ isFlag x k ℓ }}} := sorry
+        flagTk x k ∗ isFlag x k ℓ }}} := by
+  refine ⟨10, fun lc i G ℓ m C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold init
+  lwp_pure HT
+  iexists G, 9, ∅, lc
+  isplitl [HG HF]
+  · iframe HG
+    isplitl [HF]
+    · iexact HF
+    · unfold witLayers
+      iapply BigSepS.bigSepS_empty.mpr
+      iempintro
+  iintro HG HF - Hlc HT
+  lwp_expr_simp
+  imodintro
+  iapply lwp_mupd
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF
+  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
+  rw [show (hl_val(#0) : Val) = v0 from rfl]
+  imod isFlag_init ⊤ x (.thread i) G ℓ m $$ [] Hx HG with
+    ⟨%k, %hk, HG, Hkk, Hf, Htk, #Hflag⟩
+  · iapply parLe_thread
+  imodintro
+  iapply HΦ $$ %x %k
+  iframe
+  isplitl
+  · ipureintro
+    exact hk
+  · iexact Hflag
 
 @[lantana_alias Flag_set_thread_spec]
 theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids)
@@ -323,7 +356,64 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
           flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase k) ∗
-        Obl.discharged k }}} := sorry
+        Obl.discharged k }}} := by
+  refine ⟨10, fun lc i l G k ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, %hk, Hkk, HU, #Hflag⟩ HΦ
+  ihave HF := oblFuels_init G 10 0 $$ HF
+  unfold isFlag set
+  icases Hflag with ⟨#Wk, #HA⟩
+  lwp_pure HT
+  iexists G, 9, ∅, lc +ₕ 1 +ₕ 1
+  isplitl [HG HF]
+  · iframe HG
+    isplitl [HF]
+    · iexact HF
+    · unfold witLayers
+      iapply BigSepS.bigSepS_empty.mpr
+      iempintro
+  iintro HG HF - Hlc HT
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  lwp_expr_simp
+  imodintro
+  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+    (fun _ _ => CoPset.mem_full) $$ HA
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  rw [val_to_ofVal]
+  imod Hacc with ⟨Hinv, Hclose⟩
+  iapply lwp_credit_later $$ Hc1
+  inext
+  unfold flagInv flagTk
+  icases Hinv with (Hinv | ⟨#Hd, -⟩)
+  rotate_left
+  · iexfalso
+    iapply untilI_discharged_false $$ HU Hd
+  ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
+  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Np_subseteq $$ HU
+  ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
+  imod HU
+  iapply lwp_credit_later $$ Hc2
+  inext
+  icases HU with ⟨Hl, Hdis⟩
+  rw [← val_to_ofVal]
+  iapply lwp_store (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF Hl]
+  · iframe HT Hl
+    iapply stepPre_nil $$ HG HF
+  iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
+  rw [show (hl_val(#1) : Val) = v1 from rfl]
+  imod Hdis $$ %(.thread i) %G %hk HG Hkk Hl %_ with H
+  imod H with ⟨Hl, HG, #Hd⟩
+  imodintro
+  imod Hclose $$ [Hl]
+  · inext
+    iright
+    iframe Hl
+    iexact Hd
+  imodintro
+  iapply HΦ
+  iframe
+  iexact Hd
 
 /-- Waiting is fair: the caller's fuel is at the layer above the flag's witness layer. -/
 @[lantana_alias Flag_wait_spec]
