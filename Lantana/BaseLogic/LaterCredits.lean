@@ -408,8 +408,6 @@ instance intoWand_ALC {m} {R P Q : IProp GF} [h : IntoWand false false R m P Q] 
     IntoWand false false (ALC R) m (ALC P) (ALC Q) where
   into_wand := (ALC_mono h.into_wand).trans ALC_fmap
 
-#lantana_ignore sat_ALC "Satisfiability is ported with `Satisfiable.lean` (M3)."
-
 end Allocation
 
 /-- Allocate the credit ghost state with `k` credits. -/

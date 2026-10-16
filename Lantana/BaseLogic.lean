@@ -6,4 +6,8 @@ module
 
 public import Lantana.BaseLogic.RUpd
 public import Lantana.BaseLogic.LaterCredits
+public import Lantana.BaseLogic.FUpd
+public import Lantana.BaseLogic.Satisfiable
+public import Lantana.BaseLogic.Invariants
+public import Lantana.BaseLogic.InvHeap
 public import Lantana.BaseLogic.Model
