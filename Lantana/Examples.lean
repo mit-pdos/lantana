@@ -10,3 +10,4 @@ public import Lantana.Examples.Nondet
 public import Lantana.Examples.Lib
 public import Lantana.Examples.World
 public import Lantana.Examples.FlagFork
+public import Lantana.Examples.FlagClient
