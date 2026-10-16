@@ -132,6 +132,23 @@ def statusAuth (T : ThreadMap ThreadStatus) : IProp GF :=
 #lantana_ignore othreadG_exec_token_id "no reservation maps: `OForest.statusAuth`"
 #lantana_ignore othreadG_elem "the threads of the pool are `i < tc`"
 #lantana_ignore othreadG_elem_auth_id "the threads of the pool are `i < tc`"
+#lantana_ignore othreadG_done_auth_timeless "the status map: `OForest.statusAuth_timeless`"
+#lantana_ignore othreadG_elem_alloc "the threads of the pool are `i < tc`"
+#lantana_ignore othreadG_elem_elem "the threads of the pool are `i < tc` (`oforest_exec_lt`)"
+#lantana_ignore othreadG_elem_persistent "the threads of the pool are `i < tc`"
+#lantana_ignore othreadG_elem_timeless "the threads of the pool are `i < tc`"
+#lantana_ignore othreadG_obls_alloc "no per-thread sets of obligations: `Forest.owned`"
+#lantana_ignore othreadG_obls_lookup "no per-thread sets of obligations: `Forest.owned`"
+#lantana_ignore othreadG_obls_timeless "no per-thread sets of obligations"
+#lantana_ignore othreadG_obls_update "no per-thread sets of obligations"
+#lantana_ignore othreadG_owns_alloc "no per-thread maps of owned obligations"
+#lantana_ignore othreadG_owns_alloc_id "no per-thread maps of owned obligations"
+#lantana_ignore othreadG_owns_as_fractional "no per-thread maps of owned obligations"
+#lantana_ignore othreadG_owns_delete "no per-thread maps of owned obligations"
+#lantana_ignore othreadG_owns_fractional "no per-thread maps of owned obligations"
+#lantana_ignore othreadG_owns_lookup "no per-thread maps of owned obligations"
+#lantana_ignore othreadG_owns_timeless "no per-thread maps of owned obligations"
+#lantana_ignore othreadG_owns_valid "no per-thread maps of owned obligations"
 
 /-! ### Instances -/
 
@@ -305,7 +322,7 @@ variable {tc : Nat} {Par : OidMap Parent} {M : ParentMap Oids}
 
 open Forest
 
-theorem ite_true_eq {α : Type _} {a b : α} : (if true = true then a else b) = a := rfl
+private theorem ite_true_eq {α : Type _} {a b : α} : (if true = true then a else b) = a := rfl
 
 theorem empty : KidsMap 0 ∅ ∅ := fun p => by
   cases p <;> simp [get?_empty]
@@ -625,7 +642,7 @@ theorem threadInv_mono {Ω Ω' : Obls} {Par Par' : OidMap Parent} {i : ThreadId}
     ipureintro
     exact h hown
 
-theorem getElem?_range {n k x : Nat} (h : (List.range n)[k]? = some x) : x = k ∧ k < n := by
+private theorem getElem?_range {n k x : Nat} (h : (List.range n)[k]? = some x) : x = k ∧ k < n := by
   by_cases hk : k < n
   · rw [List.getElem?_range hk] at h
     cases h
@@ -764,11 +781,11 @@ theorem nodes_congr {Ω Ω' : Obls} {tc : Nat} {Par : OidMap Parent} (wf : Fores
 
 /-! ### Steps of a thread -/
 
-theorem ite_decide_pos {α : Type _} {P : Prop} [Decidable P] (h : P) {a b : α} :
+private theorem ite_decide_pos {α : Type _} {P : Prop} [Decidable P] (h : P) {a b : α} :
     (if decide P = true then a else b) = a := by
   simp [h]
 
-theorem ite_decide_neg {α : Type _} {P : Prop} [Decidable P] (h : ¬P) {a b : α} :
+private theorem ite_decide_neg {α : Type _} {P : Prop} [Decidable P] (h : ¬P) {a b : α} :
     (if decide P = true then a else b) = b := by
   simp [h]
 
@@ -851,7 +868,7 @@ theorem nodes_step {Ω : Obls} {tc : Nat} {Par : OidMap Parent} (wf : ForestWf �
   rw [← BigSepM.bigSepM_sep_eq, ← BigSepM.bigSepM_sep_eq]
   exact (BigSepM.bigSepM_mono fun hx => node_step wf i hx).trans (BigSepM.bigSepM_bupd _)
 
-theorem entails_pure_forall₂ {PROP : Type _} [BI PROP] {P : PROP} {α β : Sort _}
+private theorem entails_pure_forall₂ {PROP : Type _} [BI PROP] {P : PROP} {α β : Sort _}
     {φ : α → β → Prop} (h : ∀ a b, P ⊢ ⌜φ a b⌝) : P ⊢ ⌜∀ a b, φ a b⌝ :=
   (BI.forall_intro fun a => (BI.forall_intro fun b => h a b).trans BI.pure_forall.2).trans
     BI.pure_forall.2
@@ -1276,7 +1293,6 @@ theorem oforest_exec_to_done (Ω : Obls) (tc : Nat) (i : ThreadId) :
   · iexfalso
     iapply OForest.kids_excl $$ [$Hk $Hk']
 
-#lantana_ignore othread_elem_elem "the threads of the pool are `i < tc` (`oforest_exec_lt`)"
 #lantana_ignore othread_obls_owns_elem "no per-thread sets of obligations"
 #lantana_ignore othread_alloc_obl "no per-thread sets of obligations: `oforest_alloc_obl`"
 #lantana_ignore othread_delete_obl "no per-thread sets of obligations: `oforest_discharge_obl`"
