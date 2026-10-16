@@ -156,6 +156,10 @@ instance guarOf_stateFact (φ : State → ThreadPool Expr → Prop) [StateFact P
     GuarOf P (TrSpec.state φ) := ⟨guar_state_fact P φ⟩
 instance guarOf_sep (G₁ G₂ : TrSpec Expr State GF) [GuarOf P G₁] [GuarOf Q G₂] :
     GuarOf iprop(P ∗ Q) (G₁ ∧ₛ G₂) := sorry
+instance guarOf_and (G₁ G₂ : TrSpec Expr State GF) [GuarOf P G₁] [GuarOf Q G₂] :
+    GuarOf iprop(P ∧ Q) (G₁ ∧ₛ G₂) := sorry
+instance guarOf_or (G₁ G₂ : TrSpec Expr State GF) [GuarOf P G₁] [GuarOf Q G₂] :
+    GuarOf iprop(P ∨ Q) (G₁ ∨ₛ G₂) := sorry
 instance guarOf_pure (φ : Prop) :
     GuarOf (iprop(⌜φ⌝) : IProp GF) (TrSpec.pure (Expr := Expr) (State := State) φ) :=
   ⟨guar_pure φ⟩
