@@ -7,3 +7,4 @@ module
 public import Lantana.Init
 public import Lantana.ProgramLogic
 public import Lantana.Std
+public import Lantana.Trace
