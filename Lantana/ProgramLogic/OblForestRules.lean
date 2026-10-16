@@ -563,8 +563,8 @@ theorem Obl.fuel_layer_eq (k : Oid) {ℓ₁ ℓ₂ : Layer} (μ : Measure) (h : 
 #lantana_ignore oblP_fuel_layer_eq_list "Layer equality is Leibniz: rewrite."
 #lantana_ignore oblP_fuel_layer_eq_set "Layer equality is Leibniz: rewrite."
 
-/-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_eq`; the general
-version is `Obl.fuel_eq`). -/
+/-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_eq`; the same as
+`Obl.fuel_eq`, with the layer explicit). -/
 @[lantana_alias oblP_fuel_eq]
 theorem Obl.fuel_eq_of_rep (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
     (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) : Obl.fuel (GF := GF) k ℓ μ₁ ⊣⊢ Obl.fuel k ℓ μ₂ :=

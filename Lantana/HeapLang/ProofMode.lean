@@ -211,7 +211,7 @@ theorem oblFuels_add (G : Oids) (n m : Nat) :
   unfold oblFuels
   refine (BigSepS.bigSepS_mono fun _ => ?_).trans BigSepS.bigSepS_sep.mp
   iintro ⟨%ℓ, H⟩
-  ihave H := (Obl.fuel_eq _ (ℓ₁ := ℓ) (ℓ₂ := ℓ) (μ₂ := (n : Measure) + (m : Measure))
+  ihave H := (Obl.fuel_eq _ (ℓ := ℓ) (μ₂ := (n : Measure) + (m : Measure))
     (by rw [Measure.rep_nat_add, Measure.rep_add])).mp $$ H
   icases (Obl.fuel_add _ ℓ _ _).mp $$ H with ⟨H1, H2⟩
   isplitl [H1]

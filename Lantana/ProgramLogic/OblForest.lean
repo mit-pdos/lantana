@@ -416,22 +416,16 @@ theorem Par.kids_discharged (k : Oid) (p : Parent) (K : Oids) :
   rw [Par.kids_unfold, Obl.discharged_unfold]
   exact Model.OPreds.parKids_discharged k p K
 
+/-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_proper`, whose
+hypothesis `ℓ1 == ℓ2` is the shared layer here). Across layers the statement would be unsound:
+`rep ℓ 1 = rep ℓ' 1`, and `Obl.fuel_extend` with `Obl.fuel_add` would duplicate fuel. -/
 @[lantana_alias oblf.oblP_fuel_proper]
-theorem Obl.fuel_eq (k : Oid) {ℓ₁ ℓ₂ : Layer} {μ₁ μ₂ : Measure}
-    (h : Measure.rep ℓ₁ μ₁ = Measure.rep ℓ₂ μ₂) :
-    Obl.fuel (GF := GF) k ℓ₁ μ₁ ⊣⊢ Obl.fuel k ℓ₂ μ₂ :=
-  -- Unprovable as stated (reported to the integrator): `Obl.fuel k ℓ μ` is the model fuel
-  -- `modelFuel ℓ μ = Measure.rep ℓ ((1 + ▽) * μ)`, which depends on `ℓ` through `▽`; with
-  -- `Obl.fuel_extend` and `Obl.fuel_add` this statement duplicates fuel (`Obl.fuel k ℓ 1 ⊣⊢
-  -- Obl.fuel k ℓ' 1` for `ℓ < ℓ'`), so it fails in any sound model. Rocq `oblP_fuel_proper` has
-  -- `ℓ1 == ℓ2`; with `ℓ₁ = ℓ₂` it is `Model.OPreds.oblFuel_eq_of_rep`.
-  sorry
+theorem Obl.fuel_eq (k : Oid) {ℓ : Layer} {μ₁ μ₂ : Measure}
+    (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) :
+    Obl.fuel (GF := GF) k ℓ μ₁ ⊣⊢ Obl.fuel k ℓ μ₂ := by
+  rw [Obl.fuel_unfold]; exact Model.OPreds.oblFuel_eq_of_rep k ℓ h
 
 section BUpd
-variable [BIUpdate (IProp GF)]
--- The statements' `|==>` is the canonical update of `IProp GF`, so the proofs do not use the
--- section's instance argument (which the statements keep).
-set_option linter.unusedSectionVars false
 
 @[lantana_alias oblf.oblP_fuel_mon_gen]
 theorem Obl.fuel_mono_gen (k : Oid) {ℓ₁ ℓ₂ : Layer} {μ₁ μ₂ : Measure} (hℓ : ℓ₁ ≤ ℓ₂)
@@ -498,10 +492,6 @@ end FUpd
 /-! ## Witness induction -/
 
 section BUpd
-variable [BIUpdate (IProp GF)]
--- The statements' `|==>` is the canonical update of `IProp GF`, so the proofs do not use the
--- section's instance argument (which the statements keep).
-set_option linter.unusedSectionVars false
 
 @[lantana_alias oblf.wit_fuels_init]
 theorem Wit.fuels_init (k : Oid) (ℓ : Layer) :
