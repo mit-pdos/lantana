@@ -424,7 +424,110 @@ theorem acquire_spin (i : ThreadId) (C : List ECtxItem) (G : Oids) (next curr : 
   iintro #Hinv #Mtp #Wp #Mtu Ma WF HT HG HF HΦ
   lwp_step HT HG HF with Hc : 1
   lwp_expr_simp
-  sorry
+  -- The load of `curr`, in the invariant; it observes `κp`.
+  lwp_bind hl(!#curr) HT
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Ninv) (P := lockInv γ.γt γ.γa γ.γc next curr R)
+    (fun _ _ => CoPset.mem_full) $$ Hinv
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨Hi, Hclose⟩
+  iapply lwp_credit_later $$ Hc
+  inext
+  iunfold lockInv at Hi
+  icases Hi with ⟨%n, %c, %tickets, %acks, Hnext, Hcurr, ⟨GMt, GMa⟩, %hdom, %hc, %hdomt, HMt,
+    HMa, Hlast⟩
+  icases oblFuels_add 1 2 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := {κp}) $$ [HT HG HF1 Hcurr]
+  · iframe HT Hcurr
+    iapply stepPre_wit $$ HG HF1 Wp
+  iintro ⟨HT, ⟨-, HG, HW⟩, Hcurr⟩
+  ihave %LUa := ghost_map_lookup $$ GMa Ma
+  by_cases hmy : c = my
+  · -- My turn: acknowledge the ticket `my + 1` and take `R`.
+    subst hmy
+    ihave %LUt := ghost_map_lookup $$ GMt Mtu
+    have hcn : c + 1 ≤ n := ((hdomt (c + 1)).mp (by simp [LUt])).2
+    icases Hlast with (⟨%hcn', -⟩ | ⟨%hcn', (⟨Ma2, Hcurr2, HR⟩ | #Ha)⟩)
+    · exact absurd hcn' (by omega)
+    rotate_left
+    · iexfalso
+      ihave %h := ghost_map_elem_agree $$ [Ma Ha]
+      · iframe Ma
+        iexact Ha
+      simp at h
+    ihave Mfull := (ghostMapElem_halves _ _ _).mpr $$ [Ma Ma2]
+    · iframe
+    imod ghost_map_update true $$ GMa Mfull with ⟨GMa, Mfull⟩
+    imod ghost_map_elem_persist $$ Mfull with #Ma'
+    imod Hclose $$ [Hnext Hcurr GMt GMa HMt HMa] with -
+    · inext
+      iunfold lockInv
+      iexists n, c, tickets, insert acks (c + 1) true
+      iframe Hnext Hcurr GMt GMa HMt
+      isplitr
+      · ipureintro
+        intro t
+        rw [hdom t, Iris.Std.LawfulPartialMap.get?_insert]
+        split
+        · subst_vars
+          simp [LUa]
+        · rfl
+      isplitr
+      · ipureintro
+        exact hc
+      isplitr
+      · ipureintro
+        exact hdomt
+      isplitl [HMa]
+      · iapply BigSepM.bigSepM_insert_delete.mpr
+        iapply (BigSepM.bigSepM_delete LUa).mp $$ HMa
+      iright
+      isplit
+      · ipureintro
+        omega
+      · iright
+        iexact Ma'
+    imodintro
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    lwp_step HT HG HF
+    simp only [beq_self_eq_true]
+    lwp_step HT HG HF with Hlc : lc
+    iapply lwp_value'
+    iapply HΦ $$ HT Hlc HG Hcurr2 HR
+  · -- Not my turn: `κp` is not discharged, and its credit pays the next iteration.
+    icases witCreds_singleton κp $$ HW with (Hcr | #Hd)
+    rotate_left
+    · iexfalso
+      ihave %LUp := ghost_map_lookup $$ GMt Mtp
+      icases (BigSepM.bigSepM_delete LUp).mp $$ HMt with ⟨Hp, -⟩
+      icases (ticketEntry_iff _ _ _ _ _ _ _ _).mp $$ Hp with ⟨-, (⟨%hp, -⟩ | ⟨%hp, Hu⟩)⟩
+      · -- `my` has been served before: its successor `my + 1` would be acknowledged.
+        icases (BigSepM.bigSepM_delete LUa).mp $$ HMa with ⟨Ha, -⟩
+        icases (ackEntry_iff _ _ _ _).mp $$ Ha with (⟨%ha, #Ht⟩ | %ha | ⟨%ha, -⟩)
+        · ihave %h := ghost_map_elem_agree $$ [Ma Ht]
+          · iframe Ma
+            iexact Ht
+          simp at h
+        · exact absurd ha (by omega)
+        · exact absurd ha.1 (by omega)
+      · iunfold finallyI at Hu
+        iapply untilI_discharged_false $$ Hu Hd
+    imod Hclose $$ [Hnext Hcurr GMt GMa HMt HMa Hlast] with -
+    · inext
+      iunfold lockInv
+      iexists n, c, tickets, acks
+      iframe Hnext Hcurr GMt GMa HMt HMa Hlast
+      ipureintro
+      exact ⟨hdom, hc, hdomt⟩
+    imodintro
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    imod Wit.fuels_decr κp ℓw α F $$ WF Hcr with ⟨%α₀, %hlt, WF, Fs⟩
+    ihave HF' := hF $$ Fs
+    lwp_step HT HG HF
+    rw [show (vInt c == vInt my) = false by simp [hmy]]
+    lwp_step HT HG HF
+    iapply IH α₀ hlt $$ Hinv Mtp Wp Mtu Ma WF HT HG HF' HΦ
 
 end Specs
 
