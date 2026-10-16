@@ -126,7 +126,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
   · intro z
     simp
     grind
-  ihave HF := oblFuels_subset _ (B := {kf}) (fun z hz => by simp_all) $$ HF
+  ihave HF := oblFuels_subset _ (B := {kf}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   unfold cdQ
   icases HQ with ⟨Hx, -, HFf⟩
   icases oblFuels_add 1 3 _ $$ HF with ⟨HF1, HF⟩

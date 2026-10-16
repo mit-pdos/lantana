@@ -107,7 +107,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   · intro z
     simp at hk ⊢
     grind
-  ihave HF := oblFuels_subset _ (B := {kr}) (fun z hz => by simp_all) $$ HF
+  ihave HF := oblFuels_subset _ (B := {kr}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   icases (Obl.fuel_add k _ _ _).mp $$ Hf with ⟨Hf, Hfr⟩
   icases (Obl.fuel_add k _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
   icases oblFuels_add 3 6 _ $$ HF with ⟨Hf₃, HF⟩
@@ -167,7 +167,8 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(v(&Flag.wait) #x) HT
-  ihave Hfw := BigSepS.bigSepS_subseteq (Y := ({kr} : Oids)) (fun z hz => by simp_all) $$ Hfw
+  ihave Hfw := BigSepS.bigSepS_subseteq (Y := ({kr} : Oids))
+    (fun z hz => by simp at hz ⊢; simp [hz]) $$ Hfw
   imod Obl.fuel_layer_mono_set {kr} (ℓ₁ := Ordinals.Ordinal.succ 0) μfw
     (Ordinals.Ordinal.le_of_eq Ordinals.Ordinal.one_eq_succ_zero.symm) $$ Hfw with Hfw
   iapply hfw 0 i x {kr} k 0 _ $$ [HT HG Hfw]

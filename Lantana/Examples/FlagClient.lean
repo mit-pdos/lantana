@@ -96,7 +96,7 @@ theorem writer_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
   · intro z
     simp
     grind
-  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
+  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   lwp_step HT HG HF
   lwp_step HT HG HF
   lwp_expr_simp

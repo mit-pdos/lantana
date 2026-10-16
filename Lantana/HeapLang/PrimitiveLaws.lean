@@ -51,7 +51,9 @@ attribute [local simp] ofVal_eq_ofVal_iff
 /-- Two items that agree on two different expressions plugged into them are equal. -/
 theorem ECtxItem.eq_of_fill_eq₂ {Ki Kj : ECtxItem} {u₀ u₁ w₀ w₁ : Exp} (hne : u₀ ≠ u₁)
     (h₀ : Ki.fill u₀ = Kj.fill w₀) (h₁ : Ki.fill u₁ = Kj.fill w₁) : Ki = Kj := by
-  cases Ki <;> cases Kj <;> simp_all [ECtxItem.fill]
+  -- `cases h₀` tells the constructors apart and unifies the arguments: the same item, or `u₀`
+  -- and `u₁` in the same place (`cases h₁`); `simp_all` on the 729 pairs costs 1.8 s.
+  cases Ki <;> cases Kj <;> cases h₀ <;> first | rfl | (cases h₁; exact absurd rfl hne)
 
 /-- Two contexts that agree on two different values plugged into them are equal. -/
 theorem ctx_eq_of_fill_val_eq₂ {A B : List ECtxItem} {a₀ a₁ b₀ b₁ : Val} (hne : a₀ ≠ a₁)

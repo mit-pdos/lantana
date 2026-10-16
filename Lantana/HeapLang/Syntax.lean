@@ -392,15 +392,22 @@ def Val.enc : Val → Pos
 
 end
 
+/- By mutual induction and cases on the other side: the different constructors are told apart by
+their tags (`decide`), the same ones by the codes of their arguments (`grind`, with the induction
+hypotheses). A `simp_all` on every pair of constructors costs 6.5 s here. -/
 theorem Exp.enc_inj : Exp.enc.Injective := by
   intro e₁
   induction e₁ using Exp.enc.induct (motive_2 := fun v => ∀ v', Val.enc v = Val.enc v' → v = v') <;>
-    (try intro _ _) <;> rename_i e₂ _ <;> cases e₂ <;> simp_all [Exp.enc, Val.enc] <;> grind
+    (try intro _ _) <;> rename_i e₂ h <;> cases e₂ <;>
+    simp only [Exp.enc, Val.enc, encNode_eq_iff] at h <;>
+    first
+    | exact absurd h.1 (by decide)
+    | (try simp only [List.cons.injEq, Pos.encode_eq_iff, and_true, true_and] at h); grind
 
-theorem Val.enc_inj : Val.enc.Injective := by
-  intro v₁
-  induction v₁ using Val.enc.induct (motive_1 := fun e => ∀ e', Exp.enc e = Exp.enc e' → e = e') <;>
-    (try intro _ _) <;> rename_i v₂ _ <;> cases v₂ <;> simp_all [Exp.enc, Val.enc] <;> grind
+/- From `Exp.enc_inj` at `Exp.val` (the mutual induction again would cost as much). -/
+theorem Val.enc_inj : Val.enc.Injective := fun v₁ v₂ h => by
+  have : Exp.val v₁ = Exp.val v₂ := Exp.enc_inj (by simp only [Exp.enc, h])
+  injection this
 
 @[lantana_alias heap_lang.expr_countable]
 noncomputable instance : Pos.Countable Exp := .ofInjective Exp.enc Exp.enc_inj
