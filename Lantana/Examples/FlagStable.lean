@@ -484,7 +484,7 @@ theorem isFlagTr_stays (l : Loc) : isFlagTr l ⊆ flagStaysTr l := by
   rcases h m hm with hU | hA
   · rcases TrProp.until_unfold _ hU with hA | ⟨h₀, _⟩
     · exact hA
-    · exact absurd (Flag.pointsToTr_agree l (.own 1) (.own 1) v0 v1 _ ⟨h₀, h₁⟩)
+    · exact absurd (HeapLang.pointsToTr_agree l (.own 1) (.own 1) v0 v1 _ ⟨h₀, h₁⟩)
         Flag.v0_ne_v1
   · exact hA
 

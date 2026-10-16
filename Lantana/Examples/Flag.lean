@@ -139,14 +139,6 @@ def flagResponse (l : Loc) : TrProp Exp State :=
 theorem v0_ne_v1 : v0 ≠ v1 := by
   simp [v0, v1]
 
-/-- A location holds one value at a time (Rocq `tr_pointsto_agree`, `temporal_laws.v`). -/
-theorem pointsToTr_agree (l : Loc) (dq₁ dq₂ : DFrac) (v₁ v₂ : Val) :
-    (TrProp.state (pointstoSat l dq₁ v₁) ∧ₜ TrProp.state (pointstoSat l dq₂ v₂) :
-      TrProp Exp State) ⊆ ⌜v₁ = v₂⌝ₜ := by
-  intro τ ⟨h₁, h₂⟩
-  simp only [TrProp.state, pointstoSat] at h₁ h₂
-  exact (by simpa using h₁.symm.trans h₂ : v₁ = v₂)
-
 omit [ModelGS GF] [HeapGS GF] in
 /-- The until gives the eventually; in the other branch the flag is `1`, not `0`. -/
 @[lantana_alias flag_response_ext]
@@ -154,7 +146,7 @@ theorem flagResponse_ext (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ flag
   intro τ ⟨_, h⟩ m hm h₀
   rcases h m hm with hU | ⟨_, h₁⟩
   · exact TrProp.until_eventually _ hU
-  · exact absurd (pointsToTr_agree l (.own 1) (.own 1) v0 v1 _ ⟨h₀, h₁⟩) v0_ne_v1
+  · exact absurd (HeapLang.pointsToTr_agree l (.own 1) (.own 1) v0 v1 _ ⟨h₀, h₁⟩) v0_ne_v1
 
 @[lantana_alias is_flag_response]
 theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :

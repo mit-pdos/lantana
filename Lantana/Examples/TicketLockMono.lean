@@ -153,9 +153,6 @@ def monoInv (γm : GName) (next : Loc) : IProp GF :=
   iprop(∃ w : Int, (γm ↪●MZ w) ∗
     (next ↦{.own (1 : Qp).half} some (vz w) ∨ next ↦{.own (1 : Qp).half} (none : Option Val)))
 
-/-- A freed location, as a trace specification (Rocq `freed_trSpec`, `temporal_laws.v`). -/
-abbrev freedTrSpec (l : Loc) : TrSpec Exp State GF := TrSpec.state (freedSat l)
-
 /-- `next ≥ v`, or `next` has been freed (Rocq `next_ge_trSpec`). -/
 @[lantana_alias ticket_lock_mono.next_ge_trSpec]
 def nextGeTrSpec (next : Loc) (v : Int) : TrSpec Exp State GF :=
@@ -1523,12 +1520,6 @@ The notions of `TicketLock` (`TicketLock.releaseProgress`, `TicketLock.nextMonot
 `next` never decreases, hence it is starvation free. -/
 
 section Trace
-
-/-- A location is not both allocated and freed (Rocq `tr_pointsto_freed`, `temporal_laws.v`). -/
-theorem state_pointsto_freed {l : Loc} {dq : DFrac} {v : Val} {τ : Trace Exp State}
-    (h₁ : TrProp.state (pointstoSat l dq v) τ) (h₂ : TrProp.state (freedSat l) τ) : False := by
-  simp only [TrProp.state, pointstoSat, freedSat] at h₁ h₂
-  exact absurd (h₁.symm.trans h₂) (by simp)
 
 @[lantana_alias ticket_lock_mono.lock_inv_alive_trSpec_release_progress]
 theorem lockInvAliveTrSpec_release_progress {GF : BundledGFunctors} (next curr : Loc) :
