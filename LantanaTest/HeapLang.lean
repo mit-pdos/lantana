@@ -3,8 +3,8 @@ module
 public import Lantana
 
 /-! HeapLang smoke tests: programs written with the notation elaborate (the flag module of Rocq
-`examples/flag.v` and the program of `examples/nondet.v`), the language instance is found,
-redexes are atomic and pure steps are found by instance search. -/
+`examples/flag.v`; the program of `examples/nondet.v` is in `Lantana.Examples.Nondet`), the
+language instance is found, redexes are atomic and pure steps are found by instance search. -/
 
 namespace LantanaTest.HeapLang
 
@@ -18,24 +18,6 @@ def flagSet : Val := hl_val(λ x, x ← #1)
 
 /-- Rocq `Flag.wait`. -/
 def flagWait : Val := hl_val(rec wait x := if ~(!x = #1) then wait x else #1)
-
-/-- Rocq `Nondet.nest`. -/
-def nest : Val :=
-  hl_val(rec fn x n :=
-    if n ≤ #0 then v(&flagSet) x
-    else
-      let y := v(&flagInit) #();
-      fork(fn y (n - #1));
-      v(&flagWait) y;
-      v(&flagSet) x)
-
-/-- Rocq `Nondet.nondet`. -/
-def nondet : Val :=
-  hl_val(λ _,
-    let n := chooseNat();
-    let x := v(&flagInit) #();
-    fork(v(&nest) x n);
-    v(&flagWait) x)
 
 /-- A labelled program. -/
 def labelled : Exp := hl(label("start", v(&flagInit) #()))

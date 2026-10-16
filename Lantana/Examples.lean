@@ -5,3 +5,5 @@ Released under BSD-3-Clause license as described in the file LICENSE.
 module
 
 public import Lantana.Examples.Flag
+public import Lantana.Examples.FlagStable
+public import Lantana.Examples.Nondet
