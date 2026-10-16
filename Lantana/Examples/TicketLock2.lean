@@ -921,4 +921,173 @@ theorem release_spec : ∃ m : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
 
 end Specs
 
+/-! ## Temporal guarantees
+
+The guarantees are inferred (`GuarOf`): `TrSpec.true` for the ghost state, `R` and the
+obligations; the pending tickets `c + 1 ≤ t ≤ n` carry `◇ (curr ↦ t)`. -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- What a ticket guarantees. -/
+def ticketEntryTrSpec (curr : Loc) (c n t : Int) : TrSpec Exp State GF :=
+  (TrSpec.true ∧ₛ TrSpec.true ∧ₛ TrSpec.true) ∧ₛ
+    ((⌜0 ≤ t ∧ t ≤ c⌝ₛ ∧ₛ TrSpec.true) ∨ₛ
+      (⌜c + 1 ≤ t ∧ t ≤ n⌝ₛ ∧ₛ
+        ◇ₛ (TrSpec.state (pointstoSat curr half (vInt t)) ∧ₛ TrSpec.true)))
+
+/-- What an acknowledgement guarantees. -/
+def ackEntryTrSpec (c n t : Int) : TrSpec Exp State GF :=
+  (⌜0 ≤ t ∧ t ≤ c⌝ₛ ∧ₛ TrSpec.true) ∨ₛ ⌜t = c + 1⌝ₛ ∨ₛ (⌜c + 1 < t ∧ t ≤ n⌝ₛ ∧ₛ TrSpec.true)
+
+/-- The guarantee of the invariant, as inferred (Rocq `lock_inv_trSpec`). -/
+@[lantana_alias ticket_lock2.lock_inv_trSpec]
+def lockInvTrSpec (next curr : Loc) : TrSpec Exp State GF :=
+  ∃ₛ (n : Int) (c : Int) (tickets : IntMap Oid) (acks : IntMap Bool),
+    TrSpec.state (pointstoSat next (.own 1) (vInt n)) ∧ₛ
+    TrSpec.state (pointstoSat curr half (vInt c)) ∧ₛ (TrSpec.true ∧ₛ TrSpec.true) ∧ₛ
+    ⌜∀ t, (get? tickets t).isSome ↔ (get? acks t).isSome⌝ₛ ∧ₛ ⌜0 ≤ c ∧ c ≤ n⌝ₛ ∧ₛ
+    ⌜∀ t, (get? tickets t).isSome ↔ (0 ≤ t ∧ t ≤ n)⌝ₛ ∧ₛ
+    (∀ₛ (t : Int) (κ : Oid), ⌜get? tickets t = some κ⌝ₛ →ₛ ticketEntryTrSpec curr c n t) ∧ₛ
+    (∀ₛ (t : Int) (a : Bool), ⌜get? acks t = some a⌝ₛ →ₛ ackEntryTrSpec c n t) ∧ₛ
+    ((⌜c = n⌝ₛ ∧ₛ (TrSpec.state (pointstoSat curr half (vInt c)) ∧ₛ TrSpec.true)) ∨ₛ
+      (⌜c < n⌝ₛ ∧ₛ ((TrSpec.true ∧ₛ TrSpec.state (pointstoSat curr half (vInt c)) ∧ₛ
+        TrSpec.true) ∨ₛ TrSpec.true)))
+
+/-- The guarantee of a lock (Rocq `fair_lock_trSpec`). -/
+@[lantana_alias ticket_lock2.fair_lock_trSpec]
+def fairLockTrSpec (tl : Val) : TrSpec Exp State GF :=
+  ∃ₛ (next : Loc) (curr : Loc), ⌜tl = hl_val((#next, #curr))⌝ₛ ∧ₛ □ₛ lockInvTrSpec next curr
+
+/-- The guarantee of a lock token: the holder releases the lock (Rocq `lock_token_trSpec`). -/
+@[lantana_alias ticket_lock2.lock_token_trSpec]
+def lockTokenTrSpec (tl : Val) : TrSpec Exp State GF :=
+  ∃ₛ (next : Loc) (curr : Loc) (u : Int), ⌜tl = hl_val((#next, #curr))⌝ₛ ∧ₛ
+    (TrSpec.state (pointstoSat curr half (vInt u)) ∧ₛ TrSpec.true ∧ₛ
+      ◇ₛ (TrSpec.state (pointstoSat curr half (vInt (u + 1))) ∧ₛ TrSpec.true))
+
+variable [ModelGS GF] [HeapGS GF] [TicketLock2G GF]
+
+instance guarOf_ticketEntry (γt γc : GName) (curr : Loc) (R : IProp GF) (c n t : Int)
+    (κ : Oid) : GuarOf (ticketEntry γt γc curr R c n t κ) (ticketEntryTrSpec curr c n t) := by
+  unfold ticketEntry ticketEntryTrSpec; exact ⟨GuarOf.guar_of⟩
+
+instance guarOf_ackEntry (γa : GName) (c n t : Int) :
+    GuarOf (ackEntry (GF := GF) γa c n t) (ackEntryTrSpec c n t) := by
+  unfold ackEntry ackEntryTrSpec; exact ⟨GuarOf.guar_of⟩
+
+instance guarOf_lockInv (γt γa γc : GName) (next curr : Loc) (R : IProp GF) :
+    GuarOf (lockInv γt γa γc next curr R) (lockInvTrSpec next curr) := by
+  unfold lockInv lockInvTrSpec; exact ⟨GuarOf.guar_of⟩
+
+/-- Clients see the lock's guarantee, not its invariant. -/
+@[lantana_alias ticket_lock2.into_guar_is_fair_lock]
+instance guarOf_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    GuarOf (isFairLock tl γ R) (fairLockTrSpec tl) := by
+  unfold isFairLock fairLockTrSpec; exact ⟨GuarOf.guar_of⟩
+
+@[lantana_alias ticket_lock2.guar_is_fair_lock]
+theorem guar_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    ⊢@{IProp GF} isFairLock tl γ R ⊨ₜ fairLockTrSpec tl :=
+  GuarOf.guar_of
+
+@[lantana_alias ticket_lock2.into_guar_lock_token]
+instance guarOf_lockToken (tl : Val) (γ : TicketLockName) (κu : Oid) (R : IProp GF) :
+    GuarOf (lockToken tl γ κu R) (lockTokenTrSpec tl) := by
+  unfold lockToken lockTokenTrSpec; exact ⟨GuarOf.guar_of⟩
+
+@[lantana_alias ticket_lock2.guar_lock_token]
+theorem guar_lockToken (tl : Val) (γ : TicketLockName) (κu : Oid) (R : IProp GF) :
+    ⊢@{IProp GF} lockToken tl γ κu R ⊨ₜ lockTokenTrSpec tl :=
+  GuarOf.guar_of
+
+end Guarantee
+
+/-! ## Starvation freedom, at the level of traces -/
+
+section Traces
+variable {GF : BundledGFunctors}
+
+/-- `l ↦ v` in the current state of the trace (Rocq `tr_pointsto`). -/
+@[lantana_alias ticket_lock2.tr_pointsto]
+abbrev trPointsTo (l : Loc) (v : Val) : TrProp Exp State :=
+  TrProp.state (pointstoSat l (.own 1) v)
+
+/-- Starvation freedom of the ticket lock `(next, curr)` (Rocq `starvation_free`): whenever
+`next ↦ n` and `curr ↦ c`, every ticket `t` with `c < t ≤ n` is eventually served. -/
+@[lantana_alias ticket_lock2.starvation_free]
+def starvationFree (next curr : Loc) : TrProp Exp State :=
+  □ₜ (∀ₜ (n : Int) (c : Int) (t : Int), trPointsTo next (vInt n) →ₜ
+    trPointsTo curr (vInt c) →ₜ ⌜c < t ∧ t ≤ n⌝ₜ →ₜ ◇ₜ trPointsTo curr (vInt t))
+
+/-- Two readings of one location agree. -/
+theorem pointstoSat_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {σ : State}
+    {tp : List Exp} (h₁ : pointstoSat l dq₁ v₁ σ tp) (h₂ : pointstoSat l dq₂ v₂ σ tp) :
+    v₁ = v₂ := by
+  simp only [pointstoSat] at h₁ h₂
+  rw [h₁] at h₂
+  simpa using h₂
+
+/-- From the invariant's reading: the atoms fix `n` and `c`, the pure facts give the ticket `t`
+its obligation, whose branch for pending tickets is the finally (Rocq
+`lock_inv_trSpec_starvation_free`). -/
+@[lantana_alias ticket_lock2.lock_inv_trSpec_starvation_free]
+theorem lockInvTrSpec_starvationFree (next curr : Loc) :
+    (□ₛ lockInvTrSpec (GF := GF) next curr).external ⊆ starvationFree next curr := by
+  intro τ h m hm n c t hn hc ht
+  obtain ⟨n', c', tickets, acks, hn', hc', -, -, hb, hdomt, htk, -⟩ := h m hm
+  have ht : c < t ∧ t ≤ n := ht
+  have hb : 0 ≤ c' ∧ c' ≤ n' := hb
+  have hdomt : ∀ t, (get? tickets t).isSome ↔ (0 ≤ t ∧ t ≤ n') := hdomt
+  obtain rfl : n' = n := by
+    simpa [vInt] using pointstoSat_agree (dq₁ := .own 1) (dq₂ := .own 1) hn' hn
+  obtain rfl : c' = c := by
+    simpa [vInt] using pointstoSat_agree (dq₁ := half) (dq₂ := .own 1) hc' hc
+  obtain ⟨κ, hκ⟩ := Option.isSome_iff_exists.mp ((hdomt t).mpr ⟨by omega, ht.2⟩)
+  rcases (htk t κ hκ).2 with ⟨ht', -⟩ | ⟨-, m', hm', ⟨hfin, -⟩, -⟩
+  · have ht' : 0 ≤ t ∧ t ≤ c' := ht'
+    exact absurd ht'.2 (by omega)
+  · exact ⟨m', hm', hfin, fun _ _ _ => trivial⟩
+
+/-- The trace property of a fair lock: starvation freedom of its two cells (Rocq
+`fair_lock_sf`). -/
+@[lantana_alias ticket_lock2.fair_lock_sf]
+def fairLockSf (tl : Val) : TrProp Exp State :=
+  ∃ₜ (next : Loc) (curr : Loc), ⌜tl = hl_val((#next, #curr))⌝ₜ ∧ₜ starvationFree next curr
+
+@[lantana_alias ticket_lock2.fair_lock_starvation_free]
+theorem fairLock_starvationFree (tl : Val) :
+    (fairLockTrSpec (GF := GF) tl).external ⊆ fairLockSf tl := by
+  rintro τ ⟨next, curr, htl, h⟩
+  exact ⟨next, curr, htl, lockInvTrSpec_starvationFree next curr τ h⟩
+
+/-- The holder of a lock token (serving the ticket `u`) eventually releases the lock (Rocq
+`lock_token_tr`). -/
+@[lantana_alias ticket_lock2.lock_token_tr]
+def lockTokenTr (tl : Val) : TrProp Exp State :=
+  ∃ₜ (next : Loc) (curr : Loc) (u : Int), ⌜tl = hl_val((#next, #curr))⌝ₜ ∧ₜ
+    trPointsTo curr (vInt u) ∧ₜ ◇ₜ trPointsTo curr (vInt (u + 1))
+
+@[lantana_alias ticket_lock2.lock_token_releases]
+theorem lockToken_releases (tl : Val) :
+    (lockTokenTrSpec (GF := GF) tl).external ⊆ lockTokenTr tl := by
+  rintro τ ⟨next, curr, u, htl, hu, -, m, hm, ⟨hfin, -⟩, -⟩
+  exact ⟨next, curr, u, htl, hu, m, hm, hfin, fun _ _ _ => trivial⟩
+
+end Traces
+
+/-! ## Starvation freedom as a guarantee -/
+
+section CastGuarantee
+variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TicketLock2G GF]
+
+/-- The lock's guarantee, cast to its trace property (Rocq `is_fair_lock_starvation_free`). -/
+@[lantana_alias ticket_lock2.is_fair_lock_starvation_free]
+theorem isFairLock_starvationFree (tl : Val) (γ : TicketLockName) (R : IProp GF) :
+    ⊢@{IProp GF} isFairLock tl γ R ⊨ₜ
+      (fairLockTrSpec tl).cast (fairLockSf tl) (fairLock_starvationFree tl) :=
+  (guar_isFairLock tl γ R).trans (guar_cast _ _)
+
+end CastGuarantee
+
 end Lantana.Examples.TicketLock2
