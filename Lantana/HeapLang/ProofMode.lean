@@ -22,6 +22,10 @@ step, and the witness layers; it gives back the witnesses' credits and later cre
   (the pure condition and `0 < n`), and leaves the goal
   `∃ G m R o, (thKids i G ∗ oblFuels G (n + m) ∗ witLayers R) ∗ (thKids i G -∗ oblFuels G m -∗
   witCreds R -∗ £ₒ o -∗ threadExpr i C e' -∗ |={E}=>m lWP e' …)`, as Rocq's `lwp_pure` does.
+* `PureExec` instances for the common operations with their results computed (`~#b`, `+`, `-`,
+  `≤`, `<` on integers), which the generic ones of `Instances` cannot provide to instance search.
+* `stepPre_nil`, `stepPre_wit`, `witLayers_empty`, `witCreds_singleton`: the bookkeeping of the
+  witnesses of a step.
 -/
 
 @[expose] public noncomputable section
@@ -124,6 +128,53 @@ instance label {t : String} [h : PureExecCtx φ n e e'] :
   fillItem (.label t) h
 
 end PureExecCtx
+
+/-! ### Operations with a computed result
+
+The generic `instPureExecUnOp` and `instPureExecBinOp` of `Instances` leave the result `v'` of
+the operation to their pure condition `op.eval v = some v'`, so instance search cannot use them
+(the result of `PureExec` is an `outParam`). These instances give the result of the common
+operations directly. -/
+
+section Ops
+
+variable {b : Bool} {n₁ n₂ : Int}
+
+/-- `~#b` (Rocq `pure_unop` for booleans). -/
+instance instPureExecNegBool :
+    PureExec True 1 (Exp.unop .neg (.ofVal (.lit (.bool b)))) (.ofVal (.lit (.bool !b))) :=
+  ⟨fun _ => (instPureExecUnOp (op := .neg) (v := .lit (.bool b))
+    (v' := .lit (.bool !b))).pureExec rfl⟩
+
+/-- `#n₁ + #n₂`. -/
+instance instPureExecPlusInt :
+    PureExec True 1 (Exp.binop .plus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+      (.ofVal (.lit (.int (n₁ + n₂)))) :=
+  ⟨fun _ => (instPureExecBinOp (op := .plus) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
+    (v' := .lit (.int (n₁ + n₂)))).pureExec rfl⟩
+
+/-- `#n₁ - #n₂`. -/
+instance instPureExecMinusInt :
+    PureExec True 1 (Exp.binop .minus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+      (.ofVal (.lit (.int (n₁ - n₂)))) :=
+  ⟨fun _ => (instPureExecBinOp (op := .minus) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
+    (v' := .lit (.int (n₁ - n₂)))).pureExec rfl⟩
+
+/-- `#n₁ ≤ #n₂`. -/
+instance instPureExecLeInt :
+    PureExec True 1 (Exp.binop .le (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+      (.ofVal (.lit (.bool (decide (n₁ ≤ n₂))))) :=
+  ⟨fun _ => (instPureExecBinOp (op := .le) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
+    (v' := .lit (.bool (decide (n₁ ≤ n₂))))).pureExec rfl⟩
+
+/-- `#n₁ < #n₂`. -/
+instance instPureExecLtInt :
+    PureExec True 1 (Exp.binop .lt (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+      (.ofVal (.lit (.bool (decide (n₁ < n₂))))) :=
+  ⟨fun _ => (instPureExecBinOp (op := .lt) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
+    (v' := .lit (.bool (decide (n₁ < n₂))))).pureExec rfl⟩
+
+end Ops
 
 /-- `e'` is a subexpression of `e` in evaluation position: `e = fill K e'`. The context is found
 by instance search through the context items of `e`, outermost first. -/
@@ -257,6 +308,46 @@ theorem tac_lwp_bind (e' : Exp) {e : Exp} {K : List ECtxItem} [h : InCtx e' e K]
 
 end Tactic
 
+/-! ### The bookkeeping of a step -/
+
+section Steps
+
+variable {GF : BundledGFunctors}
+
+/-- No witnesses. -/
+theorem witLayers_empty [ModelGS GF] : ⊢ witLayers (GF := GF) ∅ := by
+  unfold witLayers
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
+
+/-- The precondition of a step without witnesses. -/
+theorem stepPre_nil [ModelGS GF] (i : ThreadId) (G : Oids) :
+    thKids i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ stepPre (GF := GF) i G ∅ := by
+  iintro HG HF
+  simp only [stepPre]
+  iframe HG HF
+  iapply witLayers_empty
+
+/-- The precondition of a step that observes the witness `k` (of layer `ℓ`). -/
+theorem stepPre_wit [ModelGS GF] (i : ThreadId) (G : Oids) (k : Oid) (ℓ : Layer) :
+    thKids i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ Wit.layer k ℓ -∗
+      stepPre (GF := GF) i G {k} := by
+  iintro HG HF Hk
+  simp only [stepPre]
+  iframe HG HF
+  unfold witLayers
+  iapply BigSepS.bigSepS_singleton.mpr
+  iexists ℓ
+  iexact Hk
+
+/-- What a step that observes the witness `k` gives back: a credit of `k`, or its discharge. -/
+theorem witCreds_singleton [ModelGS GF] (k : Oid) :
+    witCreds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
+  unfold witCreds
+  exact BigSepS.bigSepS_singleton.mp
+
+end Steps
+
 /-- `lwp_pure H`: a pure step of the redex of the goal `lWP e @ s; i; E {{ Φ }}`, paid with the
 token `H : threadExpr i C e` (Rocq `lwp_pure`). The pure condition is tried with `trivial`
 and `decide`, and is left as the first goal if they fail; the goal left is the existential of
@@ -276,12 +367,17 @@ macro_rules
   | `(tactic| lwp_bind $e $H:ident) =>
     `(tactic| (iapply tac_lwp_bind $e $$ $H:ident; iintro $H:ident))
 
-/-- `lwp_expr_simp`: compute the substitutions and the contexts `fill K e` of the goal (after
-`lwp_pure` of a `rec` application or `lwp_bind`, Rocq `lwp_expr_simpl`). -/
+/-- `lwp_expr_simp`: compute the substitutions, the contexts `fill K e` and the negations `!b` of
+the goal (after `lwp_pure` of a `rec` application or of `~#b`, or after `lwp_bind`, Rocq
+`lwp_expr_simpl`). The values are then written back as `Exp.ofVal v` (`val_to_ofVal`), the
+form that the instances of `PureExecCtx`, `InCtx` and `Atomic` expect, so that `lwp_pure`,
+`lwp_bind` and the opening of invariants around atomic expressions apply afterwards. -/
 macro "lwp_expr_simp" : tactic =>
-  `(tactic| simp (config := {decide := true}) only
-    [Exp.subst, Exp.substStr, Exp.ofVal, ↓reduceIte, List.nil_append, List.append_nil,
-      List.cons_append, EctxItemLanguage.fill_append, EctxItemLanguage.fill_nil,
-      EctxItemLanguage.fill_cons, fillItem_eq, ECtxItem.fill])
+  `(tactic| (
+    simp (config := {decide := true}) only
+      [Exp.subst, Exp.substStr, Exp.ofVal, ↓reduceIte, List.nil_append, List.append_nil,
+        List.cons_append, EctxItemLanguage.fill_append, EctxItemLanguage.fill_nil,
+        EctxItemLanguage.fill_cons, fillItem_eq, ECtxItem.fill, Bool.not_true, Bool.not_false]
+    try simp only [val_to_ofVal]))
 
 end Lantana.HeapLang

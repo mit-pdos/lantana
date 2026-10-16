@@ -177,50 +177,6 @@ end Invariant
 
 /-! ## Specifications -/
 
-section Helpers
-variable {GF : BundledGFunctors}
-
-/-- The precondition of a step without witnesses. -/
-theorem stepPre_nil [ModelGS GF] (i : ThreadId) (G : Oids) :
-    thKids i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ stepPre (GF := GF) i G ∅ := by
-  iintro HG HF
-  simp only [stepPre]
-  iframe HG HF
-  unfold witLayers
-  iapply BigSepS.bigSepS_empty.mpr
-  iempintro
-
-instance instPureExecNegBool {b : Bool} :
-    PureExec True 1 (Exp.unop .neg (.ofVal (.lit (.bool b)))) (.ofVal (.lit (.bool !b))) :=
-  ⟨fun _ => (instPureExecUnOp (op := .neg) (v := .lit (.bool b))
-    (v' := .lit (.bool !b))).pureExec rfl⟩
-
-/-- No witnesses. -/
-theorem witLayers_empty [ModelGS GF] : ⊢ witLayers (GF := GF) ∅ := by
-  unfold witLayers
-  iapply BigSepS.bigSepS_empty.mpr
-  iempintro
-
-/-- The precondition of a step that observes the witness `k`. -/
-theorem stepPre_wit [ModelGS GF] (i : ThreadId) (G : Oids) (k : Oid) (ℓ : Layer) :
-    thKids i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ Wit.layer k ℓ -∗
-      stepPre (GF := GF) i G {k} := by
-  iintro HG HF Hk
-  simp only [stepPre]
-  iframe HG HF
-  unfold witLayers
-  iapply BigSepS.bigSepS_singleton.mpr
-  iexists ℓ
-  iexact Hk
-
-/-- What a step that observes the witness `k` gives back. -/
-theorem witCreds_singleton [ModelGS GF] (k : Oid) :
-    witCreds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
-  unfold witCreds
-  exact BigSepS.bigSepS_singleton.mp
-
-end Helpers
-
 section Specs
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 
@@ -298,7 +254,6 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
   ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
-  rw [val_to_ofVal]
   imod Hacc with ⟨Hinv, Hclose⟩
   iapply lwp_credit_later $$ Hc1
   inext
@@ -314,7 +269,6 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
   iapply lwp_credit_later $$ Hc2
   inext
   icases HU with ⟨Hl, Hdis⟩
-  rw [← val_to_ofVal]
   iapply lwp_store (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF Hl]
   · iframe HT Hl
     iapply stepPre_nil $$ HG HF
@@ -409,7 +363,6 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
-  rw [val_to_ofVal]
   imod Hacc with ⟨Hinv, Hclose⟩
   iapply lwp_credit_later $$ Hc1
   inext
@@ -425,7 +378,6 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   iapply lwp_credit_later $$ Hc2
   inext
   icases HU with ⟨Hl, Hdis⟩
-  rw [← val_to_ofVal]
   iapply lwp_store (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF Hl]
   · iframe HT Hl
     iapply stepPre_nil $$ HG HF
@@ -477,7 +429,6 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       iintro HG HF - Hc HT
       icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
       lwp_expr_simp
-      simp only [val_to_ofVal]
       imodintro
       lwp_bind hl(!#l) HT
       ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
@@ -495,7 +446,6 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         inext
         icases Hu with ⟨Hl, Hucl⟩
         icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
-        rw [← val_to_ofVal]
         iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := {k}) $$ [HT HG HF1 Hl]
         · iframe HT Hl
           iapply stepPre_wit $$ HG HF1 Wk
@@ -518,7 +468,6 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         imodintro
         ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
         lwp_expr_simp
-        simp only [val_to_ofVal]
         lwp_pure HT
         iexists G, 2, ∅, 0
         isplitl [HG HF]
@@ -545,7 +494,6 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         imodintro
         iapply HP $$ HT HG HΦ HF
       · icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
-        rw [← val_to_ofVal]
         iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hl]
         · iframe HT Hl
           iapply stepPre_nil $$ HG HF1
@@ -558,7 +506,6 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         imodintro
         ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
         lwp_expr_simp
-        simp only [val_to_ofVal]
         lwp_pure HT
         iexists G, 2, ∅, 0
         isplitl [HG HF]
