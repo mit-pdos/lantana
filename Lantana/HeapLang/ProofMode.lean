@@ -304,7 +304,7 @@ theorem tac_lwp_bind (e' : Exp) {e : Exp} {K : List ECtxItem} [h : InCtx e' e K]
       lWP e @ s; i; E {{ Φ }} := by
   iintro HT H
   rw [← h.eq_fill]
-  iapply lwp_bind (fill K)
+  iapply lwp_bind_fill K
   iapply H
   iapply (threadExpr_fill i C K e').mp $$ HT
 

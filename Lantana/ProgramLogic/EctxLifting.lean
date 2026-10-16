@@ -11,7 +11,9 @@ public import Lantana.ProgramLogic.Lifting
 
 Rocq `lantana/program_logic/ectx_lifting.v`, after Iris-Lean's `Iris.ProgramLogic.EctxLifting`:
 the lifting lemmas of `Lantana.ProgramLogic.Lifting` stated with base steps and base
-reducibility, for the language of an `EctxLanguage`.
+reducibility, for the language of an `EctxLanguage`. The contexts of that language are the
+evaluation contexts `Ectx`, all of which are contexts (`instContextFill`): the lemmas quantify
+over `K : Ectx` with `fill K`, without the hypothesis `Language.Context K`.
 -/
 
 @[expose] public noncomputable section
@@ -29,18 +31,23 @@ variable [Λ : EctxLanguage Expr State Val Ectx] [ModelGS GF]
 variable [L : LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
 variable {s : Stuckness} {i : ThreadId} {E E₁ E₂ : CoPset} {e e₁ : Expr} {Φ : Val → IProp GF}
 
+/-- `lwp_bind` at an evaluation context. -/
+theorem lwp_bind_fill (K : Ectx) :
+    lWP e @ s; i; E {{ fun v : Val => lWP (fill K (v : Expr)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (fill K e) @ s; i; E {{ Φ }} :=
+  lwp_bind (Expr := Expr) K
+
 /-- A step of a base redex, over the state interpretation. -/
 @[lantana_alias lwp_lift_base_step]
 theorem lwp_lift_base_step (he : toVal e₁ = none) :
-    (∀ (K : Expr → Expr) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
+    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜BaseReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜baseStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
-            ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (K e₂) ++ efs) ∗
+            ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
               |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                 [∗list] j ↦ ef ∈ efs,
                   lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))
@@ -48,7 +55,7 @@ theorem lwp_lift_base_step (he : toVal e₁ = none) :
   iintro H
   iapply lwp_lift_step_si he
   iintro %K %σ₁ %tp %hK %hi Hs
-  imod H $$ %K %σ₁ %tp %hK %hi Hs with ⟨%hred, H⟩
+  imod H $$ %K %σ₁ %tp %hi Hs with ⟨%hred, H⟩
   imodintro
   isplitr
   · ipureintro
@@ -65,14 +72,13 @@ theorem lwp_lift_base_step (he : toVal e₁ = none) :
 
 @[lantana_alias lwp_lift_base_stuck]
 theorem lwp_lift_base_stuck (he : toVal e = none) (hsub : SubredexesAreValues e) :
-    (∀ (K : Expr → Expr) (σ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e)⌝ →
+    (∀ (K : Ectx) (σ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e)⌝ →
       stateInterp σ tp ={E,∅}=∗ ⌜BaseStuck e σ⌝)
       ⊢ lWP e @ i; E ?{{ Φ }} := by
   iintro H
   iapply lwp_lift_stuck he
   iintro %K %σ %tp %hK %hi Hs
-  imod H $$ %K %σ %tp %hK %hi Hs with %hstuck
+  imod H $$ %K %σ %tp %hi Hs with %hstuck
   imodintro
   ipureintro
   exact stuck_of_baseStuck hstuck hsub
@@ -82,7 +88,7 @@ theorem lwp_lift_pure_base_stuck (he : toVal e = none) (hsub : SubredexesAreValu
     (hstuck : ∀ σ, BaseStuck e σ) : iprop(True) ⊢ lWP e @ i; E ?{{ Φ }} := by
   iintro -
   iapply lwp_lift_base_stuck he hsub
-  iintro %K %σ %tp %hK %hi -
+  iintro %K %σ %tp %hi -
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
   iintro -
   ipureintro
@@ -91,15 +97,14 @@ theorem lwp_lift_pure_base_stuck (he : toVal e = none) (hsub : SubredexesAreValu
 /-- An atomic step of a base redex: the thread reaches a value. -/
 @[lantana_alias lwp_lift_atomic_base_step]
 theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) :
-    (∀ (K : Expr → Expr) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
+    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜BaseReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜baseStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
-            ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (K e₂) ++ efs) ∗
+            ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
               |={E₁}=>m ((∃ v, ⌜toVal e₂ = some v⌝ ∗ Φ v) ∗
                 [∗list] j ↦ ef ∈ efs,
                   lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))
@@ -107,7 +112,7 @@ theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) :
   iintro H
   iapply lwp_lift_atomic_step he
   iintro %K %σ₁ %tp %hK %hi Hs
-  imod H $$ %K %σ₁ %tp %hK %hi Hs with ⟨%hred, H⟩
+  imod H $$ %K %σ₁ %tp %hi Hs with ⟨%hred, H⟩
   imodintro
   isplitr
   · ipureintro
@@ -125,20 +130,19 @@ theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) :
 /-- An atomic step of a base redex that forks no thread. -/
 @[lantana_alias lwp_lift_atomic_base_step_no_fork]
 theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) :
-    (∀ (K : Expr → Expr) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
+    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜BaseReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜baseStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
-            ALC iprop(|={E₂,E₁}=> ⌜efs = []⌝ ∗ stateInterp σ₂ (tp.set i (K e₂)) ∗
+            ALC iprop(|={E₂,E₁}=> ⌜efs = []⌝ ∗ stateInterp σ₂ (tp.set i (fill K e₂)) ∗
               ∃ v, ⌜toVal e₂ = some v⌝ ∗ |={E₁}=>m Φ v))
       ⊢ lWP e₁ @ s; i; E₁ {{ Φ }} := by
   iintro H
   iapply lwp_lift_atomic_base_step he
-  iintro %K %σ₁ %tp %hK %hi Hs
-  imod H $$ %K %σ₁ %tp %hK %hi Hs with ⟨%hred, %G, HG, HF, %R, HR, H⟩
+  iintro %K %σ₁ %tp %hi Hs
+  imod H $$ %K %σ₁ %tp %hi Hs with ⟨%hred, %G, HG, HF, %R, HR, H⟩
   imodintro
   isplitr
   · ipureintro

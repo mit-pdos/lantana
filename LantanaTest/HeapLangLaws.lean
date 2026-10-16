@@ -59,7 +59,7 @@ example (K : List ECtxItem) (l : Loc) (v : Val) (Φ : Val → IProp GF) :
         lWP (fill K (Exp.val v)) @ s; i; E {{ Φ }})
       ⊢ lWP (fill K hl(!#l)) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, Hpre, Hl, HΦ⟩
-  iapply lwp_bind (fill K)
+  iapply lwp_bind_fill K
   ihave HT := (threadExpr_fill i C K _).mp $$ HT
   iapply lwp_load (o := o) l (DFrac.own 1) v $$ [HT Hpre Hl]
   · iframe
@@ -173,17 +173,17 @@ example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
 
 end
 
-/-! Contexts are determined by a step, also for `chooseNat`. -/
+/-! The context of a thread that can step is determined by its expression, also for
+`chooseNat` (D31). -/
 
-example (K : Exp → Exp) [Context K] (C : List ECtxItem) (σ : State) (n : Nat)
-    (h : K .chooseNat = fill C .chooseNat) :
-    K (.val (.lit (.int n))) = fill C (.val (.lit (.int n))) :=
-  Context.eq_fill_of_primStep h (EctxLanguage.primStep_of_baseStep (.chooseNatS n σ))
+example (tp : ThreadPool Exp) (i : ThreadId) (K C : List ECtxItem) (σ : State) (n : Nat)
+    (hK : tp[i]? = some (fill K .chooseNat)) (hC : tp[i]? = some (fill C .chooseNat)) : C = K :=
+  ctx_eq_of_primStep (EctxLanguage.primStep_of_baseStep (.chooseNatS n σ)) hC hK
 
-example (K : Exp → Exp) [Context K] (C : List ECtxItem) (σ : State) (l : Loc) (v : Val)
-    (hl : σ.get? l = some (some v)) (h : K hl(!#l) = fill C hl(!#l)) :
-    K (.val v) = fill C (.val v) :=
-  Context.eq_fill_of_primStep h (EctxLanguage.primStep_of_baseStep (.loadS l v σ hl))
+example {GF : BundledGFunctors} [HeapStateGS GF] (tp : ThreadPool Exp) (i : ThreadId)
+    (K C : List ECtxItem) (σ : State) (n : Nat) (hK : tp[i]? = some (fill K .chooseNat)) :
+    threadMapAuth (GF := GF) tp ∗ threadExpr i C .chooseNat ⊢ ⌜C = K⌝ :=
+  threadExpr_ctx tp i C K _ hK (EctxLanguage.primStep_of_baseStep (.chooseNatS n σ))
 
 /-! The step tactics that find their hypotheses (D27, M10): `lwp_step`, `lwp_step with`,
 `lwp_pure`, `lwp_bind e'` and `lwp_pures`; on a value they fail with an error that `try`,
