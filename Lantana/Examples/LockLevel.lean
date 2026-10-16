@@ -70,12 +70,26 @@ theorem lockLevel_lb (γ : GName) (dq : DFrac) (ℓ : Layer) :
   unfold lockLevel lockLevelLb
   exact iOwn_mono (included dq ℓ)
 
+/-- The authority knows its level, and keeps it. -/
+theorem lockLevel_get_lb (γ : GName) (dq : DFrac) (ℓ : Layer) :
+    lockLevel (GF := GF) γ dq ℓ ⊢ lockLevel γ dq ℓ ∗ lockLevelLb γ ℓ := by
+  unfold lockLevel lockLevelLb
+  conv => lhs; rw [auth_know_op]
+  exact iOwn_op.mp
+
 /-- What is known is below the level. -/
 theorem lockLevel_lb_valid (γ : GName) (dq : DFrac) (ℓ ℓ' : Layer) :
-    lockLevel (GF := GF) γ dq ℓ ⊢ lockLevelLb γ ℓ' -∗ ⌜ℓ' ≤ ℓ⌝ := by
+    lockLevel (GF := GF) γ dq ℓ ⊢ lockLevelLb γ ℓ' -∗ lockLevel γ dq ℓ ∗ ⌜ℓ' ≤ ℓ⌝ := by
   unfold lockLevel lockLevelLb
-  iintro H1 H2
-  ihave %h := iOwn_cmraValid_op (F := LockLevelF) $$ [$H1 $H2]
+  iintro H1 #H2
+  ihave H := iOwn_valid_r (F := LockLevelF) (a := (●AM{dq}[LayerLe] ℓ) • (◯AM[LayerLe] ℓ'))
+    $$ [H1 H2]
+  · iapply iOwn_op.mpr
+    iframe H1
+    iexact H2
+  icases H with ⟨H, %h⟩
+  icases iOwn_op.mp $$ H with ⟨H1, -⟩
+  iframe H1
   ipureintro
   exact (both_dfrac_valid.mp h).2
 
