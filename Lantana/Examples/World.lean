@@ -7,6 +7,7 @@ module
 public import Iris.Instances.Lib.GhostVar
 public import Iris.BI.Lib.MonoNat
 public import Lantana.Examples.Lib
+public import Lantana.Examples.LockLevel
 
 /-! # A closed world for the examples
 
@@ -17,7 +18,9 @@ the temporal layer before allocation (slots 0–15, as in the test world of
 the model history, the registry and the history), the heap with its meta data (16–18) and the
 thread-expression map (19) of HeapLang, a ghost variable of obligation ids for the handoff
 (20), and the counters (mono-nat, 21) and the ghost map from indices to obligations (22) of the
-paradox. Its instances are `TemporalGpreS Exp State ExGF`, the premise of the adequacy theorems,
+paradox, and the lock level (40) and the ghost maps from tickets to obligations (41) and to
+acknowledgements (42) of the starvation-free ticket lock. Its instances are
+`TemporalGpreS Exp State ExGF`, the premise of the adequacy theorems,
 and `HeapStateGpreS ExGF`, from which `heapState_init` allocates HeapLang's ghost state.
 
 Universes: as in `LantanaTest.TrSpecModel`, the slots holding ordinals are `ULiftOF.{4}` of
@@ -71,6 +74,9 @@ def ExGF : BundledGFunctors.{0} := fun n =>
       @ULiftOF.instRFunctorContractive _ ghostVarF_contractive⟩
   | 21 => ⟨ULiftOF MonoNatRF, by infer_instance⟩
   | 22 => ⟨ULiftOF (constOF (HeapView Nat (Agree (DiscreteO Oid)) OidMap)), by infer_instance⟩
+  | 40 => ⟨ULiftOF.{4} LockLevelF, by infer_instance⟩
+  | 41 => ⟨ULiftOF (constOF (HeapView Int (Agree (DiscreteO Oid)) IntMap)), by infer_instance⟩
+  | 42 => ⟨ULiftOF (constOF (HeapView Int (Agree (DiscreteO Bool)) IntMap)), by infer_instance⟩
   | _ => ⟨constOFU Unit, by infer_instance⟩
 
 instance : WsatGpreS ExGF where
@@ -133,5 +139,12 @@ instance : MonoNatG ExGF where
   name := 0
 
 instance : GhostMapG ExGF Nat Oid OidMap := ⟨ElemG.ofEqLift 22 (by unfold ExGF; rfl)⟩
+
+instance : LockLevelG ExGF where
+  elem := (ElemG.ofEq 40 (by unfold ExGF; rfl) : ElemG ExGF (ULiftOF.{4} LockLevelF)).ofLift
+
+instance : GhostMapG ExGF Int Oid IntMap := ⟨ElemG.ofEqLift 41 (by unfold ExGF; rfl)⟩
+
+instance : GhostMapG ExGF Int Bool IntMap := ⟨ElemG.ofEqLift 42 (by unfold ExGF; rfl)⟩
 
 end Lantana.Examples
