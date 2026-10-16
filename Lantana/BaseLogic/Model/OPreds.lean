@@ -489,6 +489,171 @@ theorem obl_new_mupd (n tc : Nat) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Me
     rw [hrep]
     iexact Hβ
 
+/-- A new discharged obligation (Rocq `obl_new_discharged_mupd`): it is outside the forest. -/
+@[lantana_alias omodel.obl_new_discharged_mupd]
+theorem obl_new_discharged_mupd (n tc : Nat) (ℓ : Layer) :
+    ⊢@{IProp GF} mupd n tc iprop(∃ k : Oid, oblDischarged k ∗ witLayer k ℓ) := by
+  iapply mupd_nd_step
+  iintro %h %i %Ω₁ %W₁ HM
+  unfold modelInterp
+  icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
+  have hk := Obls.get?_fresh Ω₁
+  have hkW := get?_none_wits hI₁ hk
+  imod osat_alloc_obl_discharged hk (Measure.rep ℓ 1) $$ Hos with ⟨Hos, #Hβ, #He, #Hd, -, -⟩
+  imod owit_alloc_witness_discharged hkW (fairMeasureUb (Measure.rep ℓ 1)) $$ [$Hw $Hd]
+    with ⟨Hw, #Hwb⟩
+  ihave Hf := oforest_alloc_discharged hk $$ Hf
+  have hnd := Obls.ndf_insert_fresh .discharged hk
+  imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.lef.le $$ HH with HH
+  imodintro
+  iexists _
+  isplitr
+  · ipureintro
+    exact hnd
+  iintro %W₂ %⟨hW, hI₂⟩
+  imodintro
+  iframe HH Hos Hf
+  isplitl [Hw]
+  · isplitl [Hw]
+    · iapply owit_mon (wits_mono_new hI₁ hW hI₂) $$ Hw
+    · ipureintro
+      exact hI₂
+  iapply mupd_intro
+  iexists Ω₁.fresh
+  unfold oblDischarged witLayer witBoundVal
+  isplitl []
+  · isplitl []
+    · iexact He
+    · iexact Hd
+  isplitl []
+  · iexists 1
+    isplitl []
+    · iexact He
+    · iexact Hwb
+  · iexists 1
+    iexact Hβ
+
+/-- A move of the node `k` from `p₁` to `p₂`, with the unit `u` that `k` burns if its owner
+changes and the piece `π` above the fuel of `p₂` (Rocq: the two cases of `obl_move_mupd`, with
+`oforest_move_same` and `oforest_move_cross`). -/
+theorem oforest_move {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K₂ : Oids} {k : Oid}
+    {j : ThreadId} {u π : Fuel} (hk : k ∈ K₁) (hu : 0 < u)
+    (hp₂ : match p₂ with
+      | .thread j' => j' = j
+      | .obl q => Ω.ownerOf q = some j ∧ Ω.fuelOf q < π) :
+    osat Ω ∗ oforest Ω tc ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OSat.fuel k u ∗
+        OSat.fuel k π
+      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obls.ndf Ω Ω' ∧ (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
+        k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc ∗ OForest.kids p₁ (K₁ \ {k}) ∗
+        OForest.kids p₂ ({k} ∪ K₂) := by
+  iintro ⟨Hs, Hf, H₁, H₂, Hu, Hπ⟩
+  icases oforest_kids_live Ω tc p₁ K₁ $$ [$Hf $H₁] with %⟨hlive, -⟩
+  obtain ⟨t, ht⟩ := Obls.ownerOf_of_live (hlive k hk)
+  obtain ⟨a, ha⟩ := Obls.ownerOf_eq_some.1 ht
+  have hpiece : ∀ q, p₂ = .obl q → Ω.fuelOf q < π := by
+    rintro q rfl
+    exact hp₂.2
+  by_cases htj : t = j
+  · subst htj
+    icases osat_fuel_le Ω k π $$ [$Hs $Hπ] with %hle
+    have hπk : π ≤ Ω.fuelOf k := by
+      rw [Obls.fuelOf_eq ha]
+      exact hle a t ha
+    have hp₂' : match (generalizing := false) p₂ with
+        | .thread j => Ω.ownerOf k = some j
+        | .obl q => Ω.ownerOf q = Ω.ownerOf k ∧ Ω.fuelOf q < Ω.fuelOf k := by
+      cases p₂ with
+      | thread j' => exact hp₂ ▸ ht
+      | obl q => exact ⟨hp₂.1.trans ht.symm, Ordinal.lt_of_lt_of_le hp₂.2 hπk⟩
+    ihave Hπ := fuel_forestPiece hpiece $$ Hπ
+    imod oforest_move_same hk hp₂' $$ [$Hf $H₁ $H₂ $Hπ] with ⟨%hkK, Hf, H₁, H₂⟩
+    imodintro
+    iexists Ω
+    iframe Hs Hf H₁ H₂
+    ipureintro
+    exact ⟨Obls.ndf_refl Ω, fun _ => Iff.rfl, hkK⟩
+  · have hp₂' : match (generalizing := false) p₂ with
+        | .thread j' => j' = j
+        | .obl q => Ω.ownerOf q = some j := by
+      cases p₂ with
+      | thread j' => exact hp₂
+      | obl q => exact hp₂.1
+    ihave Hπ := fuel_forestPiece hpiece $$ Hπ
+    imod oforest_move_cross hk ht htj hu hp₂' $$ [$Hs $Hf $H₁ $H₂ $Hu $Hπ]
+      with ⟨%Ω', %hΩ', Hs, Hf, H₁, H₂⟩
+    imodintro
+    iexists Ω'
+    iframe Hs Hf H₁ H₂
+    ipureintro
+    exact hΩ'
+
+/-- The obligation `k` moves with its subtree from `p₁` to `p₂`, burning one unit at a layer
+that dominates `p₂` (Rocq `obl_move_mupd`): the unit splits into `1`, burnt by `k` if its owner
+changes, and `▽`, its new piece below an obligation. -/
+@[lantana_alias omodel.obl_move_mupd]
+theorem obl_move_mupd (n tc : Nat) (p₁ p₂ : Parent) (K₁ K₂ : Oids) (k : Oid) (ℓ : Layer)
+    (hk : k ∈ K₁) :
+    parBelow (GF := GF) p₂ ℓ ⊢ parKids p₁ K₁ -∗ parKids p₂ K₂ -∗ oblFuel k ℓ 1 -∗
+      mupd n tc iprop(⌜k ∉ K₂⌝ ∗ parKids p₁ (K₁.erase k) ∗ parKids p₂ (K₂.insert k)) := by
+  unfold parKids oblFuel oblFuelVal
+  rw [modelFuel_one]
+  iintro Hb ⟨Hx₁, Hk₁, Hs₁⟩ ⟨Hx₂, Hk₂, Hs₂⟩ ⟨-, Hfk⟩
+  icases (bigSepS_oids_erase hk).mp $$ Hs₁ with ⟨Hsk, Hs₁⟩
+  icases (OSat.fuel_split k _ _).mp $$ Hfk with ⟨Hu, Hπ⟩
+  iapply mupd_model_round
+  iintro %Ω ⟨Hs, Hf⟩
+  icases parBelow_owner Ω tc p₂ K₂ ℓ $$ [$Hf $Hk₂ $Hb] with %⟨j, hj⟩
+  imod oforest_move hk zero_lt_one hj $$ [$Hs $Hf $Hk₁ $Hk₂ $Hu $Hπ]
+    with ⟨%Ω', %⟨hnd, hdom, hkK⟩, Hs, Hf, Hk₁, Hk₂⟩
+  imodintro
+  iexists Ω'
+  isplitr
+  · ipureintro
+    exact ⟨hnd, hdom⟩
+  iframe Hs Hf
+  isplitr
+  · ipureintro
+    exact hkK
+  isplitl [Hx₁ Hk₁ Hs₁]
+  · iframe Hx₁ Hs₁
+    rw [oids_erase_eq]
+    iexact Hk₁
+  · iframe Hx₂
+    isplitl [Hk₂]
+    · rw [oids_insert_eq]
+      iexact Hk₂
+    · iapply (bigSepS_oids_insert hkK).mpr
+      iframe Hsk Hs₂
+
+/-- A grandchild `x`, child of `k`, moves up to the parent `p` of `k` (Rocq
+`obl_move_up_mupd`): a ghost round. -/
+@[lantana_alias omodel.obl_move_up_mupd]
+theorem obl_move_up_mupd (n tc : Nat) (p : Parent) (K : Oids) (k : Oid) (Kk : Oids) (x : Oid)
+    (hk : k ∈ K) (hx : x ∈ Kk) :
+    parKids (GF := GF) p K ⊢ parKids (.obl k) Kk -∗
+      mupd n tc iprop(⌜x ∉ K⌝ ∗ parKids p (K.insert x) ∗ parKids (.obl k) (Kk.erase x)) := by
+  unfold parKids
+  iintro ⟨Hx, Hp, Hs⟩ ⟨Hxk, Hk, Hsk⟩
+  icases (bigSepS_oids_erase hx).mp $$ Hsk with ⟨Hsx, Hsk⟩
+  iapply mupd_ghost_round
+  iintro %Ω ⟨Hos, Hf⟩
+  imod oforest_move_up hk hx $$ [$Hf $Hp $Hk] with ⟨%hxK, Hf, Hp, Hk⟩
+  imodintro
+  iframe Hos Hf
+  isplitr
+  · ipureintro
+    exact hxK
+  isplitl [Hx Hp Hs Hsx]
+  · iframe Hx
+    isplitl [Hp]
+    · rw [oids_insert_eq]
+      iexact Hp
+    · iapply (bigSepS_oids_insert hxK).mpr
+      iframe Hsx Hs
+  · iframe Hxk Hsk
+    rw [oids_erase_eq]
+    iexact Hk
+
 end Operations
 
 end Lantana.Model.OPreds
