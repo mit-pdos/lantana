@@ -657,6 +657,62 @@ theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IPro
     icases tlc_split.mp $$ Ho with ⟨Ho, -⟩
     iexact Ho
 
+/-! ### Moving children to a forked thread
+
+Rocq `obl_move_thread_set` (`obl_forest_rules.v`), which `lwp_fork` needs: the children `X ⊆ K₁`
+of `p` move below the thread `j`, each paying one unit of fuel. Derived here from `Obl.move` by
+induction on `X`; a set version in the obligation interface can replace it. -/
+
+omit [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF] in
+theorem Par.kids_congr {p : Parent} {A B : Oids} (h : ∀ k, k ∈ A ↔ k ∈ B) :
+    Par.kids (GF := GF) p A ⊢ Par.kids p B := by
+  rw [Std.ExtTreeSet.ext_mem h]
+
+theorem obl_move_thread_set (E : CoPset) (p : Parent) (j : ThreadId) (X : Oids) :
+    ∀ K₁ K₂ : Oids, X ⊆ K₁ →
+      Par.kids (GF := GF) p K₁ ∗ thKids j K₂ ∗ oblFuels X 1 ⊢
+        |={E}=>m (Par.kids p (K₁ \ X) ∗ thKids j (X ∪ K₂)) := by
+  induction X using Iris.Std.FiniteSet.set_ind with
+  | hemp =>
+    intro K₁ K₂ _
+    iintro ⟨H1, H2, -⟩
+    imodintro
+    isplitl [H1]
+    · iapply Par.kids_congr _ $$ H1
+      intro k
+      simp
+    · iapply Par.kids_congr _ $$ H2
+      intro k
+      simp
+  | hadd x X hx IH =>
+    intro K₁ K₂ hsub
+    have hxK₁ : x ∈ K₁ := hsub x (Iris.Std.LawfulSet.mem_insert.mpr (.inl rfl))
+    have hXK₁ : X ⊆ K₁.erase x := fun k hk => by
+      simp only [Std.ExtTreeSet.mem_erase, ne_eq, Nat.compare_eq_eq]
+      exact ⟨by rintro rfl; exact hx hk, hsub k (Iris.Std.LawfulSet.mem_insert.mpr (.inr hk))⟩
+    iintro ⟨H1, H2, HF⟩
+    unfold oblFuels
+    icases (BigSepS.bigSepS_insert hx).mp $$ HF with ⟨⟨%ℓ, Hx⟩, HF⟩
+    imod Obl.move E p (.thread j) K₁ K₂ x ℓ hxK₁ $$ [] H1 H2 Hx with ⟨-, H1, H2⟩
+    · unfold parBelow
+      itrivial
+    imod IH (K₁.erase x) (K₂.insert x) hXK₁ $$ [H1 H2 HF] with ⟨H1, H2⟩
+    · iframe H1 H2
+      unfold oblFuels
+      iexact HF
+    imodintro
+    isplitl [H1]
+    · iapply Par.kids_congr _ $$ H1
+      intro k
+      simp only [Std.ExtTreeSet.mem_diff_iff, Std.ExtTreeSet.mem_erase,
+        Iris.Std.LawfulSet.mem_insert]
+      grind
+    · iapply Par.kids_congr _ $$ H2
+      intro k
+      simp only [Std.ExtTreeSet.mem_union_iff, Std.ExtTreeSet.mem_insert, Nat.compare_eq_eq,
+        Iris.Std.LawfulSet.mem_insert]
+      grind
+
 /-- Fork: the children `K ⊆ G` move to the new thread, each paying one unit of fuel. -/
 @[lantana_alias heap_lang.lwp_fork]
 theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
@@ -665,7 +721,59 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
       ⊢@{IProp GF} l{{{ threadExpr i C (.fork e) ∗ stepPre i G R ∗ oblFuels K 1 ∗ P }}}
           (Exp.fork e) @ s; i; E
         l{{{ RET Val.lit .unit; threadExpr i C (.val (.lit .unit)) ∗
-          (£ₒ o ∗ thKids i (G \ K) ∗ witCreds R) }}} := sorry
+          (£ₒ o ∗ thKids i (G \ K) ∗ witCreds R) }}} := by
+  iintro #Hfork %Φ !> ⟨HT, ⟨HG, HF, HR⟩, HK, HP⟩ HΦ
+  iapply lwp_lift_atomic_base_step rfl
+  iintro %K' %σ₁ %tp %hK' %hi Hσ
+  icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
+  ihave %hT : ⌜tp[i]? = some (fill C (.fork e))⌝ $$ [Ha HT]
+  · iapply threadMapAuth_lookup
+    iframe
+  have hKe : K' (.fork e) = fill C (.fork e) := Option.some.inj (hi.symm.trans hT)
+  imodintro
+  isplitr
+  · ipureintro
+    exact ⟨_, _, _, .forkS e σ₁⟩
+  iexists G
+  iframe HG HF
+  iexists R
+  iframe HR
+  iintro %e₂ %σ₂ %efs %hs
+  have hKe₂ := Context.eq_fill_of_primStep hKe (EctxLanguage.primStep_of_baseStep hs)
+  cases hs
+  imod threadMapAuth_update tp i C (.fork e) (.val (.lit .unit)) $$ [Ha HT] with ⟨Ha, HT⟩
+  · iframe
+  imod threadMapAuth_fork _ e $$ Ha with ⟨Ha, Hj⟩
+  imodintro
+  iintro HG HW Hforks
+  iapply (ALC_credits o).mpr
+  iapply ALC_intro
+  iintro Ho
+  imodintro
+  isplitl [Hh Ha]
+  · iapply (stateInterp_unfold σ₁ _).mpr
+    rw [hKe₂]
+    iframe
+  simp only [List.length_set, List.length_singleton, List.range_one]
+  icases BigSepL.bigSepL_singleton.mp $$ Hforks with Hkj
+  imod obl_move_thread_set E (.thread i) tp.length K G ∅ hK $$ [HG Hkj HK] with ⟨HG, Hkj⟩
+  · iframe
+  imodintro
+  isplitl [HT Ho HG HW HΦ]
+  · iexists .lit .unit
+    isplitr
+    · ipureintro
+      rfl
+    iapply HΦ
+    iframe
+  iapply BigSepL.bigSepL_singleton.mpr
+  iapply Hfork $$ %tp.length %_ [Hj Hkj HP]
+  · iframe Hj HP
+    iapply Par.kids_congr _ $$ Hkj
+    intro k
+    simp
+  · iintro %v Hv
+    iexact Hv
 
 @[lantana_alias heap_lang.lwp_choosenat]
 theorem lwp_chooseNat :

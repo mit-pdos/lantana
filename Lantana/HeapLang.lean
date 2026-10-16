@@ -15,6 +15,6 @@ public import Lantana.HeapLang.TemporalLaws
 
 Lantana's HeapLang (Rocq `lantana_heap_lang/`), a fork of Iris-Lean's HeapLang (D22) with labels
 and `chooseNat`, without prophecies (D15), and with the state predicates that the atoms of
-temporal properties observe. `PrimitiveLaws` and `TemporalLaws` state the program logic (the
-proofs and the tactics come in M7).
+temporal properties observe. `PrimitiveLaws` and `TemporalLaws` are the program logic: the ghost
+state, the step laws and the state facts.
 -/
