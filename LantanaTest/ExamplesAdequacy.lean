@@ -3,7 +3,8 @@ module
 public import Lantana
 
 /-! Tests of the case studies that test the adequacy theorem: `cert_discharge.v` (the program,
-the end-to-end corollaries and their axioms). -/
+the end-to-end corollaries and their axioms) and `nonstrict_move.v` (the loop and its run, the
+refutation of the non-strict move and its axioms). -/
 
 namespace LantanaTest.ExamplesAdequacy
 
@@ -37,5 +38,23 @@ info: 'Lantana.Examples.CertDischarge.certDischarge_liveness_safety' depends on 
 -/
 #guard_msgs (whitespace := lax) in
 #print axioms CertDischarge.certDischarge_liveness_safety
+
+/-- The loop steps to itself. -/
+example : NonstrictMove.loop = hl_val(rec loop _ := loop #()) := rfl
+
+/-- The run of the loop schedules thread `0` everywhere, in the initial configuration. -/
+example (m : Nat) : (NonstrictMove.loopRun.seq m) = ⟨(NonstrictMove.tp0, NonstrictMove.σ0), 0⟩ :=
+  rfl
+
+/-- The non-strict move is refuted (a hypothesis of the theorem, not an axiom). -/
+example : ¬ ∀ [ModelGS ExGF] [HeapGS ExGF], NonstrictMove.OblMoveNonstrict ExGF :=
+  NonstrictMove.nonstrictMove_absurd
+
+/--
+info: 'Lantana.Examples.NonstrictMove.nonstrictMove_absurd' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms NonstrictMove.nonstrictMove_absurd
 
 end LantanaTest.ExamplesAdequacy
