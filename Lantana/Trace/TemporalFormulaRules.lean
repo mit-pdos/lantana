@@ -31,15 +31,18 @@ open Iris.Std LawfulPartialMap
 open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
--- The instances are named: under the instance binders of `⊑ₛ` the elaborator would fill the
--- instance arguments of `TrSpec.canon_le` with the bound instances, so they are passed
--- explicitly.
+-- Named, to be passed explicitly to `TrSpec.canon_le` (see "Always" below).
 variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 section Rules
 variable {E : CoPset} {N : Namespace} {k : Oid} {q : Qp} {P Q : IProp GF}
 
-/-! ## Always -/
+/-! ## Always
+
+A `⊑ₛ` premise is given as `@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG`, with the ambient
+instances explicit: elaborated against the expected `⊑ₛ`, the application would get the
+instances bound by `⊑ₛ` for its own instance arguments (as noted in `LantanaTest.Guarantee`;
+holes do not suffice under a `⊑ₛ` rule such as `TrSpec.always_mono`). -/
 
 @[lantana_alias alwaysI_guar_acc]
 theorem alwaysIGuar_acc {G : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
