@@ -189,6 +189,113 @@ theorem guar_until_now : ▷ (P ⊨ₜ G₂) ⊢ P ⊨ₜ (G₁ 𝒰ₛ G₂) :=
   iapply guar_elim_later_guar P G₂ h n σ tp m i Ω W $$ HG
   iframe
 
+/-- Universal quantification over any type. -/
+@[lantana_alias guar_forall]
+theorem guar_all {X : Type _} (P : X → IProp GF) (G : X → TrSpec Expr State GF) :
+    (∀ x, P x ⊨ₜ G x) ⊢ iprop(∀ x, P x) ⊨ₜ TrSpec.all G := by
+  iintro #HG
+  iapply guar_intro
+  imodintro
+  iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, HP⟩
+  iapply record_all
+  iintro %x
+  iapply guar_elim (P x) (G x) h n σ tp m i Ω W $$ HG
+  iframe HI MI
+  iapply HP
+
+/-- Trace-visible existential quantification, over small types. -/
+@[lantana_alias guar_exist]
+theorem guar_ex {X : Type _} [SIdxLarge SI X] (P : X → IProp GF) (G : X → TrSpec Expr State GF) :
+    (∀ x, P x ⊨ₜ G x) ⊢ iprop(∃ x, P x) ⊨ₜ TrSpec.ex G := by
+  iintro #HG
+  iapply guar_intro
+  imodintro
+  iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, %x, HP⟩
+  iapply record_mono (G := G x) (fun τ => exists_intro (Ψ := fun x => (G x).internal τ) x)
+  iapply guar_elim (P x) (G x) h n σ tp m i Ω W $$ HG
+  iframe
+
+/-- A ghost existential: the witness is not trace-visible. -/
+@[lantana_alias guar_exist_ghost]
+theorem guar_ex_ghost {X : Type _} (P : X → IProp GF) :
+    (∀ x, P x ⊨ₜ G) ⊢ iprop(∃ x, P x) ⊨ₜ G := by
+  iintro #HG
+  iapply guar_intro
+  imodintro
+  iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, %x, HP⟩
+  iapply guar_elim (P x) G h n σ tp m i Ω W $$ HG
+  iframe
+
+/-- An iProp carrying its own guarantee: such pairs can be stored in invariants and saved
+propositions, and quantified over. -/
+@[lantana_alias guar_packed]
+theorem guar_packed (G : TrSpec Expr State GF) :
+    ⊢@{IProp GF} iprop(∃ P : IProp GF, P ∗ (P ⊨ₜ G)) ⊨ₜ G := by
+  iapply guar_intro
+  imodintro
+  iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, %P, HP, #HG⟩
+  iapply guar_elim P G h n σ tp m i Ω W $$ HG
+  iframe
+
+@[lantana_alias guar_persistently]
+theorem guar_persistently : (P ⊨ₜ G) ⊢ iprop(□ P) ⊨ₜ G := by
+  iintro #HG
+  iapply guar_intro
+  imodintro
+  iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, #HP⟩
+  iapply guar_elim P G h n σ tp m i Ω W $$ HG
+  iframe HI MI
+  iexact HP
+
+/-- A persistent token `C` excluding `A`: a guarantee of `B` is one of `A ∨ B`. -/
+@[lantana_alias guar_or_excl]
+theorem guar_or_excl (A B C : IProp GF) [Persistent C] (hexcl : C ∗ A ⊢ False) :
+    C ⊢ (B ⊨ₜ G) -∗ iprop(A ∨ B) ⊨ₜ G := by
+  iintro #HC #HB
+  iapply guar_intro
+  imodintro
+  iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, HA | HB'⟩
+  · iexfalso
+    iapply hexcl
+    isplitr [HA]
+    · iexact HC
+    · iexact HA
+  · iapply guar_elim B G h n σ tp m i Ω W $$ HB
+    iframe
+
+/-! ## Implications
+
+The antecedent of `A →ₛ G` is read on the trace (`TrSpec.imp`), so `A →ₛ G` is `¬A ∨ G`
+(`TrSpec.imp_or_not`), a statement about traces: the general way to export one is the cast of
+a guarantee (`guar_cast`) after trace-level reasoning. The rules below stay in the logic and
+produce `TrSpec.imp` itself: from a complete antecedent (`guar_imp_intro`), by weakening
+(`guar_imp_weaken`), and for a pure antecedent of an iProp implication (`guar_imp`). -/
+
+@[lantana_alias guar_impl_intro]
+theorem guar_imp_intro (A : TrSpec Expr State GF) [TrSpec.Complete A] (h : (A ∧ₛ H) ⊑ₛ G) :
+    (P ⊨ₜ H) ⊢ P ⊨ₜ (A →ₛ G) :=
+  guar_weaken (TrSpec.imp_intro h)
+
+@[lantana_alias guar_impl_weaken]
+theorem guar_imp_weaken (A : TrSpec Expr State GF) : (P ⊨ₜ G) ⊢ P ⊨ₜ (A →ₛ G) :=
+  guar_weaken TrSpec.imp_intro_le
+
+/-- A pure antecedent is decided outside the logic (classical). -/
+@[lantana_alias guar_impl]
+theorem guar_imp (φ : Prop) : (P ⊨ₜ G) ⊢ iprop(⌜φ⌝ → P) ⊨ₜ (⌜φ⌝ₛ →ₛ G) := by
+  by_cases hφ : φ
+  · refine .trans ?_ (guar_imp_weaken ⌜φ⌝ₛ)
+    iintro #HG
+    iapply guar_mono $$ [] HG
+    imodintro
+    iintro HP
+    iapply HP
+    ipureintro
+    exact hφ
+  · refine .trans ?_ (guar_weaken (G := TrSpec.true) fun τ =>
+      BI.imp_intro (pure_elim _ and_elim_r fun h => absurd h hφ))
+    exact (true_intro).trans guar_true
+
 end Rules
 
 end Lantana
