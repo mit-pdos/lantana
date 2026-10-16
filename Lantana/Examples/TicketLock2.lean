@@ -96,6 +96,29 @@ theorem Nev_subseteq : (↑Nev : CoPset) ⊆ ⊤ \ ↑Ninv := by
 /-- The layer of the obligation of the ticket `t` of a lock at level `ℓ`. -/
 abbrev tkLayer (ℓ : Layer) (t : Int) : Layer := ℓ +ₕ Ordinals.Ordinal.ofNat t.toNat
 
+/-- A layer above `ω`, for the waiting of `acquire`: Rocq's layer `ℵ` (`ord.large`, above the
+ranks of all small well-founded relations) has no counterpart among the layers `Ordinal.{0}`;
+the proof only needs a layer above `ω`. -/
+abbrev aleph : Layer := Ordinals.Ordinal.succ ω
+
+theorem omega_lt_aleph (ℓ : Layer) : ℓ +ₕ ω < ℓ +ₕ aleph :=
+  Ordinals.Ordinal.nadd_lt_nadd_left (Ordinals.Ordinal.lt_succ ω) ℓ
+
+theorem lt_tkLayer (ℓ : Layer) {t : Int} (ht : 0 < t) : ℓ < tkLayer ℓ t := by
+  have h := Ordinals.Ordinal.nadd_lt_nadd_left (a := ℓ)
+    (Ordinals.Ordinal.ofNat_lt_ofNat_iff.mpr (show 0 < t.toNat by omega))
+  rwa [Ordinals.Ordinal.ofNat_zero, Ordinals.Ordinal.nadd_zero] at h
+
+theorem tkLayer_lt_tkLayer {ℓ ℓ' : Layer} {t t' : Int} (hℓ : ℓ ≤ ℓ') (ht : 0 ≤ t)
+    (htt : t < t') : tkLayer ℓ t < tkLayer ℓ' t' :=
+  Ordinals.Ordinal.lt_of_le_of_lt
+    (Ordinals.Ordinal.nadd_le_nadd hℓ (Ordinals.Ordinal.le_refl _))
+    (Ordinals.Ordinal.nadd_lt_nadd_left
+      (Ordinals.Ordinal.ofNat_lt_ofNat_iff.mpr (by omega)) ℓ')
+
+theorem tkLayer_lt_omega (ℓ : Layer) (t : Int) : tkLayer ℓ t < ℓ +ₕ ω :=
+  Ordinals.Ordinal.nadd_lt_nadd_left (Ordinals.Ordinal.ofNat_lt_omega _) ℓ
+
 /-- The value of an integer. -/
 abbrev vInt (n : Int) : Val := hl_val(#n)
 
@@ -162,7 +185,7 @@ def isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) : IProp GF :=
 /-- The fraction `dq` of the level `ℓ` of the lock (Rocq `own_fair_lock_level`, notation
 `γ ↪LOCK{dq} ℓ`). -/
 @[lantana_alias ticket_lock2.own_fair_lock_level]
-def ownFairLockLevel (γ : TicketLockName) (ℓ : Layer) (dq : DFrac) : IProp GF :=
+abbrev ownFairLockLevel (γ : TicketLockName) (ℓ : Layer) (dq : DFrac) : IProp GF :=
   lockLevel γ.γc dq ℓ
 
 @[lantana_alias ticket_lock2.is_fair_lock_persistent]
@@ -528,6 +551,217 @@ theorem acquire_spin (i : ThreadId) (C : List ECtxItem) (G : Oids) (next curr : 
     rw [show (vInt c == vInt my) = false by simp [hmy]]
     lwp_step HT HG HF
     iapply IH α₀ hlt $$ Hinv Mtp Wp Mtu Ma WF HT HG HF' HΦ
+
+/-- Acquiring: the thread takes the ticket `my` and spins until it is served. Its unlock
+obligation `κu`, a new child at the layer `ℓ + (my + 1)` registered at the ticket `my + 1`,
+pays for the spinning together with the fuel of the other children (lowered from `ℓ + ℵ` to
+`ℓ + ω`), and comes back with fuel `μ` at the level `ℓ` for the critical section. -/
+@[lantana_alias ticket_lock2.TicketLock_acquire_spec]
+theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : ThreadId) (G : Oids)
+    (tl : Val) (γ : TicketLockName) (dq : DFrac) (ℓ : Layer) (R : IProp GF)
+    (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&acquire) v(&tl)) ∗ thKids i G ∗
+          ([∗set] g ∈ G, Obl.fuel g (ℓ +ₕ aleph) m) ∗ ownFairLockLevel γ ℓ dq ∗
+          isFairLock tl γ R }}}
+        hl(v(&acquire) v(&tl)) @ i
+      l{{{ (κu : Oid), RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ ⌜κu ∉ G⌝ ∗
+        thKids i (G.insert κu) ∗ oblKids κu ∅ ∗ Obl.fuel κu ℓ μ ∗ ownFairLockLevel γ ℓ dq ∗
+        lockToken tl γ κu R ∗ R }}} := by
+  refine ⟨1, fun lc μ i G tl γ dq ℓ R C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, CF, #Hfl⟩ HΦ
+  -- The fuel of the children, at the layer `ℓ + ω`: `100` for the steps, `1` for the loop.
+  imod Obl.fuel_extend_set G (omega_lt_aleph ℓ) ((100 : Measure) + 1) $$ HF with HF
+  icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, HFw⟩
+  ihave HF := oblFuels_init G 100 _ $$ HF
+  unfold isFairLock
+  icases Hfl with ⟨%next, %curr, %htl, #Hinv⟩
+  subst htl
+  unfold acquire
+  lwp_step HT HG HF with Hc : 1
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  -- The ticket: `faa` on `next`, in the invariant; the unlock obligation follows the step.
+  lwp_bind hl(faa(#next, #1)) HT
+  icases oblFuels_add 1 92 G $$ HF with ⟨HF1, HF⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Ninv) (P := lockInv γ.γt γ.γa γ.γc next curr R)
+    (fun _ _ => CoPset.mem_full) $$ Hinv
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨Hi, Hclose⟩
+  iapply lwp_credit_later $$ Hc
+  inext
+  iunfold lockInv at Hi
+  icases Hi with ⟨%n, %c, %tickets, %acks, Hnext, Hcurr, ⟨GMt, GMa⟩, %hdom, %hc, %hdomt, HMt,
+    HMa, Hlast⟩
+  iapply lwp_faa (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hnext]
+  · iframe HT Hnext
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨-, HG, -⟩, Hnext⟩
+  -- The obligation `κp` of the ticket `n`, which this thread waits for.
+  obtain ⟨κp, hκp⟩ := Option.isSome_iff_exists.mp ((hdomt n).mpr ⟨by omega, by omega⟩)
+  icases (BigSepM.bigSepM_delete hκp).mp $$ HMt with ⟨Hp, HMt⟩
+  icases (ticketEntry_iff _ _ _ _ _ _ _ _).mp $$ Hp with ⟨⟨%ℓ0, #Mtp, #Wp, #CFp⟩, Hp⟩
+  ihave HMt : bigSepM (M := IntMap) (fun t κ => ticketEntry γ.γt γ.γc curr R c n t κ) tickets
+    $$ [Hp HMt]
+  · iapply (BigSepM.bigSepM_delete hκp).mpr
+    iframe HMt
+    iapply (ticketEntry_iff _ _ _ _ _ _ _ _).mpr
+    iframe Hp
+    iexists ℓ0
+    iframe Mtp Wp CFp
+  icases lockLevel_lb_valid _ _ _ _ $$ CF CFp with ⟨CF, %hℓ0⟩
+  icases lockLevel_get_lb _ _ _ $$ CF with ⟨CF, #CFl⟩
+  -- The unlock obligation `κu` of the ticket `n + 1`.
+  imod untilI_alloc (E := ⊤ \ ↑Ninv) (.thread i) G (tkLayer ℓ (n + 1))
+    (((50 : Measure) + 50 * ▽) + 1) $$ [] HG with ⟨%κu, %hκu, HG, Kκu, Fκu, #Wκu, A⟩
+  · iapply parLe_thread
+  imod A $$ %(⊤ \ ↑Ninv) %Nev %iprop(True) %iprop(curr ↦{half} some (vInt (n + 1)) ∗ R) []
+    with U
+  · inext
+    ipureintro
+    trivial
+  icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half) (Qp.half_add_half 1).symm
+    $$ U with ⟨U1, U2⟩
+  icases (Obl.fuel_add κu _ _ _).mp $$ Fκu with ⟨Fκu, Qκu⟩
+  imod Obl.fuel_extend κu (lt_tkLayer ℓ (t := n + 1) (by omega)) μ $$ Qκu with Qκu
+  have hnt : get? tickets (n + 1) = none := by
+    cases h : get? tickets (n + 1) with
+    | none => rfl
+    | some _ =>
+      have := ((hdomt (n + 1)).mp (by simp [h])).2
+      omega
+  have hna : get? acks (n + 1) = none := by
+    cases h : get? acks (n + 1) with
+    | none => rfl
+    | some _ =>
+      have := ((hdomt (n + 1)).mp ((hdom (n + 1)).mpr (by simp [h]))).2
+      omega
+  imod ghost_map_insert_persist (n + 1) κu hnt $$ GMt with ⟨GMt, #Mtu⟩
+  imod ghost_map_insert (n + 1) false hna $$ GMa with ⟨GMa, Ma⟩
+  icases (ghostMapElem_halves _ _ _).mp $$ Ma with ⟨Ma1, Ma2⟩
+  imod Hclose $$ [Hnext Hcurr GMt GMa HMt HMa Hlast U2 Ma2] with -
+  · inext
+    iunfold lockInv
+    iexists n + 1, c, insert tickets (n + 1) κu, insert acks (n + 1) false
+    iframe Hnext Hcurr GMt GMa
+    isplitr
+    · ipureintro
+      intro t
+      rw [Iris.Std.LawfulPartialMap.get?_insert, Iris.Std.LawfulPartialMap.get?_insert]
+      split
+      · simp
+      · exact hdom t
+    isplitr
+    · ipureintro
+      omega
+    isplitr
+    · ipureintro
+      intro t
+      rw [Iris.Std.LawfulPartialMap.get?_insert]
+      split
+      · subst_vars
+        simp only [Option.isSome_some, true_iff]
+        omega
+      · rw [hdomt t]
+        omega
+    isplitl [HMt U2]
+    · iapply (BigSepM.bigSepM_insert hnt).mpr
+      isplitl [U2]
+      · iapply (ticketEntry_iff _ _ _ _ _ _ _ _).mpr
+        isplitr
+        · iexists ℓ
+          iframe Mtu Wκu CFl
+        · iright
+          isplit
+          · ipureintro
+            omega
+          · iunfold finallyI
+            iexact U2
+      · iapply BigSepM.bigSepM_mono (fun _ => ticketEntry_take _ _ _ _ _ (by omega)) $$ HMt
+    icases Hlast with (⟨%hcn, Hcurr2, HR⟩ | ⟨%hcn, Hl⟩)
+    · -- The lock was free: the new ticket is the next one.
+      isplitl [HMa]
+      · iapply (BigSepM.bigSepM_insert hna).mpr
+        isplitr
+        · iapply (ackEntry_iff _ _ _ _).mpr
+          iright
+          ileft
+          ipureintro
+          omega
+        · iapply BigSepM.bigSepM_mono (fun _ => ackEntry_take _ (by omega)) $$ HMa
+      iright
+      isplit
+      · ipureintro
+        omega
+      · ileft
+        subst hcn
+        iframe
+    · isplitl [HMa Ma2]
+      · iapply (BigSepM.bigSepM_insert hna).mpr
+        isplitl [Ma2]
+        · iapply (ackEntry_iff _ _ _ _).mpr
+          iright
+          iright
+          isplit
+          · ipureintro
+            omega
+          · iexact Ma2
+        · iapply BigSepM.bigSepM_mono (fun _ => ackEntry_take _ (by omega)) $$ HMa
+      iright
+      isplit
+      · ipureintro
+        omega
+      · iexact Hl
+  imodintro
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  -- The fuel of the steps: `50` from the old children and from `κu`.
+  icases (Obl.fuel_add κu _ _ _).mp $$ Fκu with ⟨Fκu, Fκw⟩
+  icases oblFuels_add 42 50 G $$ HF with ⟨-, HF⟩
+  ihave HF := oblFuels_add_obl G κu _ _ $$ Fκu HF
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_step HT HG HF
+  -- The witness induction on `κp` (at `ℓ0 + n < ℓ + (n + 1)`): `50` per credit for the children.
+  imod Obl.fuel_extend_set G (tkLayer_lt_omega ℓ (n + 1)) (50 * ▽) $$ HFw with HFw
+  ihave HFw := (bigSepS_insert_oids hκu).mpr $$ [HFw Fκw]
+  · iframe
+  icases Wit.fuels_init κp (tkLayer ℓ0 n) $$ Wp with ⟨%α, WF⟩
+  imod Wit.fuels_add_map κp (tkLayer ℓ0 n) α ∅ (G.insert κu) (tkLayer ℓ (n + 1)) 50
+    (tkLayer_lt_tkLayer hℓ0 (by omega) (by omega)) $$ WF HFw with WF
+  have hF : ([∗map] f ↦ lm ∈ ((∅ : OidMap (Layer × Measure)) ∪
+      (Iris.Std.FiniteMap.ofSet (tkLayer ℓ (n + 1), (50 : Measure)) (G.insert κu) :
+        OidMap (Layer × Measure))), Obl.fuel (GF := GF) f lm.1 lm.2) ⊢
+      oblFuels (G.insert κu) 4 := by
+    rw [OidMap.empty_union]
+    refine (BigSepM.bigSepM_ofSet
+      (fun f (lm : Layer × Measure) => Obl.fuel (GF := GF) f lm.1 lm.2) (G.insert κu)
+      _).1.trans ?_
+    refine (oblFuels_init _ 50 _).trans ?_
+    exact (oblFuels_add 4 46 _).trans sep_elim_left
+  icases oblFuels_add 4 43 _ $$ HF with ⟨HF, -⟩
+  iapply acquire_spin i C (G.insert κu) next curr γ R n κp κu (tkLayer ℓ0 n) _ hF lc Φ α
+    $$ Hinv Mtp Wp Mtu Ma1 WF HT HG HF [HΦ Kκu Qκu CF U1]
+  iintro HT Hlc HG Hcurr2 HR
+  iapply HΦ $$ %κu
+  iframe HT Hlc HG Kκu Qκu CF HR
+  isplitr
+  · ipureintro
+    exact hκu
+  unfold lockToken
+  iexists next, curr, n
+  isplit
+  · ipureintro
+    rfl
+  · iunfold finallyI
+    iframe Hcurr2 Mtu U1
 
 end Specs
 
