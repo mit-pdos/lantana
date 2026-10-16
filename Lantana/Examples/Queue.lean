@@ -212,6 +212,122 @@ instance isQueue_persistent (ql : Val) (γ : QueueName) (ℓ : Layer)
     (φ : Val → Oids → IProp GF) : Persistent (isQueue ql γ ℓ φ) := by
   unfold isQueue; infer_instance
 
+/-- Installing the invariant once the worker's inbox `g` (at layer `ℓ`, without children)
+exists (Rocq `is_queue_initialize`). -/
+@[lantana_alias queue.is_queue_initialize]
+theorem isQueue_initialize (E : CoPset) (ql : Val) (γ : QueueName) (ℓ : Layer)
+    (φ : Val → Oids → IProp GF) (g : Oid) :
+    isQueueInit ql γ φ ⊢ oblKids g ∅ -∗ Wit.layer g ℓ -∗ Obl.assigned g 1 -∗
+      |={E}=> isQueue ql γ ℓ φ ∗ worker γ g := by
+  unfold isQueueInit
+  iintro ⟨%lhptr, %ltptr, %tl, %hq, Q, Gd, #AL, #CF, #IFL⟩ Kg #Wg Ag
+  imod ghost_var_update g $$ Gd with Gd
+  icases TicketLock.ghostVar_halves _ _ $$ Gd with ⟨Gd, Gd0⟩
+  imod inv_alloc Ni E (queueInv ℓ γ.γq γ.γd) $$ [Q Gd0 Kg] with #I
+  · inext
+    unfold queueInv
+    iexists [], g
+    simp only [List.map_nil, unionList_nil]
+    iframe Q Gd0 Wg Kg
+    isplitr
+    · ipureintro
+      exact disjointList_nil
+    · iempintro
+  imodintro
+  unfold isQueue worker
+  iframe Gd Ag
+  iexists lhptr, ltptr, tl
+  isplitr
+  · ipureintro
+    exact hq
+  iframe I AL CF IFL
+
 end Defs
+
+/-! ## Specifications -/
+
+section Specs
+variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TicketLockG GF] [QueueG GF]
+
+@[lantana_alias queue.Queue_init_spec]
+theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (φ : Val → Oids → IProp GF) (i : ThreadId)
+    (G : Oids) (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
+          ([∗set] g ∈ G, Obl.fuel g 0 μ) }}}
+        hl(v(&init) #()) @ i
+      l{{{ (ql : Val) (γ : QueueName), RET ql; threadExpr i C hl(&ql) ∗ £ₒ lc ∗ thKids i G ∗
+        isQueueInit ql γ φ }}} := by
+  obtain ⟨μi, hi⟩ := TicketLock.init_spec (GF := GF)
+  refine ⟨20 + μi, fun lc φ i G C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
+  icases (Obl.fuel_add_set G 0 20 μi).mp $$ HF with ⟨HF, Fi⟩
+  ihave HF := oblFuels_init G 20 0 $$ HF
+  unfold init
+  lwp_step HT HG HF with Hlc : lc
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_bind hl(allocn(#1, v(none()))) HT
+  icases oblFuels_add 1 17 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF1
+  iintro %node ⟨HT, ⟨-, HG, -⟩, Hnode⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  lwp_bind hl(v(&TicketLock.init) #()) HT
+  iapply hi 0 0 i G ⊤ _ $$ [HT HG Fi]
+  · iframe
+  iintro %tl %γl ⟨HT, -, HG, AL, CF, Hmk⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  imod TicketLock.lock_alive_persist γl _ $$ AL with #AL
+  imod TicketLock.lock_config_persist γl _ 0 $$ CF with #CF
+  lwp_bind hl(allocn(#1, #node)) HT
+  icases oblFuels_add 1 14 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF1
+  iintro %ltptr ⟨HT, ⟨-, HG, -⟩, Hlt⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_bind hl(allocn(#1, #node)) HT
+  icases oblFuels_add 1 13 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
+  · iframe HT
+    iapply stepPre_nil $$ HG HF1
+  iintro %lhptr ⟨HT, ⟨-, HG, -⟩, Hlh⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  imod ghost_var_alloc (GF := GF) ([] : List (Val × Oids)) with ⟨%γq, Q⟩
+  icases TicketLock.ghostVar_halves γq _ $$ Q with ⟨Q, Q0⟩
+  imod ghost_var_alloc (GF := GF) (0 : Oid) with ⟨%γd, Gd⟩
+  imod Hmk $$ %⊤ %(queueLock φ γq lhptr ltptr) [Hlh Hlt Hnode Q0] with #IFL
+  · unfold queueLock qgQueue
+    iexists node, node, []
+    iframe Hlh Hlt Q0
+    unfold contents
+    iframe Hnode
+    ipureintro
+    rfl
+  imod TicketLock.isFairLock_register_alive ⊤ tl γl _ (fun _ _ => CoPset.mem_full) $$ IFL AL
+    with #IFLA
+  iapply lwp_value'
+  iapply HΦ $$ %(vQueue lhptr ltptr tl) %⟨γl, γq, γd⟩
+  iframe HT Hlc HG
+  unfold isQueueInit qgQueue
+  iexists lhptr, ltptr, tl
+  isplitr
+  · ipureintro
+    rfl
+  iframe Q Gd AL CF IFLA
+
+end Specs
 
 end Lantana.Examples.Queue
