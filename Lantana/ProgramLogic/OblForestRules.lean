@@ -279,4 +279,153 @@ theorem lc_mupd_add_laterN (n : Nat) : ⊢ £ₙ n -∗ ▷^[n] (|={E₁,E₂}=>
 
 end Modality
 
+/-! ## Obligation predicates and invariants -/
+
+section Preds
+
+variable {GF : BundledGFunctors} [ModelGS GF]
+
+@[lantana_alias oblP_assigned_as_fractional]
+instance Obl.assigned_asFractional (k : Oid) (q : Qp) {ioΦ ioq} :
+    AsFractional (Obl.assigned (GF := GF) k q) ioΦ (Obl.assigned k) ioq q where
+  as_fractional := .rfl
+  as_fractional_fractional := Obl.assigned_fractional k
+
+omit [ModelGS GF] in
+/-- The assignment of `k` splits in two halves. -/
+theorem Obl.assigned_halves (k : Oid) :
+    Obl.assigned (GF := GF) k 1 ⊣⊢ Obl.assigned k (Qp.half 1) ∗ Obl.assigned k (Qp.half 1) := by
+  have h := (Obl.assigned_fractional (GF := GF) k).fractional (Qp.half 1) (Qp.half 1)
+  rwa [Qp.half_add_half] at h
+
+#lantana_ignore oblP_inv_ne_1 "Derived from `Obl.inv_contractive_left` (`OFE.ne_of_contractive`)."
+#lantana_ignore oblP_inv_ne_2 "Derived from `Obl.inv_contractive_right` (`OFE.ne_of_contractive`)."
+#lantana_ignore oblP_inv_proper_1 "`⊣⊢` is equality: rewrite."
+#lantana_ignore oblP_inv_proper_2 "`⊣⊢` is equality: rewrite."
+
+@[lantana_alias oblP_variant_timeless]
+instance Obl.variant_timeless (k : Oid) (P R : IProp GF) [Timeless P] [Timeless R] :
+    Timeless (Obl.variant k P R) := by
+  unfold Obl.variant; infer_instance
+
+omit [ModelGS GF] in
+@[lantana_alias oblP_variant_unfold]
+theorem Obl.variant_unfold (k : Oid) (P R : IProp GF) :
+    Obl.variant k P R ⊣⊢ (Obl.assigned k (Qp.half 1) ∗ P) ∨ (Obl.discharged k ∗ R) :=
+  .rfl
+
+variable (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF)
+
+@[lantana_alias oblP_inv_acc_cases]
+theorem Obl.inv_acc_cases (hN : ↑N ⊆ E) :
+    Obl.inv N k P R ⊢ |={E, E \ ↑N}=> ▷ Obl.variant k P R ∗
+      (▷ Obl.variant k P R ={E \ ↑N, E}=∗ True) :=
+  Obl.inv_acc E N k P R hN
+
+@[lantana_alias oblP_inv_acc_assigned]
+theorem Obl.inv_acc_assigned (hN : ↑N ⊆ E) :
+    Obl.inv N k P R ⊢ |={E, E \ ↑N}=> ∀ q, Obl.assigned k q -∗
+      ▷ (Obl.assigned k q ∗ Obl.assigned k (Qp.half 1) ∗ P) ∗
+      (▷ Obl.variant k P R ={E \ ↑N, E}=∗ True) := by
+  iintro I
+  imod Obl.inv_acc E N k P R hN $$ I with ⟨V, Hclose⟩
+  imodintro
+  iintro %q A
+  iframe Hclose
+  inext
+  icases (Obl.variant_unfold k P R).1 $$ V with (⟨A', HP⟩ | ⟨D, -⟩)
+  · iframe
+  · iexfalso
+    iapply Obl.assigned_discharged_false k q $$ A D
+
+@[lantana_alias oblP_inv_acc_discharged]
+theorem Obl.inv_acc_discharged (hN : ↑N ⊆ E) :
+    Obl.inv N k P R ⊢ |={E, E \ ↑N}=> Obl.discharged k -∗
+      ▷ R ∗ (▷ Obl.variant k P R ={E \ ↑N, E}=∗ True) := by
+  iintro I
+  imod Obl.inv_acc E N k P R hN $$ I with ⟨V, Hclose⟩
+  imodintro
+  iintro #D
+  iframe Hclose
+  inext
+  icases (Obl.variant_unfold k P R).1 $$ V with (⟨A, -⟩ | ⟨-, HR⟩)
+  · iexfalso
+    iapply Obl.assigned_discharged_false k _ $$ A D
+  · iexact HR
+
+@[lantana_alias oblP_inv_acc_discharged_persistent]
+theorem Obl.inv_acc_discharged_persistent [Persistent R] (hN : ↑N ⊆ E) :
+    Obl.inv N k P R ⊢ Obl.discharged k ={E}[E \ ↑N]▷=∗ R := by
+  iintro #I #D
+  imod Obl.inv_acc_discharged E N k P R hN $$ I with H
+  icases H $$ D with ⟨HR, Hclose⟩
+  imodintro
+  inext
+  icases HR with #HR
+  imod Hclose $$ [] with -
+  · inext
+    iapply (Obl.variant_unfold k P R).2
+    iright
+    iframe D HR
+  imodintro
+  iexact HR
+
+end Preds
+
+/-! ## Parents -/
+
+section Parents
+
+variable {GF : BundledGFunctors}
+
+@[lantana_alias parent_below_persistent]
+instance parBelow_persistent (p : Parent) (ℓ : Layer) : Persistent (parBelow (GF := GF) p ℓ) := by
+  cases p <;> unfold parBelow <;> infer_instance
+
+@[lantana_alias parent_le_persistent]
+instance parLe_persistent (p : Parent) (ℓ : Layer) : Persistent (parLe (GF := GF) p ℓ) := by
+  cases p <;> unfold parLe <;> infer_instance
+
+@[lantana_alias parP_below_thread]
+theorem parBelow_thread (i : ThreadId) (ℓ : Layer) : ⊢ parBelow (GF := GF) (.thread i) ℓ :=
+  true_intro
+
+@[lantana_alias parP_below_obl]
+theorem parBelow_obl (q : Oid) {ℓq ℓ : Layer} (h : ℓq < ℓ) :
+    Wit.layer (GF := GF) q ℓq ⊢ parBelow (.obl q) ℓ := by
+  simp only [parBelow]
+  iintro W
+  iexists ℓq
+  iframe W
+  ipureintro
+  exact h
+
+@[lantana_alias parP_le_thread]
+theorem parLe_thread (i : ThreadId) (ℓ : Layer) : ⊢ parLe (GF := GF) (.thread i) ℓ :=
+  true_intro
+
+@[lantana_alias parP_le_obl]
+theorem parLe_obl (q : Oid) {ℓq ℓ : Layer} (h : ℓq ≤ ℓ) :
+    Wit.layer (GF := GF) q ℓq ⊢ parLe (.obl q) ℓ := by
+  simp only [parLe]
+  iintro W
+  iexists ℓq
+  iframe W
+  ipureintro
+  exact h
+
+@[lantana_alias parP_below_le]
+theorem parBelow_le (p : Parent) (ℓ : Layer) : parBelow (GF := GF) p ℓ ⊢ parLe p ℓ := by
+  cases p with
+  | thread i => exact .rfl
+  | obl q =>
+    simp only [parBelow, parLe]
+    iintro ⟨%ℓq, %h, W⟩
+    iexists ℓq
+    iframe W
+    ipureintro
+    exact Ordinals.Ordinal.le_of_lt h
+
+end Parents
+
 end Lantana
