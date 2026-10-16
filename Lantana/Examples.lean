@@ -25,3 +25,7 @@ public import Lantana.Examples.LockLevel
 public import Lantana.Examples.TicketLock2
 public import Lantana.Examples.TicketLock2Client
 public import Lantana.Examples.TicketLockMono
+public import Lantana.Examples.Queue
+public import Lantana.Examples.TaskQueue
+public import Lantana.Examples.TaskQueueClient
+public import Lantana.Examples.TaskQueueFlagStableClient

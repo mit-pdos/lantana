@@ -6,6 +6,7 @@ public import LantanaTest.Basic
 public import LantanaTest.Credits
 public import LantanaTest.Examples
 public import LantanaTest.ExamplesAdequacy
+public import LantanaTest.ExamplesQueue
 public import LantanaTest.ExamplesTicketLock
 public import LantanaTest.ExamplesTicketLock2
 public import LantanaTest.ExamplesTicketLockMono
