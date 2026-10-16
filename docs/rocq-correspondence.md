@@ -2635,17 +2635,17 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `queue.queue_lock` | `Lantana.Examples.Queue.queueLock` | [Lantana/Examples/Queue.lean:195](../Lantana/Examples/Queue.lean#L195) |
 | `queue.is_queue` | `Lantana.Examples.Queue.isQueue` | [Lantana/Examples/Queue.lean:202](../Lantana/Examples/Queue.lean#L202) |
 | `queue.is_queue_init` | `Lantana.Examples.Queue.isQueueInit` | [Lantana/Examples/Queue.lean:210](../Lantana/Examples/Queue.lean#L210) |
-| `queue.is_queue_persistent` | `Lantana.Examples.Queue.isQueue_persistent` | [Lantana/Examples/Queue.lean:283](../Lantana/Examples/Queue.lean#L283) |
-| `queue.is_queue_initialize` | `Lantana.Examples.Queue.isQueue_initialize` | [Lantana/Examples/Queue.lean:288](../Lantana/Examples/Queue.lean#L288) |
-| `queue.Queue_init_spec` | `Lantana.Examples.Queue.init_spec` | [Lantana/Examples/Queue.lean:325](../Lantana/Examples/Queue.lean#L325) |
-| `queue.queue_contents_enqueue` | `Lantana.Examples.Queue.contents_enqueue` | [Lantana/Examples/Queue.lean:405](../Lantana/Examples/Queue.lean#L405) |
-| `queue.Queue_enqueue_spec` | `Lantana.Examples.Queue.enqueue_spec` | [Lantana/Examples/Queue.lean:438](../Lantana/Examples/Queue.lean#L438) |
-| `queue.Queue_dequeue_spec` | `Lantana.Examples.Queue.dequeue_spec` | [Lantana/Examples/Queue.lean:617](../Lantana/Examples/Queue.lean#L617) |
-| `queue.queue_trSpec` | `Lantana.Examples.Queue.queueTrSpec` | [Lantana/Examples/Queue.lean:1092](../Lantana/Examples/Queue.lean#L1092) |
-| `queue.guar_is_queue` | `Lantana.Examples.Queue.guar_isQueue` | [Lantana/Examples/Queue.lean:1100](../Lantana/Examples/Queue.lean#L1100) |
-| `queue.into_guar_is_queue` | `Lantana.Examples.Queue.intoGuar_isQueue` | [Lantana/Examples/Queue.lean:1117](../Lantana/Examples/Queue.lean#L1117) |
-| `queue.guar_is_queue_init` | `Lantana.Examples.Queue.guar_isQueueInit` | [Lantana/Examples/Queue.lean:1123](../Lantana/Examples/Queue.lean#L1123) |
-| `queue.queue_release_progress` | `Lantana.Examples.Queue.queue_release_progress` | [Lantana/Examples/Queue.lean:1145](../Lantana/Examples/Queue.lean#L1145) |
+| `queue.is_queue_persistent` | `Lantana.Examples.Queue.isQueue_persistent` | [Lantana/Examples/Queue.lean:277](../Lantana/Examples/Queue.lean#L277) |
+| `queue.is_queue_initialize` | `Lantana.Examples.Queue.isQueue_initialize` | [Lantana/Examples/Queue.lean:282](../Lantana/Examples/Queue.lean#L282) |
+| `queue.Queue_init_spec` | `Lantana.Examples.Queue.init_spec` | [Lantana/Examples/Queue.lean:319](../Lantana/Examples/Queue.lean#L319) |
+| `queue.queue_contents_enqueue` | `Lantana.Examples.Queue.contents_enqueue` | [Lantana/Examples/Queue.lean:399](../Lantana/Examples/Queue.lean#L399) |
+| `queue.Queue_enqueue_spec` | `Lantana.Examples.Queue.enqueue_spec` | [Lantana/Examples/Queue.lean:432](../Lantana/Examples/Queue.lean#L432) |
+| `queue.Queue_dequeue_spec` | `Lantana.Examples.Queue.dequeue_spec` | [Lantana/Examples/Queue.lean:611](../Lantana/Examples/Queue.lean#L611) |
+| `queue.queue_trSpec` | `Lantana.Examples.Queue.queueTrSpec` | [Lantana/Examples/Queue.lean:1086](../Lantana/Examples/Queue.lean#L1086) |
+| `queue.guar_is_queue` | `Lantana.Examples.Queue.guar_isQueue` | [Lantana/Examples/Queue.lean:1094](../Lantana/Examples/Queue.lean#L1094) |
+| `queue.into_guar_is_queue` | `Lantana.Examples.Queue.intoGuar_isQueue` | [Lantana/Examples/Queue.lean:1111](../Lantana/Examples/Queue.lean#L1111) |
+| `queue.guar_is_queue_init` | `Lantana.Examples.Queue.guar_isQueueInit` | [Lantana/Examples/Queue.lean:1117](../Lantana/Examples/Queue.lean#L1117) |
+| `queue.queue_release_progress` | `Lantana.Examples.Queue.queue_release_progress` | [Lantana/Examples/Queue.lean:1139](../Lantana/Examples/Queue.lean#L1139) |
 
 ### `lantana_heap_lang/examples/task_queue.v`
 
@@ -2678,11 +2678,11 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `task_queue_client.decr_reentrant_spec` | `Lantana.Examples.TaskQueueClient.decrReentrant_spec` | [Lantana/Examples/TaskQueueClient.lean:124](../Lantana/Examples/TaskQueueClient.lean#L124) |
 | `task_queue_client.main_spec` | `Lantana.Examples.TaskQueueClient.main_spec` | [Lantana/Examples/TaskQueueClient.lean:265](../Lantana/Examples/TaskQueueClient.lean#L265) |
 | `task_queue_client.main_pre` | `Lantana.Examples.TaskQueueClient.main_pre` | [Lantana/Examples/TaskQueueClient.lean:437](../Lantana/Examples/TaskQueueClient.lean#L437) |
-| `task_queue_client.guar_Φ_P` | `Lantana.Examples.TaskQueueClient.guar_mainRes` | [Lantana/Examples/TaskQueueClient.lean:534](../Lantana/Examples/TaskQueueClient.lean#L534) |
+| `task_queue_client.guar_Φ_P` | `Lantana.Examples.TaskQueueClient.guar_mainRes` | [Lantana/Examples/TaskQueueClient.lean:529](../Lantana/Examples/TaskQueueClient.lean#L529) |
 | `task_queue_client.G_main_impl` | `Lantana.Examples.TaskQueueClient.gMain_impl` | [Lantana/Examples/TaskQueueClient.lean:513](../Lantana/Examples/TaskQueueClient.lean#L513) |
-| `task_queue_client_adequacy` | `Lantana.Examples.TaskQueueClient.taskQueueClient_adequacy` | [Lantana/Examples/TaskQueueClient.lean:593](../Lantana/Examples/TaskQueueClient.lean#L593) |
-| `task_queue_client_safety_adequacy` | `Lantana.Examples.TaskQueueClient.taskQueueClient_safety_adequacy` | [Lantana/Examples/TaskQueueClient.lean:618](../Lantana/Examples/TaskQueueClient.lean#L618) |
-| `task_queue_client_liveness_safety` | `Lantana.Examples.TaskQueueClient.taskQueueClient_liveness_safety` | [Lantana/Examples/TaskQueueClient.lean:641](../Lantana/Examples/TaskQueueClient.lean#L641) |
+| `task_queue_client_adequacy` | `Lantana.Examples.TaskQueueClient.taskQueueClient_adequacy` | [Lantana/Examples/TaskQueueClient.lean:574](../Lantana/Examples/TaskQueueClient.lean#L574) |
+| `task_queue_client_safety_adequacy` | `Lantana.Examples.TaskQueueClient.taskQueueClient_safety_adequacy` | [Lantana/Examples/TaskQueueClient.lean:599](../Lantana/Examples/TaskQueueClient.lean#L599) |
+| `task_queue_client_liveness_safety` | `Lantana.Examples.TaskQueueClient.taskQueueClient_liveness_safety` | [Lantana/Examples/TaskQueueClient.lean:622](../Lantana/Examples/TaskQueueClient.lean#L622) |
 
 ### `lantana_heap_lang/examples/task_queue_flag_stable_client.v`
 
@@ -2693,11 +2693,11 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `task_queue_flag_stable_client.decr_reentrant_spec` | `Lantana.Examples.TaskQueueFlagStableClient.decrReentrant_spec` | [Lantana/Examples/TaskQueueFlagStableClient.lean:66](../Lantana/Examples/TaskQueueFlagStableClient.lean#L66) |
 | `task_queue_flag_stable_client.main_spec` | `Lantana.Examples.TaskQueueFlagStableClient.main_spec` | [Lantana/Examples/TaskQueueFlagStableClient.lean:207](../Lantana/Examples/TaskQueueFlagStableClient.lean#L207) |
 | `task_queue_flag_stable_client.main_pre` | `Lantana.Examples.TaskQueueFlagStableClient.main_pre` | [Lantana/Examples/TaskQueueFlagStableClient.lean:376](../Lantana/Examples/TaskQueueFlagStableClient.lean#L376) |
-| `task_queue_flag_stable_client.guar_Φ_P` | `Lantana.Examples.TaskQueueFlagStableClient.guar_mainRes` | [Lantana/Examples/TaskQueueFlagStableClient.lean:468](../Lantana/Examples/TaskQueueFlagStableClient.lean#L468) |
+| `task_queue_flag_stable_client.guar_Φ_P` | `Lantana.Examples.TaskQueueFlagStableClient.guar_mainRes` | [Lantana/Examples/TaskQueueFlagStableClient.lean:463](../Lantana/Examples/TaskQueueFlagStableClient.lean#L463) |
 | `task_queue_flag_stable_client.G_main_impl` | `Lantana.Examples.TaskQueueFlagStableClient.gMain_impl` | [Lantana/Examples/TaskQueueFlagStableClient.lean:446](../Lantana/Examples/TaskQueueFlagStableClient.lean#L446) |
-| `task_queue_flag_stable_client.task_queue_client_adequacy` | `Lantana.Examples.TaskQueueFlagStableClient.taskQueueClient_adequacy` | [Lantana/Examples/TaskQueueFlagStableClient.lean:521](../Lantana/Examples/TaskQueueFlagStableClient.lean#L521) |
-| `task_queue_flag_stable_client.task_queue_client_safety_adequacy` | `Lantana.Examples.TaskQueueFlagStableClient.taskQueueClient_safety_adequacy` | [Lantana/Examples/TaskQueueFlagStableClient.lean:546](../Lantana/Examples/TaskQueueFlagStableClient.lean#L546) |
-| `task_queue_flag_stable_client.task_queue_client_liveness_safety` | `Lantana.Examples.TaskQueueFlagStableClient.taskQueueClient_liveness_safety` | [Lantana/Examples/TaskQueueFlagStableClient.lean:569](../Lantana/Examples/TaskQueueFlagStableClient.lean#L569) |
+| `task_queue_flag_stable_client.task_queue_client_adequacy` | `Lantana.Examples.TaskQueueFlagStableClient.taskQueueClient_adequacy` | [Lantana/Examples/TaskQueueFlagStableClient.lean:502](../Lantana/Examples/TaskQueueFlagStableClient.lean#L502) |
+| `task_queue_flag_stable_client.task_queue_client_safety_adequacy` | `Lantana.Examples.TaskQueueFlagStableClient.taskQueueClient_safety_adequacy` | [Lantana/Examples/TaskQueueFlagStableClient.lean:527](../Lantana/Examples/TaskQueueFlagStableClient.lean#L527) |
+| `task_queue_flag_stable_client.task_queue_client_liveness_safety` | `Lantana.Examples.TaskQueueFlagStableClient.taskQueueClient_liveness_safety` | [Lantana/Examples/TaskQueueFlagStableClient.lean:550](../Lantana/Examples/TaskQueueFlagStableClient.lean#L550) |
 
 ### `lantana_heap_lang/examples/ticket_lock.v`
 
@@ -2719,40 +2719,40 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `ticket_lock.N_inv_subseteq` | `Lantana.Examples.TicketLock.Ninv_subseteq` | [Lantana/Examples/TicketLock.lean:114](../Lantana/Examples/TicketLock.lean#L114) |
 | `ticket_lock.own_fair_lock_alive` | `Lantana.Examples.TicketLock.ownAlive` | [Lantana/Examples/TicketLock.lean:186](../Lantana/Examples/TicketLock.lean#L186) |
 | `ticket_lock.own_fair_lock_layer` | `Lantana.Examples.TicketLock.ownLayer` | [Lantana/Examples/TicketLock.lean:191](../Lantana/Examples/TicketLock.lean#L191) |
-| `ticket_lock.lock_token_inv` | `Lantana.Examples.TicketLock.lockTokenInv` | [Lantana/Examples/TicketLock.lean:319](../Lantana/Examples/TicketLock.lean#L319) |
-| `ticket_lock.lock_inv_alive` | `Lantana.Examples.TicketLock.lockInvAlive` | [Lantana/Examples/TicketLock.lean:355](../Lantana/Examples/TicketLock.lean#L355) |
-| `ticket_lock.lock_inv` | `Lantana.Examples.TicketLock.lockInv` | [Lantana/Examples/TicketLock.lean:366](../Lantana/Examples/TicketLock.lean#L366) |
-| `ticket_lock.is_fair_lock` | `Lantana.Examples.TicketLock.isFairLock` | [Lantana/Examples/TicketLock.lean:371](../Lantana/Examples/TicketLock.lean#L371) |
-| `ticket_lock.is_fair_lock_alive` | `Lantana.Examples.TicketLock.isFairLockAlive` | [Lantana/Examples/TicketLock.lean:378](../Lantana/Examples/TicketLock.lean#L378) |
-| `ticket_lock.is_fair_lock_alive_is_fair_lock` | `Lantana.Examples.TicketLock.isFairLockAlive_isFairLock` | [Lantana/Examples/TicketLock.lean:409](../Lantana/Examples/TicketLock.lean#L409) |
-| `ticket_lock.lock_token` | `Lantana.Examples.TicketLock.lockToken` | [Lantana/Examples/TicketLock.lean:386](../Lantana/Examples/TicketLock.lean#L386) |
-| `ticket_lock.lock_token_unseal` | `Lantana.Examples.TicketLock.lockToken_unfold` | [Lantana/Examples/TicketLock.lean:393](../Lantana/Examples/TicketLock.lean#L393) |
-| `ticket_lock.is_fair_lock_persistent` | `Lantana.Examples.TicketLock.isFairLock_persistent` | [Lantana/Examples/TicketLock.lean:400](../Lantana/Examples/TicketLock.lean#L400) |
-| `ticket_lock.lock_alive_persist` | `Lantana.Examples.TicketLock.lock_alive_persist` | [Lantana/Examples/TicketLock.lean:250](../Lantana/Examples/TicketLock.lean#L250) |
-| `ticket_lock.lock_reconfig` | `Lantana.Examples.TicketLock.lock_reconfig` | [Lantana/Examples/TicketLock.lean:265](../Lantana/Examples/TicketLock.lean#L265) |
-| `ticket_lock.lock_config_persist` | `Lantana.Examples.TicketLock.lock_config_persist` | [Lantana/Examples/TicketLock.lean:271](../Lantana/Examples/TicketLock.lean#L271) |
-| `ticket_lock.lock_config_valid` | `Lantana.Examples.TicketLock.lock_config_valid` | [Lantana/Examples/TicketLock.lean:277](../Lantana/Examples/TicketLock.lean#L277) |
-| `ticket_lock.TicketLock_init_spec` | `Lantana.Examples.TicketLock.init_spec` | [Lantana/Examples/TicketLock.lean:599](../Lantana/Examples/TicketLock.lean#L599) |
-| `ticket_lock.TicketLock_acquire_spec` | `Lantana.Examples.TicketLock.acquire_spec` | [Lantana/Examples/TicketLock.lean:1481](../Lantana/Examples/TicketLock.lean#L1481) |
-| `ticket_lock.TicketLock_release_spec` | `Lantana.Examples.TicketLock.release_spec` | [Lantana/Examples/TicketLock.lean:726](../Lantana/Examples/TicketLock.lean#L726) |
-| `ticket_lock.TicketLock_delete_spec` | `Lantana.Examples.TicketLock.delete_spec` | [Lantana/Examples/TicketLock.lean:927](../Lantana/Examples/TicketLock.lean#L927) |
-| `ticket_lock.lock_inv_alive_trSpec` | `Lantana.Examples.TicketLock.lockInvAliveTrSpec` | [Lantana/Examples/TicketLock.lean:1766](../Lantana/Examples/TicketLock.lean#L1766) |
-| `ticket_lock.lock_inv_trSpec` | `Lantana.Examples.TicketLock.lockInvTrSpec` | [Lantana/Examples/TicketLock.lean:1772](../Lantana/Examples/TicketLock.lean#L1772) |
-| `ticket_lock.lock_token_inv_trSpec` | `Lantana.Examples.TicketLock.lockTokenInvTrSpec` | [Lantana/Examples/TicketLock.lean:1778](../Lantana/Examples/TicketLock.lean#L1778) |
-| `ticket_lock.fair_lock_trSpec` | `Lantana.Examples.TicketLock.fairLockTrSpec` | [Lantana/Examples/TicketLock.lean:1784](../Lantana/Examples/TicketLock.lean#L1784) |
-| `ticket_lock.guar_is_fair_lock` | `Lantana.Examples.TicketLock.guar_isFairLock` | [Lantana/Examples/TicketLock.lean:1906](../Lantana/Examples/TicketLock.lean#L1906) |
-| `ticket_lock.into_guar_is_fair_lock` | `Lantana.Examples.TicketLock.intoGuar_isFairLock` | [Lantana/Examples/TicketLock.lean:1920](../Lantana/Examples/TicketLock.lean#L1920) |
-| `ticket_lock.alive_fair_lock_trSpec` | `Lantana.Examples.TicketLock.aliveFairLockTrSpec` | [Lantana/Examples/TicketLock.lean:1791](../Lantana/Examples/TicketLock.lean#L1791) |
-| `ticket_lock.is_fair_lock_register_alive` | `Lantana.Examples.TicketLock.isFairLock_register_alive` | [Lantana/Examples/TicketLock.lean:1945](../Lantana/Examples/TicketLock.lean#L1945) |
-| `ticket_lock.guar_is_fair_lock_alive` | `Lantana.Examples.TicketLock.guar_isFairLockAlive` | [Lantana/Examples/TicketLock.lean:1926](../Lantana/Examples/TicketLock.lean#L1926) |
-| `ticket_lock.into_guar_is_fair_lock_alive` | `Lantana.Examples.TicketLock.intoGuar_isFairLockAlive` | [Lantana/Examples/TicketLock.lean:1940](../Lantana/Examples/TicketLock.lean#L1940) |
-| `ticket_lock.tr_pointsto` | `Lantana.Examples.TicketLock.trPointsTo` | [Lantana/Examples/TicketLock.lean:1986](../Lantana/Examples/TicketLock.lean#L1986) |
-| `ticket_lock.release_progress` | `Lantana.Examples.TicketLock.releaseProgress` | [Lantana/Examples/TicketLock.lean:1998](../Lantana/Examples/TicketLock.lean#L1998) |
-| `ticket_lock.lock_inv_alive_trSpec_release_progress` | `Lantana.Examples.TicketLock.lockInvAliveTrSpec_release_progress` | [Lantana/Examples/TicketLock.lean:2006](../Lantana/Examples/TicketLock.lean#L2006) |
-| `ticket_lock.alive_fair_lock_release_progress` | `Lantana.Examples.TicketLock.aliveFairLock_release_progress` | [Lantana/Examples/TicketLock.lean:2019](../Lantana/Examples/TicketLock.lean#L2019) |
-| `ticket_lock.next_monotone` | `Lantana.Examples.TicketLock.nextMonotone` | [Lantana/Examples/TicketLock.lean:2026](../Lantana/Examples/TicketLock.lean#L2026) |
-| `ticket_lock.starvation_free` | `Lantana.Examples.TicketLock.starvationFree` | [Lantana/Examples/TicketLock.lean:2034](../Lantana/Examples/TicketLock.lean#L2034) |
-| `ticket_lock.release_progress_starvation_free` | `Lantana.Examples.TicketLock.releaseProgress_starvationFree` | [Lantana/Examples/TicketLock.lean:2063](../Lantana/Examples/TicketLock.lean#L2063) |
+| `ticket_lock.lock_token_inv` | `Lantana.Examples.TicketLock.lockTokenInv` | [Lantana/Examples/TicketLock.lean:324](../Lantana/Examples/TicketLock.lean#L324) |
+| `ticket_lock.lock_inv_alive` | `Lantana.Examples.TicketLock.lockInvAlive` | [Lantana/Examples/TicketLock.lean:360](../Lantana/Examples/TicketLock.lean#L360) |
+| `ticket_lock.lock_inv` | `Lantana.Examples.TicketLock.lockInv` | [Lantana/Examples/TicketLock.lean:371](../Lantana/Examples/TicketLock.lean#L371) |
+| `ticket_lock.is_fair_lock` | `Lantana.Examples.TicketLock.isFairLock` | [Lantana/Examples/TicketLock.lean:376](../Lantana/Examples/TicketLock.lean#L376) |
+| `ticket_lock.is_fair_lock_alive` | `Lantana.Examples.TicketLock.isFairLockAlive` | [Lantana/Examples/TicketLock.lean:383](../Lantana/Examples/TicketLock.lean#L383) |
+| `ticket_lock.is_fair_lock_alive_is_fair_lock` | `Lantana.Examples.TicketLock.isFairLockAlive_isFairLock` | [Lantana/Examples/TicketLock.lean:414](../Lantana/Examples/TicketLock.lean#L414) |
+| `ticket_lock.lock_token` | `Lantana.Examples.TicketLock.lockToken` | [Lantana/Examples/TicketLock.lean:391](../Lantana/Examples/TicketLock.lean#L391) |
+| `ticket_lock.lock_token_unseal` | `Lantana.Examples.TicketLock.lockToken_unfold` | [Lantana/Examples/TicketLock.lean:398](../Lantana/Examples/TicketLock.lean#L398) |
+| `ticket_lock.is_fair_lock_persistent` | `Lantana.Examples.TicketLock.isFairLock_persistent` | [Lantana/Examples/TicketLock.lean:405](../Lantana/Examples/TicketLock.lean#L405) |
+| `ticket_lock.lock_alive_persist` | `Lantana.Examples.TicketLock.lock_alive_persist` | [Lantana/Examples/TicketLock.lean:255](../Lantana/Examples/TicketLock.lean#L255) |
+| `ticket_lock.lock_reconfig` | `Lantana.Examples.TicketLock.lock_reconfig` | [Lantana/Examples/TicketLock.lean:270](../Lantana/Examples/TicketLock.lean#L270) |
+| `ticket_lock.lock_config_persist` | `Lantana.Examples.TicketLock.lock_config_persist` | [Lantana/Examples/TicketLock.lean:276](../Lantana/Examples/TicketLock.lean#L276) |
+| `ticket_lock.lock_config_valid` | `Lantana.Examples.TicketLock.lock_config_valid` | [Lantana/Examples/TicketLock.lean:282](../Lantana/Examples/TicketLock.lean#L282) |
+| `ticket_lock.TicketLock_init_spec` | `Lantana.Examples.TicketLock.init_spec` | [Lantana/Examples/TicketLock.lean:604](../Lantana/Examples/TicketLock.lean#L604) |
+| `ticket_lock.TicketLock_acquire_spec` | `Lantana.Examples.TicketLock.acquire_spec` | [Lantana/Examples/TicketLock.lean:1486](../Lantana/Examples/TicketLock.lean#L1486) |
+| `ticket_lock.TicketLock_release_spec` | `Lantana.Examples.TicketLock.release_spec` | [Lantana/Examples/TicketLock.lean:731](../Lantana/Examples/TicketLock.lean#L731) |
+| `ticket_lock.TicketLock_delete_spec` | `Lantana.Examples.TicketLock.delete_spec` | [Lantana/Examples/TicketLock.lean:932](../Lantana/Examples/TicketLock.lean#L932) |
+| `ticket_lock.lock_inv_alive_trSpec` | `Lantana.Examples.TicketLock.lockInvAliveTrSpec` | [Lantana/Examples/TicketLock.lean:1771](../Lantana/Examples/TicketLock.lean#L1771) |
+| `ticket_lock.lock_inv_trSpec` | `Lantana.Examples.TicketLock.lockInvTrSpec` | [Lantana/Examples/TicketLock.lean:1777](../Lantana/Examples/TicketLock.lean#L1777) |
+| `ticket_lock.lock_token_inv_trSpec` | `Lantana.Examples.TicketLock.lockTokenInvTrSpec` | [Lantana/Examples/TicketLock.lean:1783](../Lantana/Examples/TicketLock.lean#L1783) |
+| `ticket_lock.fair_lock_trSpec` | `Lantana.Examples.TicketLock.fairLockTrSpec` | [Lantana/Examples/TicketLock.lean:1789](../Lantana/Examples/TicketLock.lean#L1789) |
+| `ticket_lock.guar_is_fair_lock` | `Lantana.Examples.TicketLock.guar_isFairLock` | [Lantana/Examples/TicketLock.lean:1911](../Lantana/Examples/TicketLock.lean#L1911) |
+| `ticket_lock.into_guar_is_fair_lock` | `Lantana.Examples.TicketLock.intoGuar_isFairLock` | [Lantana/Examples/TicketLock.lean:1925](../Lantana/Examples/TicketLock.lean#L1925) |
+| `ticket_lock.alive_fair_lock_trSpec` | `Lantana.Examples.TicketLock.aliveFairLockTrSpec` | [Lantana/Examples/TicketLock.lean:1796](../Lantana/Examples/TicketLock.lean#L1796) |
+| `ticket_lock.is_fair_lock_register_alive` | `Lantana.Examples.TicketLock.isFairLock_register_alive` | [Lantana/Examples/TicketLock.lean:1950](../Lantana/Examples/TicketLock.lean#L1950) |
+| `ticket_lock.guar_is_fair_lock_alive` | `Lantana.Examples.TicketLock.guar_isFairLockAlive` | [Lantana/Examples/TicketLock.lean:1931](../Lantana/Examples/TicketLock.lean#L1931) |
+| `ticket_lock.into_guar_is_fair_lock_alive` | `Lantana.Examples.TicketLock.intoGuar_isFairLockAlive` | [Lantana/Examples/TicketLock.lean:1945](../Lantana/Examples/TicketLock.lean#L1945) |
+| `ticket_lock.tr_pointsto` | `Lantana.Examples.TicketLock.trPointsTo` | [Lantana/Examples/TicketLock.lean:1991](../Lantana/Examples/TicketLock.lean#L1991) |
+| `ticket_lock.release_progress` | `Lantana.Examples.TicketLock.releaseProgress` | [Lantana/Examples/TicketLock.lean:2002](../Lantana/Examples/TicketLock.lean#L2002) |
+| `ticket_lock.lock_inv_alive_trSpec_release_progress` | `Lantana.Examples.TicketLock.lockInvAliveTrSpec_release_progress` | [Lantana/Examples/TicketLock.lean:2010](../Lantana/Examples/TicketLock.lean#L2010) |
+| `ticket_lock.alive_fair_lock_release_progress` | `Lantana.Examples.TicketLock.aliveFairLock_release_progress` | [Lantana/Examples/TicketLock.lean:2023](../Lantana/Examples/TicketLock.lean#L2023) |
+| `ticket_lock.next_monotone` | `Lantana.Examples.TicketLock.nextMonotone` | [Lantana/Examples/TicketLock.lean:2030](../Lantana/Examples/TicketLock.lean#L2030) |
+| `ticket_lock.starvation_free` | `Lantana.Examples.TicketLock.starvationFree` | [Lantana/Examples/TicketLock.lean:2038](../Lantana/Examples/TicketLock.lean#L2038) |
+| `ticket_lock.release_progress_starvation_free` | `Lantana.Examples.TicketLock.releaseProgress_starvationFree` | [Lantana/Examples/TicketLock.lean:2067](../Lantana/Examples/TicketLock.lean#L2067) |
 
 ### `lantana_heap_lang/examples/ticket_lock2.v`
 
@@ -2827,26 +2827,26 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `ticket_lock_mono.guar_mono_inv` | `Lantana.Examples.TicketLockMono.guar_monoInv` | [Lantana/Examples/TicketLockMono.lean:170](../Lantana/Examples/TicketLockMono.lean#L170) |
 | `ticket_lock_mono.next_ge_alloc` | `Lantana.Examples.TicketLockMono.nextGe_alloc` | [Lantana/Examples/TicketLockMono.lean:200](../Lantana/Examples/TicketLockMono.lean#L200) |
 | `ticket_lock_mono.next_ge_register` | `Lantana.Examples.TicketLockMono.nextGe_register` | [Lantana/Examples/TicketLockMono.lean:210](../Lantana/Examples/TicketLockMono.lean#L210) |
-| `ticket_lock_mono.lock_token_inv` | `Lantana.Examples.TicketLock.lockTokenInv` | [Lantana/Examples/TicketLock.lean:319](../Lantana/Examples/TicketLock.lean#L319) |
+| `ticket_lock_mono.lock_token_inv` | `Lantana.Examples.TicketLock.lockTokenInv` | [Lantana/Examples/TicketLock.lean:324](../Lantana/Examples/TicketLock.lean#L324) |
 | `ticket_lock_mono.lock_inv_alive` | `Lantana.Examples.TicketLockMono.lockInvAlive` | [Lantana/Examples/TicketLockMono.lean:230](../Lantana/Examples/TicketLockMono.lean#L230) |
 | `ticket_lock_mono.lock_inv` | `Lantana.Examples.TicketLockMono.lockInv` | [Lantana/Examples/TicketLockMono.lean:242](../Lantana/Examples/TicketLockMono.lean#L242) |
 | `ticket_lock_mono.is_fair_lock` | `Lantana.Examples.TicketLockMono.isFairLock` | [Lantana/Examples/TicketLockMono.lean:247](../Lantana/Examples/TicketLockMono.lean#L247) |
 | `ticket_lock_mono.is_fair_lock_alive` | `Lantana.Examples.TicketLockMono.isFairLockAlive` | [Lantana/Examples/TicketLockMono.lean:254](../Lantana/Examples/TicketLockMono.lean#L254) |
 | `ticket_lock_mono.is_fair_lock_alive_is_fair_lock` | `Lantana.Examples.TicketLockMono.isFairLockAlive_isFairLock` | [Lantana/Examples/TicketLockMono.lean:271](../Lantana/Examples/TicketLockMono.lean#L271) |
-| `ticket_lock_mono.lock_token` | `Lantana.Examples.TicketLock.lockToken` | [Lantana/Examples/TicketLock.lean:386](../Lantana/Examples/TicketLock.lean#L386) |
-| `ticket_lock_mono.lock_token_unseal` | `Lantana.Examples.TicketLock.lockToken_unfold` | [Lantana/Examples/TicketLock.lean:393](../Lantana/Examples/TicketLock.lean#L393) |
+| `ticket_lock_mono.lock_token` | `Lantana.Examples.TicketLock.lockToken` | [Lantana/Examples/TicketLock.lean:391](../Lantana/Examples/TicketLock.lean#L391) |
+| `ticket_lock_mono.lock_token_unseal` | `Lantana.Examples.TicketLock.lockToken_unfold` | [Lantana/Examples/TicketLock.lean:398](../Lantana/Examples/TicketLock.lean#L398) |
 | `ticket_lock_mono.is_fair_lock_persistent` | `Lantana.Examples.TicketLockMono.isFairLock_persistent` | [Lantana/Examples/TicketLockMono.lean:262](../Lantana/Examples/TicketLockMono.lean#L262) |
-| `ticket_lock_mono.lock_alive_persist` | `Lantana.Examples.TicketLock.lock_alive_persist` | [Lantana/Examples/TicketLock.lean:250](../Lantana/Examples/TicketLock.lean#L250) |
-| `ticket_lock_mono.lock_reconfig` | `Lantana.Examples.TicketLock.lock_reconfig` | [Lantana/Examples/TicketLock.lean:265](../Lantana/Examples/TicketLock.lean#L265) |
-| `ticket_lock_mono.lock_config_persist` | `Lantana.Examples.TicketLock.lock_config_persist` | [Lantana/Examples/TicketLock.lean:271](../Lantana/Examples/TicketLock.lean#L271) |
-| `ticket_lock_mono.lock_config_valid` | `Lantana.Examples.TicketLock.lock_config_valid` | [Lantana/Examples/TicketLock.lean:277](../Lantana/Examples/TicketLock.lean#L277) |
+| `ticket_lock_mono.lock_alive_persist` | `Lantana.Examples.TicketLock.lock_alive_persist` | [Lantana/Examples/TicketLock.lean:255](../Lantana/Examples/TicketLock.lean#L255) |
+| `ticket_lock_mono.lock_reconfig` | `Lantana.Examples.TicketLock.lock_reconfig` | [Lantana/Examples/TicketLock.lean:270](../Lantana/Examples/TicketLock.lean#L270) |
+| `ticket_lock_mono.lock_config_persist` | `Lantana.Examples.TicketLock.lock_config_persist` | [Lantana/Examples/TicketLock.lean:276](../Lantana/Examples/TicketLock.lean#L276) |
+| `ticket_lock_mono.lock_config_valid` | `Lantana.Examples.TicketLock.lock_config_valid` | [Lantana/Examples/TicketLock.lean:282](../Lantana/Examples/TicketLock.lean#L282) |
 | `ticket_lock_mono.TicketLock_init_spec` | `Lantana.Examples.TicketLockMono.init_spec` | [Lantana/Examples/TicketLockMono.lean:295](../Lantana/Examples/TicketLockMono.lean#L295) |
 | `ticket_lock_mono.TicketLock_acquire_spec` | `Lantana.Examples.TicketLockMono.acquire_spec` | [Lantana/Examples/TicketLockMono.lean:1065](../Lantana/Examples/TicketLockMono.lean#L1065) |
 | `ticket_lock_mono.TicketLock_release_spec` | `Lantana.Examples.TicketLockMono.release_spec` | [Lantana/Examples/TicketLockMono.lean:401](../Lantana/Examples/TicketLockMono.lean#L401) |
 | `ticket_lock_mono.TicketLock_delete_spec` | `Lantana.Examples.TicketLockMono.delete_spec` | [Lantana/Examples/TicketLockMono.lean:604](../Lantana/Examples/TicketLockMono.lean#L604) |
 | `ticket_lock_mono.lock_inv_alive_trSpec` | `Lantana.Examples.TicketLockMono.lockInvAliveTrSpec` | [Lantana/Examples/TicketLockMono.lean:1373](../Lantana/Examples/TicketLockMono.lean#L1373) |
 | `ticket_lock_mono.lock_inv_trSpec` | `Lantana.Examples.TicketLockMono.lockInvTrSpec` | [Lantana/Examples/TicketLockMono.lean:1380](../Lantana/Examples/TicketLockMono.lean#L1380) |
-| `ticket_lock_mono.lock_token_inv_trSpec` | `Lantana.Examples.TicketLock.lockTokenInvTrSpec` | [Lantana/Examples/TicketLock.lean:1778](../Lantana/Examples/TicketLock.lean#L1778) |
+| `ticket_lock_mono.lock_token_inv_trSpec` | `Lantana.Examples.TicketLock.lockTokenInvTrSpec` | [Lantana/Examples/TicketLock.lean:1783](../Lantana/Examples/TicketLock.lean#L1783) |
 | `ticket_lock_mono.fair_lock_trSpec` | `Lantana.Examples.TicketLockMono.fairLockTrSpec` | [Lantana/Examples/TicketLockMono.lean:1388](../Lantana/Examples/TicketLockMono.lean#L1388) |
 | `ticket_lock_mono.guar_is_fair_lock` | `Lantana.Examples.TicketLockMono.guar_isFairLock` | [Lantana/Examples/TicketLockMono.lean:1440](../Lantana/Examples/TicketLockMono.lean#L1440) |
 | `ticket_lock_mono.into_guar_is_fair_lock` | `Lantana.Examples.TicketLockMono.intoGuar_isFairLock` | [Lantana/Examples/TicketLockMono.lean:1454](../Lantana/Examples/TicketLockMono.lean#L1454) |

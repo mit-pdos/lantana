@@ -55,7 +55,14 @@ All are proved; the clients have end-to-end corollaries through the adequacy the
   `Paradox` (two rule variants shown unsound through adequacy, as class hypotheses);
 - `TicketLock` (deletable, §7.1; release progress at trace level), `TicketLockMono` (starvation
   freedom with no hypothesis on `next`), `TicketLock2` and `TicketLock2Client`
-  (starvation-free), `ExtendedInt`.
+  (starvation-free), `ExtendedInt`;
+- `Queue` (§7.2: a queue protected by the ticket lock whose elements carry obligations;
+  `queue_release_progress`), `TaskQueue` (§7.3: a task queue run by a forked worker thread;
+  `taskQueue_release_progress`), `TaskQueueClient` (a reentrant task;
+  `taskQueueClient_liveness_safety`) and `TaskQueueFlagStableClient` (the same over the stable
+  flag; `taskQueueClient_flag_stays`).
+
+`Lib`, `GhostMapP`, `LockLevel` and `World` (the closed world `ExGF`) are shared infrastructure.
 
 ## Correspondence with Rocq
 
