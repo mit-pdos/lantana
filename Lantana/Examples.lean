@@ -21,3 +21,6 @@ public import Lantana.Examples.HandoffFlagStableClient
 public import Lantana.Examples.ExtendedInt
 public import Lantana.Examples.GhostMapP
 public import Lantana.Examples.TicketLock
+public import Lantana.Examples.LockLevel
+public import Lantana.Examples.TicketLock2
+public import Lantana.Examples.TicketLock2Client

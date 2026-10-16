@@ -12,9 +12,44 @@ public import Lantana.Examples.LockLevel
 
 Rocq `examples/ticket_lock2.v`. Each ticket comes with an unlock obligation, allocated by its
 acquiring thread, so that every pending ticket is eventually served
-(`fairLock_starvationFree`).
+(`fairLock_starvationFree`). The lock is not deletable; it is independent of the deletable
+ticket lock of `Examples.TicketLock`.
 
-TODO: complete the docstring.
+Ghost state (`TicketLock2G`): a ghost map `γt` from tickets to their obligations, a ghost map
+`γa` from tickets to acknowledgements, and the level `γc` of the lock (`Examples.LockLevel`,
+Rocq `auth_mra (ord.le)`, notation `γ ↪LOCK{dq} ℓ`: `ownFairLockLevel γ ℓ dq`). The invariant
+`lockInv` holds `next ↦ n`, half of `curr ↦ c` and, for each ticket `t ≤ n`, its registered
+obligation `κ` with a witness at the layer `ℓ + t` (`tkLayer`) for a level `ℓ` the lock has had;
+`κ` is discharged if `t ≤ c`, else half of `finallyI Nev κ (curr ↦ t ∗ R)` is there. The thread
+of ticket `t` (whose `faa` returned `t - 1`) owns the other half; the acknowledgements make sure
+that only it takes `R` when `curr` reaches `t - 1`.
+
+* `init_spec` (measure `4`): the cells, ticket `0` with a discharged obligation, and the lock,
+  whose invariant is allocated later for any `R` (Rocq: same).
+* `acquire_spec` (measure `1` at the layer `ℓ + aleph`, lowered to `ℓ + ω`): `faa` takes the
+  ticket `my`, allocates the unlock obligation `κu` at `ℓ + (my + 1)` and registers it; the spin
+  loop (`acquire_spin`) is a witness induction on the obligation `κp` of the ticket `my` (the
+  previous holder's), at `ℓ0 + my < ℓ + (my + 1)`: each unsuccessful iteration observes `κp`, and
+  its credit gives `50` units of fuel at `ℓ + (my + 1)` to every child. The thread returns with
+  `κu` (fuel `μ` at `ℓ`), the lock token and `R`.
+* `release_spec` (measure `100`): the store to `curr` discharges `κu` with `curr ↦ u + 1 ∗ R`
+  (`finallyI_discharge`, one later credit); the next ticket, if any, finds the lock free.
+
+Guarantees (`GuarOf`, inferred): `lockInvTrSpec` (Rocq `lock_inv_trSpec`), `fairLockTrSpec`,
+`lockTokenTrSpec`; at the level of traces, `starvationFree` (whenever `next ↦ n` and `curr ↦ c`,
+each `t` with `c < t ≤ n` is eventually served) and `lockTokenTr`.
+
+Adaptations. Rocq's layer `ℵ` (`ord.large`) of the acquiring fuel has no counterpart among the
+layers `Ordinal.{0}`; `aleph := succ ω` is used, as the proof only needs a layer above `ω`.
+Tickets are `Int`s and the maps `IntMap`s; Rocq's `dom tickets = dom acks` and
+`t ∈ dom tickets ↔ 0 ≤ t ≤ n` are stated with `get?`. The entries of the big separating
+conjunctions are definitions (`ticketEntry`, `ackEntry`, with `_iff` lemmas and `GuarOf`
+instances), so that an entry taken out can be put back. The invariant's `κp` (the obligation the
+thread waits for) is read during `faa` (Rocq: in a second opening of the invariant); the spin loop
+is a separate lemma, by well-founded induction on the witness fuel (Rocq: `iInduction` inside
+`acquire`). `lockToken` is not sealed. Aliases are prefixed with `ticket_lock2.`.
+
+Everything here is proved.
 -/
 
 @[expose] public noncomputable section
