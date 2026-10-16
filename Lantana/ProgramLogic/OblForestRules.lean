@@ -327,10 +327,11 @@ instance fromExists_mupd (E₁ E₂ : CoPset) {α : Sort _} (P : IProp GF) (Φ :
     [h : FromExists P Φ] : FromExists (|={E₁,E₂}=>m P) (fun a => |={E₁,E₂}=>m Φ a) where
   from_exists := exists_elim fun a => mupd_mono ((exists_intro a).trans h.from_exists)
 
+/-- The model update absorbs `◇` (as the fancy update does; Rocq requires `IsExcept0 P`). -/
 @[lantana_alias is_except_0_sfmupd]
-instance isExcept0_mupd (E₁ E₂ : CoPset) (P : IProp GF) [h : IsExcept0 P] :
-    IsExcept0 (|={E₁,E₂}=>m P) where
-  is_except0 := except0_mupd.trans (mupd_mono h.is_except0)
+instance isExcept0_mupd (E₁ E₂ : CoPset) (P : IProp GF) : IsExcept0 (|={E₁,E₂}=>m P) where
+  is_except0 := or_elim ((or_intro_l (Q := iprop(|={E₁,E₂}=> P))).trans
+    (BIFUpdate.except0.trans (fupd_mupd E₁ E₂ P))) .rfl
 
 @[lantana_alias from_modal_sfmupd]
 instance fromModal_mupd (E : CoPset) {io} (P : IProp GF) :
