@@ -10,6 +10,7 @@ public import Lantana.BaseLogic.ModelRel
 public import Lantana.BaseLogic.Forest
 public import Lantana.BaseLogic.Model.ModelHistory
 public import Lantana.BaseLogic.Model.OSat
+public import Lantana.BaseLogic.Model.OWit
 
 /-! # The obligation model
 
