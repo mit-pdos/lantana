@@ -23,7 +23,7 @@ or always `1`) and `0` until always `1`; in particular, once the flag is `1`, it
 (`flagClient_flag_stays`), which the guarantee of `Flag` does not give.
 
 The guarantee `guar_clientRes` is inferred (`IntoGuar`), the ghost existentials of the names
-included, once the flag's predicates are unfolded.
+included, from the flag's instances `FlagStable.guarOf_isFlag` and `FlagStable.guarOf_flagTk`.
 
 Everything here is proved; the end-to-end corollaries depend only on the standard axioms
 (checked in `LantanaTest.Examples`).
@@ -80,7 +80,7 @@ theorem writer_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
   · intro z
     simp
     grind
-  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
+  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   lwp_step HT HG HF
   lwp_step HT HG HF
   lwp_expr_simp
@@ -270,7 +270,7 @@ variable [ModelGS GF] [HeapGS GF]
 /-- Inferred: the names are ghost existentials, the flag's predicates are unfolded. -/
 @[lantana_alias flag_stable_client.guar_Φ_P]
 theorem guar_clientRes (μ₁ μ₂ : Measure) : ⊢@{IProp GF} clientRes μ₁ μ₂ ⊨ₜ gClient := by
-  unfold clientRes gClient isFlag flagTk flagTrSpec
+  unfold clientRes gClient
   exact IntoGuar.into_guar
 
 end Guarantee

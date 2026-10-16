@@ -115,12 +115,7 @@ theorem gMain_false {GF : BundledGFunctors} : (gMain (GF := GF)).external ⊆ �
 theorem guar_mainRes {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] :
     ⊢@{IProp GF} mainRes ⊨ₜ gMain := by
   unfold mainRes gMain
-  iapply guar_ex_ghost
-  iintro %x
-  iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) N x 1 iprop(True)
-      iprop(False)))
-  iapply guar_true
+  exact IntoGuar.into_guar
 
 /-- With the non-strict move, the loop is verified with a commitment that is never kept: in
 every fair behavior from the initial configuration, eventually `False`. -/

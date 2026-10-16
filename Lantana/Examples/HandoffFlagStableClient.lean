@@ -28,8 +28,8 @@ stable flag for some `x`: `0` until always `1`, or always `1`; in particular, on
 
 The guarantee `guar_mainRes` is inferred (`IntoGuar`): the existentials of the commitment are
 trace-visible for the flag's location and the handoff's cell (the target is a `TrSpec.ex` over
-`Loc`) and ghost for the names and layers, from the guarantees of `isFlag` and `isHandoff` as
-local instances.
+`Loc`) and ghost for the names and layers, from the instances of the guarantees of `isFlag`
+and `isHandoff` (`FlagStable.guarOf_isFlag`, `Handoff.guarOf_isHandoff`).
 
 Everything here is proved; the end-to-end corollaries depend only on the standard axioms
 (checked in `LantanaTest.Examples`).
@@ -181,7 +181,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   · intro z
     simp at hg0 ⊢
     grind
-  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
+  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   icases oblFuels_add 2 10 _ $$ HF with ⟨HF2, HF⟩
   ihave HF2 := oblFuels_add_obl _ g0 1 _ $$ F0 HF2
   lwp_step HT HG HF2
@@ -189,10 +189,11 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   lwp_expr_simp
   -- Send the task `set x`, with the flag's obligation `k`, from the container `g0`.
   lwp_bind hl(v(&Handoff.send) #b v(&Flag.set) #x) HT
-  ihave Hhs := BigSepS.bigSepS_subseteq (Y := ({kl} : Oids)) (fun z hz => by simp_all) $$ Hhs
+  ihave Hhs := BigSepS.bigSepS_subseteq (Y := ({kl} : Oids))
+    (fun z hz => by simp at hz ⊢; simp [hz]) $$ Hhs
   imod Obl.fuel_layer_mono_set {kl} (ℓ₁ := 0) μhs (Ordinals.Ordinal.zero_le _) $$ Hhs with Hhs
   imod Obl.fuel_layer_mono g0 (ℓ₁ := 0) μhs (Ordinals.Ordinal.zero_le _) $$ F0hs with F0hs
-  have hg0' : g0 ∉ ({kl} : Oids) := fun h => hg0 (by simp_all)
+  have hg0' : g0 ∉ ({kl} : Oids) := fun h => hg0 (by simp at h ⊢; simp [h])
   iapply hhs 0 i b Flag.set hl_val(#x) (({kl} : Oids).insert g0) (.obl g0) {k} {k} γ 1 _
     $$ [HT HG Hhs F0hs Kg0 Fk Hb Htk Hkk]
   · iframe HT HG Hb
@@ -254,7 +255,8 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   lwp_expr_simp
   -- Wait for the flag, at layer `2` above the flag's layer `1`.
   lwp_bind hl(v(&Flag.wait) #x) HT
-  ihave Hfw := BigSepS.bigSepS_subseteq (Y := ({kl} : Oids)) (fun z hz => by simp_all) $$ Hfw
+  ihave Hfw := BigSepS.bigSepS_subseteq (Y := ({kl} : Oids))
+    (fun z hz => by simp at hz ⊢; simp [hz]) $$ Hfw
   imod Obl.fuel_layer_mono_set {kl} (ℓ₁ := Ordinals.Ordinal.succ 1) (ℓ₂ := 2) μfw
     (Ordinals.Ordinal.le_of_eq rfl) $$ Hfw with Hfw
   iapply hfw 0 i x {kl} k 1 _ $$ [HT HG Hfw]
@@ -377,10 +379,6 @@ location and the handoff's cell are trace-visible, the names and layers ghost. -
 @[lantana_alias handoff_flag_stable_client.guar_Φ_P]
 theorem guar_mainRes (i : ThreadId) (μ : Measure) :
     ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
-  haveI : ∀ x k ℓ, IntoGuar (Expr := Exp) (State := State) (isFlag (GF := GF) x k ℓ)
-      (flagTrSpec x) := fun x k ℓ => ⟨FlagStable.guar_isFlag x k ℓ⟩
-  haveI : ∀ b γ ℓ, IntoGuar (Expr := Exp) (State := State) (isHandoff (GF := GF) b γ ℓ)
-      (□ₛ handoffInvTrSpec b) := fun b γ ℓ => ⟨Handoff.guar_isHandoff b γ ℓ⟩
   unfold mainRes gMain
   exact IntoGuar.into_guar
 
