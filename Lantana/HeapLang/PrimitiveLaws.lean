@@ -490,6 +490,13 @@ theorem threadExpr_stateInterp (σ : State) (tp : ThreadPool Exp) (i : ThreadId)
   ipureintro
   exact threadExprSat_iff.mpr h
 
+/-- The heap agrees with a points-to. -/
+theorem genHeapInterp_lookup (σ : State) (l : Loc) (dq : DFrac) (v : Option Val) :
+    genHeapInterp (GF := GF) σ.heap ∗ l ↦{dq} v ⊢ ⌜σ.get? l = some v⌝ := by
+  unfold genHeapInterp pointsTo
+  iintro ⟨⟨%m, -, Hh, -⟩, Hl⟩
+  iapply ghost_map_lookup $$ Hh Hl
+
 end
 
 /-- The state interpretation class of HeapLang. -/
@@ -536,6 +543,8 @@ instance threadExpr_pureExecSI {GF : BundledGFunctors} [HeapGS GF] (C : List ECt
 /-! ## The primitive laws -/
 
 section Laws
+
+open Ordinals Ordinal
 
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
   [TemporalInterp Exp State GF]
@@ -613,13 +622,40 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
     · iexact HW
   · iexact HΨ
 
+omit [HeapGS GF] [TemporalInterp Exp State GF] in
+/-- The credits of `m + 1` steps give those of one step. -/
+theorem witCreds_of_nat (R : Oids) (m : Nat) :
+    ([∗set] r ∈ R, Wit.cred (GF := GF) r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) ⊢
+      witCreds R := by
+  unfold witCreds
+  refine BigSepS.bigSepS_mono fun _ => ?_
+  iintro (H | #H)
+  · ileft
+    rw [show ((m + 1 : Nat) : Fuel) = (m : Fuel) +ₕ 1 from (Ordinals.Ordinal.nadd_ofNat m 1).symm]
+    icases (Wit.cred_split _ _ _).mp $$ H with ⟨-, H⟩
+    iexact H
+  · iright
+    iexact H
+
 @[lantana_alias heap_lang.lwp_pure_step]
 theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IProp GF)
     [PureExec φ n e₁ e₂] (hφ : φ) (hn : 0 < n) :
     threadExpr i C e₁ ∗ thKids i G ∗ oblFuels G n ∗ witLayers R ∗
       (threadExpr i C e₂ -∗ thKids i G -∗ witCreds R -∗ £ₒ o -∗
         |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
-      ⊢ lWP e₁ @ s; i; E {{ Φ }} := sorry
+      ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
+  iintro ⟨HT, HG, HF, HR, H⟩
+  iapply Lantana.lwp_pure_step_simple (ς := fun i e => threadExpr i C e) (m + 1) hn G R o hφ
+  iframe HT HG HF HR
+  iintro HT HG HW Ho
+  iapply H $$ HT HG [HW] [Ho]
+  · iapply witCreds_of_nat
+    iexact HW
+  · rw [show ((m + 1 : Nat) : Fuel) = Ordinals.Ordinal.succ (m : Fuel) from rfl,
+      Ordinals.Ordinal.jmul_succ]
+    icases tlc_split.mp $$ Ho with ⟨Ho, -⟩
+    iexact Ho
 
 /-- Fork: the children `K ⊆ G` move to the new thread, each paying one unit of fuel. -/
 @[lantana_alias heap_lang.lwp_fork]
@@ -635,7 +671,33 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
 theorem lwp_chooseNat :
     ⊢@{IProp GF} l{{{ threadExpr i C .chooseNat ∗ stepPre i G R }}} Exp.chooseNat @ s; i; E
       l{{{ (n : Nat), RET Val.lit (.int n); threadExpr i C (.val (.lit (.int n))) ∗
-        stepPost i G R o }}} := sorry
+        stepPost i G R o }}} := by
+  iintro %Φ !> ⟨HT, Hpre⟩ HΦ
+  iapply lwp_heap_step (o := o) rfl iprop(emp) (fun w => iprop(⌜∃ n : Nat, w = .lit (.int n)⌝))
+  · intro σ₁
+    iintro ⟨Hh, -⟩
+    isplitr
+    · ipureintro
+      exact ⟨_, _, _, .chooseNatS 0 σ₁⟩
+    iintro %e₂ %σ₂ %efs %hs
+    cases hs
+    next n =>
+    imodintro
+    isplitr
+    · ipureintro; trivial
+    iexists .lit (.int n)
+    isplitr
+    · ipureintro; trivial
+    iframe Hh
+    ipureintro
+    exact ⟨n, rfl⟩
+  iframe HT Hpre
+  isplitr
+  · iempintro
+  iintro %w ⟨HT, Hpost, %hw⟩
+  obtain ⟨n, rfl⟩ := hw
+  iapply HΦ $$ %n
+  iframe
 
 @[lantana_alias heap_lang.lwp_alloc]
 theorem lwp_alloc (v : Val) :
@@ -643,7 +705,41 @@ theorem lwp_alloc (v : Val) :
           stepPre i G R }}}
         (Exp.allocN (.val (.lit (.int 1))) (.val v)) @ s; i; E
       l{{{ (l : Loc), RET Val.lit (.loc l); threadExpr i C (.val (.lit (.loc l))) ∗
-        stepPost i G R o ∗ l ↦ some v }}} := sorry
+        stepPost i G R o ∗ l ↦ some v }}} := by
+  iintro %Φ !> ⟨HT, Hpre⟩ HΦ
+  iapply lwp_heap_step (o := o) rfl iprop(emp)
+    (fun w => iprop(∃ l : Loc, ⌜w = .lit (.loc l)⌝ ∗ l ↦ some v))
+  · intro σ₁
+    iintro ⟨Hh, -⟩
+    isplitr
+    · ipureintro
+      exact ⟨_, _, _, alloc_fresh v 1 σ₁ (by omega)⟩
+    iintro %e₂ %σ₂ %efs %hs
+    cases hs
+    next l _ hfresh =>
+    have hl : σ₁.get? l = none := by
+      have := hfresh 0 (by omega) (by omega)
+      rwa [loc_add_zero] at this
+    imod genHeap_alloc (v := some v) hl $$ Hh with ⟨Hh, Hl, -⟩
+    imodintro
+    isplitr
+    · ipureintro; trivial
+    iexists .lit (.loc l)
+    isplitr
+    · ipureintro; trivial
+    rw [State.initHeap_singleton]
+    iframe Hh
+    iexists l
+    isplitr
+    · ipureintro; trivial
+    iexact Hl
+  iframe HT Hpre
+  isplitr
+  · iempintro
+  iintro %w ⟨HT, Hpost, %l, %hw, Hl⟩
+  subst hw
+  iapply HΦ $$ %l
+  iframe
 
 @[lantana_alias heap_lang.lwp_free]
 theorem lwp_free (l : Loc) (v : Val) :
@@ -651,7 +747,37 @@ theorem lwp_free (l : Loc) (v : Val) :
           l ↦ some v }}}
         (Exp.free (.val (.lit (.loc l)))) @ s; i; E
       l{{{ RET Val.lit .unit; threadExpr i C (.val (.lit .unit)) ∗ stepPost i G R o ∗
-        l ↦ (none : Option Val) }}} := sorry
+        l ↦ (none : Option Val) }}} := by
+  iintro %Φ !> ⟨HT, Hpre, Hl⟩ HΦ
+  iapply lwp_heap_step (o := o) rfl iprop(l ↦ some v)
+    (fun w => iprop(⌜w = .lit .unit⌝ ∗ l ↦ (none : Option Val)))
+  · intro σ₁
+    iintro ⟨Hh, Hl⟩
+    ihave %hl : ⌜σ₁.get? l = some (some v)⌝ $$ [Hh Hl]
+    · iapply genHeapInterp_lookup
+      iframe
+    isplitr
+    · ipureintro
+      exact ⟨_, _, _, .freeS l v σ₁ hl⟩
+    iintro %e₂ %σ₂ %efs %hs
+    cases hs
+    imod genHeap_update (v₂ := none) $$ [$Hh $Hl] with ⟨Hh, Hl⟩
+    imodintro
+    isplitr
+    · ipureintro; trivial
+    iexists .lit .unit
+    isplitr
+    · ipureintro; trivial
+    rw [State.initHeap_singleton]
+    iframe Hh
+    isplitr
+    · ipureintro; trivial
+    iexact Hl
+  iframe HT Hpre Hl
+  iintro %w ⟨HT, Hpost, %hw, Hl⟩
+  subst hw
+  iapply HΦ
+  iframe
 
 @[lantana_alias heap_lang.lwp_load]
 theorem lwp_load (l : Loc) (dq : DFrac) (v : Val) :
@@ -660,7 +786,7 @@ theorem lwp_load (l : Loc) (dq : DFrac) (v : Val) :
         (Exp.load (.val (.lit (.loc l)))) @ s; i; E
       l{{{ RET v; threadExpr i C (.val v) ∗ stepPost i G R o ∗ l ↦{dq} some v }}} := by
   iintro %Φ !> ⟨HT, Hpre, Hl⟩ HΦ
-  iapply lwp_heap_step rfl iprop(l ↦{dq} some v) (fun w => iprop(⌜w = v⌝ ∗ l ↦{dq} some v))
+  iapply lwp_heap_step (o := o) rfl iprop(l ↦{dq} some v) (fun w => iprop(⌜w = v⌝ ∗ l ↦{dq} some v))
   · intro σ₁
     iintro ⟨Hh, Hl⟩
     ihave %hl : ⌜σ₁.get? l = some (some v)⌝ $$ [Hh Hl]
@@ -675,13 +801,13 @@ theorem lwp_load (l : Loc) (dq : DFrac) (v : Val) :
     obtain rfl : v' = v := by rw [hl] at hget; simpa using hget.symm
     imodintro
     isplitr
-    · ipureintro; rfl
+    · ipureintro; trivial
     iexists v'
     isplitr
-    · ipureintro; rfl
+    · ipureintro; trivial
     iframe Hh
     isplitr
-    · ipureintro; rfl
+    · ipureintro; trivial
     iexact Hl
   iframe HT Hpre Hl
   iintro %w ⟨HT, Hpost, %hw, Hl⟩
@@ -695,14 +821,74 @@ theorem lwp_store (l : Loc) (v' v : Val) :
           stepPre i G R ∗ l ↦ some v' }}}
         (Exp.store (.val (.lit (.loc l))) (.val v)) @ s; i; E
       l{{{ RET Val.lit .unit; threadExpr i C (.val (.lit .unit)) ∗ stepPost i G R o ∗
-        l ↦ some v }}} := sorry
+        l ↦ some v }}} := by
+  iintro %Φ !> ⟨HT, Hpre, Hl⟩ HΦ
+  iapply lwp_heap_step (o := o) rfl iprop(l ↦ some v') (fun w => iprop(⌜w = .lit .unit⌝ ∗ l ↦ some v))
+  · intro σ₁
+    iintro ⟨Hh, Hl⟩
+    ihave %hl : ⌜σ₁.get? l = some (some v')⌝ $$ [Hh Hl]
+    · iapply genHeapInterp_lookup
+      iframe
+    isplitr
+    · ipureintro
+      exact ⟨_, _, _, .storeS l v' v σ₁ hl⟩
+    iintro %e₂ %σ₂ %efs %hs
+    cases hs
+    imod genHeap_update (v₂ := some v) $$ [$Hh $Hl] with ⟨Hh, Hl⟩
+    imodintro
+    isplitr
+    · ipureintro; trivial
+    iexists .lit .unit
+    isplitr
+    · ipureintro; trivial
+    rw [State.initHeap_singleton]
+    iframe Hh
+    isplitr
+    · ipureintro; trivial
+    iexact Hl
+  iframe HT Hpre Hl
+  iintro %w ⟨HT, Hpost, %hw, Hl⟩
+  subst hw
+  iapply HΦ
+  iframe
 
 @[lantana_alias heap_lang.lwp_xchg]
 theorem lwp_xchg (l : Loc) (v' v : Val) :
     ⊢@{IProp GF} l{{{ threadExpr i C (.xchg (.val (.lit (.loc l))) (.val v)) ∗ stepPre i G R ∗
           l ↦ some v' }}}
         (Exp.xchg (.val (.lit (.loc l))) (.val v)) @ s; i; E
-      l{{{ RET v'; threadExpr i C (.val v') ∗ stepPost i G R o ∗ l ↦ some v }}} := sorry
+      l{{{ RET v'; threadExpr i C (.val v') ∗ stepPost i G R o ∗ l ↦ some v }}} := by
+  iintro %Φ !> ⟨HT, Hpre, Hl⟩ HΦ
+  iapply lwp_heap_step (o := o) rfl iprop(l ↦ some v') (fun w => iprop(⌜w = v'⌝ ∗ l ↦ some v))
+  · intro σ₁
+    iintro ⟨Hh, Hl⟩
+    ihave %hl : ⌜σ₁.get? l = some (some v')⌝ $$ [Hh Hl]
+    · iapply genHeapInterp_lookup
+      iframe
+    isplitr
+    · ipureintro
+      exact ⟨_, _, _, .xchgS l v' v σ₁ hl⟩
+    iintro %e₂ %σ₂ %efs %hs
+    cases hs
+    next v'' hget =>
+    obtain rfl : v'' = v' := by rw [hl] at hget; simpa using hget.symm
+    imod genHeap_update (v₂ := some v) $$ [$Hh $Hl] with ⟨Hh, Hl⟩
+    imodintro
+    isplitr
+    · ipureintro; trivial
+    iexists v''
+    isplitr
+    · ipureintro; trivial
+    rw [State.initHeap_singleton]
+    iframe Hh
+    isplitr
+    · ipureintro; trivial
+    iexact Hl
+  iframe HT Hpre Hl
+  iintro %w ⟨HT, Hpost, %hw, Hl⟩
+  subst hw
+  iapply HΦ
+  iframe
 
 @[lantana_alias heap_lang.lwp_cmpxchg_fail]
 theorem lwp_cmpXchg_fail (l : Loc) (dq : DFrac) (v' v₁ v₂ : Val) (hne : v' ≠ v₁)
@@ -712,7 +898,39 @@ theorem lwp_cmpXchg_fail (l : Loc) (dq : DFrac) (v' v₁ v₂ : Val) (hne : v' �
         (Exp.cmpXchg (.val (.lit (.loc l))) (.val v₁) (.val v₂)) @ s; i; E
       l{{{ RET Val.pair v' (.lit (.bool false));
         threadExpr i C (.val (.pair v' (.lit (.bool false)))) ∗ stepPost i G R o ∗
-        l ↦{dq} some v' }}} := sorry
+        l ↦{dq} some v' }}} := by
+  iintro %Φ !> ⟨HT, Hpre, Hl⟩ HΦ
+  iapply lwp_heap_step (o := o) rfl iprop(l ↦{dq} some v')
+    (fun w => iprop(⌜w = Val.pair v' (.lit (.bool false))⌝ ∗ l ↦{dq} some v'))
+  · intro σ₁
+    iintro ⟨Hh, Hl⟩
+    ihave %hl : ⌜σ₁.get? l = some (some v')⌝ $$ [Hh Hl]
+    · iapply genHeapInterp_lookup
+      iframe
+    isplitr
+    · ipureintro
+      exact ⟨_, _, _, .cmpXchgS l v₁ v₂ v' σ₁ false hl hsafe (by simp [hne])⟩
+    iintro %e₂ %σ₂ %efs %hs
+    cases hs
+    next vl b _ _ hget =>
+    obtain rfl : vl = v' := by rw [hl] at hget; simpa using hget.symm
+    obtain rfl : b = false := by simp_all
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    imodintro
+    isplitr
+    · ipureintro; trivial
+    iexists .pair vl (.lit (.bool false))
+    isplitr
+    · ipureintro; trivial
+    iframe Hh
+    isplitr
+    · ipureintro; trivial
+    iexact Hl
+  iframe HT Hpre Hl
+  iintro %w ⟨HT, Hpost, %hw, Hl⟩
+  subst hw
+  iapply HΦ
+  iframe
 
 @[lantana_alias heap_lang.lwp_cmpxchg_suc]
 theorem lwp_cmpXchg_suc (l : Loc) (v' v₁ v₂ : Val) (heq : v' = v₁)
@@ -722,7 +940,41 @@ theorem lwp_cmpXchg_suc (l : Loc) (v' v₁ v₂ : Val) (heq : v' = v₁)
         (Exp.cmpXchg (.val (.lit (.loc l))) (.val v₁) (.val v₂)) @ s; i; E
       l{{{ RET Val.pair v' (.lit (.bool true));
         threadExpr i C (.val (.pair v' (.lit (.bool true)))) ∗ stepPost i G R o ∗
-        l ↦ some v₂ }}} := sorry
+        l ↦ some v₂ }}} := by
+  iintro %Φ !> ⟨HT, Hpre, Hl⟩ HΦ
+  iapply lwp_heap_step (o := o) rfl iprop(l ↦ some v')
+    (fun w => iprop(⌜w = Val.pair v' (.lit (.bool true))⌝ ∗ l ↦ some v₂))
+  · intro σ₁
+    iintro ⟨Hh, Hl⟩
+    ihave %hl : ⌜σ₁.get? l = some (some v')⌝ $$ [Hh Hl]
+    · iapply genHeapInterp_lookup
+      iframe
+    isplitr
+    · ipureintro
+      exact ⟨_, _, _, .cmpXchgS l v₁ v₂ v' σ₁ true hl hsafe (by simp [heq])⟩
+    iintro %e₂ %σ₂ %efs %hs
+    cases hs
+    next vl b _ _ hget =>
+    obtain rfl : vl = v' := by rw [hl] at hget; simpa using hget.symm
+    obtain rfl : b = true := by simp_all
+    rw [State.initHeap_singleton]
+    simp only [↓reduceIte]
+    imod genHeap_update (v₂ := some v₂) $$ [$Hh $Hl] with ⟨Hh, Hl⟩
+    imodintro
+    isplitr
+    · ipureintro; trivial
+    iexists .pair vl (.lit (.bool true))
+    isplitr
+    · ipureintro; trivial
+    iframe Hh
+    isplitr
+    · ipureintro; trivial
+    iexact Hl
+  iframe HT Hpre Hl
+  iintro %w ⟨HT, Hpost, %hw, Hl⟩
+  subst hw
+  iapply HΦ
+  iframe
 
 @[lantana_alias heap_lang.lwp_faa]
 theorem lwp_faa (l : Loc) (n₁ n₂ : Int) :
@@ -730,7 +982,39 @@ theorem lwp_faa (l : Loc) (n₁ n₂ : Int) :
           stepPre i G R ∗ l ↦ some (Val.lit (.int n₁)) }}}
         (Exp.faa (.val (.lit (.loc l))) (.val (.lit (.int n₂)))) @ s; i; E
       l{{{ RET Val.lit (.int n₁); threadExpr i C (.val (.lit (.int n₁))) ∗
-        stepPost i G R o ∗ l ↦ some (Val.lit (.int (n₁ + n₂))) }}} := sorry
+        stepPost i G R o ∗ l ↦ some (Val.lit (.int (n₁ + n₂))) }}} := by
+  iintro %Φ !> ⟨HT, Hpre, Hl⟩ HΦ
+  iapply lwp_heap_step (o := o) rfl iprop(l ↦ some (Val.lit (.int n₁)))
+    (fun w => iprop(⌜w = .lit (.int n₁)⌝ ∗ l ↦ some (Val.lit (.int (n₁ + n₂)))))
+  · intro σ₁
+    iintro ⟨Hh, Hl⟩
+    ihave %hl : ⌜σ₁.get? l = some (some (.lit (.int n₁)))⌝ $$ [Hh Hl]
+    · iapply genHeapInterp_lookup
+      iframe
+    isplitr
+    · ipureintro
+      exact ⟨_, _, _, .faaS l n₁ n₂ σ₁ hl⟩
+    iintro %e₂ %σ₂ %efs %hs
+    cases hs
+    next i₁ hget =>
+    obtain rfl : i₁ = n₁ := by rw [hl] at hget; simpa using hget.symm
+    imod genHeap_update (v₂ := some (Val.lit (.int (i₁ + n₂)))) $$ [$Hh $Hl] with ⟨Hh, Hl⟩
+    imodintro
+    isplitr
+    · ipureintro; trivial
+    iexists .lit (.int i₁)
+    isplitr
+    · ipureintro; trivial
+    rw [State.initHeap_singleton]
+    iframe Hh
+    isplitr
+    · ipureintro; trivial
+    iexact Hl
+  iframe HT Hpre Hl
+  iintro %w ⟨HT, Hpost, %hw, Hl⟩
+  subst hw
+  iapply HΦ
+  iframe
 
 end Laws
 
