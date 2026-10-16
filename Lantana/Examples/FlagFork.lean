@@ -290,24 +290,12 @@ theorem gMain_impl (i : ThreadId) : (gMain (GF := GF) i).external ⊆ rMain i :=
 
 variable [ModelGS GF] [HeapGS GF]
 
-/-- A flag exists: its location shows, its obligation and layer do not. -/
-theorem guar_exFlag :
-    ⊢@{IProp GF} iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ⊨ₜ
-      (∃ₛ x : Loc, flagTrSpec x) := by
-  iapply guar_ex
-  iintro %x
-  iapply guar_ex_ghost
-  iintro %k
-  iapply guar_ex_ghost
-  iintro %ℓ
-  iapply Flag.guar_isFlag
-
 @[lantana_alias flag_fork.guar_Φ_P]
 theorem guar_mainRes (i : ThreadId) (μ : Measure) :
     ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
   haveI : GuarOf (Expr := Exp) (State := State)
       iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)
-      (∃ₛ x : Loc, flagTrSpec x) := ⟨guar_exFlag⟩
+      (∃ₛ x : Loc, flagTrSpec x) := ⟨Flag.guar_exFlag⟩
   unfold mainRes gMain finallyI
   iapply guar_ex_ghost
   iintro %kr

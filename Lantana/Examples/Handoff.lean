@@ -226,6 +226,18 @@ theorem guar_isHandoff (b : Loc) (γ : HandoffName) (ℓ : Layer) :
   unfold isHandoff
   exact IntoGuar.into_guar
 
+/-- A handoff exists: its cell is trace-visible, its ghost name and layer are not. -/
+theorem guar_exHandoff :
+    ⊢@{IProp GF} iprop(∃ (b : Loc) (γ : HandoffName) (ℓ : Layer), isHandoff b γ ℓ) ⊨ₜ
+      (∃ₛ b : Loc, □ₛ handoffInvTrSpec b) := by
+  iapply guar_ex
+  iintro %b
+  iapply guar_ex_ghost
+  iintro %γ
+  iapply guar_ex_ghost
+  iintro %ℓ
+  iapply guar_isHandoff
+
 /-- The invariant is registered: a model update. The inbox `g` is an obligation at layer `0`
 without children. -/
 @[lantana_alias is_handoff_initialize]

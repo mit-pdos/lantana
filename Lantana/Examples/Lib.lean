@@ -10,8 +10,10 @@ public import Lantana.Trace
 
 /-! # Lemmas shared by the examples
 
-* `bigSepS_pair`, `oblFuels_subset`: a big separating conjunction over two obligations; the fuel
-  of a set of obligations gives that of a subset.
+* `bigSepS_pair`, `bigSepS_insert_oids`, `oblFuels_subset`: big separating conjunctions over
+  two obligations and over a set with one more obligation; the fuel of a set of obligations
+  gives that of a subset.
+* `pointsTo_halves`: a points-to is two halves.
 * `threadExpr_terminate_finally` (Rocq `thread_expr_terminate_finally`, `temporal_laws.v`):
   a thread that has returned the value `v` discharges a `finallyI` on its own obligation with its
   final expression `exits v @ i`, and terminates.
@@ -39,6 +41,15 @@ theorem bigSepS_pair {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {a b : Oid} (
   rw [Iris.Std.LawfulSet.mem_singleton] at ha hb
   exact ha.symm.trans hb
 
+/-- A big separating conjunction over an obligation set with one more element. -/
+theorem bigSepS_insert_oids {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids} {k : Oid}
+    (h : k ∉ K) : ([∗set] y ∈ K.insert k, Φ y) ⊣⊢ Φ k ∗ [∗set] y ∈ K, Φ y := by
+  rw [Iris.Std.insert_eq_singleton_union_extTreeSet]
+  refine (BigSepS.bigSepS_union fun x ⟨hx, hK⟩ => h ?_).trans
+    (sep_congr BigSepS.bigSepS_singleton .rfl)
+  rw [Iris.Std.LawfulSet.mem_singleton] at hx
+  exact hx ▸ hK
+
 section Fuel
 variable {GF : BundledGFunctors} [ModelGS GF]
 
@@ -49,6 +60,21 @@ theorem oblFuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
   exact BigSepS.bigSepS_subseteq h
 
 end Fuel
+
+/-! ## Halves of a points-to -/
+
+section PointsTo
+variable {GF : BundledGFunctors} [HeapStateGS GF]
+
+/-- A points-to is two halves. -/
+theorem pointsTo_halves (l : Loc) (v : Option Val) :
+    l ↦ v ⊣⊢@{IProp GF} l ↦{.own (1 : Qp).half} v ∗ l ↦{.own (1 : Qp).half} v := by
+  have h := (inferInstance : Fractional (PROP := IProp GF) (l ↦{.own ·} v)).fractional
+    (1 : Qp).half (1 : Qp).half
+  rw [Qp.half_add_half] at h
+  exact h
+
+end PointsTo
 
 /-! ## Terminating on a `finallyI` -/
 

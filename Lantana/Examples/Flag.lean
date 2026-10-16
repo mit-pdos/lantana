@@ -151,6 +151,18 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
       (flagTrSpec l).cast (flagResponse l) (flagResponse_ext l) :=
   (guar_isFlag l k ℓ).trans (guar_cast _ _)
 
+/-- A flag exists: its location is trace-visible, its obligation and layer are not. -/
+theorem guar_exFlag :
+    ⊢@{IProp GF} iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ⊨ₜ
+      (∃ₛ x : Loc, flagTrSpec x) := by
+  iapply guar_ex
+  iintro %x
+  iapply guar_ex_ghost
+  iintro %k
+  iapply guar_ex_ghost
+  iintro %ℓ
+  iapply guar_isFlag
+
 /-- Initialization: a new obligation below `p` carrying the flag. -/
 @[lantana_alias is_flag_init]
 theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
