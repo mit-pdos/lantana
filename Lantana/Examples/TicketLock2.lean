@@ -285,8 +285,8 @@ theorem ticketEntry_serve (γt γc : GName) (curr : Loc) (R : IProp GF) {c n t :
 
 omit [ModelGS GF] [HeapGS GF] in
 /-- When the next ticket `c + 1` has been acknowledged and is served, the acknowledgements of
-the tickets other than `c + 2` stay. -/
-theorem ackEntry_serve (γa : GName) {c n t : Int} (hc : 0 ≤ c) (ht : t ≠ c + 2) :
+the tickets other than `c + 1 + 1` stay. -/
+theorem ackEntry_serve (γa : GName) {c n t : Int} (hc : 0 ≤ c) (ht : t ≠ c + 1 + 1) :
     (γa ↪◯MAP[c + 1]{.discard} true) ⊢ ackEntry (GF := GF) γa c n t -∗ ackEntry γa (c + 1) n t := by
   unfold ackEntry
   iintro #Hc (⟨%ht', #H⟩ | %ht' | ⟨%ht', H⟩)
@@ -762,6 +762,162 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
     rfl
   · iunfold finallyI
     iframe Hcurr2 Mtu U1
+
+/-- Releasing: the holder increments `curr` (its half and the invariant's), which serves the
+next ticket: its unlock obligation `κu` is discharged with `curr ↦ u + 1` and `R` (a later
+credit for the finally), and the next ticket's thread, if any, finds the lock free with its
+acknowledgement pending. -/
+@[lantana_alias ticket_lock2.TicketLock_release_spec]
+theorem release_spec : ∃ m : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (tl : Val)
+    (γ : TicketLockName) (R : IProp GF) (κu : Oid) (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&release) v(&tl)) ∗ thKids i G ∗ oblFuels G m ∗
+          ⌜κu ∈ G⌝ ∗ oblKids κu ∅ ∗ lockToken tl γ κu R ∗ R ∗ isFairLock tl γ R }}}
+        hl(v(&release) v(&tl)) @ i
+      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase κu) }}} := by
+  refine ⟨100, fun lc i G tl γ R κu C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, %hκu, Kκu, Htok, HR, #Hfl⟩ HΦ
+  unfold lockToken
+  icases Htok with ⟨%next, %curr, %u, %htl, Hcu, #Mtu, Uu⟩
+  subst htl
+  unfold isFairLock
+  icases Hfl with ⟨%next', %curr', %htl', #Hinv⟩
+  obtain ⟨rfl, rfl⟩ : next = next' ∧ curr = curr' := by
+    simpa only [Val.pair.injEq, Val.lit.injEq, BaseLit.loc.injEq] using htl'
+  unfold release
+  lwp_step HT HG HF with Hc : Ordinals.Ordinal.ofNat (1 + 1)
+  lwp_expr_simp
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_step HT HG HF
+  lwp_expr_simp
+  -- The load of `curr`, with the holder's half.
+  lwp_bind hl(!#curr) HT
+  icases oblFuels_add 1 95 G $$ HF with ⟨HF1, HF⟩
+  iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hcu]
+  · iframe HT Hcu
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨-, HG, -⟩, Hcu⟩
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  lwp_step HT HG HF
+  -- The store, in the invariant; the discharge of `κu` follows the step.
+  lwp_bind hl(#curr ← v(&(vInt (u + 1)))) HT
+  icases oblFuels_add 1 93 G $$ HF with ⟨HF1, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Ninv) (P := lockInv γ.γt γ.γa γ.γc next curr R)
+    (fun _ _ => CoPset.mem_full) $$ Hinv
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨Hi, Hclose⟩
+  icases (tlc_split_nat 1 1).mp $$ Hc with ⟨Hc1, Hc2⟩
+  iapply lwp_credit_later_nat $$ Hc1
+  inext
+  iunfold lockInv at Hi
+  icases Hi with ⟨%n, %c, %tickets, %acks, Hnext, Hcurr, ⟨GMt, GMa⟩, %hdom, %hc, %hdomt, HMt,
+    HMa, Hlast⟩
+  icombine Hcurr Hcu gives %hcu
+  obtain rfl : c = u := by simpa using hcu.2
+  ihave Hfull := (pointsTo_halves curr _).mpr $$ [Hcurr Hcu]
+  · iframe
+  iapply lwp_store (o := lc) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hfull]
+  · iframe HT Hfull
+    iapply stepPre_nil $$ HG HF1
+  iintro ⟨HT, ⟨Hlc, HG, -⟩, Hfull⟩
+  icases (pointsTo_halves curr _).mp $$ Hfull with ⟨Hcurr, Hcu⟩
+  -- The ticket `c + 1` is the holder's: its obligation `κu` is pending.
+  ihave %LUt := ghost_map_lookup $$ GMt Mtu
+  icases (BigSepM.bigSepM_delete LUt).mp $$ HMt with ⟨Hu, HMt⟩
+  icases (ticketEntry_iff _ _ _ _ _ _ _ _).mp $$ Hu with ⟨Hu1, (⟨%hu, -⟩ | ⟨%hu, Uu2⟩)⟩
+  · exact absurd hu.2 (by omega)
+  -- The lock is taken: the acknowledgement of `c + 1` is there.
+  icases Hlast with (⟨%hcn, -⟩ | ⟨%hcn, (⟨-, Hcurr', -⟩ | #Ha)⟩)
+  · exact absurd hcn (by omega)
+  · iexfalso
+    icombine Hcurr Hcurr' gives %h
+    simp only [Option.some.injEq, Val.lit.injEq, BaseLit.int.injEq] at h
+    exact absurd h.2 (by omega)
+  ihave U : finallyI Nev κu 1 iprop(curr ↦{half} some (vInt (c + 1)) ∗ R) $$ [Uu Uu2]
+  · iunfold finallyI at Uu Uu2
+    iunfold finallyI
+    iapply untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ Uu Uu2
+  imod finallyI_discharge (E := ⊤ \ ↑Ninv) (.thread i) G Nev_subseteq hκu $$ Hc2 HG Kκu U
+    [Hcu HR] with ⟨⟨Hcu, HR⟩, HG, #Dκu⟩
+  · iframe
+  have hdel : ∀ {t : Int} {κ : Oid}, get? (delete tickets (c + 1)) t = some κ → t ≠ c + 1 := by
+    intro t κ h ht
+    subst ht
+    simp [Iris.Std.LawfulPartialMap.get?_delete_eq] at h
+  imod Hclose $$ [Hnext Hcurr GMt GMa HMt HMa Hu1 Hcu HR] with -
+  · inext
+    iunfold lockInv
+    iexists n, c + 1, tickets, acks
+    iframe Hnext Hcurr GMt GMa
+    isplitr
+    · ipureintro
+      exact hdom
+    isplitr
+    · ipureintro
+      omega
+    isplitr
+    · ipureintro
+      exact hdomt
+    isplitl [HMt Hu1]
+    · iapply (BigSepM.bigSepM_delete LUt).mpr
+      isplitl [Hu1]
+      · iapply (ticketEntry_iff _ _ _ _ _ _ _ _).mpr
+        iframe Hu1
+        ileft
+        isplit
+        · ipureintro
+          omega
+        · iexact Dκu
+      · iapply BigSepM.bigSepM_mono (fun h => ticketEntry_serve _ _ _ _ _ (hdel h)) $$ HMt
+    by_cases hcn1 : c + 1 = n
+    · -- No ticket is pending: the lock is free.
+      isplitl [HMa]
+      · iapply BigSepM.bigSepM_impl $$ HMa
+        imodintro
+        iintro %t %a %hta Ht
+        have := (hdomt t).mp ((hdom t).mpr (by simp [hta]))
+        iapply ackEntry_serve _ hc.1 (by omega) $$ Ha Ht
+      ileft
+      isplit
+      · ipureintro
+        exact hcn1
+      · iframe
+    · -- The next ticket `c + 2` is pending: the lock is free for it.
+      obtain ⟨a, LUa⟩ := Option.isSome_iff_exists.mp
+        ((hdom (c + 1 + 1)).mp ((hdomt (c + 1 + 1)).mpr (by omega)))
+      icases (BigSepM.bigSepM_delete LUa).mp $$ HMa with ⟨Ha2, HMa⟩
+      icases (ackEntry_iff _ _ _ _).mp $$ Ha2 with (⟨%ha, -⟩ | %ha | ⟨%ha, Ma2⟩)
+      · exact absurd ha.2 (by omega)
+      · exact absurd ha (by omega)
+      isplitl [HMa]
+      · iapply (BigSepM.bigSepM_delete LUa).mpr
+        isplitr
+        · iapply (ackEntry_iff _ _ _ _).mpr
+          iright
+          ileft
+          ipureintro
+          rfl
+        · iapply BigSepM.bigSepM_impl $$ HMa
+          imodintro
+          iintro %t %a' %hta Ht
+          have hne : t ≠ c + 1 + 1 := by
+            intro ht
+            subst ht
+            simp [Iris.Std.LawfulPartialMap.get?_delete_eq] at hta
+          iapply ackEntry_serve _ hc.1 hne $$ Ha Ht
+      iright
+      isplit
+      · ipureintro
+        omega
+      · ileft
+        iframe
+  imodintro
+  ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+  lwp_expr_simp
+  iapply lwp_value'
+  iapply HΦ
+  iframe
 
 end Specs
 
