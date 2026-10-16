@@ -18,9 +18,8 @@ adequacy proof.
 
 namespace Lantana
 
-universe u v w
 
-variable {Expr : Type u} {State : Type v} {Val : Type w} [Λ : Language Expr State Val]
+variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
 
 open scoped TrProp
 

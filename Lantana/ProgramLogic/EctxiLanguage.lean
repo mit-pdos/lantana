@@ -21,12 +21,11 @@ namespace Lantana
 open Iris.ProgramLogic (ToVal toVal)
 open FromMathlib
 
-universe u v w x
 
 /-- A language with evaluation context items: `fillItem Ki e` plugs `e` into the item `Ki`. -/
 @[lantana_alias ectxiLanguage, lantana_alias EctxiLanguageMixin]
-class EctxItemLanguage (Expr : Type u) (Item : outParam (Type x)) (State : outParam (Type v))
-    (Val : outParam (Type w)) extends ToVal Expr Val where
+class EctxItemLanguage (Expr : Type) (Item : outParam (Type)) (State : outParam (Type))
+    (Val : outParam (Type)) extends ToVal Expr Val where
   /-- Plug an expression into a context item. -/
   fillItem : Item → Expr → Expr
   /-- The base step: one step of a redex, forking the threads `efs`. -/
@@ -55,7 +54,7 @@ namespace EctxItemLanguage
 
 open EvContext (fill_empty fill_comp fill_inj)
 
-variable {Expr : Type u} {Item : Type x} {State : Type v} {Val : Type w}
+variable {Expr : Type} {Item : Type} {State : Type} {Val : Type}
   [Λ : EctxItemLanguage Expr Item State Val]
 
 /-- Contexts are lists of items, innermost first; `compEctx K₁ K₂` is `K₂ ++ K₁`. -/

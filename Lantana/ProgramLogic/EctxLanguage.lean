@@ -26,7 +26,6 @@ namespace Lantana
 open Iris.ProgramLogic (ToVal toVal)
 open Iris.ProgramLogic.Language (Atomicity)
 
-universe u v w x
 
 #lantana_ignore fork_thread_ids
   "positional thread ids (D14): forked threads are appended to the pool, so there are no fresh ids"
@@ -41,7 +40,7 @@ universe u v w x
   "a `Lantana.Language` has no context field: contexts are `Context` instances (`instContextFill`)"
 
 /-- The empty context and the composition of contexts. -/
-class EvContextOps (Ectx : Type x) where
+class EvContextOps (Ectx : Type) where
   /-- The empty context. -/
   emptyEctx : Ectx
   /-- `compEctx K₁ K₂` is `K₂` plugged into `K₁` (`EvContext.fill_comp`). -/
@@ -54,7 +53,7 @@ attribute [lantana_alias comp_ectx] EvContextOps.compEctx
 
 /-- Evaluation contexts `Ectx` of the expressions `Expr`: expressions with a hole, which `fill`
 plugs. -/
-class EvContext (Expr : Type u) (Ectx : outParam (Type x)) extends EvContextOps Ectx where
+class EvContext (Expr : Type) (Ectx : outParam (Type)) extends EvContextOps Ectx where
   /-- Plug an expression into the hole of a context. -/
   fill : Ectx → Expr → Expr
   fill_empty (e : Expr) : fill emptyEctx e = e
@@ -73,8 +72,8 @@ attribute [simp] EvContext.fill_empty
 /-- A language with evaluation contexts: the base step `baseStep e σ e' σ' efs` of a redex `e`
 (forking the threads `efs`), evaluation contexts `Ectx`, and the laws relating them. -/
 @[lantana_alias ectxLanguage, lantana_alias EctxLanguageMixin]
-class EctxLanguage (Expr : Type u) (State : outParam (Type v)) (Val : outParam (Type w))
-    (Ectx : outParam (Type x)) extends ToVal Expr Val, EvContext Expr Ectx where
+class EctxLanguage (Expr : Type) (State : outParam (Type)) (Val : outParam (Type))
+    (Ectx : outParam (Type)) extends ToVal Expr Val, EvContext Expr Ectx where
   /-- The base step: one step of a redex, forking the threads `efs`. -/
   baseStep : Expr → State → Expr → State → List Expr → Prop
   /-- Values are not redexes. -/
@@ -103,7 +102,7 @@ namespace EctxLanguage
 
 open EvContext (fill_empty fill_comp fill_inj)
 
-variable {Expr : Type u} {State : Type v} {Val : Type w} {Ectx : Type x}
+variable {Expr : Type} {State : Type} {Val : Type} {Ectx : Type}
   [Λ : EctxLanguage Expr State Val Ectx]
 
 @[lantana_alias fill_not_val]

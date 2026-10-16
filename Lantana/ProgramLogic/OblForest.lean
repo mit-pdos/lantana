@@ -39,7 +39,6 @@ open Iris Iris.BI
 open Iris.ProgramLogic (toVal)
 open scoped Lantana.Measure Ordinals.Ordinal
 
-universe u v w
 
 /-- Obligation ids. -/
 @[lantana_alias oid]
@@ -64,7 +63,7 @@ attribute [lantana_alias PObl] Parent.obl
 
 section Predicates
 
-variable {GF : BundledGFunctors.{w}} [ModelGS GF]
+variable {GF : BundledGFunctors} [ModelGS GF]
 
 /-! ## The predicates -/
 
@@ -131,7 +130,7 @@ scoped macro_rules
   | `(|=[$n,$tc]=>m $P) => `(mupdBase $n $tc iprop($P))
 
 section
-variable {Expr : Type u} {State : Type v} {GF : BundledGFunctors.{w}} [ModelGS GF]
+variable {Expr : Type} {State : Type} {GF : BundledGFunctors} [ModelGS GF]
   [BIFUpdate (IProp GF)]
 
 /-- The fancy model update `|={E₁,E₂:n,tc}=>m P` (Rocq `fmupd`). -/
@@ -172,7 +171,7 @@ scoped notation:max "oblKids " k:max K:max => Par.kids (Parent.obl k) K
 
 section Rules
 
-variable {Expr : Type u} {State : Type v} {GF : BundledGFunctors.{w}} [ModelGS GF]
+variable {Expr : Type} {State : Type} {GF : BundledGFunctors} [ModelGS GF]
 
 /-- One unit of fuel at layer `ℓ` is enough to hang below `p`: always below a thread; below
 an obligation `q`, `ℓ` must be above a witness layer of `q`. -/

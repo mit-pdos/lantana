@@ -25,12 +25,11 @@ namespace Lantana
 open Iris.ProgramLogic (ToVal toVal)
 open Iris.ProgramLogic.Language (Atomicity)
 
-universe u v w
 
 /-- A language: expressions `Expr`, states `State`, values `Val` (with `toVal`/`ofVal`), and
 the primitive step `primStep e σ e' σ' efs` of one thread, forking the threads `efs`. -/
 @[lantana_alias language]
-class Language (Expr : Type u) (State : outParam (Type v)) (Val : outParam (Type w))
+class Language (Expr : Type) (State : outParam (Type)) (Val : outParam (Type))
     extends ToVal Expr Val where
   /-- One step of the expression `e` in state `σ`: result `e'`, new state `σ'`, forked
   threads `efs` (appended to the pool). -/
@@ -42,7 +41,7 @@ export Language (primStep val_stuck)
 
 namespace Language
 
-variable {Expr : Type u} {State : Type v} {Val : Type w} [Λ : Language Expr State Val]
+variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
 
 /-! ## Reducibility -/
 

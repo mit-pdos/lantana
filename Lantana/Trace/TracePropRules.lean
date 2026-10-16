@@ -17,9 +17,8 @@ hatch.
 
 namespace Lantana.TrProp
 
-universe u v
 
-variable {Expr : Type u} {State : Type v}
+variable {Expr : Type} {State : Type}
 variable {R S X A B P Q R' S' A' : TrProp Expr State}
 
 open scoped Lantana.TrProp

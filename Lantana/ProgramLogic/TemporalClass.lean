@@ -23,35 +23,34 @@ namespace Lantana
 
 open Iris
 
-universe u v w
 
 /-- The ghost state of the obligation model. (Placeholder.) -/
 @[lantana_alias mupdGS]
-class ModelGS (GF : BundledGFunctors.{w}) : Type where
+class ModelGS (GF : BundledGFunctors) : Type where
 
 /-- The ghost state of the temporal registry (it saves trace predicates, hence the
 language). (Placeholder.) -/
-@[lantana_alias tregGS.tregGS]
-class RegGS (Expr : Type u) (State : Type v) (GF : BundledGFunctors.{w}) : Type where
+@[lantana_alias tregGS]  -- Rocq `tregGS.tregGS`
+class RegGS (Expr : Type) (State : Type) (GF : BundledGFunctors) : Type where
 
 /-- The language-dependent ghost state of the temporal layer: the history and the registry.
 The ghost state of the obligation model (`ModelGS GF`) is independent of the language and
 stays a separate instance argument (Lean cannot project it from a bundle whose other
 parameters it does not mention). -/
 @[lantana_alias temporalGS]
-class TemporalGS (Expr : Type u) (State : Type v) (GF : BundledGFunctors.{w})
+class TemporalGS (Expr : Type) (State : Type) (GF : BundledGFunctors)
     extends HistGS Expr State GF, RegGS Expr State GF
 
 /-- The interpretation of the temporal layer; one interpretation per instance of the ghost
 state (hence keyed by `ModelGS` and `TemporalGS`). -/
 @[lantana_alias TemporalInterp]
-class TemporalInterp (Expr : Type u) (State : Type v) (GF : BundledGFunctors.{w})
+class TemporalInterp (Expr : Type) (State : Type) (GF : BundledGFunctors)
     [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] where
   /-- The interpretation. -/
   interp : IProp GF
 
 /-- The interpretation of the temporal layer, with the language explicit. -/
-abbrev temporalInterp (Expr : Type u) (State : Type v) {GF : BundledGFunctors.{w}} [ModelGS GF]
+abbrev temporalInterp (Expr : Type) (State : Type) {GF : BundledGFunctors} [ModelGS GF]
     [TemporalGS Expr State GF] [StateInterp Expr State GF] [TemporalInterp Expr State GF] :
     IProp GF :=
   TemporalInterp.interp (Expr := Expr) (State := State)
@@ -59,7 +58,7 @@ abbrev temporalInterp (Expr : Type u) (State : Type v) {GF : BundledGFunctors.{w
 /-- What the program logic threads between steps and through model updates: the history
 interpretation and the interpretation of the temporal layer (Rocq `history_tinterp`). -/
 @[lantana_alias history_tinterp]
-def historyTInterp {Expr : Type u} {State : Type v} {GF : BundledGFunctors.{w}} [ModelGS GF]
+def historyTInterp {Expr : Type} {State : Type} {GF : BundledGFunctors} [ModelGS GF]
     [TemporalGS Expr State GF] [StateInterp Expr State GF] [TemporalInterp Expr State GF]
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr) : IProp GF :=
   iprop(historyInterp h n σ tp ∗ temporalInterp Expr State)

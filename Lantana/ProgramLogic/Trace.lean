@@ -22,7 +22,6 @@ namespace Lantana
 
 open Iris.ProgramLogic (toVal)
 
-universe u v w
 
 /-- Thread ids are positions in the thread pool. -/
 @[lantana_alias thread_id]
@@ -30,14 +29,14 @@ abbrev ThreadId := Nat
 
 /-- The thread pool: the expression of every thread, by id. -/
 @[lantana_alias thread_pool]
-abbrev ThreadPool (Expr : Type u) := List Expr
+abbrev ThreadPool (Expr : Type) := List Expr
 
 /-- A configuration: the thread pool and the state. -/
 @[lantana_alias cfg]
-abbrev Cfg (Expr : Type u) (State : Type v) := ThreadPool Expr × State
+abbrev Cfg (Expr : Type) (State : Type) := ThreadPool Expr × State
 
 section
-variable {Expr : Type u} {State : Type v} {Val : Type w} [Λ : Language Expr State Val]
+variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
 
 /-- A step of thread `i`: its expression steps, the forked threads are appended to the pool
 (and are never removed). -/
@@ -62,19 +61,19 @@ end
 
 /-- A trace state: a configuration and the thread scheduled at it. -/
 @[lantana_alias trace_state]
-structure TraceState (Expr : Type u) (State : Type v) where
+structure TraceState (Expr : Type) (State : Type) where
   cfg : Cfg Expr State
   thread : ThreadId
 
 /-- A trace: a position in an infinite sequence of trace states. -/
 @[lantana_alias trace]
-structure Trace (Expr : Type u) (State : Type v) where
+structure Trace (Expr : Type) (State : Type) where
   pos : Nat
   seq : Nat → TraceState Expr State
 
 namespace Trace
 
-variable {Expr : Type u} {State : Type v}
+variable {Expr : Type} {State : Type}
 
 /-- The trace one position later. -/
 @[lantana_alias trace_next]
@@ -98,7 +97,7 @@ def cfg (τ : Trace Expr State) : Cfg Expr State := τ.now.cfg
 end Trace
 
 section
-variable {Expr : Type u} {State : Type v} {Val : Type w} [Λ : Language Expr State Val]
+variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
 
 /-- One step of a behavior: the scheduled thread steps, or stutters because it is a value or
 stuck; the next scheduled thread is arbitrary. -/

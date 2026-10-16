@@ -31,19 +31,18 @@ namespace Lantana
 open Iris Iris.BI Iris.ProgramLogic (toVal)
 open scoped Lantana.OblForestNotation
 
-universe u v w x
 
 /-- The ghost state of the program logic: the temporal layer, the state interpretation, and
 the postcondition of forked threads (`True` for HeapLang). -/
 @[lantana_alias lantanaGS]
-class LantanaGS (Expr : Type u) (State : Type v) (Val : Type w) (GF : BundledGFunctors.{x})
+class LantanaGS (Expr : Type) (State : Type) (Val : Type) (GF : BundledGFunctors)
     [Language Expr State Val] extends TemporalGS Expr State GF, StateInterp Expr State GF where
   /-- The postcondition of a forked thread. -/
   forkPost : ThreadId → Val → IProp GF
 
 section Lwp
 
-variable {Expr : Type u} {State : Type v} {Val : Type w} {GF : BundledGFunctors.{x}}
+variable {Expr : Type} {State : Type} {Val : Type} {GF : BundledGFunctors}
 variable [Λ : Language Expr State Val] [ModelGS GF] [TlcGS GF] [BIFUpdate (IProp GF)]
 variable [L : LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
 
