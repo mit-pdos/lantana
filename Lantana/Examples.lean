@@ -19,3 +19,5 @@ public import Lantana.Examples.Paradox
 public import Lantana.Examples.FlagStableClient
 public import Lantana.Examples.HandoffFlagStableClient
 public import Lantana.Examples.ExtendedInt
+public import Lantana.Examples.GhostMapP
+public import Lantana.Examples.TicketLock
