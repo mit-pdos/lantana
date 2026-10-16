@@ -654,6 +654,227 @@ theorem obl_move_up_mupd (n tc : Nat) (p : Parent) (K : Oids) (k : Oid) (Kk : Oi
     rw [oids_erase_eq]
     iexact Hk
 
+
+/-- An element of `R` with its witness credits or its discharge. -/
+private theorem witLayer_cred_or (r : Oid) (a : Fuel) :
+    (∃ ℓ, witLayer (GF := GF) r ℓ) ∗ (OWit.cred r a ∨ OSat.discharged r) ⊢
+      witCred r a ∨ oblDischarged r := by
+  unfold witCred oblDischarged
+  iintro ⟨⟨%ℓ, Hw⟩, Hc⟩
+  ihave #He := witLayer_elem r ℓ $$ Hw
+  icases Hc with (Hc | Hd)
+  · ileft
+    iframe Hc
+    iexact He
+  · iright
+    iframe Hd
+    iexact He
+
+private theorem witLayers_creds (R : Oids) (a : Fuel) :
+    ([∗set] r ∈ R, ∃ ℓ, witLayer (GF := GF) r ℓ) ∗
+        ([∗set] r ∈ R, OWit.cred r a ∨ OSat.discharged r) ⊢
+      [∗set] r ∈ R, witCred r a ∨ oblDischarged r :=
+  BigSepS.bigSepS_sep.mpr.trans (BigSepS.bigSepS_mono_of_forall fun r => witLayer_cred_or r a)
+
+/-- The witnesses of `R` get zero credits or are discharged (Rocq `obl_check_witnesses_mupd`). -/
+@[lantana_alias omodel.obl_check_witnesses_mupd]
+theorem obl_check_witnesses_mupd (n tc : Nat) (R : Oids) :
+    ([∗set] r ∈ R, ∃ ℓ, witLayer (GF := GF) r ℓ) ⊢
+      mupd n tc iprop([∗set] r ∈ R, witCred r 0 ∨ oblDischarged r) := by
+  iintro #HR
+  iapply mupd_nd_step
+  iintro %h %i %Ω₁ %W₁ HM
+  unfold modelInterp
+  icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
+  icases osat_elems Ω₁ R $$ [$Hos $HR] with %hR
+  icases owit_get_credit_zero W₁ $$ Hw with ⟨Hw, Hc⟩
+  have hpt : ∀ k w, get? W₁ k = some w → k ∈ R →
+      OWit.witCreditZero k w ⊢@{IProp GF} OWit.cred k 0 ∨ OSat.discharged k := by
+    intro k w _ _
+    cases w with
+    | assigned b => exact BI.or_intro_l
+    | discharged => exact BI.or_intro_r
+  ihave Hc := bigSepM_restrict W₁ R (fun r hr => (hI₁.dom r).1 (hR r hr)) hpt $$ Hc
+  imod modelHistoryInterp_step h i (Nat.le_refl n) (Obls.le_refl Ω₁) $$ HH with HH
+  imodintro
+  iexists Ω₁
+  isplitr
+  · ipureintro
+    exact Obls.ndf_refl Ω₁
+  iintro %W₂ %⟨hW, hI₂⟩
+  imodintro
+  iframe HH Hos Hf
+  isplitl [Hw]
+  · isplitl [Hw]
+    · iapply owit_mon (wits_lef_same_mono hI₁ hW.lef hI₂) $$ Hw
+    · ipureintro
+      exact hI₂
+  iapply mupd_intro
+  iapply witLayers_creds R 0
+  isplitr [Hc]
+  · iexact HR
+  · iexact Hc
+
+/-- The witness `r` gets zero credits or is discharged (Rocq `obl_check_witnesses_mupd` for one
+witness). -/
+theorem obl_check_witness_mupd (n tc : Nat) (r : Oid) (ℓ : Layer) :
+    witLayer (GF := GF) r ℓ ⊢ mupd n tc iprop(witCred r 0 ∨ oblDischarged r) := by
+  have h₁ : ([∗set] x ∈ ({r} : Oids), witCred (GF := GF) x 0 ∨ oblDischarged x) ⊢
+      witCred r 0 ∨ oblDischarged r :=
+    (BigSepS.bigSepS_singleton (Φ := fun x => iprop(witCred (GF := GF) x 0 ∨ oblDischarged x))).mp
+  have h₂ : witLayer (GF := GF) r ℓ ⊢ [∗set] x ∈ ({r} : Oids), ∃ ℓ, witLayer x ℓ :=
+    (BI.exists_intro (Ψ := fun ℓ => witLayer (GF := GF) r ℓ) ℓ).trans
+      (BigSepS.bigSepS_singleton (Φ := fun x => iprop(∃ ℓ, witLayer (GF := GF) x ℓ))).mpr
+  exact h₂.trans ((obl_check_witnesses_mupd n tc {r}).trans (mupd_mono_of h₁))
+
+/-- Discharge of a leaf `k` below `p` (Rocq `obl_discharge_mupd`): the round with `Obls.lef`,
+through `mupd_unfold`. The children predicates of `p` and `k` give the two children shares of
+`k`, with the user's half the full assignment. -/
+@[lantana_alias omodel.obl_discharge_mupd]
+theorem obl_discharge_mupd (n tc : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k ∈ K) :
+    parKids (GF := GF) p K ⊢ parKids (.obl k) ∅ -∗ oblAssigned k 1 -∗
+      mupd n tc iprop(parKids p (K.erase k) ∗ oblDischarged k) := by
+  unfold parKids
+  iintro ⟨Hx, Hp, Hs⟩ ⟨Hsh₁, Hkk, -⟩ Ha
+  icases (bigSepS_oids_erase hk).mp $$ Hs with ⟨Hsh₂, Hs⟩
+  icases (oblAssigned_shares k).mpr $$ [$Ha $Hsh₁ $Hsh₂] with ⟨#He, Ha⟩
+  iapply (mupd_unfold n tc _).2
+  unfold mupdPre
+  iright
+  iintro %h %i %Ω₁ %W₁ HM
+  unfold modelInterp
+  icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
+  imod osat_discharge Ω₁ k $$ [$Hos $Ha] with ⟨Hos, #Hd, %⟨a, t, hk₁⟩⟩
+  imod oforest_discharge_obl hk $$ [$Hf $Hp $Hkk] with ⟨Hf, Hp⟩
+  obtain ⟨w, hw, hr⟩ := mapForall2.lookup_left hI₁ hk₁
+  obtain ⟨b, rfl⟩ : ∃ b, w = .assigned b := by
+    cases w with
+    | assigned b => exact ⟨b, rfl⟩
+    | discharged => simp [owitRel] at hr
+  ihave Hw := owit_discharge hw $$ [$Hw $Hd]
+  have hlef := Obls.lef_insert_step (g₂ := .discharged) hk₁ (.inr trivial)
+  imod modelHistoryInterp_step h i (Nat.le_refl n) hlef.le $$ HH with HH
+  imodintro
+  iexists _
+  isplitr
+  · ipureintro
+    exact hlef
+  iintro %W₂ %⟨hW, hI₂⟩
+  imodintro
+  iframe HH Hos Hf
+  isplitl [Hw]
+  · isplitl [Hw]
+    · iapply owit_mon (wits_lef_discharge_mono hI₁ hW hI₂) $$ Hw
+    · ipureintro
+      exact hI₂
+  iapply mupd_intro
+  isplitl [Hx Hp Hs]
+  · iframe Hx Hs
+    rw [oids_erase_eq]
+    iexact Hp
+  · unfold oblDischarged
+    isplitl []
+    · iexact He
+    · iexact Hd
+
+/-- New threads `tc, …, tc + m - 1` with their children predicates (Rocq
+`thP_kids_alloc_threads`). -/
+@[lantana_alias omodel.thP_kids_alloc_threads]
+theorem thKids_alloc_threads (Ω : Obls) (tc m : Nat) :
+    oforest Ω tc ⊢@{IProp GF} |==> (oforest Ω (tc + m) ∗
+      [∗list] j ∈ List.range' tc m, parKids (.thread j) ∅) := by
+  iintro Hf
+  imod oforest_alloc_threads Ω tc m $$ Hf with ⟨Hf, Hl⟩
+  imodintro
+  iframe Hf
+  iapply BigSepL.bigSepL_mono_of_forall ?_ $$ Hl
+  intro _ j
+  unfold parKids
+  iintro ⟨Hk, He⟩
+  iframe Hk He
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
+
 end Operations
+
+/-! ## Physical steps -/
+
+section Physical
+
+variable [ModelGS GF]
+
+/-- A step of thread `i` (Rocq `mprog_step_kids`): one unit of fuel of each child of `i` makes
+every obligation of `i` progress (`oforest_osat_step`, keeping the owners), every assigned
+witness gets a positive credit (`owit_progress`), weakened to one credit for the witnesses of
+`R`. -/
+@[lantana_alias omodel.mprog_step_kids]
+theorem mprog_step_kids (n tc : Nat) (i : ThreadId) (K R : Oids) (P : IProp GF) :
+    parKids (.thread i) K ⊢ ([∗set] k ∈ K, ∃ ℓ, oblFuel k ℓ 1) -∗
+      ([∗set] r ∈ R, ∃ ℓ, witLayer r ℓ) -∗
+      (parKids (.thread i) K -∗ ([∗set] r ∈ R, witCred r 1 ∨ oblDischarged r) ={∅}=∗ P) -∗
+      mprog n tc i P := by
+  unfold parKids mprog
+  iintro ⟨Hx, Hk, Hs⟩ HF #HR H %h %a %Ω₁ %W₁ HM
+  unfold modelInterp
+  icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
+  icases osat_elems Ω₁ R $$ [$Hos $HR] with %hR
+  ihave HF := BigSepS.bigSepS_mono_of_forall (fun k => oblFuel_pos (GF := GF) k) $$ HF
+  imod oforest_osat_step Ω₁ tc i K $$ [$Hos $Hf $Hk $HF] with ⟨%Ω₂, %⟨hp, -⟩, Hos, Hf, Hk⟩
+  imod modelHistoryInterp_step h a (Nat.le_refl n) (Obls.condProgress_le hp) $$ HH with HH
+  imodintro
+  iexists Ω₂
+  isplitr
+  · ipureintro
+    exact hp
+  iintro %W₂ %⟨hW, hI₂⟩
+  imod owit_progress hW $$ Hw with ⟨Hw, Hc⟩
+  have hpt : ∀ k w, get? W₁ k = some w → k ∈ R →
+      OWit.witCredit k w ⊢@{IProp GF} |==> (OWit.cred k 1 ∨ OSat.discharged k) := by
+    intro k w _ _
+    cases w with
+    | assigned b =>
+      iintro ⟨%c, %hc, Hc⟩
+      imod OWit.cred_mon (one_eq_succ_zero ▸ succ_le_of_lt hc) $$ Hc with Hc
+      imodintro
+      ileft
+      iexact Hc
+    | discharged =>
+      iintro Hd
+      imodintro
+      iright
+      iexact Hd
+  ihave Hc := bigSepM_restrict W₁ R (fun r hr => (hI₁.dom r).1 (hR r hr)) hpt $$ Hc
+  imod BigSepS.bigSepS_bupd _ R $$ Hc with Hc
+  imod H $$ [Hx Hk Hs] [Hc] with HP
+  · iframe Hx Hk Hs
+  · iapply witLayers_creds R 1
+    isplitr [Hc]
+    · iexact HR
+    · iexact Hc
+  imodintro
+  iframe HH Hos Hf Hw HP
+  ipureintro
+  exact hI₂
+
+/-- A step that forks the threads `tc₁, …, tc₂ - 1` (Rocq `mphys_step_kids`): each of them gets
+an empty set of children. -/
+@[lantana_alias omodel.mphys_step_kids]
+theorem mphys_step_kids (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) :
+    (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), parKids (.thread j) ∅) ={∅}=∗ P) ⊢
+      mphys n₁ n₂ tc₁ tc₂ P := by
+  unfold mphys
+  iintro H %h %a %Ω %W HM
+  unfold modelInterp
+  icases HM with ⟨HH, Hos, Hf, Hw, %hI⟩
+  imod modelHistoryInterp_step h a hn (Obls.le_refl Ω) $$ HH with HH
+  imod thKids_alloc_threads Ω tc₁ (tc₂ - tc₁) $$ Hf with ⟨Hf, Hl⟩
+  rw [show tc₁ + (tc₂ - tc₁) = tc₂ by omega]
+  imod H $$ Hl with HP
+  imodintro
+  iframe HH Hos Hf Hw HP
+  ipureintro
+  exact hI
+
+end Physical
 
 end Lantana.Model.OPreds
