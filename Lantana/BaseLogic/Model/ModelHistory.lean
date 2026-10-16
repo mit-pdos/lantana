@@ -344,18 +344,34 @@ theorem eventObl_compare {i j : Nat} (e₁ e₂ : MEvent) (k : Oid) (o₁ o₂ :
 
 end Interp
 
-/-- Allocating the model history with its first event (Rocq `model_history_interp_init`). -/
-@[lantana_alias model_history_interp_init]
-theorem modelHistoryInterp_init {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat) (Ω : Obls) :
-    ⊢@{IProp GF} |==> ∃ _ : MHistGS GF, modelHistoryInterp [(n, Ω)] 0 n Ω := by
+/-- The ghost state of the model history at the name `γ`, over the world's camera (D32: the
+name is small enough for the existential property of satisfiability, unlike `MHistGS GF`). -/
+@[reducible] def MHistGS.ofName {GF : BundledGFunctors} [MHistGpreS GF] (γ : GName) :
+    MHistGS GF where
+  name := γ
+
+/-- Allocating the model history with its first event, at the name `γ` (D32). -/
+theorem modelHistoryInterp_init_names {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat)
+    (Ω : Obls) :
+    ⊢@{IProp GF} |==> ∃ γ : GName, letI := MHistGS.ofName (GF := GF) γ;
+      modelHistoryInterp [(n, Ω)] 0 n Ω := by
   iintro
   imod MonoListP.own_alloc [(n, Ω)] with ⟨%γ, Ha, -⟩
   imodintro
-  iexists ⟨γ⟩
+  iexists γ
   unfold modelHistoryInterp MHist.auth
   simp only [MHist.name]
   iframe Ha
   ipureintro
   exact ⟨⟨rfl, rfl⟩, ModelHistoryWf.singleton _⟩
+
+/-- Allocating the model history with its first event (Rocq `model_history_interp_init`). -/
+@[lantana_alias model_history_interp_init]
+theorem modelHistoryInterp_init {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat) (Ω : Obls) :
+    ⊢@{IProp GF} |==> ∃ _ : MHistGS GF, modelHistoryInterp [(n, Ω)] 0 n Ω := by
+  imod modelHistoryInterp_init_names (GF := GF) n Ω with ⟨%γ, H⟩
+  imodintro
+  iexists MHistGS.ofName γ
+  iexact H
 
 end Lantana.Model

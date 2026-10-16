@@ -363,20 +363,43 @@ theorem modelInterp_mupd_steps (n tc : Nat) (γ : ThreadId → Fuel → Fuel)
 
 end ModelInterp
 
-/-- Allocation of the model (Rocq `model_interp_alloc`), with the credit supply, world
-satisfaction and the full mask of the invariants. -/
-@[lantana_alias model_interp_alloc]
-theorem modelInterp_alloc {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat) :
-    ⊢@{IProp GF} |==> ∃ _ : ModelGS GF,
-      (∃ x : Ordinals.Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
-      modelInterp [(n, ∅)] 0 ∅ ∅ n 0 := by
-  imod invGS_alloc with ⟨%Gi, ⟨%x, Hc⟩, Hw, HE⟩
-  imod modelHistoryInterp_init (GF := GF) n ∅ with ⟨%Gh, HH⟩
-  imod osat_alloc (GF := GF) with ⟨%Gs, Hs⟩
-  imod @owit_alloc GF Gs _ with ⟨%Gw, Hwit⟩
-  imod @oforest_alloc GF Gs _ with ⟨%Gf, Hf⟩
+/-- The ghost names of the model: of world satisfaction and the credits, of the obligations, of
+the witnesses, of the forest and of the model history (D32: small enough for the existential
+property of satisfiability, unlike `ModelGS GF`). -/
+structure _root_.Lantana.ModelNames where
+  /-- World satisfaction and the credits. -/
+  inv : InvNames
+  /-- The obligations. -/
+  osat : OSatNames
+  /-- The name map of the witnesses. -/
+  owit : GName
+  /-- The forest. -/
+  oforest : OForestNames
+  /-- The model history. -/
+  mhist : GName
+
+/-- The ghost state of the model at the names `γ`, over the world's cameras. -/
+@[reducible] def _root_.Lantana.ModelGS.ofNames {GF : BundledGFunctors} [ModelGpreS GF]
+    (γ : ModelNames) : ModelGS GF where
+  toInvGS := InvGS.ofNames γ.inv
+  toOSatGS := OSatGS.ofNames γ.osat
+  toOWitGS := OWitGS.ofName γ.owit
+  toOForestGS := OForestGS.ofNames γ.oforest
+  toMHistGS := MHistGS.ofName γ.mhist
+
+/-- Allocation of the model at names `γ` (D32), with the credit supply, world satisfaction and
+the full mask of the invariants. -/
+theorem modelInterp_alloc_names {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat) :
+    ⊢@{IProp GF} |==> ∃ γ : ModelNames, letI := ModelGS.ofNames (GF := GF) γ
+      iprop((∃ x : Ordinals.Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
+        modelInterp [(n, ∅)] 0 ∅ ∅ n 0) := by
+  imod invGS_alloc_names (GF := GF) with ⟨%γi, ⟨%x, Hc⟩, Hw, HE⟩
+  imod modelHistoryInterp_init_names (GF := GF) n ∅ with ⟨%γh, HH⟩
+  imod osat_alloc_names (GF := GF) with ⟨%γs, Hs⟩
+  imod @owit_alloc_names GF (OSatGS.ofNames γs) _ with ⟨%γw, Hwit⟩
+  imod @oforest_alloc_names GF (OSatGS.ofNames γs) _ with ⟨%γf, Hf⟩
   imodintro
-  iexists { toInvGS := Gi, toOSatGS := Gs, toOWitGS := Gw, toOForestGS := Gf, toMHistGS := Gh }
+  iexists ⟨γi, γs, γw, γf, γh⟩
   isplitl [Hc]
   · iexists x
     iexact Hc
@@ -385,6 +408,18 @@ theorem modelInterp_alloc {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat) :
   iframe HH Hs Hf Hwit
   ipureintro
   exact owitInv_empty
+
+/-- Allocation of the model (Rocq `model_interp_alloc`), with the credit supply, world
+satisfaction and the full mask of the invariants. -/
+@[lantana_alias model_interp_alloc]
+theorem modelInterp_alloc {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat) :
+    ⊢@{IProp GF} |==> ∃ _ : ModelGS GF,
+      (∃ x : Ordinals.Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
+      modelInterp [(n, ∅)] 0 ∅ ∅ n 0 := by
+  imod modelInterp_alloc_names (GF := GF) n with ⟨%γ, H⟩
+  imodintro
+  iexists ModelGS.ofNames γ
+  iexact H
 
 /-! ### The rounds of a physical step (Rocq `model_physical_updates.v`) -/
 
