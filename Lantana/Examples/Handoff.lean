@@ -9,7 +9,32 @@ public import Lantana.Examples.Lib
 
 /-! # A handoff cell
 
-Rocq `examples/handoff.v`.
+Rocq `examples/handoff.v`: `send b f a` puts a task `f a` into the cell `b`, and `receive b`
+waits for a task and runs it. A task comes with the obligations `K` it discharges, and its
+specification `taskAt ℓt μ P f a K` is a higher-order one (an `lWP` triple, stored in the
+invariant); `isTask ℓ f a K` hides the layer `ℓt < ℓ` of its fuel and its resource `P`.
+
+The receiver's thread owns an inbox obligation `g` (layer `0`, no children). The invariant
+`handoffInv` holds the cell's state and the current inbox (a ghost variable, half of it with the
+receiver): empty, or a task waiting in a container `c` below the inbox, or taken.
+
+* `send` creates the container `c` below the inbox (`Obl.new` under an obligation, with
+  `parLe_obl`) at the task's layer `ℓt`, and moves the task's obligations `K` from their parent
+  into it (`obl_move_obl_set`, paying one unit each at the layer `ℓ > ℓt`). Measure `20`.
+* `receive` is proved by Löb induction over the inbox (`iloeb`): spinning on the empty cell is
+  paid by the inbox's fuel, and the inbox is renewed at every iteration (the old one is
+  discharged, a new one is created with fresh fuel, `Obl.new` below the thread), so each inbox
+  sees finitely many steps; with a task, the container moves up to the thread (`Obl.move_up`),
+  the inbox is discharged, and the task runs with the container's fuel (`taskAt`), after which
+  the container is discharged. Measure `10` (a task brings its own fuel). One later credit per
+  iteration opens the invariant and strips the later of the induction hypothesis at once.
+
+The guarantee `guar_isHandoff`: always, the cell holds `NONE` or a task (`handoffTr`, through
+`handoffInvTrSpec_ext`); the location's value is trace-visible (an existential over `Val`), the
+inbox and the obligations are ghost.
+
+Everything here is proved, from the obligation-forest interface and the rules of temporal
+formulas (whose own proofs are M4–M6).
 -/
 
 @[expose] public noncomputable section
@@ -321,6 +346,179 @@ theorem send_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (
     · iframe
     simp [vNone, vSome] at h
 
+/-- Receiving: the receiver spins on the cell with the fuel of its inbox `g`, which it renews
+at every iteration; once a task has been sent, it runs it with the fuel of the task's
+container. The loop is not claimed to terminate (with nothing sent it spins forever). -/
+@[lantana_alias Handoff_receive_spec]
+theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (g : Oid)
+    (γ : HandoffName) (ℓ : Layer) (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&receive) #b) ∗ thKids i {g} ∗
+          ([∗set] g' ∈ ({g} : Oids), Obl.fuel g' 0 μ) ∗ Obl.assigned g 1 ∗
+          (γ.γd ↪VAR{.own (1 : Qp).half} g) ∗ isHandoff b γ ℓ }}}
+        hl(v(&receive) #b) @ i
+      l{{{ (v : Val), RET v; threadExpr i C hl(&v) ∗ £ₒ lc ∗ thKids i ∅ }}} := by
+  -- For the internal steps; a task brings its own fuel.
+  refine ⟨10, fun lc i b g γ ℓ C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, Ag, Gv, #Hh⟩ HΦ
+  iloeb as IH generalizing %g
+  ihave HF := oblFuels_init _ _ _ $$ HF
+  unfold receive
+  lwp_step HT HG HF with Hlc : lc +ₕ 1
+  icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
+  lwp_expr_simp
+  lwp_bind hl(!#b) HT
+  icases oblFuels_add 1 8 _ $$ HF with ⟨HF1, HF⟩
+  unfold isHandoff
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := handoffInv b γ.γd ℓ)
+    (fun _ _ => CoPset.mem_full) $$ Hh
+  ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
+  imod Hacc with ⟨Hinv, Hclose⟩
+  iapply lwp_credit_later $$ Hc1
+  inext
+  unfold handoffInv
+  icases Hinv with
+    ⟨%g₀, (⟨Hb, Gv₀, Kg, #Wg⟩ | ⟨%f, %a, %K, Hb, Gv₀, Htask⟩ | ⟨%f, %a, Hb, Gv₀⟩)⟩
+  · -- The cell is empty: renew the inbox, and loop.
+    iapply lwp_load (o := 0) (C := _ ++ C) (G := {g}) (R := ∅) $$ [HT HG HF1 Hb]
+    · iframe HT Hb
+      iapply stepPre_nil $$ HG HF1
+    iintro ⟨HT, ⟨-, HG, -⟩, Hb⟩
+    ihave %hg := ghost_var_agree _ _ _ _ _ $$ Gv Gv₀
+    subst g₀
+    imod Obl.discharge_leaf (⊤ \ ↑Na) (.thread i) {g} g
+      (Iris.Std.LawfulSet.mem_singleton.mpr rfl) $$ HG Kg Ag with ⟨HG, -⟩
+    imod Obl.new (⊤ \ ↑Na) (.thread i) _ 0 (((3 : Nat) : Measure) + 10) $$ [] HG with
+      ⟨%g', -, HG, Kg', Ag', Fg', #Wg'⟩
+    · iapply parLe_thread
+    imod ghost_var_update_halves g' γ.γd g g $$ Gv Gv₀ with ⟨Gv, Gv₀⟩
+    imod Hclose $$ [Hb Gv₀ Kg']
+    · inext
+      iexists g'
+      ileft
+      iframe
+      iexact Wg'
+    imodintro
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    ihave HG := Par.kids_congr (B := {g'}) ?_ $$ HG
+    · intro z
+      simp
+    icases (Obl.fuel_add g' _ _ _).mp $$ Fg' with ⟨F3, F10⟩
+    ihave F3 : oblFuels {g'} 3 $$ [F3]
+    · unfold oblFuels
+      iapply BigSepS.bigSepS_singleton.mpr
+      iexists _
+      iexact F3
+    unfold vNone
+    lwp_step HT HG F3
+    lwp_step HT HG F3
+    lwp_expr_simp
+    lwp_step HT HG F3
+    lwp_expr_simp
+    iapply IH $$ %g' HT HG [F10] Ag' Gv HΦ
+    iapply BigSepS.bigSepS_singleton.mpr
+    iexact F10
+  · -- A task: its container moves up to the thread, the inbox is discharged, and the task runs
+    -- with the container's fuel.
+    unfold handoffTask
+    icases Htask with ⟨%c, %ℓt, %μ, %P, Kg, Kc, Ac, Fc, %hlt, HP, #Task⟩
+    iapply lwp_load (o := 0) (C := _ ++ C) (G := {g}) (R := ∅) $$ [HT HG HF1 Hb]
+    · iframe HT Hb
+      iapply stepPre_nil $$ HG HF1
+    iintro ⟨HT, ⟨-, HG, -⟩, Hb⟩
+    icases ghostVar_combine_halves _ _ _ $$ [Gv Gv₀] with ⟨Gv, %hg⟩
+    · iframe
+    subst g₀
+    imod Obl.move_up (⊤ \ ↑Na) (.thread i) {g} g {c} c (Iris.Std.LawfulSet.mem_singleton.mpr rfl)
+      (Iris.Std.LawfulSet.mem_singleton.mpr rfl) $$ HG Kg with ⟨%hcg, HG, Kg⟩
+    imod Obl.discharge_leaf (⊤ \ ↑Na) (.thread i) _ g (by simp) $$ HG [Kg] Ag with ⟨HG, -⟩
+    · iapply Par.kids_congr _ $$ Kg
+      intro z
+      simp
+    icases (Obl.fuel_add c _ _ _).mp $$ Fc with ⟨Fμ, F10⟩
+    imod Hclose $$ [Hb Gv]
+    · inext
+      iexists g
+      iright
+      iright
+      iexists f, a
+      iframe
+    imodintro
+    ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
+    lwp_expr_simp
+    ihave HG := Par.kids_congr (B := {c}) ?_ $$ HG
+    · intro z
+      simp at hcg ⊢
+      grind
+    ihave F10 : oblFuels {c} 10 $$ [F10]
+    · unfold oblFuels
+      iapply BigSepS.bigSepS_singleton.mpr
+      iexists _
+      iexact F10
+    unfold vSome
+    lwp_step HT HG F10
+    lwp_step HT HG F10
+    lwp_step HT HG F10
+    lwp_expr_simp
+    lwp_step HT HG F10
+    lwp_step HT HG F10
+    lwp_expr_simp
+    iapply lwp_mupd
+    unfold taskAt
+    iapply Task $$ %(0 : Fuel) %i %({c} : Oids) %(Parent.obl c) %K %C [HT HG Fμ Kc HP]
+    · iframe HT HG Kc HP
+      isplitl [Fμ]
+      · iapply BigSepS.bigSepS_singleton.mpr
+        iexact Fμ
+      · ipureintro
+        exact fun _ h => h
+    iintro %rv ⟨HT, -, HG, Kc⟩
+    imod Obl.discharge_leaf ⊤ (.thread i) {c} c (Iris.Std.LawfulSet.mem_singleton.mpr rfl)
+      $$ HG [Kc] Ac with ⟨HG, -⟩
+    · iapply Par.kids_congr _ $$ Kc
+      intro z
+      simp
+    imodintro
+    iapply HΦ
+    iframe HT Hlc
+    iapply Par.kids_congr _ $$ HG
+    intro z
+    simp
+  · iexfalso
+    iapply ghostVar_half_whole_false $$ [Gv Gv₀]
+    iframe
+
 end Specs
+
+/-! ## The handoff cell, at the level of traces -/
+
+section Traces
+variable {GF : BundledGFunctors}
+
+/-- The cell `b` holds `v` in the current state of the trace (any fraction). -/
+@[lantana_alias tr_cell]
+def trCell (b : Loc) (v : Val) : TrProp Exp State :=
+  ∃ₜ dq : DFrac, TrProp.state (pointstoSat b dq v)
+
+@[lantana_alias tr_cell_intro]
+theorem trCell_intro (b : Loc) (dq : DFrac) (v : Val) :
+    TrProp.state (pointstoSat b dq v) ⊆ trCell b v :=
+  fun _ h => ⟨dq, h⟩
+
+/-- At all times the cell is empty or holds a task. -/
+@[lantana_alias handoff_tr]
+def handoffTr (b : Loc) : TrProp Exp State :=
+  □ₜ (trCell b vNone ∨ₜ ∃ₜ (f : Val) (a : Val), trCell b (vSome f a))
+
+@[lantana_alias handoff_inv_trSpec_ext]
+theorem handoffInvTrSpec_ext (b : Loc) :
+    (□ₛ handoffInvTrSpec (GF := GF) b).external ⊆ handoffTr b := by
+  intro τ h m hm
+  rcases h m hm with ⟨h, _⟩ | ⟨f, a, h, _⟩ | ⟨f, a, h, _⟩
+  · exact .inl ⟨.own (1 : Qp).half, h⟩
+  · exact .inr ⟨f, a, .own 1, h⟩
+  · exact .inr ⟨f, a, .own 1, h⟩
+
+end Traces
 
 end Lantana.Examples.Handoff

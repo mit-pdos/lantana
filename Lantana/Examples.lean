@@ -11,3 +11,4 @@ public import Lantana.Examples.Lib
 public import Lantana.Examples.World
 public import Lantana.Examples.FlagFork
 public import Lantana.Examples.FlagClient
+public import Lantana.Examples.Handoff
