@@ -10,7 +10,8 @@ public import Lantana.Trace
 
 /-! # Lemmas shared by the examples
 
-* `oblFuels_subset`: the fuel of a set of obligations gives that of a subset.
+* `bigSepS_pair`, `oblFuels_subset`: a big separating conjunction over two obligations; the fuel
+  of a set of obligations gives that of a subset.
 * `threadExpr_terminate_finally` (Rocq `thread_expr_terminate_finally`, `temporal_laws.v`):
   a thread that has returned the value `v` discharges a `finallyI` on its own obligation with its
   final expression `exits v @ i`, and terminates.
@@ -26,7 +27,17 @@ namespace Lantana.Examples
 
 open Iris Iris.BI Iris.ProofMode Lantana Lantana.HeapLang Lantana.Language
 
-/-! ## Fuel of a subset -/
+/-! ## Sets of two obligations, and the fuel of a subset -/
+
+/-- A big separating conjunction over a set of two obligations. -/
+theorem bigSepS_pair {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {a b : Oid} (h : a ≠ b) :
+    ([∗set] y ∈ ({a, b} : Oids), Φ y) ⊣⊢ Φ a ∗ Φ b := by
+  rw [show ({a, b} : Oids) = ({b} : Oids).insert a from rfl,
+    Iris.Std.insert_eq_singleton_union_extTreeSet]
+  refine (BigSepS.bigSepS_union fun x ⟨ha, hb⟩ => h ?_).trans
+    (sep_congr BigSepS.bigSepS_singleton BigSepS.bigSepS_singleton)
+  rw [Iris.Std.LawfulSet.mem_singleton] at ha hb
+  exact ha.symm.trans hb
 
 section Fuel
 variable {GF : BundledGFunctors} [ModelGS GF]

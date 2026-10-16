@@ -11,6 +11,27 @@ public import Lantana.Examples.World
 
 Rocq `examples/flag_fork.v`, the program `main` of the paper (§2): the main thread creates a
 flag, forks a thread that sets it, waits for it and returns `42`.
+
+The main thread holds two obligations at layer `1`: `kr`, with the commitment
+`finallyI Nr kr 1 (exits 42 @ i)` to return `42`, and `kc`, with the commitment to create a flag.
+It creates the flag's obligation `k` at layer `0` below itself (`Flag.init_thread_spec`),
+discharges `kc` at once with the flag, and moves `k` to the forked thread, which sets the flag
+(`Flag.set_thread_spec`) and terminates. The main thread then waits with the fuel of `kr` at
+layer `1` (the layer above the flag's, which is why `kr` is at layer `1`), and discharges `kr` with
+its final value (`threadExpr_terminate_finally`). The measure is `10 + μ_init + μ_wait` for `kr`
+and `kc`, and the flag's obligation gets `3 + (1 + μ_set)`: three steps of the main thread until
+the fork, one unit for its move, and the forked thread.
+
+`main_adequacy` is the end-to-end statement (Rocq `main_adequacy`), from the adequacy theorem
+`lwp_adequacy_temporal` in the closed world `ExGF`: HeapLang's ghost state is allocated with
+`heapState_init`, the state interpretation is HeapLang's and forked threads have the
+postcondition `True`. The guarantee `gMain` of the commitments `mainRes` is inferred for the
+`finallyI`s (with an instance for the existential flag: its location is trace-visible, its
+obligation and layer are ghost) and assembled with `guar_sep`, `guar_ex_ghost` and `guar_true`.
+`main_safety_adequacy` is the safety statement from `lwp_adequacy_safety`.
+
+Everything here is proved, from the obligation-forest interface, the rules of temporal formulas
+and the adequacy theorems (whose own proofs are M4–M6).
 -/
 
 @[expose] public noncomputable section
@@ -176,6 +197,208 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   · ipureintro
     trivial
 
+/-- The commitments of the main thread `i` and its resources (Rocq `Φ_P`). -/
+def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
+  iprop(∃ kr kc : Oid, finallyI Nr kr 1 (exits v42 @ i) ∗
+    finallyI Nc kc 1 iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ∗
+    (thKids i {kr, kc} ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ ⌜kr ≠ kc⌝ ∗
+      [∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g 1 μ))
+
+/-- The postcondition of the main thread. -/
+abbrev mainPost : ThreadId → Val → IProp GF := fun _ v => iprop(⌜v = v42⌝)
+
+/-- From the main thread's token and its empty set of children: its commitments, and its
+`lWP` from them. -/
+@[lantana_alias flag_fork.main_pre]
+theorem main_pre (i : ThreadId) :
+    threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thKids i ∅ -∗
+      |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
+        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+  obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
+  iintro HT HG
+  imod untilI_alloc (E := ⊤) (.thread i) ∅ 1 μ $$ [] HG with
+    ⟨%kr, -, HG, Hkr, Fkr, -, Akr⟩
+  · iapply parLe_thread
+  imod Akr $$ %⊤ %Nr %iprop(True) %(exits v42 @ i) [] with Ur
+  · inext
+    ipureintro
+    trivial
+  imod untilI_alloc (E := ⊤) (.thread i) _ 1 μ $$ [] HG with
+    ⟨%kc, %hkc, HG, Hkc, Fkc, -, Akc⟩
+  · iapply parLe_thread
+  imod Akc $$ %⊤ %Nc %iprop(True) %iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) []
+    with Uc
+  · inext
+    ipureintro
+    trivial
+  have hne : kr ≠ kc := by
+    rintro rfl
+    exact hkc Std.ExtTreeSet.mem_insert_self
+  imodintro
+  iexists μ
+  isplitl [Ur Uc HG Hkr Hkc Fkr Fkc]
+  · unfold mainRes finallyI
+    iexists kr, kc
+    iframe Ur Uc Hkr Hkc
+    isplitl [HG]
+    · iapply Par.kids_congr _ $$ HG
+      intro z
+      simp
+      grind
+    isplitr
+    · ipureintro
+      exact hne
+    iapply (bigSepS_pair hne).mpr
+    iframe
+  iintro HP
+  unfold mainRes
+  icases HP with ⟨%kr, %kc, HFr, HFc, HG, Hkr, Hkc, %hne, HF⟩
+  imodintro
+  iapply hmain i kr kc $$ [HT HG HF Hkr Hkc HFr HFc]
+  · iframe
+    ipureintro
+    exact hne
+  iintro %v ⟨-, %hv, Hd⟩
+  unfold liftTerm
+  icases Hd with ⟨Hd, -⟩
+  iframe Hd
+  ipureintro
+  exact hv
+
 end Spec
+
+/-! ## Traces and the guarantee -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- The main thread `i` returns `42`, and a flag gets created that is `0` until it is `1`, and
+then `1` (Rocq `R_main`). -/
+def rMain (i : ThreadId) : TrProp Exp State :=
+  ◇ₜ TrProp.state (threadExprSat i [] (.val v42)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
+
+/-- What the commitments guarantee: eventually the main thread has exited with `42`, and
+eventually a flag exists; the ghost names and the resources do not show (Rocq `G_main`). -/
+def gMain (i : ThreadId) : TrSpec Exp State GF :=
+  ◇ₛ TrSpec.state (threadExprSat i [] (.val v42)) ∧ₛ ◇ₛ (∃ₛ x : Loc, flagTrSpec x) ∧ₛ
+    TrSpec.true
+
+@[lantana_alias flag_fork.G_main_impl]
+theorem gMain_impl (i : ThreadId) : (gMain (GF := GF) i).external ⊆ rMain i := by
+  intro τ ⟨hr, ⟨m, hm, ⟨x, hx⟩, hb⟩, _⟩
+  exact ⟨hr, m, hm, ⟨x, Flag.flagTrSpec_impl x _ hx⟩, hb⟩
+
+variable [ModelGS GF] [HeapGS GF]
+
+/-- A flag exists: its location shows, its obligation and layer do not. -/
+theorem guar_exFlag :
+    ⊢@{IProp GF} iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ⊨ₜ
+      (∃ₛ x : Loc, flagTrSpec x) := by
+  iapply guar_ex
+  iintro %x
+  iapply guar_ex_ghost
+  iintro %k
+  iapply guar_ex_ghost
+  iintro %ℓ
+  iapply Flag.guar_isFlag
+
+@[lantana_alias flag_fork.guar_Φ_P]
+theorem guar_mainRes (i : ThreadId) (μ : Measure) :
+    ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
+  haveI : GuarOf (Expr := Exp) (State := State)
+      iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)
+      (∃ₛ x : Loc, flagTrSpec x) := ⟨guar_exFlag⟩
+  unfold mainRes gMain finallyI
+  iapply guar_ex_ghost
+  iintro %kr
+  iapply guar_ex_ghost
+  iintro %kc
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nr kr 1 iprop(True)
+      (exits v42 @ i)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nc kc 1 iprop(True)
+      iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag (GF := GF) x k ℓ)))
+  iapply guar_true
+
+end Guarantee
+
+/-! ## Adequacy -/
+
+section Adequacy
+
+/-- The initial pool: the main thread `0`. -/
+abbrev tp0 : ThreadPool Exp := [hl(v(&main) #())]
+
+/-- The initial state: the empty heap. -/
+abbrev σ0 : State := ⟨∅⟩
+
+/-- In every fair behavior from the initial configuration, the main thread returns `42`, and a
+flag gets created that is `0` until it is `1`, and then `1`. -/
+@[lantana_alias flag_fork.main_adequacy]
+theorem main_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+    (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) : rMain 0 τ := by
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 (gMain 0) (rMain 0) (gMain_impl 0) τ hbeh
+    hfair hpos hinit ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imodintro
+  iexists mainRes 0 μ
+  isplitr
+  · iapply guar_mainRes
+  iframe HP
+  iintro HP
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+stuck, and once the main thread has returned, its value is `42`. -/
+@[lantana_alias flag_fork.main_safety_adequacy]
+theorem main_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    safetyIris 0 (fun _ v => v = v42) τ := by
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplit
+  · ipureintro
+    exact fun _ => .rfl
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- Liveness and safety together, over the same fair behaviors. -/
+@[lantana_alias flag_fork.main_liveness_safety]
+theorem main_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    rMain 0 τ ∧ safetyIris 0 (fun _ v => v = v42) τ :=
+  ⟨main_adequacy τ hbeh hfair hpos hinit, main_safety_adequacy τ hbeh hfair hpos hinit⟩
+
+end Adequacy
 
 end Lantana.Examples.FlagFork
