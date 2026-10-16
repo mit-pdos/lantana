@@ -259,12 +259,14 @@ end Tactic
 
 /-- `lwp_pure H`: a pure step of the redex of the goal `lWP e @ s; i; E {{ Φ }}`, paid with the
 token `H : threadExpr i C e` (Rocq `lwp_pure`). The pure condition is tried with `trivial`
-and `decide`, `0 < n` with `decide`; the goal left is the existential of `tac_lwp_pure`. -/
+and `decide`, and is left as the first goal if they fail; the goal left is the existential of
+`tac_lwp_pure`. -/
 syntax (name := lwpPure) "lwp_pure " ident : tactic
 
 macro_rules
   | `(tactic| lwp_pure $H:ident) =>
-    `(tactic| iapply tac_lwp_pure (by first | trivial | decide) (by decide) $$ $H:ident)
+    `(tactic| (iapply tac_lwp_pure ?hφ (by decide) $$ $H:ident
+               try case hφ => first | trivial | decide))
 
 /-- `lwp_bind e' H`: focus on the subexpression `e'` of the goal `lWP e @ s; i; E {{ Φ }}`
 (Rocq `lwp_bind`); the token `H : threadExpr i C e` becomes `H : threadExpr i (K ++ C) e'`. -/
