@@ -5,6 +5,7 @@ public import LantanaTest.Algebra
 public import LantanaTest.Basic
 public import LantanaTest.Credits
 public import LantanaTest.Examples
+public import LantanaTest.ExamplesTicketLock
 public import LantanaTest.FUpd
 public import LantanaTest.Guarantee
 public import LantanaTest.HeapLang

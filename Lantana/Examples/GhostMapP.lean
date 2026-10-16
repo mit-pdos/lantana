@@ -21,7 +21,7 @@ A candidate for upstreaming (with `constOFP`).
 
 @[expose] public noncomputable section
 
-namespace Lantana
+namespace Lantana.Examples
 
 open Iris Iris.Std HeapView PartialMap Iris.Algebra CMRA BI Iris.ProofMode
 
@@ -196,4 +196,4 @@ theorem ghostMapP_update {γ} {m : H V} {k : K} {v : V} (w : V) :
 
 end lemmas
 
-end Lantana
+end Lantana.Examples

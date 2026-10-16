@@ -12,7 +12,60 @@ public import Lantana.Examples.Lib
 
 /-! # A ticket lock that can be deleted
 
-Rocq `examples/ticket_lock.v` (§7.1 of the paper).
+Rocq `examples/ticket_lock.v` (§7.1 of the paper). The lock is the pair `(next, curr)` of the
+next ticket and the ticket served; `acquire` takes a ticket with `faa` and spins until `curr`
+reaches it, `release` increments `curr`, and `delete` increments `curr` and frees both cells.
+The releasing thread allocates the unlock obligation of the next ticket. A lock that cannot be
+deleted (`isFairLockAlive`) makes release progress at the level of traces.
+
+## Ghost state (Rocq `ticket_lockG`)
+
+* `γt`: the ticket map `Int → Option (Oid × Layer × Measure)` (a waiting ticket's container,
+  its layer and the measure of the unlock obligation it will get; `none` once served). It holds
+  layers and measures (`Type 1`), so it is a `GhostMapPG` (`Lantana.Examples.GhostMapP`, Iris-Lean's
+  ghost map over the universe-polymorphic `constOFP`); the other cameras are upstream ones.
+* `γo`: the map `Int → Option Oid` of unlock obligations (Iris-Lean's `GhostMapG`, persistent
+  elements).
+* `γk`: the lock token's ghost variable (`GhostVarG GF Int`).
+* `γc`: the layer of the lock, an `AuthMra` on layers (`γ ↪LOCK_CF{dq} ℓ`, lower bounds
+  `layerLb`), which synchronizes the layers of the waiting containers.
+* `γa`: the alive token (`GhostVarG GF Unit`, Rocq's `dfrac_agreeR unit`): the full one deletes
+  the lock.
+
+## The invariants
+
+`lockInvAlive` keeps `next ↦ n`, a quarter of `curr ↦ c`, the authoritative maps with their
+domains `[0, n]` (two domain conditions instead of Rocq's `dom tickets = dom obls` and
+`t ∈ dom tickets ↔ 0 ≤ t ≤ n`), the state `ticketSt` of each ticket (a `[∗map]` over the ticket
+map, whose values it ignores, instead of Rocq's `[∗ set] t ∈ dom tickets`) and the holder's part
+`holderSt`: free (`c = n`, three quarters of `curr` and `R`), or ticket `c + 1` is the holder or
+about to be (`nextOwner`), with half of the `finallyI` of its unlock obligation. The lock token's
+invariant `lockTokenInv` holds the holder's part of `curr` and the other half of the `finallyI`.
+
+## Specifications
+
+All proved, with Rocq's statements (thread `i`, mask `E ⊇ ↑N`, `∃ μ` in front):
+`init_spec` (measure `10`), `acquire_spec` (`20 + ((50 + 50 * ▽) * ℵ + 50 * ▽)` at layer `ℓ.succ`;
+Rocq's `ℓ ⊕ 1`), `release_spec` (`10`), `delete_spec` (`20`); the constants differ from Rocq's
+(`10`, `100 ⊕ …`, `100`, `100`), as the step counts of the Lean programs do. `acquire` is split
+into `acquire_end` (the unlock obligation moves up from the container, which is discharged, and
+the lock token is taken), `acquire_mine` (the loop when the ticket is served), and the loop
+`acquire_loop` (outer induction on the number `ν` of tickets ahead, `embedFuels`, Rocq's
+`iInduction ν using lt_wf`) with `acquire_loop_inner` (witness induction on the holder's
+unlock obligation, `Wit.fuels`, Rocq's `iInduction α`); the induction hypotheses are Lean-level
+statements (`AcqLoopSpec`) applied with explicit arguments. The waiter renews its container at
+every iteration in which the holder has not acquired, as in Rocq.
+
+## Guarantees and traces
+
+`guar_isFairLock`, `guar_isFairLockAlive` (with `IntoGuar` instances) and
+`isFairLock_register_alive`. The guarantees keep the trace content of the invariants (`next`,
+`curr` and the holder's `finallyI`) and drop the ghost conjuncts, which Rocq writes out as
+`trSpec_true`s to match `into_guar` syntactically. At the level of traces:
+`lockInvAliveTrSpec_release_progress`, `aliveFairLock_release_progress`, and
+`releaseProgress_starvationFree` (with `next` monotone, which the guarantee does not record).
+
+Everything here is proved.
 -/
 
 @[expose] public noncomputable section
@@ -26,21 +79,21 @@ open scoped Iris.Std.PartialMap
 /-! ## The program -/
 
 /-- `λ _, (ref 0, ref 0)`: the pair `(next, curr)` of the next ticket and the ticket served. -/
-@[lantana_alias TicketLock.init]
+@[lantana_alias ticket_lock.TicketLock.init]
 def init : Val := hl_val(λ _, (ref(#0), ref(#0)))
 
 /-- Take a ticket (`faa next 1`) and wait until it is served. -/
-@[lantana_alias TicketLock.acquire]
+@[lantana_alias ticket_lock.TicketLock.acquire]
 def acquire : Val := hl_val(λ lnc, let next := fst(lnc); let curr := snd(lnc);
   let my := faa(next, #1); (rec loop _ := if !curr = my then #() else loop #()) #())
 
 /-- Serve the next ticket. -/
-@[lantana_alias TicketLock.release]
+@[lantana_alias ticket_lock.TicketLock.release]
 def release : Val := hl_val(λ lnc, let curr := snd(lnc); curr ← !curr + #1)
 
 /-- Increment `curr` as `release` does (this discharges the holder's `finallyI`), then free
 both cells. -/
-@[lantana_alias TicketLock.delete]
+@[lantana_alias ticket_lock.TicketLock.delete]
 def delete : Val := hl_val(λ lnc, let next := fst(lnc); let curr := snd(lnc);
   curr ← !curr + #1; free(next); free(curr))
 
@@ -59,6 +112,9 @@ def Ninv : Namespace := N.@"inv"
 def Nev : Namespace := N.@"ev"
 def Ntk : Namespace := N.@"token"
 
+#lantana_ignore ticket_lock.N_disj_1 "inlined in `Nev_subseteq`"
+
+@[lantana_alias ticket_lock.N_inv_subseteq]
 theorem Ninv_subseteq {E : CoPset} (h : ↑N ⊆ E) : (↑Ninv : CoPset) ⊆ E :=
   nclose_subseteq' _ h
 
@@ -66,7 +122,7 @@ theorem Ntk_subseteq {E : CoPset} (h : ↑N ⊆ E) : (↑Ntk : CoPset) ⊆ E :=
   nclose_subseteq' _ h
 
 /-- The events' namespace is outside the invariant's. -/
-@[lantana_alias N_subseteq_1]
+@[lantana_alias ticket_lock.N_subseteq_1]
 theorem Nev_subseteq {E : CoPset} (h : ↑N ⊆ E) : (↑Nev : CoPset) ⊆ E \ ↑Ninv := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨nclose_subseteq' _ h p hp, fun h' => ?_⟩
@@ -85,7 +141,7 @@ abbrev TMap (V : Type _) := Std.ExtTreeMap Int V compare
 measures, hence `GhostMapPG`), the map of unlock obligations, the ghost variable of the lock
 token, the authoritative layer of the lock (`AuthMra` on layers) and the alive token (a ghost
 variable of `Unit`, Rocq's `dfrac_agreeR unit`). -/
-@[lantana_alias ticket_lockG]
+@[lantana_alias ticket_lock.ticket_lockG]
 class TicketLockG (GF : BundledGFunctors) where
   [ticketG : GhostMapPG GF Int TicketInfo (Std.ExtTreeMap Int · compare)]
   [oblG : GhostMapG GF Int (Option Oid) (Std.ExtTreeMap Int · compare)]
@@ -96,11 +152,18 @@ class TicketLockG (GF : BundledGFunctors) where
 attribute [reducible, instance] TicketLockG.ticketG TicketLockG.oblG TicketLockG.tokenG
   TicketLockG.configG TicketLockG.aliveG
 
-#lantana_ignore «ticket_lockΣ» "Subsumed by the `BundledGFunctors` worlds."
-#lantana_ignore «subG_ticket_lockΣ» "Subsumed by the `BundledGFunctors` worlds."
+#lantana_ignore ticket_lock.«ticket_lockΣ» "Subsumed by the `BundledGFunctors` worlds."
+#lantana_ignore ticket_lock.«subG_ticket_lockΣ» "Subsumed by the `BundledGFunctors` worlds."
+#lantana_ignore ticket_lock.tlock_ticketG "The field `TicketLockG.ticketG`."
+#lantana_ignore ticket_lock.tlock_oblG "The field `TicketLockG.oblG`."
+#lantana_ignore ticket_lock.tlock_tokenG "The field `TicketLockG.tokenG`."
+#lantana_ignore ticket_lock.tlock_config_inG "The field `TicketLockG.configG`."
+#lantana_ignore ticket_lock.tlock_alive_inG "The field `TicketLockG.aliveG`."
+#lantana_ignore ticket_lock.lock_token_def "Sealed as the irreducible `lockToken`."
+#lantana_ignore ticket_lock.lock_token_aux "Sealed as the irreducible `lockToken`."
 
 /-- The ghost names of a ticket lock (Rocq `ticketlock_γ`). -/
-@[lantana_alias ticketlock_γ]
+@[lantana_alias ticket_lock.ticketlock_γ]
 structure TicketLockName where
   /-- The ticket map. -/
   γt : GName
@@ -113,23 +176,23 @@ structure TicketLockName where
   /-- The alive token. -/
   γa : GName
 
-attribute [lantana_alias TicketLockName] TicketLockName.mk
-attribute [lantana_alias ticketlock_γt] TicketLockName.γt
-attribute [lantana_alias ticketlock_γo] TicketLockName.γo
-attribute [lantana_alias ticketlock_γk] TicketLockName.γk
-attribute [lantana_alias ticketlock_γc] TicketLockName.γc
-attribute [lantana_alias ticketlock_γa] TicketLockName.γa
+attribute [lantana_alias ticket_lock.TicketLockName] TicketLockName.mk
+attribute [lantana_alias ticket_lock.ticketlock_γt] TicketLockName.γt
+attribute [lantana_alias ticket_lock.ticketlock_γo] TicketLockName.γo
+attribute [lantana_alias ticket_lock.ticketlock_γk] TicketLockName.γk
+attribute [lantana_alias ticket_lock.ticketlock_γc] TicketLockName.γc
+attribute [lantana_alias ticket_lock.ticketlock_γa] TicketLockName.γa
 
 section Ghost
 variable {GF : BundledGFunctors} [TicketLockG GF]
 
 /-- The alive token: the full one deletes the lock (Rocq `own_fair_lock_alive`). -/
-@[lantana_alias own_fair_lock_alive]
+@[lantana_alias ticket_lock.own_fair_lock_alive]
 def ownAlive (γ : TicketLockName) (dq : DFrac) : IProp GF :=
   ghost_var γ.γa dq ()
 
 /-- The layer of the lock (Rocq `own_fair_lock_layer`). -/
-@[lantana_alias own_fair_lock_layer]
+@[lantana_alias ticket_lock.own_fair_lock_layer]
 def ownLayer (γ : TicketLockName) (ℓ : Layer) (dq : DFrac) : IProp GF :=
   iOwn (E := TicketLockG.configG) γ.γc (●AM{dq}[(· ≤ ·)] ℓ)
 
@@ -187,7 +250,7 @@ theorem ghostVar_half_whole_false (γ : GName) (a b : A) :
 
 end GhostVarHalves
 
-@[lantana_alias lock_alive_persist]
+@[lantana_alias ticket_lock.lock_alive_persist]
 theorem lock_alive_persist (γ : TicketLockName) (dq : DFrac) :
     (γ ↪LOCK_AL{dq}) ⊢@{IProp GF} |==> γ ↪LOCK_AL{.discard} := by
   unfold ownAlive
@@ -202,19 +265,19 @@ theorem ownAlive_full_false (γ : TicketLockName) (dq : DFrac) :
   ihave %⟨h, -⟩ := ghost_var_valid_2 _ _ _ _ _ $$ H1 H2
   exact absurd (DFrac.valid_op_own h) (by simp)
 
-@[lantana_alias lock_reconfig]
+@[lantana_alias ticket_lock.lock_reconfig]
 theorem lock_reconfig (γ : TicketLockName) {ℓ₁ ℓ₂ : Layer} (h : ℓ₁ ≤ ℓ₂) :
     (γ ↪LOCK_CF ℓ₁) ⊢@{IProp GF} |==> γ ↪LOCK_CF ℓ₂ := by
   unfold ownLayer
   exact iOwn_update (AuthMra.update h)
 
-@[lantana_alias lock_config_persist]
+@[lantana_alias ticket_lock.lock_config_persist]
 theorem lock_config_persist (γ : TicketLockName) (dq : DFrac) (ℓ : Layer) :
     (γ ↪LOCK_CF{dq} ℓ) ⊢@{IProp GF} |==> γ ↪LOCK_CF{.discard} ℓ := by
   unfold ownLayer
   exact iOwn_update (AuthMra.auth_persist ℓ dq)
 
-@[lantana_alias lock_config_valid]
+@[lantana_alias ticket_lock.lock_config_valid]
 theorem lock_config_valid (γ : TicketLockName) (dq₁ dq₂ : DFrac) (ℓ₁ ℓ₂ : Layer) :
     (γ ↪LOCK_CF{dq₁} ℓ₁) ⊢@{IProp GF} (γ ↪LOCK_CF{dq₂} ℓ₂) -∗ ⌜✓ (dq₁ • dq₂) ∧ ℓ₁ = ℓ₂⌝ := by
   unfold ownLayer
@@ -259,7 +322,7 @@ abbrev released (curr : Loc) (c : Int) (R : IProp GF) : IProp GF :=
 /-- The lock token's invariant: nobody holds the lock (the full ghost variable), or the holder of
 ticket `c + 1` (half of the variable) with its part of `curr` and its unlock obligation `κ`, to
 be incremented eventually (Rocq `lock_token_inv`). -/
-@[lantana_alias lock_token_inv]
+@[lantana_alias ticket_lock.lock_token_inv]
 def lockTokenInv (γo γk : GName) (curr : Loc) (R : IProp GF) : IProp GF :=
   iprop(∃ c : Int, (γk ↪VAR c) ∨
     (∃ κ : Oid, (γk ↪VAR{.own (1 : Qp).half} c) ∗ curr ↦{.own q34} some (vz c) ∗
@@ -294,7 +357,7 @@ def holderSt (γt γo γc : GName) (curr : Loc) (R : IProp GF) (c n : Int) : IPr
 
 /-- The alive branch of the lock invariant (Rocq `lock_inv_alive`). Rocq's `dom tickets = dom
 obls` and `t ∈ dom tickets ↔ 0 ≤ t ≤ n` are the two domain conditions here. -/
-@[lantana_alias lock_inv_alive]
+@[lantana_alias ticket_lock.lock_inv_alive]
 def lockInvAlive (γt γo γc : GName) (next curr : Loc) (R : IProp GF) : IProp GF :=
   iprop(∃ (n c : Int) (tickets : TMap TicketInfo) (obls : TMap (Option Oid)),
     next ↦ some (vz n) ∗ curr ↦{.own q14} some (vz c) ∗ (γt ↪●PMAP tickets) ∗
@@ -304,12 +367,12 @@ def lockInvAlive (γt γo γc : GName) (next curr : Loc) (R : IProp GF) : IProp 
     ([∗map] t ↦ _x ∈ tickets, ticketSt γt γo γc c n t) ∗ holderSt γt γo γc curr R c n)
 
 /-- The lock invariant: deleted (the full alive token), or alive (Rocq `lock_inv`). -/
-@[lantana_alias lock_inv]
+@[lantana_alias ticket_lock.lock_inv]
 def lockInv (γt γo γc γa : GName) (next curr : Loc) (R : IProp GF) : IProp GF :=
   iprop((γa ↪VAR ()) ∨ lockInvAlive γt γo γc next curr R)
 
 /-- The ticket lock `tl` with ghost names `γ`, protecting `R` (Rocq `is_fair_lock`). -/
-@[lantana_alias is_fair_lock]
+@[lantana_alias ticket_lock.is_fair_lock]
 def isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) : IProp GF :=
   iprop(∃ next curr : Loc, ⌜tl = vLock next curr⌝ ∗
     alwaysI Ninv (lockInv γ.γt γ.γo γ.γc γ.γa next curr R) ∗
@@ -317,27 +380,27 @@ def isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) : IProp GF :=
 
 /-- A lock that cannot be deleted (its holder keeps `γ ↪LOCK_AL{.discard}`): the lock invariant
 is registered under its alive branch, so that the trace sees it (Rocq `is_fair_lock_alive`). -/
-@[lantana_alias is_fair_lock_alive]
+@[lantana_alias ticket_lock.is_fair_lock_alive]
 def isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF) : IProp GF :=
   iprop(isFairLock tl γ R ∗ ∃ next curr : Loc, ⌜tl = vLock next curr⌝ ∗
     alwaysIAs (Expr := Exp) (State := State) Ninv (lockInv γ.γt γ.γo γ.γc γ.γa next curr R)
       (lockInvAlive γ.γt γ.γo γ.γc next curr R))
 
 /-- The lock token of the holder of the unlock obligation `κu` (Rocq `lock_token`, sealed). -/
-@[lantana_alias lock_token, irreducible]
+@[lantana_alias ticket_lock.lock_token, irreducible]
 def lockToken (γ : TicketLockName) (κu : Oid) : IProp GF :=
   iprop(∃ c : Int, (γ.γk ↪VAR{.own (1 : Qp).half} c) ∗
     (γ.γt ↪◯PMAP[c + 1]{.discard} (none : TicketInfo)) ∗ (γ.γo ↪◯MAP[c + 1]{.discard} some κu))
 
 omit [ModelGS GF] [HeapGS GF] in
-@[lantana_alias lock_token_unseal]
+@[lantana_alias ticket_lock.lock_token_unseal]
 theorem lockToken_unfold (γ : TicketLockName) (κu : Oid) :
     lockToken (GF := GF) γ κu = iprop(∃ c : Int, (γ.γk ↪VAR{.own (1 : Qp).half} c) ∗
       (γ.γt ↪◯PMAP[c + 1]{.discard} (none : TicketInfo)) ∗
       (γ.γo ↪◯MAP[c + 1]{.discard} some κu)) := by
   unfold lockToken; rfl
 
-@[lantana_alias is_fair_lock_persistent]
+@[lantana_alias ticket_lock.is_fair_lock_persistent]
 instance isFairLock_persistent (tl : Val) (γ : TicketLockName) (R : IProp GF) :
     Persistent (isFairLock (GF := GF) tl γ R) := by
   unfold isFairLock; infer_instance
@@ -347,7 +410,7 @@ instance isFairLockAlive_persistent (tl : Val) (γ : TicketLockName) (R : IProp 
   unfold isFairLockAlive; infer_instance
 
 /-- Use this rather than framing (Rocq: unifying the two definitions' bodies takes too long). -/
-@[lantana_alias is_fair_lock_alive_is_fair_lock]
+@[lantana_alias ticket_lock.is_fair_lock_alive_is_fair_lock]
 theorem isFairLockAlive_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
     isFairLockAlive (GF := GF) tl γ R ⊢ isFairLock tl γ R := by
   unfold isFairLockAlive
@@ -536,7 +599,7 @@ theorem pointsTo_quarters (l : Loc) (v : Option Val) :
   rw [Qp.quarter_add_threeQuarters] at h
   exact h
 
-@[lantana_alias TicketLock_init_spec]
+@[lantana_alias ticket_lock.TicketLock_init_spec]
 theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadId) (G : Oids)
     (E : CoPset) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
@@ -663,7 +726,7 @@ theorem lockToken_exchange (E : CoPset) (hE : ↑N ⊆ E) (γ : TicketLockName) 
   imodintro
   iframe
 
-@[lantana_alias TicketLock_release_spec]
+@[lantana_alias ticket_lock.TicketLock_release_spec]
 theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (tl : Val)
     (γ : TicketLockName) (dq : DFrac) (R : IProp GF) (κu : Oid) (E : CoPset) (_ : ↑N ⊆ E)
     (C : List ECtxItem),
@@ -864,7 +927,7 @@ theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
     iapply HΦ
     iframe
 
-@[lantana_alias TicketLock_delete_spec]
+@[lantana_alias ticket_lock.TicketLock_delete_spec]
 theorem delete_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (tl : Val)
     (γ : TicketLockName) (R : IProp GF) (κu : Oid) (E : CoPset) (_ : ↑N ⊆ E)
     (C : List ECtxItem),
@@ -1418,7 +1481,7 @@ theorem acquire_loop (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLockName)
     iapply acquire_loop_inner lc i G γ dq₁ dq₂ ℓ m R E hE C Φ next curr my ν prev κ ℓ₀ hν hprev
       IH α gu hgu $$ INV ITK CFl CFl0 Wl0 GMEo0 Wgu HΦ AL CF EFs WFs Agu GMEt0 HG HF HT
 
-@[lantana_alias TicketLock_acquire_spec]
+@[lantana_alias ticket_lock.TicketLock_acquire_spec]
 theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : ThreadId) (G : Oids)
     (tl : Val) (γ : TicketLockName) (dq₁ dq₂ : DFrac) (ℓ : Layer) (R : IProp GF) (E : CoPset)
     (_ : ↑N ⊆ E) (C : List ECtxItem),
@@ -1704,32 +1767,32 @@ def holderTrSpec (curr : Loc) (c n : Int) : TrSpec Exp State GF :=
   (⌜c = n⌝ₛ ∧ₛ ptsSpec curr q34 (vz c) ∧ₛ TrSpec.true) ∨ₛ (⌜c < n⌝ₛ ∧ₛ releasedTrSpec curr c)
 
 /-- The guarantee of the alive branch of the lock invariant (Rocq `lock_inv_alive_trSpec`). -/
-@[lantana_alias lock_inv_alive_trSpec]
+@[lantana_alias ticket_lock.lock_inv_alive_trSpec]
 def lockInvAliveTrSpec (next curr : Loc) : TrSpec Exp State GF :=
   ∃ₛ (n : Int) (c : Int), ptsSpec next 1 (vz n) ∧ₛ ptsSpec curr q14 (vz c) ∧ₛ
     ⌜0 ≤ c ∧ c ≤ n⌝ₛ ∧ₛ holderTrSpec curr c n
 
 /-- The guarantee of the lock invariant: its left disjunct (a deleted lock) is ghost state
 (Rocq `lock_inv_trSpec`). -/
-@[lantana_alias lock_inv_trSpec]
+@[lantana_alias ticket_lock.lock_inv_trSpec]
 def lockInvTrSpec (next curr : Loc) : TrSpec Exp State GF :=
   TrSpec.true ∨ₛ lockInvAliveTrSpec next curr
 
 /-- The guarantee of the token's invariant: nobody holds the lock (ghost state), or its holder
 will increment `curr` (Rocq `lock_token_inv_trSpec`). -/
-@[lantana_alias lock_token_inv_trSpec]
+@[lantana_alias ticket_lock.lock_token_inv_trSpec]
 def lockTokenInvTrSpec (curr : Loc) : TrSpec Exp State GF :=
   ∃ₛ c : Int, TrSpec.true ∨ₛ (ptsSpec curr q34 (vz c) ∧ₛ releasedTrSpec curr c)
 
 /-- The guarantee of `isFairLock`, vacuous on traces since the lock can be deleted (Rocq
 `fair_lock_trSpec`); see `guar_isFairLockAlive`. -/
-@[lantana_alias fair_lock_trSpec]
+@[lantana_alias ticket_lock.fair_lock_trSpec]
 def fairLockTrSpec (tl : Val) : TrSpec Exp State GF :=
   ∃ₛ (next : Loc) (curr : Loc), ⌜tl = vLock next curr⌝ₛ ∧ₛ □ₛ lockInvTrSpec next curr ∧ₛ
     □ₛ lockTokenInvTrSpec curr
 
 /-- The guarantee of a lock that cannot be deleted (Rocq `alive_fair_lock_trSpec`). -/
-@[lantana_alias alive_fair_lock_trSpec]
+@[lantana_alias ticket_lock.alive_fair_lock_trSpec]
 def aliveFairLockTrSpec (tl : Val) : TrSpec Exp State GF :=
   fairLockTrSpec tl ∧ₛ
     ∃ₛ (next : Loc) (curr : Loc), ⌜tl = vLock next curr⌝ₛ ∧ₛ □ₛ lockInvAliveTrSpec next curr
@@ -1843,7 +1906,7 @@ theorem guar_lockTokenInv (γo γk : GName) (curr : Loc) (R : IProp GF) :
   iapply guar_sep_drop
   iapply guar_finally_released
 
-@[lantana_alias guar_is_fair_lock]
+@[lantana_alias ticket_lock.guar_is_fair_lock]
 theorem guar_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
     ⊢@{IProp GF} isFairLock tl γ R ⊨ₜ fairLockTrSpec tl := by
   unfold isFairLock fairLockTrSpec
@@ -1858,12 +1921,12 @@ theorem guar_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
   · iapply guar_alwaysI_valid (guar_lockTokenInv γ.γo γ.γk curr R)
 
 /-- Clients see the lock's guarantee, not its invariant. -/
-@[lantana_alias into_guar_is_fair_lock]
+@[lantana_alias ticket_lock.into_guar_is_fair_lock]
 instance intoGuar_isFairLock (tl : Val) (γ : TicketLockName) (R : IProp GF) :
     IntoGuar (Expr := Exp) (State := State) (isFairLock tl γ R) (fairLockTrSpec tl) :=
   ⟨guar_isFairLock tl γ R⟩
 
-@[lantana_alias guar_is_fair_lock_alive]
+@[lantana_alias ticket_lock.guar_is_fair_lock_alive]
 theorem guar_isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF) :
     ⊢@{IProp GF} isFairLockAlive tl γ R ⊨ₜ aliveFairLockTrSpec tl := by
   unfold isFairLockAlive aliveFairLockTrSpec
@@ -1877,7 +1940,7 @@ theorem guar_isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF) :
   · iapply guar_pure
   · iapply guar_alwaysIAs_valid (guar_lockInvAlive γ.γt γ.γo γ.γc next curr R)
 
-@[lantana_alias into_guar_is_fair_lock_alive]
+@[lantana_alias ticket_lock.into_guar_is_fair_lock_alive]
 instance intoGuar_isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF) :
     IntoGuar (Expr := Exp) (State := State) (isFairLockAlive tl γ R) (aliveFairLockTrSpec tl) :=
   ⟨guar_isFairLockAlive tl γ R⟩
@@ -1885,7 +1948,7 @@ instance intoGuar_isFairLockAlive (tl : Val) (γ : TicketLockName) (R : IProp GF
 /-- A persistent alive token (as the queue keeps) rules out deletion, hence the left disjunct
 of `lockInv`: the lock invariant is registered under its alive branch (Rocq
 `is_fair_lock_register_alive`). -/
-@[lantana_alias is_fair_lock_register_alive]
+@[lantana_alias ticket_lock.is_fair_lock_register_alive]
 theorem isFairLock_register_alive (E : CoPset) (tl : Val) (γ : TicketLockName) (R : IProp GF)
     (hE : ↑Ninv ⊆ E) :
     isFairLock tl γ R ⊢ (γ ↪LOCK_AL{.discard}) -∗ |={E}=>m isFairLockAlive tl γ R := by
@@ -1924,7 +1987,7 @@ end Guarantee
 section Trace
 
 /-- `l ↦ v` in the current state of the trace (Rocq `tr_pointsto`). -/
-@[lantana_alias tr_pointsto]
+@[lantana_alias ticket_lock.tr_pointsto]
 def trPointsTo (l : Loc) (v : Val) : TrProp Exp State :=
   TrProp.state (pointstoSat l (DFrac.own 1) v)
 
@@ -1938,23 +2001,25 @@ theorem state_pointsto_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {
 /-- Release progress of the ticket lock `(next, curr)`: whenever a ticket is taken but not
 served out (`curr ↦ c`, `next ↦ n`, `c < n`), `curr` is eventually incremented. So every holder
 of the lock eventually releases it (Rocq `release_progress`). -/
-@[lantana_alias release_progress]
+@[lantana_alias ticket_lock.release_progress]
 def releaseProgress (next curr : Loc) : TrProp Exp State :=
   □ₜ (∀ₜ (n : Int) (c : Int), trPointsTo next (vz n) →ₜ trPointsTo curr (vz c) →ₜ ⌜c < n⌝ₜ →ₜ
     ◇ₜ trPointsTo curr (vz (c + 1)))
 
-@[lantana_alias lock_inv_alive_trSpec_release_progress]
+@[lantana_alias ticket_lock.lock_inv_alive_trSpec_release_progress]
 theorem lockInvAliveTrSpec_release_progress {GF : BundledGFunctors} (next curr : Loc) :
     (□ₛ lockInvAliveTrSpec (GF := GF) next curr).external ⊆ releaseProgress next curr := by
   intro τ h m hm n c hn hc hlt
   obtain ⟨n', c', hn', hc', -, hcase⟩ := h m hm
-  obtain rfl : n = n' := by simpa [vz] using state_pointsto_agree (dq₁ := .own 1) (dq₂ := .own 1) hn hn'
-  obtain rfl : c = c' := by simpa [vz] using state_pointsto_agree (dq₁ := .own 1) (dq₂ := .own q14) hc hc'
+  obtain rfl : n = n' := by
+    simpa [vz] using state_pointsto_agree (dq₁ := .own 1) (dq₂ := .own 1) hn hn'
+  obtain rfl : c = c' := by
+    simpa [vz] using state_pointsto_agree (dq₁ := .own 1) (dq₂ := .own q14) hc hc'
   rcases hcase with ⟨h, -⟩ | ⟨-, m', hm', ⟨hpts, -⟩, -⟩
   · exact absurd (show c = n from h) (by have : c < n := hlt; omega)
   · exact ⟨m', hm', hpts, fun _ _ _ => trivial⟩
 
-@[lantana_alias alive_fair_lock_release_progress]
+@[lantana_alias ticket_lock.alive_fair_lock_release_progress]
 theorem aliveFairLock_release_progress {GF : BundledGFunctors} (tl : Val)
     (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
     ∃ next curr : Loc, tl = vLock next curr ∧ releaseProgress next curr τ := by
@@ -1964,14 +2029,14 @@ theorem aliveFairLock_release_progress {GF : BundledGFunctors} (tl : Val)
 /-- `next` never decreases. Only the next ticket carries a `finallyI` (the releasing thread
 allocates its obligation), so starvation freedom also needs this: the code ensures it, the
 guarantee does not record it (see Rocq `ticket_lock_mono.v`) (Rocq `next_monotone`). -/
-@[lantana_alias next_monotone]
+@[lantana_alias ticket_lock.next_monotone]
 def nextMonotone (next : Loc) : TrProp Exp State :=
   □ₜ (∀ₜ n : Int, trPointsTo next (vz n) →ₜ
     □ₜ (∃ₜ n' : Int, trPointsTo next (vz n') ∧ₜ ⌜n ≤ n'⌝ₜ))
 
 /-- Starvation freedom: every pending ticket `t` (`c < t ≤ n`) is eventually served (Rocq
 `starvation_free`). -/
-@[lantana_alias starvation_free]
+@[lantana_alias ticket_lock.starvation_free]
 def starvationFree (next curr : Loc) : TrProp Exp State :=
   □ₜ (∀ₜ (n : Int) (c : Int) (t : Int), trPointsTo next (vz n) →ₜ trPointsTo curr (vz c) →ₜ
     ⌜c < t ∧ t ≤ n⌝ₜ →ₜ ◇ₜ trPointsTo curr (vz t))
@@ -1998,7 +2063,7 @@ theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → TraceS
       (by omega) ⟨n₁, hn₁, by omega⟩
     exact ⟨m', by omega, ht'⟩
 
-@[lantana_alias release_progress_starvation_free]
+@[lantana_alias ticket_lock.release_progress_starvation_free]
 theorem releaseProgress_starvationFree (next curr : Loc) (τ : Trace Exp State)
     (Hrp : releaseProgress next curr τ) (Hmon : nextMonotone next τ) :
     starvationFree next curr τ := by
