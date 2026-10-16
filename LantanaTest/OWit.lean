@@ -50,7 +50,8 @@ example : ⊢@{IProp TestGF} |==> ∃ _ : OWitGS TestGF,
     with ⟨Hw, #Hb⟩
   imodintro
   iexists G
-  iframe
+  iframe Hw
+  iexact Hb
 
 example [OWitGS TestGF] (k : Oid) (a b : Ordinal.{1}) :
     OWit.bound k a ∗ OWit.cred k b ⊢@{IProp TestGF} ⌜b ≤ a⌝ :=
