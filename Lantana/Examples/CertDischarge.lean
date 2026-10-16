@@ -157,6 +157,216 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
   · ipureintro
     trivial
 
+/-- The commitments of the main thread `i`, the initial heap and the resources (Rocq `Φ_P`). -/
+def mainRes (x y : Loc) (i : ThreadId) (μ : Measure) : IProp GF :=
+  iprop(∃ kq kf : Oid, finallyI Nq kq 1 (cdQ x y kf) ∗ finallyI Nf kf 1 iprop(x ↦ some v2) ∗
+    x ↦ some v0 ∗ y ↦ some v7 ∗
+    (thKids i {kq, kf} ∗ oblKids kq ∅ ∗ oblKids kf ∅ ∗ ⌜kq ≠ kf⌝ ∗
+      [∗set] g ∈ ({kq, kf} : Oids), Obl.fuel g 0 μ))
+
+/-- The postcondition of the main thread. -/
+abbrev mainPost : ThreadId → Val → IProp GF := fun _ v => iprop(⌜v = hl_val(#())⌝)
+
+/-- From the main thread's token, the initial heap and the thread's empty set of children: the
+commitments, and the `lWP` of the thread from them. The obligation `kf` is allocated first, as
+the right formula of `kq` mentions it. -/
+@[lantana_alias cert_discharge.main_pre]
+theorem main_pre (i : ThreadId) (x y : Loc) :
+    threadExpr (GF := GF) i [] hl(v(&main) #x #y) ⊢ x ↦ some v0 -∗ y ↦ some v7 -∗
+      thKids i ∅ -∗
+      |={⊤}=>m ∃ μ : Measure, mainRes x y i μ ∗
+        (mainRes x y i μ -∗
+          |={⊤}=>m lWP hl(v(&main) #x #y) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+  obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
+  iintro HT Hx Hy HG
+  imod untilI_alloc (E := ⊤) (.thread i) ∅ 0 μ $$ [] HG with
+    ⟨%kf, -, HG, Hkf, Fkf, -, Akf⟩
+  · iapply parLe_thread
+  imod Akf $$ %⊤ %Nf %iprop(True) %iprop(x ↦ some v2) [] with Uf
+  · inext
+    ipureintro
+    trivial
+  imod untilI_alloc (E := ⊤) (.thread i) _ 0 μ $$ [] HG with
+    ⟨%kq, %hkq, HG, Hkq, Fkq, -, Akq⟩
+  · iapply parLe_thread
+  imod Akq $$ %⊤ %Nq %iprop(True) %(cdQ x y kf) [] with Uq
+  · inext
+    ipureintro
+    trivial
+  have hne : kq ≠ kf := by
+    rintro rfl
+    exact hkq Std.ExtTreeSet.mem_insert_self
+  imodintro
+  iexists μ
+  isplitl [Uq Uf Hx Hy HG Hkq Hkf Fkq Fkf]
+  · unfold mainRes finallyI
+    iexists kq, kf
+    iframe Uq Uf Hx Hy Hkq Hkf
+    isplitl [HG]
+    · iapply Par.kids_congr _ $$ HG
+      intro z
+      simp
+    isplitr
+    · ipureintro
+      exact hne
+    iapply (bigSepS_pair hne).mpr
+    iframe
+  iintro HP
+  unfold mainRes
+  icases HP with ⟨%kq, %kf, HQ, HFf, Hx, Hy, HG, Hkq, Hkf, %hne, HF⟩
+  imodintro
+  iapply hmain i kq kf x y $$ [HT HG HF Hkq Hkf Hx Hy HQ HFf]
+  · iframe
+    ipureintro
+    exact hne
+  iintro ⟨-, Hd⟩
+  unfold liftTerm
+  icases Hd with ⟨Hd, -⟩
+  iframe Hd
+  ipureintro
+  rfl
+
 end Spec
+
+/-! ## Traces and the guarantee -/
+
+section Guarantee
+variable {GF : BundledGFunctors}
+
+/-- At the level of traces (Rocq `R_main`): eventually `x` holds `1` while `y` holds `7` from
+then on and `x` later holds `2`; and eventually `x` holds `2`. -/
+def rMain (x y : Loc) : TrProp Exp State :=
+  ◇ₜ (pointsToTr x v1 ∧ₜ □ₜ pointsToTr y v7 ∧ₜ ◇ₜ pointsToTr x v2) ∧ₜ ◇ₜ pointsToTr x v2
+
+/-- What the resources guarantee; the first commitment's right formula keeps its nested
+structures (Rocq `G_main`). -/
+def gMain (x y : Loc) : TrSpec Exp State GF :=
+  ◇ₛ cdQSpec x y ∧ₛ ◇ₛ pointsToSpec x v2 ∧ₛ pointsToSpec x v0 ∧ₛ pointsToSpec y v7 ∧ₛ
+    TrSpec.true
+
+@[lantana_alias cert_discharge.G_main_impl]
+theorem gMain_impl (x y : Loc) : (gMain (GF := GF) x y).external ⊆ rMain x y :=
+  fun _ ⟨h₁, h₂, _⟩ => ⟨h₁, h₂⟩
+
+variable [ModelGS GF] [HeapGS GF]
+
+@[lantana_alias cert_discharge.guar_Φ_P]
+theorem guar_mainRes (x y : Loc) (i : ThreadId) (μ : Measure) :
+    ⊢@{IProp GF} mainRes x y i μ ⊨ₜ gMain x y := by
+  unfold mainRes gMain finallyI
+  iapply guar_ex_ghost
+  iintro %kq
+  iapply guar_ex_ghost
+  iintro %kf
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nq kq 1 iprop(True)
+      (cdQ (GF := GF) x y kf)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nf kf 1 iprop(True)
+      iprop(x ↦ some v2)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := iprop(x ↦ some v0 : IProp GF)))
+  iapply guar_sep
+  · iapply (GuarOf.guar_of (P := iprop(y ↦ some v7 : IProp GF)))
+  iapply guar_true
+
+end Guarantee
+
+/-! ## Adequacy -/
+
+section Adequacy
+
+/-- The locations `x` and `y`. -/
+abbrev x0 : Loc := ⟨0⟩
+abbrev y0 : Loc := ⟨1⟩
+
+/-- The initial pool: the main thread `0`. -/
+abbrev tp0 : ThreadPool Exp := [hl(v(&main) #x0 #y0)]
+
+/-- The initial state: `x` holds `0` and `y` holds `7`. -/
+abbrev σ0 : State :=
+  ⟨Iris.Std.insert (Iris.Std.insert (∅ : HeapF (Option Val)) y0 (some v7)) x0 (some v0)⟩
+
+/-- The points-tos of the initial heap. -/
+theorem heap0_pointsTo {GF : BundledGFunctors} [HeapStateGS GF] :
+    bigSepM (M := HeapF) (fun l v => l ↦ v) σ0.heap ⊢@{IProp GF}
+      x0 ↦ some v0 ∗ y0 ↦ some v7 := by
+  refine (BigSepM.bigSepM_insert ?_).mp.trans (sep_mono_right ?_)
+  · rw [Iris.Std.LawfulPartialMap.get?_insert, Iris.Std.get?_empty]
+    decide
+  · refine (BigSepM.bigSepM_insert ?_).mp.trans sep_elim_left
+    exact Iris.Std.get?_empty _
+
+/-- In every fair behavior from the initial configuration, eventually `x` holds `1` while `y`
+holds `7` from then on and `x` later holds `2`, and eventually `x` holds `2`. -/
+@[lantana_alias cert_discharge_adequacy]
+theorem certDischarge_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    rMain x0 y0 τ := by
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 (gMain x0 y0) (rMain x0 y0)
+    (gMain_impl x0 y0) τ hbeh hfair hpos hinit ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, Hh, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  icases heap0_pointsTo $$ Hh with ⟨Hx, Hy⟩
+  imod main_pre 0 x0 y0 $$ HT Hx Hy HG with ⟨%μ, HP, Hwp⟩
+  imodintro
+  iexists mainRes x0 y0 0 μ
+  isplitr
+  · iapply guar_mainRes
+  iframe HP
+  iintro HP
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+stuck, and once the main thread has returned, its value is `()`. -/
+@[lantana_alias cert_discharge_safety_adequacy]
+theorem certDischarge_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    safetyIris 0 (fun _ v => v = hl_val(#())) τ := by
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
+  intro _ _
+  refine ⟨2, ?_⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, Hh, HT⟩
+  letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
+  imodintro
+  iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
+  isplit
+  · ipureintro
+    exact fun _ => .rfl
+  isplitl [Hσ]
+  · iexact Hσ
+  iintro Hc HG
+  rw [show List.range (List.length tp0) = [0] from rfl]
+  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
+  icases heap0_pointsTo $$ Hh with ⟨Hx, Hy⟩
+  imod main_pre 0 x0 y0 $$ HT Hx Hy HG with ⟨%μ, HP, Hwp⟩
+  imod Hwp $$ HP with Hwp
+  imodintro
+  iapply BigSepL.bigSepL_singleton.mpr
+  iexact Hwp
+
+/-- Liveness and safety together, over the same fair behaviors. -/
+@[lantana_alias cert_discharge_liveness_safety]
+theorem certDischarge_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    rMain x0 y0 τ ∧ safetyIris 0 (fun _ v => v = hl_val(#())) τ :=
+  ⟨certDischarge_adequacy τ hbeh hfair hpos hinit,
+    certDischarge_safety_adequacy τ hbeh hfair hpos hinit⟩
+
+end Adequacy
 
 end Lantana.Examples.CertDischarge

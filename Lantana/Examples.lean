@@ -13,3 +13,4 @@ public import Lantana.Examples.FlagFork
 public import Lantana.Examples.FlagClient
 public import Lantana.Examples.Handoff
 public import Lantana.Examples.HandoffClient
+public import Lantana.Examples.CertDischarge
