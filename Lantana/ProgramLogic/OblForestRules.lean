@@ -22,6 +22,56 @@ namespace Lantana
 open Iris Iris.BI Iris.ProofMode Iris.Std
 open scoped Lantana.Measure Ordinals.Ordinal
 
+/-! ## The base model update
+
+The rules of `|=[n,tc]=>m P` (Rocq `base_logic/mupd.v`) used by the program logic, derived from
+the structural rules of the interface. -/
+
+section Base
+
+variable {GF : BundledGFunctors} [ModelGS GF] {n tc : Nat} {P Q R : IProp GF}
+
+@[lantana_alias mupd_wand_l]
+theorem mupdBase_wand : (P -∗ Q) ⊢ (|=[n,tc]=>m P) -∗ |=[n,tc]=>m Q :=
+  (wand_mono_right (mupdBase_intro n tc Q)).trans (mupdBase_bind n tc P Q)
+
+@[lantana_alias mupd_mono]
+theorem mupdBase_mono (h : P ⊢ Q) : (|=[n,tc]=>m P) ⊢ |=[n,tc]=>m Q :=
+  wand_entails ((entails_wand h).trans mupdBase_wand)
+
+@[lantana_alias mupd_trans]
+theorem mupdBase_trans : (|=[n,tc]=>m |=[n,tc]=>m P) ⊢ |=[n,tc]=>m P :=
+  wand_entails (wand_rfl.trans (mupdBase_bind n tc _ P))
+
+@[lantana_alias mupd_frame_r]
+theorem mupdBase_frame_right : (|=[n,tc]=>m P) ∗ R ⊢ |=[n,tc]=>m (P ∗ R) := by
+  iintro ⟨HP, HR⟩
+  iapply mupdBase_wand $$ [HR] HP
+  iintro HP
+  isplitl [HP]
+  · iexact HP
+  · iexact HR
+
+@[lantana_alias fupd_mupd]
+theorem fupd_mupdBase : (|={∅}=> P) ⊢ |=[n,tc]=>m P :=
+  (fupd_mono (mupdBase_intro n tc P)).trans (fupd_mupdBase_elim n tc P)
+
+instance fromModal_mupdBase {io} : FromModal io modality_id True (|=[n,tc]=>m P)
+    (|=[n,tc]=>m P) P where
+  from_modal _ := mupdBase_intro n tc P
+
+instance elimModal_mupdBase {p io} :
+    ElimModal True p io false (|=[n,tc]=>m P) P (|=[n,tc]=>m Q) (|=[n,tc]=>m Q) where
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
+    sep_comm.mp.trans <| wand_elim_left_trans (mupdBase_bind n tc P Q)
+
+instance elimModal_fupd_mupdBase {p io} :
+    ElimModal True p io false iprop(|={∅}=> P) P (|=[n,tc]=>m Q) (|=[n,tc]=>m Q) where
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
+    fupd_frame_right.trans <| (fupd_mono wand_elim_right).trans (fupd_mupdBase_elim n tc Q)
+
+end Base
+
 /-! ## The model update -/
 
 section Modality
@@ -34,26 +84,29 @@ variable {E E₁ E₂ E₃ E₄ : CoPset} {P Q R : IProp GF}
 theorem mupd_bind' : (P -∗ |={E₂,E₃}=>m Q) ∗ (|={E₁,E₂}=>m P) ⊢ |={E₁,E₃}=>m Q :=
   (sep_mono_left (mupd_bind E₁ E₂ E₃ P Q)).trans wand_elim_left
 
+@[lantana_alias sfmupd_wand_l]
+theorem mupd_wand : (P -∗ Q) ⊢ (|={E₁,E₂}=>m P) -∗ |={E₁,E₂}=>m Q :=
+  (wand_mono_right (fupd_intro.trans (fupd_mupd E₂ E₂ Q))).trans (mupd_bind E₁ E₂ E₂ P Q)
+
 @[lantana_alias sfmupd_intro]
 theorem mupd_intro : P ⊢ |={E}=>m P :=
   fupd_intro.trans (fupd_mupd E E P)
 
 @[lantana_alias sfmupd_mono]
 theorem mupd_mono (h : P ⊢ Q) : (|={E₁,E₂}=>m P) ⊢ |={E₁,E₂}=>m Q :=
-  emp_sep.2.trans <| (sep_mono_left (wand_intro (emp_sep.1.trans (h.trans mupd_intro)))).trans
-    mupd_bind'
+  wand_entails ((entails_wand h).trans mupd_wand)
 
 @[lantana_alias sfmupd_trans]
-theorem mupd_trans : (|={E₁,E₃}=>m |={E₃,E₂}=>m P) ⊢ |={E₁,E₂}=>m P :=
-  emp_sep.2.trans <| (sep_mono_left (wand_intro emp_sep.1)).trans mupd_bind'
+theorem mupd_trans : (|={E₁,E₂}=>m |={E₂,E₃}=>m P) ⊢ |={E₁,E₃}=>m P :=
+  wand_entails (wand_rfl.trans (mupd_bind E₁ E₂ E₃ _ P))
 
 @[lantana_alias sfmupd_frame_r]
-theorem mupd_frame_r : (|={E₁,E₂}=>m P) ∗ R ⊢ |={E₁,E₂}=>m (P ∗ R) :=
+theorem mupd_frame_right : (|={E₁,E₂}=>m P) ∗ R ⊢ |={E₁,E₂}=>m (P ∗ R) :=
   sep_comm.1.trans <| (sep_mono_left (wand_intro (sep_comm.1.trans mupd_intro))).trans mupd_bind'
 
 @[lantana_alias sfmupd_frame_l]
-theorem mupd_frame_l : R ∗ (|={E₁,E₂}=>m Q) ⊢ |={E₁,E₂}=>m (R ∗ Q) :=
-  sep_comm.1.trans <| mupd_frame_r.trans (mupd_mono sep_comm.1)
+theorem mupd_frame_left : R ∗ (|={E₁,E₂}=>m Q) ⊢ |={E₁,E₂}=>m (R ∗ Q) :=
+  sep_comm.1.trans <| mupd_frame_right.trans (mupd_mono sep_comm.1)
 
 @[lantana_alias fupd_sfmupd_elim]
 theorem fupd_mupd_elim : (|={E₁}=> |={E₁,E₂}=>m P) ⊢ |={E₁,E₂}=>m P :=
@@ -61,8 +114,7 @@ theorem fupd_mupd_elim : (|={E₁}=> |={E₁,E₂}=>m P) ⊢ |={E₁,E₂}=>m P 
 
 @[lantana_alias fupd_sfmupd_elim_2]
 theorem fupd_mupd_elim_2 : (|={E₁,E₂}=>m |={E₂}=> P) ⊢ |={E₁,E₂}=>m P :=
-  emp_sep.2.trans <| (sep_mono_left (wand_intro (emp_sep.1.trans (fupd_mupd E₂ E₂ P)))).trans
-    mupd_bind'
+  (mupd_mono (fupd_mupd E₂ E₂ P)).trans mupd_trans
 
 @[lantana_alias sfmupd_fupd_l]
 theorem mupd_fupd_l : (|={E₁,E₂}=> |={E₂}=>m P) ⊢ |={E₁,E₂}=>m P :=
@@ -80,21 +132,31 @@ theorem mupd_mask_mono (h : E₁ ⊆ E₂) : (|={E₁}=>m P) ⊢ |={E₂}=>m P :
   refine (sep_comm.1.trans (sep_mono_left (wand_intro ?_))).trans mupd_bind'
   exact fupd_frame_right.trans <| (fupd_mono emp_sep.1).trans (fupd_mupd E₁ E₂ P)
 
-@[lantana_alias sfmupd_wand_l]
-theorem mupd_wand_l : (P -∗ Q) ∗ (|={E₁,E₂}=>m P) ⊢ |={E₁,E₂}=>m Q :=
-  mupd_frame_l.trans (mupd_mono wand_elim_left)
+/-- `mupd_wand` with the wand applied (Rocq `sfmupd_wand_l`). -/
+theorem mupd_wand_left : (P -∗ Q) ∗ (|={E₁,E₂}=>m P) ⊢ |={E₁,E₂}=>m Q :=
+  mupd_frame_left.trans (mupd_mono wand_elim_left)
 
 @[lantana_alias sfmupd_wand_r]
-theorem mupd_wand_r : (|={E₁,E₂}=>m P) ∗ (P -∗ Q) ⊢ |={E₁,E₂}=>m Q :=
-  mupd_frame_r.trans (mupd_mono wand_elim_right)
+theorem mupd_wand_right : (|={E₁,E₂}=>m P) ∗ (P -∗ Q) ⊢ |={E₁,E₂}=>m Q :=
+  mupd_frame_right.trans (mupd_mono wand_elim_right)
 
 @[lantana_alias sfmupd_sep]
 theorem mupd_sep : (|={E}=>m P) ∗ (|={E}=>m Q) ⊢ |={E}=>m (P ∗ Q) :=
-  mupd_frame_r.trans <| (mupd_mono mupd_frame_l).trans mupd_trans
+  mupd_frame_right.trans <| (mupd_mono mupd_frame_left).trans mupd_trans
 
 @[lantana_alias sfmupd_idemp]
 theorem mupd_idemp : (|={E}=>m |={E}=>m P) ⊣⊢ |={E}=>m P :=
   ⟨mupd_trans, mupd_intro⟩
+
+/-- The model update `|={E₁,E₂}=>m P` applied to the history interpretation. -/
+theorem mupd_elim {h : List (HistEntry Expr State)} {n : Nat} {σ : State} {tp : ThreadPool Expr}
+    (L : Nat) (hL : tp.length = L) :
+    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗
+      |={E₁,∅}=> |=[n, L]=>m |={∅,E₂}=> (historyTInterp h n σ tp ∗ P) := by
+  subst hL
+  unfold mupd mupdFancy
+  iintro H Hσ
+  iapply H $$ %h %n %σ %tp Hσ
 
 #lantana_ignore sfmupd_ent_proper "Use `mupd_mono`."
 #lantana_ignore sfmupd_flip_ent_proper "Use `mupd_mono`."
@@ -174,7 +236,7 @@ instance elimModal_fupd_mupd (p : Bool) {io} (E₁ E₂ E₃ : CoPset) (P Q : IP
 @[lantana_alias elim_modal_sfmupd]
 instance elimModal_mupd (p : Bool) {io} (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
     ElimModal True p io false (|={E₁,E₂}=>m P) P (|={E₁,E₃}=>m Q) (|={E₂,E₃}=>m Q) where
-  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <| mupd_wand_r.trans mupd_trans
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <| mupd_wand_right.trans mupd_trans
 
 @[lantana_alias add_modal_fupd_sfmupd]
 instance addModal_fupd_mupd (E₁ E₂ : CoPset) (P Q : IProp GF) :
@@ -209,7 +271,7 @@ instance intoWand_mupd_persistent (E₁ E₂ : CoPset) (p q : Bool) {m} (R P Q :
     [h : IntoWand false q R m P Q] :
     IntoWand p q (|={E₁,E₂}=>m R) m P (|={E₁,E₂}=>m Q) where
   into_wand := intuitionisticallyIf_elim.trans <| wand_intro <|
-    (sep_mono_left (mupd_mono h.into_wand)).trans <| mupd_frame_r.trans (mupd_mono wand_elim_left)
+    (sep_mono_left (mupd_mono h.into_wand)).trans <| mupd_frame_right.trans (mupd_mono wand_elim_left)
 
 -- The masks are not determined by the argument and result slots (as for `intoWand_fupd_args`).
 set_option synthInstance.checkSynthOrder false in
@@ -218,7 +280,7 @@ instance (priority := low) intoWand_mupd_args (E₁ E₂ : CoPset) (p q : Bool) 
     (R P Q : IProp GF) [h : IntoWand p false R (.matching s) P Q] :
     IntoWand p q R (.matching s) (|={E₁,E₂}=>m P) (|={E₁,E₂}=>m Q) where
   into_wand := wand_intro_left <|
-    (sep_mono intuitionisticallyIf_elim h.into_wand).trans mupd_wand_r
+    (sep_mono intuitionisticallyIf_elim h.into_wand).trans mupd_wand_right
 
 @[lantana_alias from_sep_sfmupd]
 instance fromSep_mupd (E : CoPset) (P Q₁ Q₂ : IProp GF) [h : FromSep P Q₁ Q₂] :
@@ -256,7 +318,7 @@ instance (priority := low) fromModal_mupd_wrongMask (E₁ E₂ : CoPset) {io} (P
 @[ipm_backtrack, lantana_alias frame_sfmupd]
 instance frame_mupd (p : Bool) (E₁ E₂ : CoPset) (R P Q : IProp GF) [h : Frame p R P Q] :
     Frame p R (|={E₁,E₂}=>m P) (|={E₁,E₂}=>m Q) where
-  frame := mupd_frame_l.trans (mupd_mono h.frame)
+  frame := mupd_frame_left.trans (mupd_mono h.frame)
 
 /-! ### Later credits -/
 

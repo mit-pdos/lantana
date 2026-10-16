@@ -6,7 +6,7 @@ module
 
 public import Iris.BI.Lib.Fixpoint
 public import Lantana.BaseLogic.LaterCredits
-public import Lantana.ProgramLogic.OblForest
+public import Lantana.ProgramLogic.OblForestRules
 public import Lantana.ProgramLogic.Notation
 
 /-! # The liveness weakest precondition `lWP`
@@ -42,124 +42,6 @@ class LantanaGS (Expr : Type) (State : Type) (Val : outParam Type) (GF : Bundled
     [Language Expr State Val] extends TemporalGS Expr State GF, StateInterp Expr State GF where
   /-- The postcondition of a forked thread. -/
   forkPost : ThreadId → Val → IProp GF
-
-/-! ## Derived rules of the model updates
-
-The rules of `|=[n,tc]=>m P` (Rocq `base_logic/mupd.v`) and of `|={E₁,E₂}=>m P` (Rocq
-`obl_forest_rules.v`) that the program logic uses, derived from the core rules of the
-interface, with their proof-mode instances. -/
-
-section MUpd
-
-variable {Expr : Type} {State : Type} {GF : BundledGFunctors} [ModelGS GF]
-
-section Base
-
-variable {n tc : Nat} {P Q R : IProp GF}
-
-@[lantana_alias mupd_wand_l]
-theorem mupdBase_wand : (P -∗ Q) ⊢ (|=[n,tc]=>m P) -∗ |=[n,tc]=>m Q :=
-  (wand_mono_right (mupdBase_intro n tc Q)).trans (mupdBase_bind n tc P Q)
-
-@[lantana_alias mupd_mono]
-theorem mupdBase_mono (h : P ⊢ Q) : (|=[n,tc]=>m P) ⊢ |=[n,tc]=>m Q :=
-  wand_entails ((entails_wand h).trans mupdBase_wand)
-
-@[lantana_alias mupd_trans]
-theorem mupdBase_trans : (|=[n,tc]=>m |=[n,tc]=>m P) ⊢ |=[n,tc]=>m P :=
-  wand_entails (wand_rfl.trans (mupdBase_bind n tc _ P))
-
-@[lantana_alias mupd_frame_r]
-theorem mupdBase_frame_right : (|=[n,tc]=>m P) ∗ R ⊢ |=[n,tc]=>m (P ∗ R) := by
-  iintro ⟨HP, HR⟩
-  iapply mupdBase_wand $$ [HR] HP
-  iintro HP
-  isplitl [HP]
-  · iexact HP
-  · iexact HR
-
-@[lantana_alias fupd_mupd]
-theorem fupd_mupdBase : (|={∅}=> P) ⊢ |=[n,tc]=>m P :=
-  (fupd_mono (mupdBase_intro n tc P)).trans (fupd_mupdBase_elim n tc P)
-
-instance fromModal_mupdBase {io} : FromModal io modality_id True (|=[n,tc]=>m P)
-    (|=[n,tc]=>m P) P where
-  from_modal _ := mupdBase_intro n tc P
-
-instance elimModal_mupdBase {p io} :
-    ElimModal True p io false (|=[n,tc]=>m P) P (|=[n,tc]=>m Q) (|=[n,tc]=>m Q) where
-  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
-    sep_comm.mp.trans <| wand_elim_left_trans (mupdBase_bind n tc P Q)
-
-instance elimModal_fupd_mupdBase {p io} :
-    ElimModal True p io false iprop(|={∅}=> P) P (|=[n,tc]=>m Q) (|=[n,tc]=>m Q) where
-  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
-    fupd_frame_right.trans <| (fupd_mono wand_elim_right).trans (fupd_mupdBase_elim n tc Q)
-
-end Base
-
-variable [TemporalGS Expr State GF] [StateInterp Expr State GF] [TemporalInterp Expr State GF]
-variable {E E₁ E₂ E₃ : CoPset} {P Q R : IProp GF}
-
-@[lantana_alias sfmupd_wand_l]
-theorem mupd_wand : (P -∗ Q) ⊢ (|={E₁,E₂}=>m P) -∗ |={E₁,E₂}=>m Q :=
-  (wand_mono_right (fupd_intro.trans (fupd_mupd E₂ E₂ Q))).trans (mupd_bind E₁ E₂ E₂ P Q)
-
-@[lantana_alias sfmupd_intro]
-theorem mupd_intro : P ⊢ |={E}=>m P :=
-  fupd_intro.trans (fupd_mupd E E P)
-
-@[lantana_alias sfmupd_mono]
-theorem mupd_mono (h : P ⊢ Q) : (|={E₁,E₂}=>m P) ⊢ |={E₁,E₂}=>m Q :=
-  wand_entails ((entails_wand h).trans mupd_wand)
-
-@[lantana_alias sfmupd_trans]
-theorem mupd_trans : (|={E₁,E₂}=>m |={E₂,E₃}=>m P) ⊢ |={E₁,E₃}=>m P :=
-  wand_entails (wand_rfl.trans (mupd_bind E₁ E₂ E₃ _ P))
-
-@[lantana_alias sfmupd_frame_r]
-theorem mupd_frame_right : (|={E₁,E₂}=>m P) ∗ R ⊢ |={E₁,E₂}=>m (P ∗ R) := by
-  iintro ⟨HP, HR⟩
-  iapply mupd_wand $$ [HR] HP
-  iintro HP
-  isplitl [HP]
-  · iexact HP
-  · iexact HR
-
-@[lantana_alias sfmupd_mask_mono]
-theorem mupd_mask_mono (h : E₁ ⊆ E₂) : (|={E₁}=>m P) ⊢ |={E₂}=>m P := by
-  iintro HP
-  iapply mupd_bind E₂ E₁ E₂ iprop(|={E₁,E₂}=> emp) P $$ [HP]
-  · iintro Hclose
-    iapply mupd_bind E₁ E₁ E₂ P P $$ [Hclose] HP
-    iintro HP
-    iapply fupd_mupd
-    imod Hclose with -
-    imodintro
-    iexact HP
-  · iapply fupd_mupd
-    iapply fupd_mask_subseteq h
-
-instance fromModal_mupd {io} : FromModal io modality_id True (|={E}=>m P) (|={E}=>m P) P where
-  from_modal _ := mupd_intro
-
-instance elimModal_mupd {p io} :
-    ElimModal True p io false (|={E₁,E₂}=>m P) P (|={E₁,E₃}=>m Q) (|={E₂,E₃}=>m Q) where
-  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
-    sep_comm.mp.trans <| wand_elim_left_trans (mupd_bind E₁ E₂ E₃ P Q)
-
-instance elimModal_fupd_mupd {p io} :
-    ElimModal True p io false iprop(|={E₁,E₂}=> P) P (|={E₁,E₃}=>m Q) (|={E₂,E₃}=>m Q) where
-  elim_modal _ := (sep_mono_left (intuitionisticallyIf_elim.trans (fupd_mupd E₁ E₂ P))).trans <|
-    sep_comm.mp.trans <| wand_elim_left_trans (mupd_bind E₁ E₂ E₃ P Q)
-
-instance elimModal_bupd_mupd {p io} :
-    ElimModal True p io false iprop(|==> P) P (|={E₁,E₂}=>m Q) (|={E₁,E₂}=>m Q) where
-  elim_modal _ := (sep_mono_left (intuitionisticallyIf_elim.trans
-      ((BIUpdateFUpdate.fupd_of_bupd (E := E₁)).trans (fupd_mupd E₁ E₁ P)))).trans <|
-    sep_comm.mp.trans <| wand_elim_left_trans (mupd_bind E₁ E₁ E₂ P Q)
-
-end MUpd
 
 section Lwp
 
@@ -543,16 +425,6 @@ theorem getElem?_set_append {tp efs : List Expr} {i : ThreadId} {e e' : Expr}
   have hlt : i < tp.length := (List.getElem?_eq_some_iff.mp hi).1
   rw [List.getElem?_append_left (by simpa using hlt)]
   simp [hlt]
-
-/-- The model update `|={E₁,E₂}=>m P` applied to the history interpretation. -/
-theorem mupd_elim {h : List (HistEntry Expr State)} {n : Nat} {σ : State} {tp : ThreadPool Expr}
-    {E₁ E₂ : CoPset} {P : IProp GF} (L : Nat) (hL : tp.length = L) :
-    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗
-      |={E₁,∅}=> |=[n, L]=>m |={∅,E₂}=> (historyTInterp h n σ tp ∗ P) := by
-  subst hL
-  unfold mupd mupdFancy
-  iintro H Hσ
-  iapply H $$ %h %n %σ %tp Hσ
 
 /-- The value case of `lwp_atomic_mupd`. -/
 private theorem lwp_atomic_value {e₂ : Expr} {v₂ : Val} (he₂ : toVal e₂ = some v₂)
