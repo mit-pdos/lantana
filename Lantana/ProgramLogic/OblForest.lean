@@ -353,8 +353,6 @@ section ModelUpdate
 variable [BIFUpdate (IProp GF)] [TemporalGS Expr State GF] [StateInterp Expr State GF]
   [TemporalInterp Expr State GF]
 
-local notation "|={" E "}=>m " P:40 => mupd (Expr := Expr) (State := State) E E iprop(P)
-
 @[lantana_alias oblf.thread_terminate]
 theorem Th.terminate (E : CoPset) (i : ThreadId) :
     thKids i ∅ ⊢ |={E}=>m Th.done (GF := GF) i := sorry

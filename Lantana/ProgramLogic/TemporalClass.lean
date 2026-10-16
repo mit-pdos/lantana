@@ -42,9 +42,10 @@ class TemporalGS (Expr : Type) (State : Type) (GF : BundledGFunctors)
     extends HistGS Expr State GF, RegGS Expr State GF
 
 /-- The interpretation of the temporal layer; one interpretation per instance of the ghost
-state (hence keyed by `ModelGS` and `TemporalGS`). -/
+state. The language is an output parameter: a world `GF` carries one language (so that the
+model update `|={E}=>m P`, whose `P` does not mention the language, elaborates). -/
 @[lantana_alias TemporalInterp]
-class TemporalInterp (Expr : Type) (State : Type) (GF : BundledGFunctors)
+class TemporalInterp (Expr : outParam Type) (State : outParam Type) (GF : BundledGFunctors)
     [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF] where
   /-- The interpretation. -/
   interp : IProp GF

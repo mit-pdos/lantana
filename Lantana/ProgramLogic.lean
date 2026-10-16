@@ -12,3 +12,4 @@ public import Lantana.ProgramLogic.HistoryInterp
 public import Lantana.ProgramLogic.TemporalClass
 public import Lantana.ProgramLogic.OblForest
 public import Lantana.ProgramLogic.Notation
+public import Lantana.ProgramLogic.WeakestPre

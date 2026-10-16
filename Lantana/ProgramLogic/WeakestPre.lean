@@ -28,14 +28,14 @@ Thread ids are positions in the pool (D14): a step of thread `i` running `K e₁
 
 namespace Lantana
 
-open Iris Iris.BI Iris.ProgramLogic (toVal)
-open scoped Lantana.OblForestNotation
+open Iris Iris.BI
+open Iris.ProgramLogic (toVal)
 
 
 /-- The ghost state of the program logic: the temporal layer, the state interpretation, and
 the postcondition of forked threads (`True` for HeapLang). -/
 @[lantana_alias lantanaGS]
-class LantanaGS (Expr : Type) (State : Type) (Val : Type) (GF : BundledGFunctors)
+class LantanaGS (Expr : Type) (State : Type) (Val : outParam Type) (GF : BundledGFunctors)
     [Language Expr State Val] extends TemporalGS Expr State GF, StateInterp Expr State GF where
   /-- The postcondition of a forked thread. -/
   forkPost : ThreadId → Val → IProp GF
@@ -163,7 +163,7 @@ theorem lwp_atomic_mupd [Language.Atomic s.toAtomicity e] :
 
 @[lantana_alias lwp_bind]
 theorem lwp_bind (K : Expr → Expr) [Language.Context K] :
-    lWP e @ s; i; E {{ v, lWP K (v : Expr) @ s; i; E {{ Φ }} }} ⊢ lWP K e @ s; i; E {{ Φ }} :=
+    lWP e @ s; i; E {{ v, lWP (K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢ lWP (K e) @ s; i; E {{ Φ }} :=
   sorry
 
 @[lantana_alias lwp_value']
