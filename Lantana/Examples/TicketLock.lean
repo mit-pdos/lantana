@@ -100,9 +100,6 @@ def delete : Val := hl_val(λ lnc, let next := fst(lnc); let curr := snd(lnc);
 /-- The integer `n` as a value. -/
 abbrev vz (n : Int) : Val := .lit (.int n)
 
-/-- The unit value. -/
-abbrev vUnit : Val := .lit .unit
-
 /-- The lock `(next, curr)`. -/
 abbrev vLock (next curr : Loc) : Val := .pair (.lit (.loc next)) (.lit (.loc curr))
 
