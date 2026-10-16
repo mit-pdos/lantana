@@ -32,7 +32,13 @@ The predicates are `@[irreducible]` definitions over the model of `Lantana.BaseL
 `Model.mphys`), each with a private unfolding lemma used only in this file (D25), and every rule
 is the corresponding model lemma (`Lantana.BaseLogic.Model.OPreds`, `OPredsBase`, `MUpd`) seen
 through these unfoldings; the model updates of the forest operations are lifted from the base
-model update `|=[n,tc]=>m` to `|={E}=>m` by `mupd_of_base`.
+model update `|=[n,tc]=>m` to `|={E}=>m` by `mupd_of_base`. The predicates take the ghost state
+of the model, `[ModelGS GF]`. The last section exposes what the adequacy proofs read of the
+model: the children predicates of new threads and the runs of `|=[n,tc]=>m`, `mprog`, `mphys`
+and `|={E₁,E₂}=>m` against the model interpretation `Model.modelInterp`.
+
+`Obl.fuel_eq` is unprovable as stated (it lacks the hypothesis `ℓ₁ = ℓ₂` of Rocq
+`oblP_fuel_proper`) and is left unproved; see its comment.
 -/
 
 @[expose] public noncomputable section
