@@ -170,7 +170,7 @@ variable {GF : BundledGFunctors.{u}}
 def iPropSat : SatPred GF where
   sat := UPred.satisfiable
   mono h hs := UPred.satisfiable_mono hs h
-  elim h := UPred.pure_soundness (UPred.satisfiable_elim h)
+  elim h := UPred.pure_soundness (true_intro.trans (UPred.satisfiable_elim h))
 
 theorem iPropSat_intro : (iPropSat (GF := GF)).sat iprop(True) :=
   UPred.satisfiable_intro .rfl
