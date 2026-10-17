@@ -104,7 +104,7 @@ theorem invGS_alloc_names {GF : BundledGFunctors.{u}} [InvGpreS GF] :
     with ⟨%γd, -⟩
   imod iOwn_alloc (E := (inferInstance : TlcGpreS GF).elem)
     ((Auth.auth (.own 1) (0 : Ordinal.{1})) • (Auth.frag (0 : Ordinal.{1})))
-    (Auth.auth_both_valid_discrete.mpr ⟨CMRA.inc_refl _, CreditCamera.valid_trivial _⟩)
+    (Auth.auth_both_valid_discrete.mpr ⟨ORA.inc_refl _, CreditCamera.valid_trivial _⟩)
     with ⟨%γc, Hc⟩
   icases iOwn_op $$ Hc with ⟨Hc, -⟩
   imodintro

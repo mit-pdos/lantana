@@ -326,10 +326,10 @@ variable {GF : BundledGFunctors.{u}} {A : Type v} [UCMRA A] [CreditGS GF A] [Cre
 
 
 theorem supply_alloc_unit (x : A) {z : A} :
-    ●£ₒ z ⊢@{IProp GF} |==> (●£ₒ (x • z) ∗ £ₒ (x • UCMRA.unit)) := by
+    ●£ₒ z ⊢@{IProp GF} |==> (●£ₒ (x • z) ∗ £ₒ (x • UORA.unit)) := by
   unfold supply credit
   iintro H
-  imod iOwn_update (Auth.auth_update_alloc (LocalUpdate.op_discrete z UCMRA.unit x
+  imod iOwn_update (Auth.auth_update_alloc (LocalUpdate.op_discrete z UORA.unit x
     fun _ => CreditCamera.valid_trivial _)) $$ H with H
   icases iOwn_op $$ H with ⟨Hs, Hc⟩
   imodintro

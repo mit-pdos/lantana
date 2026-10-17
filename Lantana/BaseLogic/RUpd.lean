@@ -132,7 +132,7 @@ theorem rupd_intro {P : IProp GF} : P ⊢ |==>r P := by
 /-- The bind rule, by Löb induction. -/
 @[lantana_alias rupd_bind]
 theorem rupd_bind {P Q : IProp GF} : (P -∗ |==>r Q) ⊢ (|==>r P) -∗ |==>r Q := by
-  refine wand_entails (loeb_weak ?_)
+  refine wand_entails (true_intro.trans (loeb_weak ?_))
   iintro IH H G
   iapply rupd_unfold
   iintro %x Hx

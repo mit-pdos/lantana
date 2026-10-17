@@ -29,7 +29,7 @@ A candidate for upstreaming (with `constOFP`).
 
 namespace Lantana.Examples
 
-open Iris Iris.Std HeapView PartialMap Iris.Algebra CMRA BI Iris.ProofMode
+open Iris Iris.Std HeapView PartialMap Iris.Algebra ORA BI Iris.ProofMode
 
 /-- The camera of a ghost map from `K` to `V`, in any universe. -/
 class GhostMapPG (GF : BundledGFunctors) (K V : Type _) (H : outParam <| Type _ → Type _)

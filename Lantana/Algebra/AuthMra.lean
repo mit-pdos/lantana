@@ -34,7 +34,7 @@ and `RB`), and the instance for ordinals is `≤` on `Ordinal` (used with `Layer
 
 namespace Lantana
 
-open Iris CMRA Mra Auth
+open Iris ORA Mra Auth
 open Iris.Std (Antisymmetric)
 
 universe u v
@@ -103,7 +103,7 @@ instance auth_coreId : CoreId (●AM□[R] a) := by
 theorem auth_dfrac_op (dq₁ dq₂ : DFrac) (a : α) :
     (●AM{dq₁ • dq₂}[R] a) = (●AM{dq₁}[R] a) • (●AM{dq₂}[R] a) := by
   unfold auth
-  rw [← CMRA.assoc', CMRA.op_core_right_of_inc (CMRA.inc_op_right ..), CMRA.assoc',
+  rw [← ORA.assoc', ORA.op_core_right_of_inc (ORA.inc_op_right ..), ORA.assoc',
     ← Auth.auth_dfrac_op]
 
 /-- Knowledge of a value includes the knowledge of the values below it. -/
@@ -114,7 +114,7 @@ theorem know_op [Trans R R R] (h : R a₁ a₂) : (◯AM[R] a₂) = (◯AM[R] a�
 
 @[lantana_alias auth_mra_auth_know_op]
 theorem auth_know_op (dq : DFrac) (a : α) : (●AM{dq}[R] a) = (●AM{dq}[R] a) • (◯AM[R] a) :=
-  (CMRA.op_core_left_of_inc (CMRA.inc_op_right ..)).symm
+  (ORA.op_core_left_of_inc (ORA.inc_op_right ..)).symm
 
 set_option synthInstance.checkSynthOrder false in
 @[lantana_alias auth_mra_auth_dfrac_is_op]
@@ -132,7 +132,7 @@ instance know_isOp {d} [h : IsOp d (toMra (R := R) a) (toMra a₁) (toMra a₂)]
 
 @[lantana_alias auth_mra_auth_dfrac_valid]
 theorem auth_dfrac_valid : ✓ (●AM{dq}[R] a) ↔ ✓ dq :=
-  Auth.both_dfrac_valid_discrete.trans ⟨And.left, fun h => ⟨h, CMRA.inc_refl _, trivial⟩⟩
+  Auth.both_dfrac_valid_discrete.trans ⟨And.left, fun h => ⟨h, ORA.inc_refl _, trivial⟩⟩
 
 @[lantana_alias auth_mra_auth_valid]
 theorem auth_valid : ✓ (●AM[R] a) :=
@@ -145,7 +145,7 @@ theorem auth_dfrac_op_valid [Std.Refl R] [Antisymmetric (· = ·) R] :
   · intro h
     unfold auth at h
     have ⟨hdq, heq, _⟩ := Auth.auth_dfrac_op_valid.mp <|
-      CMRA.valid_of_inc (CMRA.op_mono (CMRA.inc_op_left ..) (CMRA.inc_op_left ..)) h
+      ORA.valid_of_inc (ORA.op_mono (ORA.inc_op_left ..) (ORA.inc_op_left ..)) h
     exact ⟨hdq, toMra_injective heq⟩
   · rintro ⟨hdq, rfl⟩
     exact auth_dfrac_op dq₁ dq₂ a₁ ▸ auth_dfrac_valid.mpr hdq
@@ -160,10 +160,9 @@ theorem auth_op_valid [Std.Refl R] [Antisymmetric (· = ·) R] :
 theorem both_dfrac_valid [Std.Refl R] [Trans R R R] :
     ✓ ((●AM{dq}[R] a) • (◯AM[R] b)) ↔ ✓ dq ∧ R b a := by
   unfold auth know
-  rw [← CMRA.assoc', ← Auth.frag_op, Auth.both_dfrac_valid_discrete]
+  rw [← ORA.assoc', ← Auth.frag_op, Auth.both_dfrac_valid_discrete]
   refine ⟨fun ⟨hdq, hinc, _⟩ => ⟨hdq, toMra_op_included hinc⟩, fun ⟨hdq, h⟩ => ⟨hdq, ?_, trivial⟩⟩
-  rw [CMRA.comm', toMra_op_of_rel b a h]
-  exact CMRA.inc_refl _
+  rw [ORA.comm', toMra_op_of_rel b a h]
 
 @[lantana_alias auth_mra_both_valid]
 theorem both_valid [Std.Refl R] [Trans R R R] : ✓ ((●AM[R] a) • (◯AM[R] b)) ↔ R b a :=
@@ -177,7 +176,7 @@ theorem know_mono [Trans R R R] (h : R a₁ a₂) : (◯AM[R] a₁) ≼ (◯AM[R
 
 @[lantana_alias auth_mra_included]
 theorem included (dq : DFrac) (a : α) : (◯AM[R] a) ≼ (●AM{dq}[R] a) :=
-  CMRA.inc_op_right ..
+  ORA.inc_op_right ..
 
 /-- The authoritative value grows along `R`. -/
 @[lantana_alias auth_mra_update]
