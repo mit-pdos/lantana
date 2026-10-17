@@ -159,19 +159,19 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `auth_mra_auth_dfrac_op_valid` | `Lantana.AuthMra.auth_dfrac_op_valid` | [Lantana/Algebra/AuthMra.lean:141](../Lantana/Algebra/AuthMra.lean#L141) |
 | `auth_mra_auth_op_valid` | `Lantana.AuthMra.auth_op_valid` | [Lantana/Algebra/AuthMra.lean:153](../Lantana/Algebra/AuthMra.lean#L153) |
 | `auth_mra_both_dfrac_valid` | `Lantana.AuthMra.both_dfrac_valid` | [Lantana/Algebra/AuthMra.lean:159](../Lantana/Algebra/AuthMra.lean#L159) |
-| `auth_mra_both_valid` | `Lantana.AuthMra.both_valid` | [Lantana/Algebra/AuthMra.lean:168](../Lantana/Algebra/AuthMra.lean#L168) |
-| `auth_mra_know_mono` | `Lantana.AuthMra.know_mono` | [Lantana/Algebra/AuthMra.lean:174](../Lantana/Algebra/AuthMra.lean#L174) |
-| `auth_mra_included` | `Lantana.AuthMra.included` | [Lantana/Algebra/AuthMra.lean:178](../Lantana/Algebra/AuthMra.lean#L178) |
-| `auth_mra_update` | `Lantana.AuthMra.update` | [Lantana/Algebra/AuthMra.lean:182](../Lantana/Algebra/AuthMra.lean#L182) |
-| `auth_mra_auth_persist` | `Lantana.AuthMra.auth_persist` | [Lantana/Algebra/AuthMra.lean:187](../Lantana/Algebra/AuthMra.lean#L187) |
-| `auth_mra_auth_unpersist` | `Lantana.AuthMra.auth_unpersist` | [Lantana/Algebra/AuthMra.lean:191](../Lantana/Algebra/AuthMra.lean#L191) |
-| `lex_R` | `Lantana.AuthMra.lex` | [Lantana/Algebra/AuthMra.lean:203](../Lantana/Algebra/AuthMra.lean#L203) |
-| `lex_R_left` | `Lantana.AuthMra.lex.left` | [Lantana/Algebra/AuthMra.lean:215](../Lantana/Algebra/AuthMra.lean#L215) |
-| `lex_R_right` | `Lantana.AuthMra.lex.right` | [Lantana/Algebra/AuthMra.lean:220](../Lantana/Algebra/AuthMra.lean#L220) |
-| `lex_R_Reflexive` | `Lantana.AuthMra.lex_refl` | [Lantana/Algebra/AuthMra.lean:224](../Lantana/Algebra/AuthMra.lean#L224) |
-| `lex_R_Transitive` | `Lantana.AuthMra.lex_trans` | [Lantana/Algebra/AuthMra.lean:228](../Lantana/Algebra/AuthMra.lean#L228) |
-| `lex_R_AntiSymm` | `Lantana.AuthMra.lex_antisymm` | [Lantana/Algebra/AuthMra.lean:240](../Lantana/Algebra/AuthMra.lean#L240) |
-| `ordinal_auth_mra_class` | `Lantana.AuthMra.ordinal_le_antisymm` | [Lantana/Algebra/AuthMra.lean:261](../Lantana/Algebra/AuthMra.lean#L261) |
+| `auth_mra_both_valid` | `Lantana.AuthMra.both_valid` | [Lantana/Algebra/AuthMra.lean:167](../Lantana/Algebra/AuthMra.lean#L167) |
+| `auth_mra_know_mono` | `Lantana.AuthMra.know_mono` | [Lantana/Algebra/AuthMra.lean:173](../Lantana/Algebra/AuthMra.lean#L173) |
+| `auth_mra_included` | `Lantana.AuthMra.included` | [Lantana/Algebra/AuthMra.lean:177](../Lantana/Algebra/AuthMra.lean#L177) |
+| `auth_mra_update` | `Lantana.AuthMra.update` | [Lantana/Algebra/AuthMra.lean:181](../Lantana/Algebra/AuthMra.lean#L181) |
+| `auth_mra_auth_persist` | `Lantana.AuthMra.auth_persist` | [Lantana/Algebra/AuthMra.lean:186](../Lantana/Algebra/AuthMra.lean#L186) |
+| `auth_mra_auth_unpersist` | `Lantana.AuthMra.auth_unpersist` | [Lantana/Algebra/AuthMra.lean:190](../Lantana/Algebra/AuthMra.lean#L190) |
+| `lex_R` | `Lantana.AuthMra.lex` | [Lantana/Algebra/AuthMra.lean:202](../Lantana/Algebra/AuthMra.lean#L202) |
+| `lex_R_left` | `Lantana.AuthMra.lex.left` | [Lantana/Algebra/AuthMra.lean:214](../Lantana/Algebra/AuthMra.lean#L214) |
+| `lex_R_right` | `Lantana.AuthMra.lex.right` | [Lantana/Algebra/AuthMra.lean:219](../Lantana/Algebra/AuthMra.lean#L219) |
+| `lex_R_Reflexive` | `Lantana.AuthMra.lex_refl` | [Lantana/Algebra/AuthMra.lean:223](../Lantana/Algebra/AuthMra.lean#L223) |
+| `lex_R_Transitive` | `Lantana.AuthMra.lex_trans` | [Lantana/Algebra/AuthMra.lean:227](../Lantana/Algebra/AuthMra.lean#L227) |
+| `lex_R_AntiSymm` | `Lantana.AuthMra.lex_antisymm` | [Lantana/Algebra/AuthMra.lean:239](../Lantana/Algebra/AuthMra.lean#L239) |
+| `ordinal_auth_mra_class` | `Lantana.AuthMra.ordinal_le_antisymm` | [Lantana/Algebra/AuthMra.lean:260](../Lantana/Algebra/AuthMra.lean#L260) |
 
 ### `lantana/algebra/bank.v`
 
@@ -229,26 +229,26 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | `bcred_inhabited` | `Lantana.BCred.instInhabitedOfZero` | [Lantana/Algebra/BCred.lean:56](../Lantana/Algebra/BCred.lean#L56) |
 | `bcred_valid_instance` | `Lantana.BCred.Valid` | [Lantana/Algebra/BCred.lean:122](../Lantana/Algebra/BCred.lean#L122) |
 | `bcred_op_instance` | `Lantana.BCred.op` | [Lantana/Algebra/BCred.lean:129](../Lantana/Algebra/BCred.lean#L129) |
-| `bcred_unit_unfold` | `Lantana.BCred.unit_eq` | [Lantana/Algebra/BCred.lean:194](../Lantana/Algebra/BCred.lean#L194) |
-| `bcred_op` | `Lantana.BCred.op_eq` | [Lantana/Algebra/BCred.lean:197](../Lantana/Algebra/BCred.lean#L197) |
-| `bcred_core` | `Lantana.BCred.core_eq` | [Lantana/Algebra/BCred.lean:201](../Lantana/Algebra/BCred.lean#L201) |
-| `bcred_valid` | `Lantana.BCred.valid_iff` | [Lantana/Algebra/BCred.lean:204](../Lantana/Algebra/BCred.lean#L204) |
-| `bcred_included` | `Lantana.BCred.included_iff` | [Lantana/Algebra/BCred.lean:208](../Lantana/Algebra/BCred.lean#L208) |
+| `bcred_unit_unfold` | `Lantana.BCred.unit_eq` | [Lantana/Algebra/BCred.lean:192](../Lantana/Algebra/BCred.lean#L192) |
+| `bcred_op` | `Lantana.BCred.op_eq` | [Lantana/Algebra/BCred.lean:195](../Lantana/Algebra/BCred.lean#L195) |
+| `bcred_core` | `Lantana.BCred.core_eq` | [Lantana/Algebra/BCred.lean:199](../Lantana/Algebra/BCred.lean#L199) |
+| `bcred_valid` | `Lantana.BCred.valid_iff` | [Lantana/Algebra/BCred.lean:202](../Lantana/Algebra/BCred.lean#L202) |
+| `bcred_included` | `Lantana.BCred.included_iff` | [Lantana/Algebra/BCred.lean:206](../Lantana/Algebra/BCred.lean#L206) |
 | `bcredR` | `Lantana.BCred.instCMRA` | [Lantana/Algebra/BCred.lean:162](../Lantana/Algebra/BCred.lean#L162) |
-| `bcred_cmra_discrete` | `Lantana.BCred.instCMRADiscrete` | [Lantana/Algebra/BCred.lean:171](../Lantana/Algebra/BCred.lean#L171) |
-| `bcredUR` | `Lantana.BCred.instUCMRA` | [Lantana/Algebra/BCred.lean:178](../Lantana/Algebra/BCred.lean#L178) |
-| `bcred_unit_core_id` | `Lantana.BCred.creditBound_coreId` | [Lantana/Algebra/BCred.lean:188](../Lantana/Algebra/BCred.lean#L188) |
-| `credit_bound_valid` | `Lantana.BCred.creditBound_valid` | [Lantana/Algebra/BCred.lean:219](../Lantana/Algebra/BCred.lean#L219) |
-| `credit_valid` | `Lantana.BCred.credit_valid` | [Lantana/Algebra/BCred.lean:223](../Lantana/Algebra/BCred.lean#L223) |
-| `credit_bound_credit_valid` | `Lantana.BCred.creditBound_credit_valid` | [Lantana/Algebra/BCred.lean:235](../Lantana/Algebra/BCred.lean#L235) |
-| `credit_bound_credit_valid_eq` | `Lantana.BCred.creditBound_credit_valid_eq` | [Lantana/Algebra/BCred.lean:241](../Lantana/Algebra/BCred.lean#L241) |
-| `credit_bound_credit_valid_compare` | `Lantana.BCred.creditBound_credit_valid_compare` | [Lantana/Algebra/BCred.lean:227](../Lantana/Algebra/BCred.lean#L227) |
-| `credit_bound_included` | `Lantana.BCred.creditBound_included` | [Lantana/Algebra/BCred.lean:252](../Lantana/Algebra/BCred.lean#L252) |
-| `credit_bound_op` | `Lantana.BCred.creditBound_op` | [Lantana/Algebra/BCred.lean:256](../Lantana/Algebra/BCred.lean#L256) |
-| `credit_update` | `Lantana.BCred.credit_update` | [Lantana/Algebra/BCred.lean:266](../Lantana/Algebra/BCred.lean#L266) |
-| `credit_split` | `Lantana.BCred.credit_split` | [Lantana/Algebra/BCred.lean:263](../Lantana/Algebra/BCred.lean#L263) |
-| `credit_update_split` | `Lantana.BCred.credit_update_split` | [Lantana/Algebra/BCred.lean:271](../Lantana/Algebra/BCred.lean#L271) |
-| `credit_spend` | `Lantana.BCred.credit_spend` | [Lantana/Algebra/BCred.lean:276](../Lantana/Algebra/BCred.lean#L276) |
+| `bcred_cmra_discrete` | `Lantana.BCred.instCMRADiscrete` | [Lantana/Algebra/BCred.lean:169](../Lantana/Algebra/BCred.lean#L169) |
+| `bcredUR` | `Lantana.BCred.instUCMRA` | [Lantana/Algebra/BCred.lean:176](../Lantana/Algebra/BCred.lean#L176) |
+| `bcred_unit_core_id` | `Lantana.BCred.creditBound_coreId` | [Lantana/Algebra/BCred.lean:186](../Lantana/Algebra/BCred.lean#L186) |
+| `credit_bound_valid` | `Lantana.BCred.creditBound_valid` | [Lantana/Algebra/BCred.lean:217](../Lantana/Algebra/BCred.lean#L217) |
+| `credit_valid` | `Lantana.BCred.credit_valid` | [Lantana/Algebra/BCred.lean:221](../Lantana/Algebra/BCred.lean#L221) |
+| `credit_bound_credit_valid` | `Lantana.BCred.creditBound_credit_valid` | [Lantana/Algebra/BCred.lean:233](../Lantana/Algebra/BCred.lean#L233) |
+| `credit_bound_credit_valid_eq` | `Lantana.BCred.creditBound_credit_valid_eq` | [Lantana/Algebra/BCred.lean:239](../Lantana/Algebra/BCred.lean#L239) |
+| `credit_bound_credit_valid_compare` | `Lantana.BCred.creditBound_credit_valid_compare` | [Lantana/Algebra/BCred.lean:225](../Lantana/Algebra/BCred.lean#L225) |
+| `credit_bound_included` | `Lantana.BCred.creditBound_included` | [Lantana/Algebra/BCred.lean:250](../Lantana/Algebra/BCred.lean#L250) |
+| `credit_bound_op` | `Lantana.BCred.creditBound_op` | [Lantana/Algebra/BCred.lean:254](../Lantana/Algebra/BCred.lean#L254) |
+| `credit_update` | `Lantana.BCred.credit_update` | [Lantana/Algebra/BCred.lean:264](../Lantana/Algebra/BCred.lean#L264) |
+| `credit_split` | `Lantana.BCred.credit_split` | [Lantana/Algebra/BCred.lean:261](../Lantana/Algebra/BCred.lean#L261) |
+| `credit_update_split` | `Lantana.BCred.credit_update_split` | [Lantana/Algebra/BCred.lean:269](../Lantana/Algebra/BCred.lean#L269) |
+| `credit_spend` | `Lantana.BCred.credit_spend` | [Lantana/Algebra/BCred.lean:274](../Lantana/Algebra/BCred.lean#L274) |
 
 ### `lantana/algebra/layer.v`
 
@@ -451,59 +451,59 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 
 | Rocq | Lean | Lean file |
 |---|---|---|
-| `auth_rupd` | `Lantana.CreditCamera` | [Lantana/BaseLogic/LaterCredits.lean:95](../Lantana/BaseLogic/LaterCredits.lean#L95) |
-| `auth_rupd_rel` | `Lantana.CreditCamera.rel` | [Lantana/BaseLogic/LaterCredits.lean:100](../Lantana/BaseLogic/LaterCredits.lean#L100) |
-| `auth_rupd_next` | `Lantana.CreditCamera.next` | [Lantana/BaseLogic/LaterCredits.lean:101](../Lantana/BaseLogic/LaterCredits.lean#L101) |
-| `auth_rupd_rel_wf` | `Lantana.CreditCamera.rel_wf` | [Lantana/BaseLogic/LaterCredits.lean:102](../Lantana/BaseLogic/LaterCredits.lean#L102) |
-| `auth_rupd_rel_frame` | `Lantana.CreditCamera.rel_frame` | [Lantana/BaseLogic/LaterCredits.lean:103](../Lantana/BaseLogic/LaterCredits.lean#L103) |
-| `auth_rupd_op_cancel` | `Lantana.CreditCamera.op_cancel` | [Lantana/BaseLogic/LaterCredits.lean:104](../Lantana/BaseLogic/LaterCredits.lean#L104) |
-| `auth_rupd_next_step` | `Lantana.CreditCamera.next_step` | [Lantana/BaseLogic/LaterCredits.lean:105](../Lantana/BaseLogic/LaterCredits.lean#L105) |
-| `auth_valid_trivial` | `Lantana.CreditCamera.valid_trivial` | [Lantana/BaseLogic/LaterCredits.lean:106](../Lantana/BaseLogic/LaterCredits.lean#L106) |
-| `auth_rupd_GpreS` | `Lantana.CreditGpreS` | [Lantana/BaseLogic/LaterCredits.lean:131](../Lantana/BaseLogic/LaterCredits.lean#L131) |
-| `auth_rupdGS` | `Lantana.CreditGS` | [Lantana/BaseLogic/LaterCredits.lean:139](../Lantana/BaseLogic/LaterCredits.lean#L139) |
-| `auth_rupd_name` | `Lantana.CreditGS.name` | [Lantana/BaseLogic/LaterCredits.lean:144](../Lantana/BaseLogic/LaterCredits.lean#L144) |
-| `auth_rupdGS_instance` | `Lantana.CreditGS.rupdG` | [Lantana/BaseLogic/LaterCredits.lean:170](../Lantana/BaseLogic/LaterCredits.lean#L170) |
-| `rupdA` | `Lantana.supply` | [Lantana/BaseLogic/LaterCredits.lean:153](../Lantana/BaseLogic/LaterCredits.lean#L153) |
-| `rupdF` | `Lantana.credit` | [Lantana/BaseLogic/LaterCredits.lean:159](../Lantana/BaseLogic/LaterCredits.lean#L159) |
-| `auth_rupd_rel_update` | `Lantana.auth_rupd_rel_update` | [Lantana/BaseLogic/LaterCredits.lean:193](../Lantana/BaseLogic/LaterCredits.lean#L193) |
-| `auth_rupd_step` | `Lantana.auth_rupd_step` | [Lantana/BaseLogic/LaterCredits.lean:220](../Lantana/BaseLogic/LaterCredits.lean#L220) |
-| `auth_rupd_weaken` | `Lantana.auth_rupd_weaken` | [Lantana/BaseLogic/LaterCredits.lean:238](../Lantana/BaseLogic/LaterCredits.lean#L238) |
-| `rupdF_split` | `Lantana.credit_split` | [Lantana/BaseLogic/LaterCredits.lean:252](../Lantana/BaseLogic/LaterCredits.lean#L252) |
-| `ALC` | `Lantana.ALC` | [Lantana/BaseLogic/LaterCredits.lean:271](../Lantana/BaseLogic/LaterCredits.lean#L271) |
-| `ALC_later` | `Lantana.ALC_later` | [Lantana/BaseLogic/LaterCredits.lean:280](../Lantana/BaseLogic/LaterCredits.lean#L280) |
-| `ALC_rupd` | `Lantana.ALC_rupd` | [Lantana/BaseLogic/LaterCredits.lean:300](../Lantana/BaseLogic/LaterCredits.lean#L300) |
-| `ALC_bupd` | `Lantana.ALC_bupd` | [Lantana/BaseLogic/LaterCredits.lean:313](../Lantana/BaseLogic/LaterCredits.lean#L313) |
-| `ALC_credits` | `Lantana.ALC_credits` | [Lantana/BaseLogic/LaterCredits.lean:329](../Lantana/BaseLogic/LaterCredits.lean#L329) |
-| `ALC_fmap` | `Lantana.ALC_fmap` | [Lantana/BaseLogic/LaterCredits.lean:348](../Lantana/BaseLogic/LaterCredits.lean#L348) |
-| `ALC_intro` | `Lantana.ALC_intro` | [Lantana/BaseLogic/LaterCredits.lean:360](../Lantana/BaseLogic/LaterCredits.lean#L360) |
-| `ALC_alloc` | `Lantana.ALC_alloc` | [Lantana/BaseLogic/LaterCredits.lean:369](../Lantana/BaseLogic/LaterCredits.lean#L369) |
-| `ALC_wand` | `Lantana.ALC_wand` | [Lantana/BaseLogic/LaterCredits.lean:373](../Lantana/BaseLogic/LaterCredits.lean#L373) |
-| `ALC_mono` | `Lantana.ALC_mono` | [Lantana/BaseLogic/LaterCredits.lean:377](../Lantana/BaseLogic/LaterCredits.lean#L377) |
-| `ALC_ne` | `Lantana.ALC_ne` | [Lantana/BaseLogic/LaterCredits.lean:385](../Lantana/BaseLogic/LaterCredits.lean#L385) |
-| `ALC_contractive` | `Lantana.ALC_contractive` | [Lantana/BaseLogic/LaterCredits.lean:389](../Lantana/BaseLogic/LaterCredits.lean#L389) |
-| `from_modal_ALC` | `Lantana.fromModal_ALC` | [Lantana/BaseLogic/LaterCredits.lean:395](../Lantana/BaseLogic/LaterCredits.lean#L395) |
-| `from_pure_ALC` | `Lantana.fromPure_ALC` | [Lantana/BaseLogic/LaterCredits.lean:399](../Lantana/BaseLogic/LaterCredits.lean#L399) |
-| `elim_rupd_ALC` | `Lantana.elimModal_ALC` | [Lantana/BaseLogic/LaterCredits.lean:404](../Lantana/BaseLogic/LaterCredits.lean#L404) |
-| `frame_ALC` | `Lantana.frame_ALC` | [Lantana/BaseLogic/LaterCredits.lean:410](../Lantana/BaseLogic/LaterCredits.lean#L410) |
-| `into_wand_ALC` | `Lantana.intoWand_ALC` | [Lantana/BaseLogic/LaterCredits.lean:414](../Lantana/BaseLogic/LaterCredits.lean#L414) |
+| `auth_rupd` | `Lantana.CreditCamera` | [Lantana/BaseLogic/LaterCredits.lean:98](../Lantana/BaseLogic/LaterCredits.lean#L98) |
+| `auth_rupd_rel` | `Lantana.CreditCamera.rel` | [Lantana/BaseLogic/LaterCredits.lean:103](../Lantana/BaseLogic/LaterCredits.lean#L103) |
+| `auth_rupd_next` | `Lantana.CreditCamera.next` | [Lantana/BaseLogic/LaterCredits.lean:104](../Lantana/BaseLogic/LaterCredits.lean#L104) |
+| `auth_rupd_rel_wf` | `Lantana.CreditCamera.rel_wf` | [Lantana/BaseLogic/LaterCredits.lean:105](../Lantana/BaseLogic/LaterCredits.lean#L105) |
+| `auth_rupd_rel_frame` | `Lantana.CreditCamera.rel_frame` | [Lantana/BaseLogic/LaterCredits.lean:106](../Lantana/BaseLogic/LaterCredits.lean#L106) |
+| `auth_rupd_op_cancel` | `Lantana.CreditCamera.op_cancel` | [Lantana/BaseLogic/LaterCredits.lean:107](../Lantana/BaseLogic/LaterCredits.lean#L107) |
+| `auth_rupd_next_step` | `Lantana.CreditCamera.next_step` | [Lantana/BaseLogic/LaterCredits.lean:108](../Lantana/BaseLogic/LaterCredits.lean#L108) |
+| `auth_valid_trivial` | `Lantana.CreditCamera.valid_trivial` | [Lantana/BaseLogic/LaterCredits.lean:109](../Lantana/BaseLogic/LaterCredits.lean#L109) |
+| `auth_rupd_GpreS` | `Lantana.CreditGpreS` | [Lantana/BaseLogic/LaterCredits.lean:134](../Lantana/BaseLogic/LaterCredits.lean#L134) |
+| `auth_rupdGS` | `Lantana.CreditGS` | [Lantana/BaseLogic/LaterCredits.lean:142](../Lantana/BaseLogic/LaterCredits.lean#L142) |
+| `auth_rupd_name` | `Lantana.CreditGS.name` | [Lantana/BaseLogic/LaterCredits.lean:147](../Lantana/BaseLogic/LaterCredits.lean#L147) |
+| `auth_rupdGS_instance` | `Lantana.CreditGS.rupdG` | [Lantana/BaseLogic/LaterCredits.lean:173](../Lantana/BaseLogic/LaterCredits.lean#L173) |
+| `rupdA` | `Lantana.supply` | [Lantana/BaseLogic/LaterCredits.lean:156](../Lantana/BaseLogic/LaterCredits.lean#L156) |
+| `rupdF` | `Lantana.credit` | [Lantana/BaseLogic/LaterCredits.lean:162](../Lantana/BaseLogic/LaterCredits.lean#L162) |
+| `auth_rupd_rel_update` | `Lantana.auth_rupd_rel_update` | [Lantana/BaseLogic/LaterCredits.lean:196](../Lantana/BaseLogic/LaterCredits.lean#L196) |
+| `auth_rupd_step` | `Lantana.auth_rupd_step` | [Lantana/BaseLogic/LaterCredits.lean:223](../Lantana/BaseLogic/LaterCredits.lean#L223) |
+| `auth_rupd_weaken` | `Lantana.auth_rupd_weaken` | [Lantana/BaseLogic/LaterCredits.lean:241](../Lantana/BaseLogic/LaterCredits.lean#L241) |
+| `rupdF_split` | `Lantana.credit_split` | [Lantana/BaseLogic/LaterCredits.lean:255](../Lantana/BaseLogic/LaterCredits.lean#L255) |
+| `ALC` | `Lantana.ALC` | [Lantana/BaseLogic/LaterCredits.lean:274](../Lantana/BaseLogic/LaterCredits.lean#L274) |
+| `ALC_later` | `Lantana.ALC_later` | [Lantana/BaseLogic/LaterCredits.lean:283](../Lantana/BaseLogic/LaterCredits.lean#L283) |
+| `ALC_rupd` | `Lantana.ALC_rupd` | [Lantana/BaseLogic/LaterCredits.lean:303](../Lantana/BaseLogic/LaterCredits.lean#L303) |
+| `ALC_bupd` | `Lantana.ALC_bupd` | [Lantana/BaseLogic/LaterCredits.lean:316](../Lantana/BaseLogic/LaterCredits.lean#L316) |
+| `ALC_credits` | `Lantana.ALC_credits` | [Lantana/BaseLogic/LaterCredits.lean:332](../Lantana/BaseLogic/LaterCredits.lean#L332) |
+| `ALC_fmap` | `Lantana.ALC_fmap` | [Lantana/BaseLogic/LaterCredits.lean:351](../Lantana/BaseLogic/LaterCredits.lean#L351) |
+| `ALC_intro` | `Lantana.ALC_intro` | [Lantana/BaseLogic/LaterCredits.lean:363](../Lantana/BaseLogic/LaterCredits.lean#L363) |
+| `ALC_alloc` | `Lantana.ALC_alloc` | [Lantana/BaseLogic/LaterCredits.lean:372](../Lantana/BaseLogic/LaterCredits.lean#L372) |
+| `ALC_wand` | `Lantana.ALC_wand` | [Lantana/BaseLogic/LaterCredits.lean:376](../Lantana/BaseLogic/LaterCredits.lean#L376) |
+| `ALC_mono` | `Lantana.ALC_mono` | [Lantana/BaseLogic/LaterCredits.lean:380](../Lantana/BaseLogic/LaterCredits.lean#L380) |
+| `ALC_ne` | `Lantana.ALC_ne` | [Lantana/BaseLogic/LaterCredits.lean:388](../Lantana/BaseLogic/LaterCredits.lean#L388) |
+| `ALC_contractive` | `Lantana.ALC_contractive` | [Lantana/BaseLogic/LaterCredits.lean:392](../Lantana/BaseLogic/LaterCredits.lean#L392) |
+| `from_modal_ALC` | `Lantana.fromModal_ALC` | [Lantana/BaseLogic/LaterCredits.lean:398](../Lantana/BaseLogic/LaterCredits.lean#L398) |
+| `from_pure_ALC` | `Lantana.fromPure_ALC` | [Lantana/BaseLogic/LaterCredits.lean:402](../Lantana/BaseLogic/LaterCredits.lean#L402) |
+| `elim_rupd_ALC` | `Lantana.elimModal_ALC` | [Lantana/BaseLogic/LaterCredits.lean:407](../Lantana/BaseLogic/LaterCredits.lean#L407) |
+| `frame_ALC` | `Lantana.frame_ALC` | [Lantana/BaseLogic/LaterCredits.lean:413](../Lantana/BaseLogic/LaterCredits.lean#L413) |
+| `into_wand_ALC` | `Lantana.intoWand_ALC` | [Lantana/BaseLogic/LaterCredits.lean:417](../Lantana/BaseLogic/LaterCredits.lean#L417) |
 | `sat_ALC` | `Lantana.sat_ALC` | [Lantana/BaseLogic/Satisfiable.lean:346](../Lantana/BaseLogic/Satisfiable.lean#L346) |
 | `from_modal_ALCb` | `Lantana.fromModal_ALCb` | [Lantana/BaseLogic/FUpd.lean:341](../Lantana/BaseLogic/FUpd.lean#L341) |
 | `from_pure_ALCb` | `Lantana.fromPure_ALCb` | [Lantana/BaseLogic/FUpd.lean:346](../Lantana/BaseLogic/FUpd.lean#L346) |
 | `elim_rupd_ALCb` | `Lantana.elimModal_ALCb` | [Lantana/BaseLogic/FUpd.lean:351](../Lantana/BaseLogic/FUpd.lean#L351) |
-| `auth_rupd_rel_irrefl` | `Lantana.CreditCamera.rel_irrefl` | [Lantana/BaseLogic/LaterCredits.lean:119](../Lantana/BaseLogic/LaterCredits.lean#L119) |
-| `auth_rupd_alloc` | `Lantana.credit_alloc` | [Lantana/BaseLogic/LaterCredits.lean:421](../Lantana/BaseLogic/LaterCredits.lean#L421) |
-| `tlc_split` | `Lantana.tlc_split` | [Lantana/BaseLogic/LaterCredits.lean:479](../Lantana/BaseLogic/LaterCredits.lean#L479) |
-| `tlc_succ` | `Lantana.tlc_succ` | [Lantana/BaseLogic/LaterCredits.lean:483](../Lantana/BaseLogic/LaterCredits.lean#L483) |
-| `tlc_later_strong` | `Lantana.tlc_later_strong` | [Lantana/BaseLogic/LaterCredits.lean:488](../Lantana/BaseLogic/LaterCredits.lean#L488) |
-| `tlc_later` | `Lantana.tlc_later` | [Lantana/BaseLogic/LaterCredits.lean:493](../Lantana/BaseLogic/LaterCredits.lean#L493) |
-| `tlc_laterN` | `Lantana.tlc_laterN` | [Lantana/BaseLogic/LaterCredits.lean:507](../Lantana/BaseLogic/LaterCredits.lean#L507) |
-| `tlc_weaken` | `Lantana.tlc_weaken` | [Lantana/BaseLogic/LaterCredits.lean:523](../Lantana/BaseLogic/LaterCredits.lean#L523) |
-| `tlc_zero` | `Lantana.tlc_zero` | [Lantana/BaseLogic/LaterCredits.lean:527](../Lantana/BaseLogic/LaterCredits.lean#L527) |
-| `tlc_omega` | `Lantana.tlc_omega` | [Lantana/BaseLogic/LaterCredits.lean:533](../Lantana/BaseLogic/LaterCredits.lean#L533) |
-| `tlc_split_nat` | `Lantana.tlc_split_nat` | [Lantana/BaseLogic/LaterCredits.lean:537](../Lantana/BaseLogic/LaterCredits.lean#L537) |
-| `tlc_split_one` | `Lantana.tlc_split_one` | [Lantana/BaseLogic/LaterCredits.lean:542](../Lantana/BaseLogic/LaterCredits.lean#L542) |
-| `tlc_one_nat` | `Lantana.tlc_one_nat` | [Lantana/BaseLogic/LaterCredits.lean:548](../Lantana/BaseLogic/LaterCredits.lean#L548) |
-| `tlc_succ_nat` | `Lantana.tlc_succ_nat` | [Lantana/BaseLogic/LaterCredits.lean:502](../Lantana/BaseLogic/LaterCredits.lean#L502) |
+| `auth_rupd_rel_irrefl` | `Lantana.CreditCamera.rel_irrefl` | [Lantana/BaseLogic/LaterCredits.lean:122](../Lantana/BaseLogic/LaterCredits.lean#L122) |
+| `auth_rupd_alloc` | `Lantana.credit_alloc` | [Lantana/BaseLogic/LaterCredits.lean:424](../Lantana/BaseLogic/LaterCredits.lean#L424) |
+| `tlc_split` | `Lantana.tlc_split` | [Lantana/BaseLogic/LaterCredits.lean:482](../Lantana/BaseLogic/LaterCredits.lean#L482) |
+| `tlc_succ` | `Lantana.tlc_succ` | [Lantana/BaseLogic/LaterCredits.lean:486](../Lantana/BaseLogic/LaterCredits.lean#L486) |
+| `tlc_later_strong` | `Lantana.tlc_later_strong` | [Lantana/BaseLogic/LaterCredits.lean:491](../Lantana/BaseLogic/LaterCredits.lean#L491) |
+| `tlc_later` | `Lantana.tlc_later` | [Lantana/BaseLogic/LaterCredits.lean:496](../Lantana/BaseLogic/LaterCredits.lean#L496) |
+| `tlc_laterN` | `Lantana.tlc_laterN` | [Lantana/BaseLogic/LaterCredits.lean:510](../Lantana/BaseLogic/LaterCredits.lean#L510) |
+| `tlc_weaken` | `Lantana.tlc_weaken` | [Lantana/BaseLogic/LaterCredits.lean:526](../Lantana/BaseLogic/LaterCredits.lean#L526) |
+| `tlc_zero` | `Lantana.tlc_zero` | [Lantana/BaseLogic/LaterCredits.lean:530](../Lantana/BaseLogic/LaterCredits.lean#L530) |
+| `tlc_omega` | `Lantana.tlc_omega` | [Lantana/BaseLogic/LaterCredits.lean:536](../Lantana/BaseLogic/LaterCredits.lean#L536) |
+| `tlc_split_nat` | `Lantana.tlc_split_nat` | [Lantana/BaseLogic/LaterCredits.lean:540](../Lantana/BaseLogic/LaterCredits.lean#L540) |
+| `tlc_split_one` | `Lantana.tlc_split_one` | [Lantana/BaseLogic/LaterCredits.lean:545](../Lantana/BaseLogic/LaterCredits.lean#L545) |
+| `tlc_one_nat` | `Lantana.tlc_one_nat` | [Lantana/BaseLogic/LaterCredits.lean:551](../Lantana/BaseLogic/LaterCredits.lean#L551) |
+| `tlc_succ_nat` | `Lantana.tlc_succ_nat` | [Lantana/BaseLogic/LaterCredits.lean:505](../Lantana/BaseLogic/LaterCredits.lean#L505) |
 
 ### `lantana/base_logic/model_history.v`
 
@@ -3129,7 +3129,7 @@ The scanner and the name resolution are heuristic (see `scripts/RocqTable.lean`)
 | Rocq | Reason | Lean file |
 |---|---|---|
 | `type_inj_existential` | `SIdxLarge SI X` is an instance for every `X : Type ≤ 3`. | `Lantana/BaseLogic/LaterCredits.lean` |
-| `auth_rupd_discrete` | The parent structure `CMRA.Discrete` of `CreditCamera`. | `Lantana/BaseLogic/LaterCredits.lean` |
+| `auth_rupd_discrete` | The parent structure `ORA.Discrete` of `CreditCamera`. | `Lantana/BaseLogic/LaterCredits.lean` |
 | `auth_rupd_rel_proper` | The OFE of a discrete camera is Leibniz. | `Lantana/BaseLogic/LaterCredits.lean` |
 | `auth_rupdΣ` | Superseded by `CreditGpreS` on a closed `BundledGFunctors`. | `Lantana/BaseLogic/LaterCredits.lean` |
 | `subG_auth_rupdΣ` | Superseded by `ElemG` synthesis. | `Lantana/BaseLogic/LaterCredits.lean` |

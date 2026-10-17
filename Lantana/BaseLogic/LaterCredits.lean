@@ -7,7 +7,7 @@ and `Iris.Algebra.CMRA`, whose headers read:
   Copyright (c) The Iris-Lean Contributors
   Released under Apache 2.0 license as described in the file LICENSE.
   Authors: Mario Carneiro, Sebastian Graf, Sergei Stepanenko, Markus de Medeiros (`OFE`);
-  Mario Carneiro, Сухарик (@suhr), Markus de Medeiros, Puming Liu (`CMRA`)
+  Mario Carneiro, Сухарик (@suhr), Markus de Medeiros, Puming Liu, Janine Lohse (`CMRA`)
 Modified by the Lantana-Lean Contributors (universe-polymorphic `constOFP`).
 -/
 module
