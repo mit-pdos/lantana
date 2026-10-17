@@ -27,7 +27,7 @@ drops the credits, so bounds are persistent.
 
 namespace Lantana
 
-open Iris CMRA
+open Iris ORA
 
 universe u
 
@@ -163,27 +163,25 @@ instance instOFEDiscrete : OFE.Discrete (BCred α) := ⟨fun h => h⟩
 @[lantana_alias bcredR]
 instance instCMRA : CMRA (BCred α) :=
   CMRA.ofDiscreteTotal (fun x => ⟨x.bound, 0⟩) BCred.op BCred.Valid raw_op_assoc raw_op_comm
-    raw_core_op (fun _ => rfl)
-    (fun _ _ ⟨z, hz⟩ => ⟨⟨z.bound, 0⟩, by
-      rw [hz]; simp only [BCred.op, OCM.zero_add (add := add)]⟩)
-    raw_valid_op_left
+    raw_core_op (fun _ => rfl) raw_valid_op_left
+    (fun _ y => ⟨⟨y.bound, 0⟩, by simp only [BCred.op, OCM.zero_add (add := add)]⟩)
 
 @[lantana_alias bcred_cmra_discrete]
-instance instCMRADiscrete : CMRA.Discrete (BCred α) where
+instance instCMRADiscrete : ORA.Discrete (BCred α) where
   discrete_valid := id
 
-instance instIsTotal : CMRA.IsTotal (BCred α) where
+instance instIsTotal : IsTotal (BCred α) where
   total x := ⟨⟨x.bound, 0⟩, rfl⟩
 
 /-- The unital camera of bounded credits (Rocq `bcredUR`). -/
 @[lantana_alias bcredUR]
-instance instUCMRA : UCMRA (BCred α) where
+instance instUCMRA : UCMRA (BCred α) := UORA.ofUCMRAData {
   unit := ⟨none, 0⟩
-  unit_valid _ h := nomatch h
-  unit_left_id {x} := by
+  unit_valid := fun _ h => nomatch h
+  unit_left_id := fun {x} => by
     change BCred.op ⟨none, 0⟩ x = x
     simp only [BCred.op, boundMin_none_left, OCM.zero_add (add := add)]
-  pcore_unit := rfl
+  pcore_unit := rfl }
 
 /-- Bounds are persistent. -/
 @[lantana_alias bcred_unit_core_id]
@@ -192,7 +190,7 @@ instance creditBound_coreId (a : α) : CoreId (creditBound a) := ⟨rfl⟩
 /-! ## Unfolding lemmas -/
 
 @[lantana_alias bcred_unit_unfold]
-theorem unit_eq : (UCMRA.unit : BCred α) = ⟨none, 0⟩ := rfl
+theorem unit_eq : (UORA.unit : BCred α) = ⟨none, 0⟩ := rfl
 
 @[lantana_alias bcred_op]
 theorem op_eq (p₀ p₁ : Option α) (q₀ q₁ : α) :

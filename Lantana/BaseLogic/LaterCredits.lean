@@ -7,7 +7,7 @@ and `Iris.Algebra.CMRA`, whose headers read:
   Copyright (c) The Iris-Lean Contributors
   Released under Apache 2.0 license as described in the file LICENSE.
   Authors: Mario Carneiro, Sebastian Graf, Sergei Stepanenko, Markus de Medeiros (`OFE`);
-  Mario Carneiro, Сухарик (@suhr), Markus de Medeiros, Puming Liu (`CMRA`)
+  Mario Carneiro, Сухарик (@suhr), Markus de Medeiros, Puming Liu, Janine Lohse (`CMRA`)
 Modified by the Lantana-Lean Contributors (universe-polymorphic `constOFP`).
 -/
 module
@@ -68,24 +68,27 @@ instance constOFP_oFunctor [COFE B] : OFunctor (constOFP B) where
 instance constOFP_oFunctorContractive [COFE B] : OFunctorContractive (constOFP B) where
   map_contractive.1 := by simp [OFunctor.map]
 
-instance constOFP_rFunctor [CMRA B] : RFunctor (constOFP B) where
+instance constOFP_rFunctor [ORA B] : RFunctor (constOFP B) where
   cmra := inferInstance
-  map _ _ := (CMRA.Hom.id : B -C> B)
+  map _ _ := (ORA.Hom.id : B -C> B)
   map_ne.ne _ _ _ _ _ _ _ := .rfl
   map_id _ := rfl
   map_comp _ _ _ _ _ := rfl
 
-instance constOFP_rFunctorContractive [CMRA B] : RFunctorContractive (constOFP B) where
+instance constOFP_rFunctorAffine [ORA B] [IncOrd B] : RFunctorAffine (constOFP B) where
+  affine := inferInstance
+
+instance constOFP_rFunctorContractive [ORA B] : RFunctorContractive (constOFP B) where
   map_contractive.1 := fun _ => .rfl
 
-instance constOFP_uRFunctor [UCMRA B] : URFunctor (constOFP B) where
+instance constOFP_uRFunctor [UORA B] : URFunctor (constOFP B) where
   cmra := inferInstance
-  map _ _ := (CMRA.Hom.id : B -C> B)
+  map _ _ := (ORA.Hom.id : B -C> B)
   map_ne.ne _ _ _ _ _ _ _ := .rfl
   map_id _ := rfl
   map_comp _ _ _ _ _ := rfl
 
-instance constOFP_uRFunctorContractive [UCMRA B] : URFunctorContractive (constOFP B) where
+instance constOFP_uRFunctorContractive [UORA B] : URFunctorContractive (constOFP B) where
   map_contractive.1 _ := .rfl
 
 end ConstOF
@@ -96,7 +99,7 @@ end ConstOF
 relation `rel` (spending credits decreases the supply along it) that is compatible with framing,
 and a successor `next`. -/
 @[lantana_alias auth_rupd]
-class CreditCamera (A : Type v) [UCMRA A] extends toCMRADiscrete : CMRA.Discrete A where
+class CreditCamera (A : Type v) [UCMRA A] extends toCMRADiscrete : ORA.Discrete A where
   rel : A → A → Prop
   next : A → A
   rel_wf : WellFounded rel
@@ -113,7 +116,7 @@ attribute [lantana_alias auth_rupd_op_cancel] CreditCamera.op_cancel
 attribute [lantana_alias auth_rupd_next_step] CreditCamera.next_step
 attribute [lantana_alias auth_valid_trivial] CreditCamera.valid_trivial
 
-#lantana_ignore auth_rupd_discrete "The parent structure `CMRA.Discrete` of `CreditCamera`."
+#lantana_ignore auth_rupd_discrete "The parent structure `ORA.Discrete` of `CreditCamera`."
 #lantana_ignore auth_rupd_rel_proper "The OFE of a discrete camera is Leibniz."
 
 @[lantana_alias auth_rupd_rel_irrefl]
@@ -258,9 +261,9 @@ theorem credit_split {x y : A} : £ₒ (x • y) ⊣⊢ (£ₒ x ∗ £ₒ y : I
 #lantana_ignore rupdF_equiv "The OFE of a discrete camera is Leibniz; use equality."
 
 omit [CreditCamera A] in
-theorem credit_unit : ⊢@{IProp GF} |==> £ₒ (UCMRA.unit : A) := by
+theorem credit_unit : ⊢@{IProp GF} |==> £ₒ (UORA.unit : A) := by
   unfold credit
-  exact iOwn_unit (F := CreditF A) (ε := (UCMRA.unit : Auth A))
+  exact iOwn_unit (F := CreditF A) (ε := (UORA.unit : Auth A))
 
 end Credits
 
@@ -286,7 +289,7 @@ theorem ALC_later {P : IProp GF} : ALC P ⊣⊢ ALC iprop(▷ P) := by
     iintro Hx
     iapply rupd_mono later_intro $$ (H $$ Hx)
   · iintro ⟨%x, H⟩
-    iexists x • CreditCamera.next (UCMRA.unit : A)
+    iexists x • CreditCamera.next (UORA.unit : A)
     iintro Hx
     icases credit_split.mp $$ Hx with ⟨Hx, Hn⟩
     imod H $$ Hx with HP
@@ -361,7 +364,7 @@ theorem ALC_fmap {P Q : IProp GF} : ALC iprop(P -∗ Q) ⊢ ALC P -∗ ALC Q := 
 theorem ALC_intro {P : IProp GF} : P ⊢ ALC P := by
   unfold ALC
   iintro HP
-  iexists UCMRA.unit
+  iexists UORA.unit
   iintro _
   imodintro
   iexact HP
@@ -424,7 +427,7 @@ theorem credit_alloc {GF : BundledGFunctors.{u}} {A : Type v} [UCMRA A] [CreditC
     [G : CreditGpreS GF A] (k : A) :
     ⊢@{IProp GF} |==> ∃ _ : CreditGS GF A, ●£ₒ k ∗ £ₒ k := by
   imod iOwn_alloc (E := G.elem) ((● k) • (◯ k))
-    (auth_both_valid_discrete.mpr ⟨CMRA.inc_refl k, CreditCamera.valid_trivial k⟩)
+    (auth_both_valid_discrete.mpr ⟨ORA.inc_refl k, CreditCamera.valid_trivial k⟩)
     with ⟨%γ, H⟩
   icases iOwn_op $$ H with ⟨Hs, Hc⟩
   iexists { elem := G.elem, name := γ }
@@ -455,14 +458,14 @@ scoped instance instCOFEOrdinal : COFE Ordinal.{u} := inferInstanceAs (COFE NatO
 scoped instance instOFEDiscreteOrdinal : OFE.Discrete Ordinal.{u} :=
   inferInstanceAs (OFE.Discrete NatOrdinal.{u})
 scoped instance instUCMRAOrdinal : UCMRA Ordinal.{u} := inferInstanceAs (UCMRA NatOrdinal.{u})
-scoped instance instCMRADiscreteOrdinal : CMRA.Discrete Ordinal.{u} :=
-  inferInstanceAs (CMRA.Discrete NatOrdinal.{u})
+scoped instance instCMRADiscreteOrdinal : ORA.Discrete Ordinal.{u} :=
+  inferInstanceAs (ORA.Discrete NatOrdinal.{u})
 scoped instance instCreditCameraOrdinal : CreditCamera Ordinal.{u} :=
   inferInstanceAs (CreditCamera NatOrdinal.{u})
 
-theorem ordinal_op_eq (a b : Ordinal.{u}) : CMRA.op a b = a +ₕ b := rfl
+theorem ordinal_op_eq (a b : Ordinal.{u}) : Op.op a b = a +ₕ b := rfl
 
-theorem ordinal_unit_eq : (UCMRA.unit : Ordinal.{u}) = 0 := rfl
+theorem ordinal_unit_eq : (UORA.unit : Ordinal.{u}) = 0 := rfl
 
 /-- Transfinite later credits: the credit ghost state over `Ordinal.{1}` (Rocq: `tlcGS`). -/
 abbrev TlcGS (GF : BundledGFunctors.{u}) := CreditGS GF Ordinal.{1}

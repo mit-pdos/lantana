@@ -29,8 +29,8 @@ open Iris Lantana Ordinals Ordinal
 
 noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   match n with
-  | 0 => ⟨ULiftOF.{4} (CreditF Ordinal.{1}), by infer_instance⟩
-  | _ => ⟨constOFU Unit, by infer_instance⟩
+  | 0 => ⟨ULiftOF.{4} (CreditF Ordinal.{1})⟩
+  | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : TlcGpreS TestGF where
   elem := (ElemG.ofEq 0 (by unfold TestGF; rfl)).ofLift

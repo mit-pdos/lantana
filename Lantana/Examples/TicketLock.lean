@@ -1132,7 +1132,7 @@ theorem acquire_end (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLockName) 
   · iexfalso
     ihave ⟨%h, -⟩ := pointsTo_op_cmraValid $$ [PtrCurr0 PtrCurr1]
     · iframe
-    exact absurd h (by simp [CMRA.Valid, CMRA.op, DFrac.op, DFrac.valid]; grind)
+    exact absurd h (by simp [Valid.Valid, Op.op, DFrac.op, DFrac.valid]; grind)
   imod ghost_var_update my $$ GV with GV
   icases ghostVar_halves _ _ $$ GV with ⟨GV, GV0⟩
   imod Hclose $$ [GV0 PtrCurr0 HE0] with -

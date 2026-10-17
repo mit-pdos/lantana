@@ -46,7 +46,7 @@ Iris-Lean
 
 Lantana-Lean builds on Iris-Lean, https://github.com/leanprover-community/iris-lean,
 through the fork https://github.com/dongjaelee1/iris-lean (branch `transfinite`,
-commit fdc7402f). Iris-Lean is licensed under the Apache License, Version 2.0.
+commit 439abbb). Iris-Lean is licensed under the Apache License, Version 2.0.
 Some files of Lantana-Lean are adapted from or based on files of Iris-Lean. The
 header of each such file names the Iris-Lean file, reproduces its copyright
 notice and authors, and states that it was modified. The NOTICE file of

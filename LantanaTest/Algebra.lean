@@ -82,7 +82,7 @@ example (a₀ a₁ : Fuel) : ✓ (creditBound a₀ • credit a₁) ↔ a₁ ≤
 
 example (a : Fuel) : ✓ (creditBound a • credit a) := creditBound_credit_valid_eq a
 
-example (a : Fuel) : CMRA.CoreId (creditBound a) := inferInstance
+example (a : Fuel) : ORA.CoreId (creditBound a) := inferInstance
 
 example (a₀ a₁ : Fuel) : credit (a₀ +ₕ a₁) = credit a₀ • credit a₁ := credit_split a₀ a₁
 
@@ -126,9 +126,9 @@ example (a a' : Layer) (h : a ≤ a') :
     (●AM[(· ≤ · : Layer → Layer → Prop)] a) ~~> (●AM[(· ≤ ·)] a') :=
   update h
 
-example (a : Layer) : CMRA.CoreId (◯AM[(· ≤ · : Layer → Layer → Prop)] a) := inferInstance
+example (a : Layer) : ORA.CoreId (◯AM[(· ≤ · : Layer → Layer → Prop)] a) := inferInstance
 
-example (a : Layer) : CMRA.CoreId (●AM□[(· ≤ · : Layer → Layer → Prop)] a) := inferInstance
+example (a : Layer) : ORA.CoreId (●AM□[(· ≤ · : Layer → Layer → Prop)] a) := inferInstance
 
 example (a₁ a₂ : Layer) (h : a₁ ≤ a₂) :
     (◯AM[(· ≤ · : Layer → Layer → Prop)] a₁) ≼ (◯AM[(· ≤ ·)] a₂) :=

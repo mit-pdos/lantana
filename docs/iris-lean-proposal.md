@@ -1,7 +1,8 @@
 # Follow-up proposal for Iris-Lean: findings from Lantana-Lean
 
 Written 2026-10-16, after Lantana-Lean became sorry-free. Audience: the maintainer of
-`dongjaelee1/iris-lean` (branch `transfinite`, pinned at `fdc7402f`). Each item says what Lantana
+`dongjaelee1/iris-lean` (branch `transfinite`, pinned at `fdc7402f`, and checked again on
+2026-10-17 at `439abbb`: every item still applies). Each item says what Lantana
 had to copy or work around, what upstream change would remove it, and how much Lantana code would
 go. Nothing here is required: Lantana builds and is complete against the pinned Iris-Lean. The
 items are independent; (1)–(3) and (6) are mechanical, (4) is the substantial one. (6) is a

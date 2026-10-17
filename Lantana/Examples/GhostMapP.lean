@@ -29,7 +29,7 @@ A candidate for upstreaming (with `constOFP`).
 
 namespace Lantana.Examples
 
-open Iris Iris.Std HeapView PartialMap Iris.Algebra CMRA BI Iris.ProofMode
+open Iris Iris.Std HeapView PartialMap Iris.Algebra ORA BI Iris.ProofMode
 
 /-- The camera of a ghost map from `K` to `V`, in any universe. -/
 class GhostMapPG (GF : BundledGFunctors) (K V : Type _) (H : outParam <| Type _ → Type _)
@@ -166,20 +166,20 @@ theorem ghostMapP_lookup {γ dq} {m : H V} {k : K} {dq' v} :
   icombine H1 H2 gives %G
   ipureintro
   have ⟨av', _, _, h_av', _, h⟩ := auth_op_frag_valid_total_discrete_iff G
-  cases h₂ : get? m k <;> grind [get?_map, Agree.toAgree_included]
+  cases h₂ : get? m k <;> grind [LawfulPartialMap.get?_map, Agree.toAgree_included]
 
 theorem ghostMapP_insert {γ} {m : H V} (k : K) (v : V) (Heq : get? m k = .none) :
     ⊢@{IProp GF} (γ ↪●PMAP m) ==∗ (γ ↪●PMAP insert m k v) ∗ γ ↪◯PMAP[k] v := by
   unfold ghostMapP_auth ghostMapP_elem
   iintro H
   imod iOwn_update (update_one_alloc (k := k) (v1 := toAgree ⟨v⟩)
-    (by simp [get?_map, Heq])
+    (by simp [LawfulPartialMap.get?_map, Heq])
     DFrac.valid_own_one
     Agree.toAgree_valid) $$ H with H
   icases H with ⟨H, $⟩
   imodintro
-  iapply iOwn_mono $$ H
-  exact auth_inc_of_map_eq _ map_insert
+  iapply iOwn_ord_mono $$ H
+  exact auth_ord_of_map_eq _ map_insert
 
 theorem ghostMapP_delete {γ} {m : H V} (k : K) (v : V) :
     ⊢@{IProp GF} (γ ↪●PMAP m) -∗ (γ ↪◯PMAP[k] v) ==∗ γ ↪●PMAP delete m k := by
@@ -187,8 +187,8 @@ theorem ghostMapP_delete {γ} {m : H V} (k : K) (v : V) :
   iintro H1 H2
   icombine H1 H2 as G
   imod iOwn_update (update_one_delete (k := k) (v1 := toAgree (⟨v⟩ : DiscreteO V))) $$ G with G
-  iapply iOwn_mono $$ G
-  exact auth_inc_of_map_eq _ map_delete
+  iapply iOwn_ord_mono $$ G
+  exact auth_ord_of_map_eq _ map_delete
 
 theorem ghostMapP_update {γ} {m : H V} {k : K} {v : V} (w : V) :
     ⊢@{IProp GF} (γ ↪●PMAP m) -∗ (γ ↪◯PMAP[k] v) ==∗ (γ ↪●PMAP insert m k w) ∗ γ ↪◯PMAP[k] w := by
@@ -197,8 +197,8 @@ theorem ghostMapP_update {γ} {m : H V} {k : K} {v : V} (w : V) :
   ihave >⟨aux, $⟩ := ghostMapP_insert _ w (get?_delete_eq rfl) $$ aux
   imodintro
   unfold ghostMapP_auth
-  iapply iOwn_mono $$ aux
-  exact auth_inc_of_map_eq _ (map_equiv insert_delete.symm)
+  iapply iOwn_ord_mono $$ aux
+  exact auth_ord_of_map_eq _ (map_equiv insert_delete.symm)
 
 end lemmas
 

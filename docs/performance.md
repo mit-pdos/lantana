@@ -23,8 +23,9 @@ differ, so the two numbers are not a benchmark.
 ## Method
 
 - **Environment:** Lean `v4.34.1`, a 36-core Linux container shared with other agents (load
-  average 2–6 during the runs); Iris-Lean and its `Ordinals` package prebuilt. Repeated runs
-  differ by about a second.
+  average 2–6 during the runs); Iris-Lean `fdc7402f` and its `Ordinals` package prebuilt.
+  Repeated runs differ by about a second. After the bump to Iris-Lean `439abbb` (ordered
+  resource algebras), a clean build takes 48.7 s under the same conditions (2026-10-17).
 - **Clean build:** remove this package's build directory and build the library; the dependencies
   are kept.
   ```

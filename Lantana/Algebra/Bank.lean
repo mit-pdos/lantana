@@ -34,7 +34,7 @@ is Rocq's `debt a q` (Rocq's `cash a` is the constructor `cash a`). Lemmas about
 
 namespace Lantana
 
-open Iris CMRA
+open Iris ORA
 
 universe u
 
@@ -141,22 +141,22 @@ instance instOFEDiscrete : OFE.Discrete (Bank α) := ⟨fun h => h⟩
 @[lantana_alias bankR]
 instance instCMRA : CMRA (Bank α) :=
   CMRA.ofDiscreteTotal (fun _ => cash 0) Bank.op Bank.Valid raw_op_assoc raw_op_comm raw_zero_op
-    (fun _ => rfl) (fun _ _ _ => ⟨cash 0, (raw_zero_op _).symm⟩) raw_valid_op_left
+    (fun _ => rfl) raw_valid_op_left (fun _ _ => ⟨cash 0, (raw_zero_op _).symm⟩)
 
 @[lantana_alias bank_cmra_discrete]
-instance instCMRADiscrete : CMRA.Discrete (Bank α) where
+instance instCMRADiscrete : ORA.Discrete (Bank α) where
   discrete_valid := id
 
-instance instIsTotal : CMRA.IsTotal (Bank α) where
+instance instIsTotal : IsTotal (Bank α) where
   total _ := ⟨cash 0, rfl⟩
 
 /-- The unital bank camera (Rocq `bankUR`). -/
 @[lantana_alias bankUR]
-instance instUCMRA : UCMRA (Bank α) where
+instance instUCMRA : UCMRA (Bank α) := UORA.ofUCMRAData {
   unit := cash 0
   unit_valid := trivial
   unit_left_id := raw_zero_op _
-  pcore_unit := rfl
+  pcore_unit := rfl }
 
 @[lantana_alias bank_unit_core_id]
 instance : CoreId (cash 0 : Bank α) := ⟨rfl⟩
@@ -164,7 +164,7 @@ instance : CoreId (cash 0 : Bank α) := ⟨rfl⟩
 /-! ## Unfolding lemmas -/
 
 @[lantana_alias bank_unit_unfold]
-theorem unit_eq : (UCMRA.unit : Bank α) = cash 0 := rfl
+theorem unit_eq : (UORA.unit : Bank α) = cash 0 := rfl
 
 @[lantana_alias bank_op_cash, lantana_alias cash_add]
 theorem cash_add (a b : α) : (cash a • cash b : Bank α) = cash (a +ₒ b) := rfl

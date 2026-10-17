@@ -30,7 +30,7 @@ finite step indices.
 
 namespace Lantana
 
-open Iris Iris.Std Std.PartialMap Std.LawfulPartialMap Iris.Algebra CMRA Iris.BI Iris.ProofMode
+open Iris Iris.Std Std.PartialMap Std.LawfulPartialMap Iris.Algebra ORA Iris.BI Iris.ProofMode
 open Agree Auth BigSepM Excl Heap
 
 universe u

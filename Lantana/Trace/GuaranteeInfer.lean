@@ -100,7 +100,7 @@ instance simplEx_visible {X : Type u} (G : X → TrSpec Expr State GF) [SIdxLarg
 @[lantana_alias simpl_exist_true]
 instance (priority := low) simplEx_true {X : Sort u} (G : X → TrSpec Expr State GF) :
     SimplEx G TrSpec.true :=
-  ⟨fun _ => true_intro.trans guar_true⟩
+  ⟨fun _ => affine.trans guar_true⟩
 
 /-- Inference: the body's guarantee for a generic witness, collapsed by `SimplEx`. -/
 @[lantana_alias into_guar_exist_infer]
