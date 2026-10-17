@@ -1,0 +1,58 @@
+Lantana-Lean
+Copyright (c) 2026 The Lantana-Lean Contributors
+
+Lantana-Lean is licensed under the Apache License, Version 2.0 (the file LICENSE).
+
+==============================================================================
+Lantana (Rocq)
+
+Lantana-Lean is a Lean 4 reimplementation of the Rocq development of Lantana,
+https://github.com/dongjaelee1/liveness (branch `main`, commit 08838e2): its
+definitions, rules and theorem statements follow that development, which is
+distributed under the 3-clause BSD license with the following notice.
+
+------------------------------------------------------------------------------
+Copyright: Lantana developers and contributors
+
+Parts of lantana/ and lantana_heap_lang/ are adapted from Iris and Transfinite
+Iris (Copyright: Iris developers and contributors), which are distributed under
+the terms of the same license.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the copyright holder nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+------------------------------------------------------------------------------
+
+==============================================================================
+Iris-Lean
+
+Lantana-Lean builds on Iris-Lean, https://github.com/leanprover-community/iris-lean,
+through the fork https://github.com/dongjaelee1/iris-lean (branch `transfinite`,
+commit fdc7402f). Iris-Lean is licensed under the Apache License, Version 2.0.
+Some files of Lantana-Lean are adapted from or based on files of Iris-Lean. The
+header of each such file names the Iris-Lean file, reproduces its copyright
+notice and authors, and states that it was modified. The NOTICE file of
+Iris-Lean reads:
+
+------------------------------------------------------------------------------
+Iris-Lean — Copyright (c) 2022–2026 The Iris-Lean Contributors.
+Prior per-file copyright notices are preserved in this repository's git history (tag `copyright-notices`).
+------------------------------------------------------------------------------
