@@ -371,7 +371,7 @@ theorem strongUntil_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G 𝒰ₛ 
 @[lantana_alias trSpec_impl_intro]
 theorem imp_intro [Complete A] (h : (A ∧ₛ H) ⊑ₛ G) : H ⊑ₛ (A →ₛ G) := fun τ =>
   BI.imp_intro <| pure_elim _ BI.and_elim_r fun hA =>
-    BI.and_elim_l.trans <| (BI.and_intro (true_intro.trans (Complete.complete τ hA)) .rfl).trans
+    BI.and_elim_l.trans <| (BI.and_intro (affine.trans (Complete.complete τ hA)) .rfl).trans
       (h τ)
 
 @[lantana_alias trSpec_impl_elim]
