@@ -26,10 +26,10 @@ abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace Exp State => La
 
 noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   match n with
-  | 0 => ⟨ULiftOF (constOF (MonoList (DiscreteO (Nat × RegEntry)))), by infer_instance⟩
-  | 1 => ⟨DFracAgree.DFracAgreeRF TrPredF, by infer_instance⟩
-  | 2 => ⟨ULiftOF (constOF (MonoList (DiscreteO (HistEntry Exp State)))), by infer_instance⟩
-  | _ => ⟨constOFU Unit, by infer_instance⟩
+  | 0 => ⟨ULiftOF (constOF (MonoList (DiscreteO (Nat × RegEntry))))⟩
+  | 1 => ⟨DFracAgree.DFracAgreeRF TrPredF⟩
+  | 2 => ⟨ULiftOF (constOF (MonoList (DiscreteO (HistEntry Exp State))))⟩
+  | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : RegGpreS Exp State TestGF where
   listG := ⟨ElemG.ofEqLift 0 (by unfold TestGF; rfl)⟩

@@ -28,27 +28,28 @@ abbrev ghostVarF_contractive (A : Type) : RFunctorContractive (GhostVarF A) :=
 (slot `5`). -/
 noncomputable def TLMGF : BundledGFunctors.{0} := fun n =>
   match n with
-  | 0 => ⟨ULiftOF.{4} (constOFP (HeapView Int (Agree (DiscreteO TicketInfo)) TMap)),
-      by infer_instance⟩
-  | 1 => ⟨ULiftOF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TMap)),
-      @ULiftOF.instRFunctorContractive _ OFunctor.constOF_RFunctorContractive⟩
-  | 2 => ⟨ULiftOF (GhostVarF Int), @ULiftOF.instRFunctorContractive _ (ghostVarF_contractive Int)⟩
-  | 3 => ⟨ULiftOF.{4} (constOFP (AuthMra (α := Layer) (· ≤ ·))), by infer_instance⟩
-  | 4 => ⟨ULiftOF (GhostVarF Unit), @ULiftOF.instRFunctorContractive _ (ghostVarF_contractive Unit)⟩
-  | 5 => ⟨ULiftOF MonoNatRF, by infer_instance⟩
-  | _ => ⟨constOFU Unit, by infer_instance⟩
+  | 0 => ⟨ULiftOF.{4} (constOFP (HeapView Int (Agree (DiscreteO TicketInfo)) TMap))⟩
+  | 1 => { F := ULiftOF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TMap))
+           contractive := @ULiftOF.instRFunctorContractive _ OFunctor.constOF_RFunctorContractive }
+  | 2 => { F := ULiftOF (GhostVarF Int)
+           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarF_contractive Int) }
+  | 3 => ⟨ULiftOF.{4} (constOFP (AuthMra (α := Layer) (· ≤ ·)))⟩
+  | 4 => { F := ULiftOF (GhostVarF Unit)
+           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarF_contractive Unit) }
+  | 5 => ⟨ULiftOF MonoNatRF⟩
+  | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : TicketLockMonoG TLMGF where
   ticketG := ⟨(ElemG.ofEq 0 (by unfold TLMGF; rfl) : ElemG TLMGF (ULiftOF.{4}
     (constOFP (HeapView Int (Agree (DiscreteO TicketInfo)) TMap)))).ofLift⟩
   oblG := ⟨@ElemG.ofEqLift TLMGF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TMap))
-    OFunctor.constOF_RFunctorContractive 1 (by unfold TLMGF; rfl)⟩
+    OFunctor.constOF_RFunctorContractive _ 1 (by unfold TLMGF; rfl)⟩
   tokenG := { elemG :=
-    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarF_contractive Int) 2 (by unfold TLMGF; rfl) }
+    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarF_contractive Int) _ 2 (by unfold TLMGF; rfl) }
   configG := (ElemG.ofEq 3 (by unfold TLMGF; rfl) : ElemG TLMGF (ULiftOF.{4}
     (constOFP (AuthMra (α := Layer) (· ≤ ·))))).ofLift
   aliveG := { elemG :=
-    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarF_contractive Unit) 4 (by unfold TLMGF; rfl) }
+    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarF_contractive Unit) _ 4 (by unfold TLMGF; rfl) }
   monoG := ⟨{ elem := ElemG.ofEqLift 5 (by unfold TLMGF; rfl), name := 0 }⟩
 
 /-- The ghost names extend those of `TicketLock`, whose ghost state is reused through the

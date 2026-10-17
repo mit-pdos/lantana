@@ -68,24 +68,27 @@ instance constOFP_oFunctor [COFE B] : OFunctor (constOFP B) where
 instance constOFP_oFunctorContractive [COFE B] : OFunctorContractive (constOFP B) where
   map_contractive.1 := by simp [OFunctor.map]
 
-instance constOFP_rFunctor [CMRA B] : RFunctor (constOFP B) where
+instance constOFP_rFunctor [ORA B] : RFunctor (constOFP B) where
   cmra := inferInstance
   map _ _ := (ORA.Hom.id : B -C> B)
   map_ne.ne _ _ _ _ _ _ _ := .rfl
   map_id _ := rfl
   map_comp _ _ _ _ _ := rfl
 
-instance constOFP_rFunctorContractive [CMRA B] : RFunctorContractive (constOFP B) where
+instance constOFP_rFunctorAffine [ORA B] [IncOrd B] : RFunctorAffine (constOFP B) where
+  affine := inferInstance
+
+instance constOFP_rFunctorContractive [ORA B] : RFunctorContractive (constOFP B) where
   map_contractive.1 := fun _ => .rfl
 
-instance constOFP_uRFunctor [UCMRA B] : URFunctor (constOFP B) where
+instance constOFP_uRFunctor [UORA B] : URFunctor (constOFP B) where
   cmra := inferInstance
   map _ _ := (ORA.Hom.id : B -C> B)
   map_ne.ne _ _ _ _ _ _ _ := .rfl
   map_id _ := rfl
   map_comp _ _ _ _ _ := rfl
 
-instance constOFP_uRFunctorContractive [UCMRA B] : URFunctorContractive (constOFP B) where
+instance constOFP_uRFunctorContractive [UORA B] : URFunctorContractive (constOFP B) where
   map_contractive.1 _ := .rfl
 
 end ConstOF

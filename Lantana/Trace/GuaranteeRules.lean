@@ -294,7 +294,7 @@ theorem guar_imp (φ : Prop) : (P ⊨ₜ G) ⊢ iprop(⌜φ⌝ → P) ⊨ₜ (�
     exact hφ
   · refine .trans ?_ (guar_weaken (G := TrSpec.true) fun τ =>
       BI.imp_intro (pure_elim _ and_elim_r fun h => absurd h hφ))
-    exact (true_intro).trans guar_true
+    exact affine.trans guar_true
 
 end Rules
 

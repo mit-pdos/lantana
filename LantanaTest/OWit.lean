@@ -18,13 +18,13 @@ open Ordinals Ordinal Lantana Lantana.Model
 
 noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   match n with
-  | 0 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO Bool)) OidMap)), by infer_instance⟩
-  | 1 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO OblNames)) OidMap)), by infer_instance⟩
-  | 2 => ⟨ULiftOF.{4} (constOFP (Agree (DiscreteO Fuel))), by infer_instance⟩
-  | 3 => ⟨ULiftOF.{4} (constOFP (Bank Fuel)), by infer_instance⟩
-  | 4 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO GName)) OidMap)), by infer_instance⟩
-  | 5 => ⟨ULiftOF.{4} (constOFP (BCred Fuel)), by infer_instance⟩
-  | _ => ⟨constOFU Unit, by infer_instance⟩
+  | 0 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO Bool)) OidMap))⟩
+  | 1 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO OblNames)) OidMap))⟩
+  | 2 => ⟨ULiftOF.{4} (constOFP (Agree (DiscreteO Fuel)))⟩
+  | 3 => ⟨ULiftOF.{4} (constOFP (Bank Fuel))⟩
+  | 4 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO GName)) OidMap))⟩
+  | 5 => ⟨ULiftOF.{4} (constOFP (BCred Fuel))⟩
+  | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : OSatGpreS TestGF where
   stateG := ⟨ElemG.ofEqLift 0 (by unfold TestGF; rfl)⟩

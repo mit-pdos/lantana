@@ -23,22 +23,20 @@ open Ordinals Ordinal Lantana Lantana.Model
 
 noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   match n with
-  | 0 => ⟨InvMapF, by infer_instance⟩
-  | 1 => ⟨ULiftOF (constOF CoPsetDisjL), by infer_instance⟩
-  | 2 => ⟨ULiftOF (constOF (DisjointLeibnizSet PosSet)), by infer_instance⟩
-  | 3 => ⟨ULiftOF.{4} (CreditF Ordinal.{1}), by infer_instance⟩
-  | 4 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO Bool)) OidMap)), by infer_instance⟩
-  | 5 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO OblNames)) OidMap)), by infer_instance⟩
-  | 6 => ⟨ULiftOF.{4} (constOFP (Agree (DiscreteO Fuel))), by infer_instance⟩
-  | 7 => ⟨ULiftOF.{4} (constOFP (Bank Fuel)), by infer_instance⟩
-  | 8 => ⟨ULiftOF (constOF (HeapView Parent (Agree (DiscreteO Oids)) ParentMap)),
-      by infer_instance⟩
-  | 9 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO ThreadStatus)) ThreadMap)),
-      by infer_instance⟩
-  | 10 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO GName)) OidMap)), by infer_instance⟩
-  | 11 => ⟨ULiftOF.{4} (constOFP (BCred Fuel)), by infer_instance⟩
-  | 12 => ⟨ULiftOF.{4} (constOFP (MonoList (DiscreteO MEvent))), by infer_instance⟩
-  | _ => ⟨constOFU Unit, by infer_instance⟩
+  | 0 => ⟨InvMapF⟩
+  | 1 => ⟨ULiftOF (constOF CoPsetDisjL)⟩
+  | 2 => ⟨ULiftOF (constOF (DisjointLeibnizSet PosSet))⟩
+  | 3 => ⟨ULiftOF.{4} (CreditF Ordinal.{1})⟩
+  | 4 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO Bool)) OidMap))⟩
+  | 5 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO OblNames)) OidMap))⟩
+  | 6 => ⟨ULiftOF.{4} (constOFP (Agree (DiscreteO Fuel)))⟩
+  | 7 => ⟨ULiftOF.{4} (constOFP (Bank Fuel))⟩
+  | 8 => ⟨ULiftOF (constOF (HeapView Parent (Agree (DiscreteO Oids)) ParentMap))⟩
+  | 9 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO ThreadStatus)) ThreadMap))⟩
+  | 10 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO GName)) OidMap))⟩
+  | 11 => ⟨ULiftOF.{4} (constOFP (BCred Fuel))⟩
+  | 12 => ⟨ULiftOF.{4} (constOFP (MonoList (DiscreteO MEvent)))⟩
+  | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : WsatGpreS TestGF where
   inv := ElemG.ofEq 0 (by unfold TestGF; rfl)
