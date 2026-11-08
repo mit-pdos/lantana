@@ -67,12 +67,12 @@ theorem record_and (G₁ G₂ : TrSpec Expr State GF) (n : Nat) :
 /-- The right formula of an until fulfils it at once (rank `0`): a later-guarded record of the
 right formula suffices, the until's step strips the later. -/
 theorem record_until_now (G₁ G₂ : TrSpec Expr State GF) (n : Nat) :
-    ▷ record G₂ n ⊢ record (G₁ 𝒰ₛ G₂) n := by
+    ▷ record G₂ n ⊢ record (G₁ Uₛ G₂) n := by
   iintro #H
   iapply record_intro
   imodintro
   iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %Hf #B HW
-  have hU : ▷ G₂.internal ⟨n, τf⟩ ⊢ (G₁ 𝒰ₛ G₂).internal ⟨n, τf⟩ :=
+  have hU : ▷ G₂.internal ⟨n, τf⟩ ⊢ (G₁ Uₛ G₂).internal ⟨n, τf⟩ :=
     (later_mono or_intro_l).trans <| TrIProp.defer_intro_later.trans <|
       (TrIProp.until_unfold G₁.internal G₂.internal 0 _).mpr.trans <|
         exists_intro (Ψ := fun a : Fuel =>
@@ -183,7 +183,7 @@ theorem guar_or : (P ⊨ₜ G₁) ⊢ (Q ⊨ₜ G₂) -∗ iprop(P ∨ Q) ⊨ₜ
 
 /-- An until fulfilled now (rank `0`; the until's step strips the later). -/
 @[lantana_alias guar_until_now]
-theorem guar_until_now : ▷ (P ⊨ₜ G₂) ⊢ P ⊨ₜ (G₁ 𝒰ₛ G₂) := by
+theorem guar_until_now : ▷ (P ⊨ₜ G₂) ⊢ P ⊨ₜ (G₁ Uₛ G₂) := by
   iintro #HG
   iapply guar_intro
   imodintro

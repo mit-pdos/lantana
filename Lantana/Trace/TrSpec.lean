@@ -116,7 +116,7 @@ def always (G : TrSpec Expr State GF) : TrSpec Expr State GF where
 @[lantana_alias trSpec_until]
 def strongUntil (G H : TrSpec Expr State GF) : TrSpec Expr State GF where
   internal := TrIProp.ex fun a : Fuel => TrIProp.strongUntil G.internal H.internal a
-  external := G.external 𝒰ₜ H.external
+  external := G.external Uₜ H.external
   adeq F τ h :=
     TrIProp.until_tr_until F G.internal H.internal G.external H.external (G.adeq F) (H.adeq F) τ h
 
@@ -169,7 +169,7 @@ scoped infixr:30 " ∨ₛ " => TrSpec.or
 scoped infixr:25 " →ₛ " => TrSpec.imp
 scoped notation:max "□ₛ " G:40 => TrSpec.always G
 scoped notation:max "◇ₛ " G:40 => TrSpec.eventually G
-scoped infixr:40 " 𝒰ₛ " => TrSpec.strongUntil
+scoped infixr:40 " Uₛ " => TrSpec.strongUntil
 
 open Lean in
 /-- `∀ₛ x, G`. -/
@@ -240,7 +240,7 @@ instance always_complete (G : TrSpec Expr State GF) [Complete G] : Complete (□
 /-- By induction on the trace-level until, with ranks `0` at the end and `succ` at each step. -/
 @[lantana_alias trSpec_complete_until]
 instance strongUntil_complete (G H : TrSpec Expr State GF) [Complete G] [Complete H] :
-    Complete (G 𝒰ₛ H) where
+    Complete (G Uₛ H) where
   complete τ h := by
     obtain ⟨a, ha⟩ := TrProp.until_ind
       (X := fun τ => ∃ a : Fuel, ⊢ TrIProp.strongUntil G.internal H.internal a τ)
@@ -352,7 +352,7 @@ theorem always_mono (h : G ⊑ₛ G') : (□ₛ G) ⊑ₛ (□ₛ G') := fun τ 
   iexact H
 
 @[lantana_alias trSpec_until_mono]
-theorem strongUntil_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G 𝒰ₛ H) ⊑ₛ (G' 𝒰ₛ H') := fun τ => by
+theorem strongUntil_mono (h₁ : G ⊑ₛ G') (h₂ : H ⊑ₛ H') : (G Uₛ H) ⊑ₛ (G' Uₛ H') := fun τ => by
   change iprop(∃ a : Fuel, TrIProp.strongUntil G.internal H.internal a τ) ⊢
     iprop(∃ a : Fuel, TrIProp.strongUntil G'.internal H'.internal a τ)
   iintro ⟨%a, HU⟩
@@ -484,7 +484,7 @@ instance (priority := high) ext_eventually (G : TrSpec Expr State GF) (R : TrPro
     [Ext G R] : Ext (◇ₛ G) (◇ₜ R) := ⟨TrProp.until_mono (TrProp.le_refl _) Ext.ext_of⟩
 @[lantana_alias trSpec_ext_until]
 instance ext_strongUntil (G H : TrSpec Expr State GF) (R S : TrProp (Cfg Expr State)) [Ext G R]
-    [Ext H S] : Ext (G 𝒰ₛ H) (R 𝒰ₜ S) := ⟨TrProp.until_mono Ext.ext_of Ext.ext_of⟩
+    [Ext H S] : Ext (G Uₛ H) (R Uₜ S) := ⟨TrProp.until_mono Ext.ext_of Ext.ext_of⟩
 @[lantana_alias trSpec_ext_cast]
 instance ext_cast (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State)) (pf : G.external ⊆ R) :
     Ext (G.cast R pf) R := ⟨TrProp.le_refl _⟩

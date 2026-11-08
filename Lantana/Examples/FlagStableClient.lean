@@ -249,14 +249,14 @@ variable {GF : BundledGFunctors}
 /-- The flag is `0` until it is `1` forever, or `1` forever; it is `0` until it is `1` forever;
 the writer returns `()` and the reader returns `1` (Rocq `R_main`). -/
 def rClient : TrProp (Cfg Exp State) :=
-  isFlagTr xLoc ∧ₜ (pointsToTr xLoc v0 𝒰ₜ □ₜ pointsToTr xLoc v1) ∧ₜ
+  isFlagTr xLoc ∧ₜ (pointsToTr xLoc v0 Uₜ □ₜ pointsToTr xLoc v1) ∧ₜ
     ◇ₜ TrProp.state (threadExprSat 0 [] (.val vUnit)) ∧ₜ
     ◇ₜ TrProp.state (threadExprSat 1 [] (.val v1))
 
 /-- What the resources guarantee: nothing for the pure and ghost parts; the names do not show
 (Rocq `G_client`). -/
 def gClient : TrSpec Exp State GF :=
-  TrSpec.true ∧ₛ flagTrSpec xLoc ∧ₛ (pointsToSpec xLoc v0 𝒰ₛ □ₛ pointsToSpec xLoc v1) ∧ₛ
+  TrSpec.true ∧ₛ flagTrSpec xLoc ∧ₛ (pointsToSpec xLoc v0 Uₛ □ₛ pointsToSpec xLoc v1) ∧ₛ
     ◇ₛ TrSpec.state (threadExprSat 0 [] (.val vUnit)) ∧ₛ
     ◇ₛ TrSpec.state (threadExprSat 1 [] (.val v1)) ∧ₛ TrSpec.true
 

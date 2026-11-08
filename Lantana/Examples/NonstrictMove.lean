@@ -14,7 +14,7 @@ move (`OblMoveNonstrict`: the layers may be equal), each iteration of the loop
 `rec loop _ := loop ()` creates a fresh obligation `r'` at layer `0` below the thread, moves the
 thread's old obligation `r` below `r'`, paying the last unit of `r`'s fuel at layer `0`, and pays
 the step with one of the two units of `r'`, keeping the other for the next iteration
-(`loop_spec`, by Löb induction). The main thread can then commit to `True 𝒰 False` on an
+(`loop_spec`, by Löb induction). The main thread can then commit to `True U False` on an
 obligation it never discharges, and adequacy gives "eventually `False`"
 (`nonstrictMove_unsound`). The run of the loop, thread `0` stepping from `loop ()` to
 `loop ()` forever, is a fair behavior, so the assumed rule is absurd (`nonstrictMove_absurd`).
@@ -98,15 +98,15 @@ abbrev σ0 : State := ⟨∅⟩
 /-- The namespace of the commitment. -/
 def N : Namespace := nroot.@"nonstrict"
 
-/-- The commitment of thread `0` to `True 𝒰 False`, and its obligation with one unit of fuel
+/-- The commitment of thread `0` to `True U False`, and its obligation with one unit of fuel
 (Rocq `Φ_P`). -/
 def mainRes {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] : IProp GF :=
   iprop(∃ x : Oid, untilI N x 1 iprop(True) iprop(False) ∗ (thKids 0 {x} ∗ Obl.fuel x 0 1))
 
-/-- What it guarantees (Rocq `G_main`, inferred): `True 𝒰 False`. -/
-def gMain {GF : BundledGFunctors} : TrSpec Exp State GF := (⌜True⌝ₛ 𝒰ₛ ⌜False⌝ₛ) ∧ₛ TrSpec.true
+/-- What it guarantees (Rocq `G_main`, inferred): `True U False`. -/
+def gMain {GF : BundledGFunctors} : TrSpec Exp State GF := (⌜True⌝ₛ Uₛ ⌜False⌝ₛ) ∧ₛ TrSpec.true
 
-/-- `True 𝒰 False` is false on every trace. -/
+/-- `True U False` is false on every trace. -/
 @[lantana_alias nonstrict_move.G_main_false]
 theorem gMain_false {GF : BundledGFunctors} : (gMain (GF := GF)).external ⊆ ⌜False⌝ₜ :=
   fun _ ⟨⟨_, _, h, _⟩, _⟩ => h

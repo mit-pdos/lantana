@@ -544,10 +544,10 @@ variable {GF : BundledGFunctors}
 /-- Eventually `False` (and eventually `True`) (Rocq `R_main`). -/
 def rMain : TrProp (Cfg Exp State) := ◇ₜ ⌜False⌝ₜ ∧ₜ ◇ₜ ⌜True⌝ₜ
 
-/-- What the resources guarantee (Rocq `G_main`, inferred): thread `0`'s `True 𝒰 False`, and
+/-- What the resources guarantee (Rocq `G_main`, inferred): thread `0`'s `True U False`, and
 thread `1`'s first until, read with `True` on the right. -/
 def gMain : TrSpec Exp State GF :=
-  (⌜True⌝ₛ 𝒰ₛ ⌜False⌝ₛ) ∧ₛ (⌜True⌝ₛ 𝒰ₛ TrSpec.true) ∧ₛ TrSpec.true
+  (⌜True⌝ₛ Uₛ ⌜False⌝ₛ) ∧ₛ (⌜True⌝ₛ Uₛ TrSpec.true) ∧ₛ TrSpec.true
 
 @[lantana_alias paradox.G_main_impl]
 theorem gMain_impl : (gMain (GF := GF)).external ⊆ rMain :=

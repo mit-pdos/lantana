@@ -426,19 +426,19 @@ theorem untilIDone_elim : untilIDone k Q ⊢ Q ∗ Obl.discharged k := by
 needed (Rocq `guar_untilI_done_guar`). -/
 @[lantana_alias guar_untilI_done_guar]
 theorem guar_untilIDoneGuar (G₁ G₂ : TrSpec Expr State GF) :
-    ⊢@{IProp GF} untilIDoneGuar k Q G₂ ⊨ₜ (G₁ 𝒰ₛ G₂) := by
+    ⊢@{IProp GF} untilIDoneGuar k Q G₂ ⊨ₜ (G₁ Uₛ G₂) := by
   iapply guar_intro
   imodintro
   iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, U⟩
   iunfold untilIDoneGuar at U
   icases U with ⟨HQ, -, #HG₂⟩
-  iapply guar_elim Q (G₁ 𝒰ₛ G₂) h n σ tp m i Ω W $$ [] [HI MI HQ]
+  iapply guar_elim Q (G₁ Uₛ G₂) h n σ tp m i Ω W $$ [] [HI MI HQ]
   · iapply guar_until_now $$ HG₂
   · iframe HI MI HQ
 
 @[lantana_alias guar_untilI_done]
 theorem guar_untilIDone (G₁ : TrSpec Expr State GF) :
-    ⊢@{IProp GF} untilIDone k Q ⊨ₜ (G₁ 𝒰ₛ TrSpec.canon Q) := by
+    ⊢@{IProp GF} untilIDone k Q ⊨ₜ (G₁ Uₛ TrSpec.canon Q) := by
   rw [untilIDone_eq]; exact guar_untilIDoneGuar G₁ _
 
 @[lantana_alias guar_untilI_done_finally]
@@ -448,7 +448,7 @@ theorem guar_untilIDone_finally :
 
 @[lantana_alias guar_untilI_done_valid]
 theorem guar_untilIDone_valid (G₁ : TrSpec Expr State GF) {G₂ : TrSpec Expr State GF}
-    (hG₂ : ⊢ Q ⊨ₜ G₂) : ⊢@{IProp GF} untilIDone k Q ⊨ₜ (G₁ 𝒰ₛ G₂) :=
+    (hG₂ : ⊢ Q ⊨ₜ G₂) : ⊢@{IProp GF} untilIDone k Q ⊨ₜ (G₁ Uₛ G₂) :=
   (guar_untilIDone G₁).trans
     (guar_weaken (TrSpec.strongUntil_mono (TrSpec.le_refl G₁)
       (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG₂)))
@@ -620,7 +620,7 @@ which content holds now; if the left one, a credit of the step opens the obligat
 after the step, and the loop continues from the new state of `k`. -/
 @[lantana_alias guar_untilI_guar]
 theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
-    ⊢@{IProp GF} untilIGuar N k q P Q G₁ G₂ ⊨ₜ (G₁ 𝒰ₛ G₂) := by
+    ⊢@{IProp GF} untilIGuar N k q P Q G₁ G₂ ⊨ₜ (G₁ Uₛ G₂) := by
   iapply guar_intro
   imodintro
   iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, U⟩
@@ -651,7 +651,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     iexact AC
   have hex : TrIProp.strongUntil G₁.internal G₂.internal
       (Ordinals.Ordinal.succ (Ordinals.Ordinal.succ (fairMeasureUb fu))) ⟨n, τf⟩ ⊢
-      (G₁ 𝒰ₛ G₂).internal ⟨n, τf⟩ :=
+      (G₁ Uₛ G₂).internal ⟨n, τf⟩ :=
     exists_intro (Ψ := fun a : Fuel => TrIProp.strongUntil G₁.internal G₂.internal a ⟨n, τf⟩) _
   iapply hex
   have hU : TrIProp.defer iprop(G₂.internal ⟨n, τf⟩ ∨ (G₁.internal ⟨n, τf⟩ ∧ ∃ a' : Fuel,
@@ -760,12 +760,12 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     iframe HI' MI' Sy'
 
 @[lantana_alias guar_untilI]
-theorem guar_untilI : ⊢@{IProp GF} untilI N k q P Q ⊨ₜ (TrSpec.canon P 𝒰ₛ TrSpec.canon Q) := by
+theorem guar_untilI : ⊢@{IProp GF} untilI N k q P Q ⊨ₜ (TrSpec.canon P Uₛ TrSpec.canon Q) := by
   rw [untilI_eq]; exact guar_untilIGuar
 
 @[lantana_alias guar_untilI_valid]
 theorem guar_untilI_valid {G₁ G₂ : TrSpec Expr State GF} (hG₁ : ⊢ P ⊨ₜ G₁) (hG₂ : ⊢ Q ⊨ₜ G₂) :
-    ⊢@{IProp GF} untilI N k q P Q ⊨ₜ (G₁ 𝒰ₛ G₂) :=
+    ⊢@{IProp GF} untilI N k q P Q ⊨ₜ (G₁ Uₛ G₂) :=
   guar_untilI.trans
     (guar_weaken (TrSpec.strongUntil_mono (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG₁)
       (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG₂)))
@@ -775,7 +775,7 @@ theorem guar_untilI_valid {G₁ G₂ : TrSpec Expr State GF} (hG₁ : ⊢ P ⊨�
 instance guarOf_alwaysI (G : TrSpec Expr State GF) [GuarOf P G] : GuarOf (alwaysI N P) (□ₛ G) :=
   ⟨guar_alwaysI_valid GuarOf.guar_of⟩
 instance guarOf_untilI (G₁ G₂ : TrSpec Expr State GF) [GuarOf P G₁] [GuarOf Q G₂] :
-    GuarOf (untilI N k q P Q) (G₁ 𝒰ₛ G₂) :=
+    GuarOf (untilI N k q P Q) (G₁ Uₛ G₂) :=
   ⟨guar_untilI_valid GuarOf.guar_of GuarOf.guar_of⟩
 instance guarOf_untilIDone (G₂ : TrSpec Expr State GF) [GuarOf Q G₂] :
     GuarOf (untilIDone k Q) (◇ₛ G₂) :=

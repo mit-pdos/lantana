@@ -14,7 +14,7 @@ configurations (no coinduction, D18); a trace property (`TrProp C`, Rocq `trProp
 on traces, read at the current position: the external reading of temporal properties, where LTL
 is reasoned about classically.
 
-The connectives carry a subscript `ₜ` (`∧ₜ`, `□ₜ`, `◇ₜ`, `○ₜ`, `𝒰ₜ`, `¬ₜ`, …) so that they never
+The connectives carry a subscript `ₜ` (`∧ₜ`, `□ₜ`, `◇ₜ`, `○ₜ`, `Uₜ`, `¬ₜ`, …) so that they never
 clash with the `iProp` connectives (D28); the notations are scoped in `Lantana.TrProp`. Entailment
 `R ⊆ S` is validity of `R →ₜ S`. Besides LTL, three atoms: a predicate on the current
 configuration (`TrProp.now`), a relation between the current configuration and the next one
@@ -102,7 +102,7 @@ def ex {A : Sort _} (P : A → TrProp C) : TrProp C := fun τ => ∃ a, P a τ
 def always (P : TrProp C) : TrProp C :=
   fun τ => ∀ m, τ.pos ≤ m → P { τ with pos := m }
 
-/-- `P 𝒰ₜ Q` (strong until): `Q` holds at some later position, and `P` at every position
+/-- `P Uₜ Q` (strong until): `Q` holds at some later position, and `P` at every position
 before it. -/
 @[lantana_alias tr_until]
 def strongUntil (P Q : TrProp C) : TrProp C :=
@@ -134,7 +134,7 @@ scoped infixr:25 " →ₜ " => TrProp.imp
 scoped notation:max "□ₜ " P:40 => TrProp.always P
 scoped notation:max "◇ₜ " P:40 => TrProp.eventually P
 scoped notation:max "○ₜ " P:40 => TrProp.next P
-scoped infixr:40 " 𝒰ₜ " => TrProp.strongUntil
+scoped infixr:40 " Uₜ " => TrProp.strongUntil
 
 open Lean in
 /-- `∀ₜ x y, P`: the trace-level universal quantifier. -/

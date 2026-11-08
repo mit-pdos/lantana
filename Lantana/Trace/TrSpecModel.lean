@@ -109,7 +109,7 @@ theorem guarded_prefix_ext [TemporalGpreS Expr State GF] (M : TrSpec Expr State 
     (τ : Trace (Cfg Expr State)) (hM : untilBody TrSpec.true ⌜False⌝ₛ M ⊑ₛ M) : M.external τ :=
   valid_ext M τ (guarded_prefix_valid M hM τ)
 
-/-- The guarded body has no fold: on traces its least fixpoint is `⊤ 𝒰 ⊥`, which is empty,
+/-- The guarded body has no fold: on traces its least fixpoint is `⊤ U ⊥`, which is empty,
 whereas a fold would make it a pre-fixpoint, true on every trace. -/
 @[lantana_alias trSpec_mu_unfold_r_guarded]
 theorem mu_unfold_r_guarded [TemporalGpreS Expr State GF] (τ : Trace (Cfg Expr State)) :

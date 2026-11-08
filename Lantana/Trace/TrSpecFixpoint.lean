@@ -187,7 +187,7 @@ instance mono_always (F : TrSpec Expr State GF → TrSpec Expr State GF) [Mono F
 
 @[lantana_alias trSpec_mono_until]
 instance mono_strongUntil (F₁ F₂ : TrSpec Expr State GF → TrSpec Expr State GF) [Mono F₁]
-    [Mono F₂] : Mono fun X => F₁ X 𝒰ₛ F₂ X :=
+    [Mono F₂] : Mono fun X => F₁ X Uₛ F₂ X :=
   ⟨fun h => strongUntil_mono (Mono.mono_le h) (Mono.mono_le h),
    fun h => TrProp.until_mono (Mono.mono_ext (F := F₁) h) (Mono.mono_ext (F := F₂) h)⟩
 
@@ -505,7 +505,7 @@ variable (G G₁ G₂ : TrSpec Expr State GF)
 def alwaysBody (X : TrSpec Expr State GF) : TrSpec Expr State GF :=
   later (step (G ∧ₛ shift X))
 
-/-- The body of `G₁ 𝒰ₛ G₂`. -/
+/-- The body of `G₁ Uₛ G₂`. -/
 @[lantana_alias F_until]
 def untilBody (X : TrSpec Expr State GF) : TrSpec Expr State GF :=
   later (step (G₂ ∨ₛ (G₁ ∧ₛ shift X)))
@@ -563,13 +563,13 @@ theorem nu_always_ext' : (□ₜ G.external) ⊆ (nu (alwaysBody G)).external :=
 @[lantana_alias trSpec_until_at]
 def untilAt (a : Fuel) : TrSpec Expr State GF where
   internal := TrIProp.strongUntil G₁.internal G₂.internal a
-  external := (G₁ 𝒰ₛ G₂).external
-  adeq F τ h := (G₁ 𝒰ₛ G₂).adeq F τ <| (iPropSatLcAtFrame F ⊤).mono
+  external := (G₁ Uₛ G₂).external
+  adeq F τ h := (G₁ Uₛ G₂).adeq F τ <| (iPropSatLcAtFrame F ⊤).mono
     (exists_intro (Ψ := fun a => TrIProp.strongUntil G₁.internal G₂.internal a τ) a) h
 
-/-- `G₁ 𝒰ₛ G₂` is below `μ X. ⊳ ⊚ (G₂ ∨ (G₁ ∧ shift X))`: its rank is a ranking. -/
+/-- `G₁ Uₛ G₂` is below `μ X. ⊳ ⊚ (G₂ ∨ (G₁ ∧ shift X))`: its rank is a ranking. -/
 @[lantana_alias trSpec_until_le_mu]
-theorem until_le_mu : (G₁ 𝒰ₛ G₂) ⊑ₛ mu (untilBody G₁ G₂) := by
+theorem until_le_mu : (G₁ Uₛ G₂) ⊑ₛ mu (untilBody G₁ G₂) := by
   refine le_trans (H := ex (X := Fuel) (untilAt G₁ G₂)) (fun _ => .rfl)
     (ex_lub (X := Fuel) fun a => ?_)
   refine mu_intro _ (untilAt G₁ G₂) (fun α => ?_) a
@@ -581,8 +581,8 @@ theorem until_le_mu : (G₁ 𝒰ₛ G₂) ⊑ₛ mu (untilBody G₁ G₂) := by
     ⟨a', hlt⟩
 
 @[lantana_alias trSpec_mu_until_ext]
-theorem mu_until_ext : (mu (untilBody G₁ G₂)).external ⊆ (G₁.external 𝒰ₜ G₂.external) :=
-  fun τ h => TrProp.lfp_ind (R := G₁.external 𝒰ₜ G₂.external)
+theorem mu_until_ext : (mu (untilBody G₁ G₂)).external ⊆ (G₁.external Uₜ G₂.external) :=
+  fun τ h => TrProp.lfp_ind (R := G₁.external Uₜ G₂.external)
     (fun τ h => h.elim (fun h => TrProp.until_now τ h) (fun h => TrProp.until_step τ h))
     τ (mu_ext _ τ h)
 
@@ -601,14 +601,14 @@ theorem muApprox_le_until (α : Fuel) : muApprox (untilBody G₁ G₂) α ⊑ₛ
       TrIProp.strongUntil G₁.internal G₂.internal a' τ.next)) b.1
 
 @[lantana_alias trSpec_mu_le_until]
-theorem mu_le_until : mu (untilBody G₁ G₂) ⊑ₛ (G₁ 𝒰ₛ G₂) :=
+theorem mu_le_until : mu (untilBody G₁ G₂) ⊑ₛ (G₁ Uₛ G₂) :=
   ex_lub (X := Fuel) fun α => le_trans (muApprox_le_until G₁ G₂ α)
-    (show untilAt G₁ G₂ α ⊑ₛ (G₁ 𝒰ₛ G₂) from fun τ =>
+    (show untilAt G₁ G₂ α ⊑ₛ (G₁ Uₛ G₂) from fun τ =>
       exists_intro (Ψ := fun a => TrIProp.strongUntil G₁.internal G₂.internal a τ) α)
 
 @[lantana_alias trSpec_mu_until_ext_iff]
 theorem mu_until_ext_iff (τ : Trace (Cfg Expr State)) :
-    (mu (untilBody G₁ G₂)).external τ ↔ (G₁.external 𝒰ₜ G₂.external) τ :=
+    (mu (untilBody G₁ G₂)).external τ ↔ (G₁.external Uₜ G₂.external) τ :=
   ⟨mu_until_ext G₁ G₂ τ, fun h => mu_ext_lfp _ τ fun R hR =>
     TrProp.until_ind (X := R) (fun τ h => hR τ (.inl h)) (fun τ h => hR τ (.inr h)) τ h⟩
 

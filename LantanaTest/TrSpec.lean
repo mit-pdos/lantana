@@ -23,7 +23,7 @@ example (p : Prop) (φ : State → ThreadPool Expr → Prop) :
     TrSpec.Instant (⌜p⌝ₛ ∨ₛ TrSpec.state (GF := GF) φ) := inferInstance
 
 example (G H : TrSpec Expr State GF) [TrSpec.Complete G] [TrSpec.Complete H] :
-    TrSpec.Complete (G 𝒰ₛ H) := inferInstance
+    TrSpec.Complete (G Uₛ H) := inferInstance
 
 example (G : TrSpec Expr State GF) [TrSpec.Complete G] : TrSpec.Complete (◇ₛ G) :=
   inferInstance
@@ -46,7 +46,7 @@ example (G : TrSpec Expr State GF) :
   inferInstance
 
 example (G : TrSpec Expr State GF) :
-    TrSpec.Mono fun X : TrSpec Expr State GF => G 𝒰ₛ (□ₛ (X ∨ₛ G)) :=
+    TrSpec.Mono fun X : TrSpec Expr State GF => G Uₛ (□ₛ (X ∨ₛ G)) :=
   inferInstance
 
 example (A G : TrSpec Expr State GF) :
@@ -60,7 +60,7 @@ example (G : TrSpec Expr State GF) : TrSpec.nu (TrSpec.alwaysBody G) ⊑ₛ (□
   TrSpec.nu_le_always G
 
 example (G₁ G₂ : TrSpec Expr State GF) (τ : Trace (Cfg Expr State)) :
-    (TrSpec.mu (TrSpec.untilBody G₁ G₂)).external τ ↔ (G₁.external 𝒰ₜ G₂.external) τ :=
+    (TrSpec.mu (TrSpec.untilBody G₁ G₂)).external τ ↔ (G₁.external Uₜ G₂.external) τ :=
   TrSpec.mu_until_ext_iff G₁ G₂ τ
 
 end LantanaTest.TrSpec
