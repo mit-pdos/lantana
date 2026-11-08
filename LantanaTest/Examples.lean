@@ -69,7 +69,7 @@ example : Handoff.receive =
 
 /-- The end-to-end statement of `flag_fork.v`, liveness and safety. -/
 example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(FlagFork.tp0, FlagFork.σ0), 0⟩) :
+    (hinit : τ.seq 0 = (FlagFork.tp0, FlagFork.σ0)) :
     FlagFork.rMain 0 τ ∧ safetyIris 0 (fun _ v => v = FlagFork.v42) τ :=
   FlagFork.main_liveness_safety τ hbeh hfair hpos hinit
 
@@ -86,12 +86,12 @@ example : @RocqLantana.handoff_client_adequacy = @HandoffClient.handoffClient_ad
 /-- The clients of the stable flag export its stronger property: once the flag is `1`, it stays
 `1`. -/
 example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(FlagClient.tp0, FlagClient.σ0), 0⟩) :
+    (hinit : τ.seq 0 = (FlagClient.tp0, FlagClient.σ0)) :
     FlagStable.flagStaysTr FlagClient.xLoc τ :=
   FlagStable.isFlagTr_stays _ τ (FlagStableClient.flagClient_adequacy τ hbeh hfair hpos hinit).1
 
 example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(HandoffClient.tp0, HandoffClient.σ0), 0⟩) :
+    (hinit : τ.seq 0 = (HandoffClient.tp0, HandoffClient.σ0)) :
     (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ :=
   HandoffFlagStableClient.handoffClient_flag_stays τ hbeh hfair hpos hinit
 

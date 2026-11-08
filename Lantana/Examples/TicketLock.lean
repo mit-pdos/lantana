@@ -2043,7 +2043,7 @@ def starvationFree (next curr : Loc) : TrProp Exp State :=
     ⌜c < t ∧ t ≤ n⌝ₜ →ₜ ◇ₜ trPointsTo curr (vz t))
 
 /-- By induction on `t - c₀`, from any time at which `curr ↦ c₀ < t ≤ next`. -/
-theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → TraceState Exp State)
+theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → Cfg Exp State)
     (t : Int) (Hrp : releaseProgress next curr ⟨k, τf⟩) (Hmon : nextMonotone next ⟨k, τf⟩) :
     ∀ (d m₀ : Nat) (c₀ : Int), (t - c₀).toNat = d → k ≤ m₀ →
       trPointsTo curr (vz c₀) ⟨m₀, τf⟩ → c₀ < t →

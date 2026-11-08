@@ -488,12 +488,11 @@ def isFlagTr (l : Loc) : TrProp Exp State :=
 theorem flagTrSpec_impl (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l :=
   fun _ ⟨_, h⟩ m hm => (h m hm).imp id And.right
 
-/-- The run `0, 1, 0, 1, 1, …` of a single idle thread. -/
+/-- The run `0, 1, 0, 1, 1, …` of the flag, with an empty pool. -/
 @[lantana_alias flag_run]
-def flagRun (l : Loc) (n : Nat) : TraceState Exp State :=
-  { cfg := ([], ⟨(∅ : Std.ExtTreeMap Loc (Option Val) compare).insert l
-      (some (if n = 0 ∨ n = 2 then v0 else v1))⟩),
-    thread := 0 }
+def flagRun (l : Loc) (n : Nat) : Cfg Exp State :=
+  ([], ⟨(∅ : Std.ExtTreeMap Loc (Option Val) compare).insert l
+    (some (if n = 0 ∨ n = 2 then v0 else v1))⟩)
 
 @[lantana_alias flag_run_at]
 theorem flagRun_at (l : Loc) (m : Nat) (v : Val) :

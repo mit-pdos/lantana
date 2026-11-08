@@ -62,14 +62,14 @@ example {GF : Iris.BundledGFunctors} (ql : Val) (τ : Trace Exp State)
 
 /-- The end-to-end statement of `task_queue_client.v`, liveness and safety. -/
 example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(TaskQueueClient.tp0, TaskQueueClient.σ0), 0⟩) :
+    (hinit : τ.seq 0 = (TaskQueueClient.tp0, TaskQueueClient.σ0)) :
     (TaskQueueClient.rMain 0 τ ∧ TaskQueueClient.rQueue τ) ∧
       safetyIris 0 (fun _ v => v = Flag.v1) τ :=
   TaskQueueClient.taskQueueClient_liveness_safety τ hbeh hfair hpos hinit
 
 /-- Over the stable flag, the flag stays set once set. -/
 example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(TaskQueueClient.tp0, TaskQueueClient.σ0), 0⟩) :
+    (hinit : τ.seq 0 = (TaskQueueClient.tp0, TaskQueueClient.σ0)) :
     (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ :=
   TaskQueueFlagStableClient.taskQueueClient_flag_stays τ hbeh hfair hpos hinit
 

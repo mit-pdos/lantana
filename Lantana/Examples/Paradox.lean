@@ -575,8 +575,8 @@ configuration, eventually `False`. -/
 @[lantana_alias loop_paradox]
 theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
     (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) : rMain τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 gMain rMain gMain_impl τ hbeh hfair hpos
+    (hinit : τ.seq 0 = (tp0, σ0)) : rMain τ := by
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gMain rMain gMain_impl τ hbeh hfair hpos
     hinit ?_
   intro _ _
   refine ⟨Ordinals.Ordinal.ofNat 10, ?_⟩
@@ -615,20 +615,9 @@ theorem loop_primStep (σ : State) :
     primStep (hl(v(&loop) #()) : Exp) σ hl(v(&loop) #()) σ [] :=
   EctxLanguage.primStep_of_baseStep (.betaS _ _ _ _ _ σ rfl)
 
-/-- Thread `0` is scheduled at even positions, thread `1` at odd ones. -/
-def sched (m : Nat) : Nat := if m % 2 = 0 then 0 else 1
-
 /-- The run of the two loops: every step takes `loop ()` to `loop ()`. -/
 @[lantana_alias paradox.loop_run]
-def loopRun : Trace Exp State := ⟨0, fun m => ⟨(tp0, σ0), sched m⟩⟩
-
-/-- Each thread is scheduled at the current position or at the next one. -/
-theorem sched_eventually (m j : Nat) (hj : j < 2) : ∃ m', m ≤ m' ∧ sched m' = j := by
-  by_cases h : sched m = j
-  · exact ⟨m, Nat.le_refl m, h⟩
-  · refine ⟨m + 1, Nat.le_succ m, ?_⟩
-    unfold sched at h ⊢
-    split at h <;> split <;> omega
+def loopRun : Trace Exp State := ⟨0, fun _ => (tp0, σ0)⟩
 
 /-- Both threads run the loop. -/
 theorem tp0_getElem? {j : Nat} (hj : j < 2) : tp0[j]? = some hl(v(&loop) #()) := by
@@ -637,31 +626,32 @@ theorem tp0_getElem? {j : Nat} (hj : j < 2) : tp0[j]? = some hl(v(&loop) #()) :=
   · rfl
   · omega
 
-@[lantana_alias paradox.loop_run_behavior]
-theorem loopRun_behavior : IsBehavior loopRun := by
-  intro m _
+/-- Both threads take a trace step at every position: each `loop ()` steps to itself. -/
+theorem loopRun_traceStep (m : Nat) {j : Nat} (hj : j < 2) :
+    TraceStep j (loopRun.seq m) (loopRun.seq (m + 1)) := by
   left
-  have hlt : sched m < 2 := by
-    unfold sched
-    split <;> decide
-  have h := ThreadStep.step (i := sched m) (tp := tp0) (σ := σ0) (tp0_getElem? hlt)
-    (loop_primStep σ0)
-  have hset : tp0.set (sched m) hl(v(&loop) #()) = tp0 := by
-    unfold sched
-    split <;> rfl
+  have h := ThreadStep.step (i := j) (tp := tp0) (σ := σ0) (tp0_getElem? hj) (loop_primStep σ0)
+  have hset : tp0.set j hl(v(&loop) #()) = tp0 := by
+    rcases j with _ | _ | j
+    · rfl
+    · rfl
+    · omega
   rw [List.append_nil, hset] at h
   exact h
 
+@[lantana_alias paradox.loop_run_behavior]
+theorem loopRun_behavior : IsBehavior loopRun := fun m _ => ⟨0, loopRun_traceStep m (by decide)⟩
+
+/-- Both threads are active and step at every position; no other thread is ever active. -/
 @[lantana_alias paradox.loop_run_fair]
 theorem loopRun_fair : fairScheduling loopRun := by
-  intro m _ j
+  intro j hinf
   by_cases hj : j < 2
-  · right
-    obtain ⟨m', hm', ht⟩ := sched_eventually m j hj
-    exact ⟨⟨hl(v(&loop) #()), tp0_getElem? hj, rfl⟩, m', hm', ht, fun _ _ _ => trivial⟩
-  · left
-    left
-    exact List.getElem?_eq_none (Nat.not_lt.mp hj)
+  · exact fun n => ⟨n, Nat.le_refl n, ⟨_, tp0_getElem? hj, rfl⟩, loopRun_traceStep n hj⟩
+  · obtain ⟨m, -, e, he, -⟩ := hinf 0
+    simp only [loopRun] at he
+    rw [List.getElem?_eq_none (by simp; omega)] at he
+    cases he
 
 /-- **The no-credit rule is unsound**: assuming it, `loop_paradox` gives "eventually `False`" on
 the fair run of the loops. -/
