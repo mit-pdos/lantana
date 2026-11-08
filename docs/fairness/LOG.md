@@ -143,3 +143,10 @@ ascription `: TrProp C`.
 The skeleton reuses the namespace `Lantana.Fairness` of the positional theory still in
 `Lantana/Trace/Fairness/`, so it is not imported by the `Lantana.Temporal` aggregator until S3
 deletes the old theory (both in one environment clash); the provers build their modules by name.
+
+Results S2 so far.  Group B (`306af11`, merged): `Sched.lean` and `Thread.lean`, 24 theorems, no
+statement changed, no helper; `labelledView_of_sf` is proved from the definition of `SF` rather
+than through `fair_mono`, because `fair_mono`'s hypotheses are entailments on every trace and the
+schedule only holds from `τ.pos` on.  Group C (`abfc86c`, merged): `FairLabel.lean` and
+`FairScheduling.lean`, 19 theorems, no statement changed; the fair-labelling proof carries over
+with the claim's `τ.pos ≤ n` conjunct and the claims taken from `max N τ.pos`.
