@@ -82,3 +82,25 @@ brief needed the extra binder (`GuaranteeRules.lean`, `TemporalFormulaRules.lean
 Lantana.Trace --wfail` green (62 modules); `Lantana.HeapLang` builds unchanged; the examples and
 the tests break as expected (task 2b).  Lead's fix after the merge: one over-long docstring line
 in `Safety.lean`.
+
+Result 2b (`6dbcd1f`, merged, lean-prover-2): the end-to-end theorems of eleven example files take
+`hinit : τ.seq 0 = (tp0, σ0)` and call the adequacy theorems without the thread argument;
+`Flag.flagRun : Nat → Cfg`; `NonstrictMove.loopRun`, `Paradox.loopRun` over configurations with the
+new lemmas `loopRun_traceStep` (every thread of the pool steps at every position) and the
+fairness proofs redone (`Paradox.sched`, `sched_eventually` deleted);
+`TicketLock.releaseProgress_served` over `Nat → Cfg`; four test files; README's adequacy
+paragraph and "Fixed concrete choices" bullet.  Lead's edits beside it: `docs/paper-correspondence.md`
+(three rows: traces without a label, `Fair` as `Sched.SF`, safety for every thread).
+**Commit 2 complete.**  Final checks on `agent/fairness`: `lake build --wfail` 379 jobs, `lake test`
+407 jobs (exit 0), `scripts/audit.sh` ok, `scripts/check-imports.sh` ok (281 imports); every
+`#print axioms` guard shows the standard three axioms (`Action.sf_iff_wf_of_convex` none,
+`fairScheduling_sf_iff_wf` `propext` only).  No sub worktree or branch left.
+
+Not done, for the owner: `docs/rocq-correspondence.md` is stale for the rows `trace_state`,
+`trace_thread`, `thread_turn`, `thread_active`, `thread_na`, `thread_active_or_not`,
+`thread_active_and_not_false`, `fair_scheduling`, `beh_fscnt`, `fair_scheduling_fscnt`,
+`fscnt_next_rel_th`, `fscnt_next_rel`, `exists_fscnt_next`, `adequacy_safety.not_stuck`,
+`if_term_val`, `obls_thread_active` and the line numbers of the trace files; regenerating it with
+`scripts/rocq-table.sh` needs the Rocq checkout, which this container does not have (without it
+the script drops the Rocq grouping and the coverage report).  Next milestone: M2,
+`docs/fairness/DESIGN.md`, then the owner's confirmation of D2–D6 before M3.
