@@ -79,54 +79,54 @@ variable {A : C → Prop} {G : C → C → Prop} {δ : Nat → Nat} {τ : Trace 
 
 /-- `SF` is layer 0's fairness at the action's attempts: this is layer 0's meaning
 (`AttemptGrant.fair_iff_attempt`). -/
-theorem sf_iff_fair : SF A G τ ↔ AttemptGrant.Fair (enabled A) (grant G) τ := by
-  sorry
+theorem sf_iff_fair : SF A G τ ↔ AttemptGrant.Fair (enabled A) (grant G) τ :=
+  AttemptGrant.fair_iff_attempt.symm
 
 /-- `SF` is the same at every position of the run. -/
-theorem sf_absolute : TrProp.Absolute (SF A G) := by
-  sorry
+theorem sf_absolute : TrProp.Absolute (SF A G) :=
+  TrProp.absolute_imp TrProp.absolute_always_eventually TrProp.absolute_always_eventually
 
 /-- `SF` is the existence of a counter. -/
-theorem sf_iff_counter : SF A G τ ↔ ∃ δ, IsCounter A G δ τ := by
-  sorry
+theorem sf_iff_counter : SF A G τ ↔ ∃ δ, IsCounter A G δ τ :=
+  sf_iff_fair.trans AttemptGrant.fair_iff_counter
 
 /-- `SF` gives a counter. -/
-theorem counter_of_sf (hsf : SF A G τ) : ∃ δ, IsCounter A G δ τ := by
-  sorry
+theorem counter_of_sf (hsf : SF A G τ) : ∃ δ, IsCounter A G δ τ := sf_iff_counter.1 hsf
 
 /-- A counter gives `SF`. -/
-theorem sf_of_counter (hδ : IsCounter A G δ τ) : SF A G τ := by
-  sorry
+theorem sf_of_counter (hδ : IsCounter A G δ τ) : SF A G τ := sf_iff_counter.2 ⟨δ, hδ⟩
 
 /-! ### The variants: response, weak fairness, a certain grant -/
 
 /-- The response form gives `SF`. -/
-theorem sf_of_response : Response A G ⊆ SF A G := by
-  sorry
+theorem sf_of_response : Response A G ⊆ SF A G :=
+  fun τ h => sf_iff_fair.2 (AttemptGrant.fair_of_response τ h)
 
 /-- `SF` gives weak fairness. -/
-theorem wf_of_sf : SF A G ⊆ WF A G := by
-  sorry
+theorem wf_of_sf : SF A G ⊆ WF A G :=
+  fun τ hsf hev => hsf (TrProp.eventually_always_le τ hev)
 
 /-- A certain grant gives the response form: every position where `A` holds is granted at
 once. -/
-theorem response_of_certain : Certain A G ⊆ Response A G := by
-  sorry
+theorem response_of_certain : Certain A G ⊆ Response A G :=
+  fun _ hc m hm hA => TrProp.eventually_intro _ ⟨hA, hc m hm hA⟩
 
 /-- A certain grant gives `SF` outright. -/
-theorem sf_of_certain : Certain A G ⊆ SF A G := by
-  sorry
+theorem sf_of_certain : Certain A G ⊆ SF A G := TrProp.le_trans response_of_certain sf_of_response
 
 /-! ### Weak and strong fairness coincide for a convex condition -/
 
 /-- A convex condition that holds infinitely often holds from some position on. -/
 theorem eventually_always_of_infOften_of_convex :
     (Convex A ∧ₜ □ₜ ◇ₜ enabled A) ⊆ ◇ₜ □ₜ enabled A := by
-  sorry
+  rintro τ ⟨hconv, hinf⟩
+  obtain ⟨m, hm, hA⟩ := TrProp.always_eventually_iff.mp hinf τ.pos (Nat.le_refl _)
+  exact TrProp.eventually_always_iff.mpr
+    ⟨m, hm, fun l hl => hconv m hm hA l hl (hinf l (Nat.le_trans hm hl))⟩
 
 /-- For a convex condition, strong and weak fairness of the action coincide. -/
-theorem sf_iff_wf_of_convex (hconv : Convex A τ) : SF A G τ ↔ WF A G τ := by
-  sorry
+theorem sf_iff_wf_of_convex (hconv : Convex A τ) : SF A G τ ↔ WF A G τ :=
+  ⟨wf_of_sf τ, fun hwf hinf => hwf (eventually_always_of_infOften_of_convex τ ⟨hconv, hinf⟩)⟩
 
 end Action
 
