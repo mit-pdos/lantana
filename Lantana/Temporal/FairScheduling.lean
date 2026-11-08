@@ -38,12 +38,12 @@ run that names no scheduled thread. -/
 def fairScheduling : TrProp C := ∀ₜ i : ThreadId, Fairness.Sched.SF i
 
 /-- Fair scheduling is the same at every position of the run. -/
-theorem fairScheduling_absolute : TrProp.Absolute (fairScheduling (C := C)) := by
-  sorry
+theorem fairScheduling_absolute : TrProp.Absolute (fairScheduling (C := C)) :=
+  TrProp.absolute_all fun _ => Fairness.Action.sf_absolute
 
 @[lantana_alias fair_scheduling_next]
-theorem fairScheduling_next {τ : Trace C} (h : fairScheduling τ) : fairScheduling τ.next := by
-  sorry
+theorem fairScheduling_next {τ : Trace C} (h : fairScheduling τ) : fairScheduling τ.next :=
+  fairScheduling_absolute.next.mp h
 
 /-- Fairness counters of a run under a schedule (Rocq `beh_fscnt`): from the current position on,
 every thread is inactive, or active and either named by the schedule or with a strictly
@@ -58,8 +58,8 @@ variable {τ : Trace C} {sched : Nat → ThreadId} {γ : Nat → ThreadId → Na
 /-- The counters, unfolded at a position: the form the adequacy proof reads. -/
 theorem behFscnt_iff : BehFscnt sched γ τ ↔
     ∀ m, τ.pos ≤ m → ∀ i, ¬ Pool.active i (τ.seq m) ∨
-      (Pool.active i (τ.seq m) ∧ (sched m = i ∨ γ (m + 1) i < γ m i)) := by
-  sorry
+      (Pool.active i (τ.seq m) ∧ (sched m = i ∨ γ (m + 1) i < γ m i)) :=
+  Iff.rfl
 
 /-- Layer 0's counters of the threads' scheduling pairs under a schedule are fairness counters:
 at a position where the thread is active and not named the counter drops by one. -/
@@ -67,15 +67,27 @@ theorem behFscnt_of_counters {δ : ThreadId → Nat → Nat}
     (hδ : ∀ i, Fairness.AttemptGrant.IsCounter (active i) (TrProp.atPos fun n => sched n = i)
       (δ i) τ) :
     BehFscnt sched (fun m i => δ i m) τ := by
-  sorry
+  refine behFscnt_iff.mpr fun m hm i => ?_
+  by_cases hA : Pool.active i (τ.seq m)
+  · refine .inr ⟨hA, ?_⟩
+    by_cases hs : sched m = i
+    · exact .inl hs
+    · have hdrop := Fairness.AttemptGrant.counter_drop (τ := { τ with pos := m })
+        ((hδ i).mono hm) hA hs
+      right
+      dsimp only at hdrop ⊢
+      omega
+  · exact .inl hA
 
 /-- Under a schedule that names every thread active infinitely often infinitely often while it is
 active, the run has fairness counters: for each thread, the counter of its scheduling pair. -/
 theorem exists_behFscnt_of_fair_schedule
     (hfair : ∀ i, (□ₜ ◇ₜ active i) τ →
       (□ₜ ◇ₜ (active i ∧ₜ TrProp.atPos fun n => sched n = i)) τ) :
-    ∃ γ, BehFscnt sched γ τ := by
-  sorry
+    ∃ γ, BehFscnt sched γ τ :=
+  ⟨fun m i => Classical.choose (Fairness.Sched.exists_counter_of_fair_schedule (hfair i)) m,
+    behFscnt_of_counters fun i =>
+      Classical.choose_spec (Fairness.Sched.exists_counter_of_fair_schedule (hfair i))⟩
 
 /-- A behavior on which every thread is fairly scheduled admits a fair schedule and fairness
 counters under it (Rocq `fair_scheduling_fscnt`; classical): the schedule from the fair-labelling
@@ -84,12 +96,14 @@ theorem, the counters from layer 0's counter of the scheduling pair read under t
 theorem exists_fair_schedule_behFscnt (hrun : IsBehavior τ) (hsf : fairScheduling τ) :
     ∃ (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
       Schedule sched τ ∧ BehFscnt sched γ τ := by
-  sorry
+  obtain ⟨sched, hsch, hfair⟩ := Fairness.exists_fair_schedule hrun hsf
+  obtain ⟨γ, hγ⟩ := exists_behFscnt_of_fair_schedule hfair
+  exact ⟨sched, γ, hsch, hγ⟩
 
 /-- Where a thread's activity is convex, its fair scheduling is weak fairness, the usual justice
 requirement. -/
 theorem fairScheduling_sf_iff_wf {i : ThreadId} (hconv : Fairness.Action.Convex (Pool.active i) τ) :
-    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Pool.active i) (Pool.Step i) τ := by
-  sorry
+    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Pool.active i) (Pool.Step i) τ :=
+  Fairness.Action.sf_iff_wf_of_convex hconv
 
 end Lantana
