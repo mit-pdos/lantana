@@ -51,4 +51,25 @@ info: 'Lantana.Fairness.Sched.exists_counter_of_fair_schedule' depends on axioms
 #guard_msgs in
 #print axioms Lantana.Fairness.Sched.exists_counter_of_fair_schedule
 
+/-! Lantana's traces are a pool of the attempt–grant model, and the scheduling counters under a
+fair schedule depend only on the standard axioms. -/
+
+section Pool
+
+variable {Expr State Val : Type} [Lantana.Language Expr State Val]
+
+example : Lantana.Fairness.Pool (Lantana.Cfg Expr State) := inferInstance
+
+end Pool
+
+/--
+info: 'Lantana.exists_fair_schedule_behFscnt' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms Lantana.exists_fair_schedule_behFscnt
+
+/-- info: 'Lantana.fairScheduling_sf_iff_wf' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Lantana.fairScheduling_sf_iff_wf
+
 end LantanaTest.Fairness
