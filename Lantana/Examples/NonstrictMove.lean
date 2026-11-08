@@ -190,10 +190,12 @@ theorem loopRun_behavior : IsBehavior loopRun :=
 theorem loopRun_fair : fairScheduling loopRun := by
   intro i hinf
   rcases Nat.eq_zero_or_pos i with rfl | hi
-  · exact fun n => ⟨n, Nat.le_refl n, ⟨_, rfl, rfl⟩, loopRun_traceStep n⟩
-  · obtain ⟨m, -, e, he, -⟩ := hinf 0
+  · exact TrProp.always_eventually_iff.mpr fun n _ =>
+      ⟨n, Nat.le_refl n, active_iff.mpr ⟨_, rfl, rfl⟩, steps_iff.mpr (loopRun_traceStep n)⟩
+  · obtain ⟨m, -, hm⟩ := TrProp.always_eventually_iff.mp hinf 0 (Nat.le_refl _)
+    obtain ⟨e, he, -⟩ := active_iff.mp hm
     simp only [loopRun] at he
-    rw [List.getElem?_eq_none (by simp; omega)] at he
+    rw [List.getElem?_eq_none (by simp [Trace.now]; omega)] at he
     cases he
 
 /-- **The non-strict move is unsound**: assuming it, the fair run of the loop satisfies

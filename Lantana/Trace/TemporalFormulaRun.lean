@@ -353,7 +353,7 @@ theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Ex
     (n : Nat) (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls)
     (W : Witnesses) (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId)
     (γ : Nat → ThreadId → Nat) (C Φ : IProp GF)
-    (hf : Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+    (hf : Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf) :
     sysStep Sys ⊢ historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
       (∀ l, bundle (Expr := Expr) (State := State) l n -∗ ▷ C) -∗
@@ -397,7 +397,7 @@ theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
       ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
         (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
         (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
-        ⌜r < n ∧ Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+        ⌜r < n ∧ Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
           owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
         historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
         TrIProp.always G.internal ⟨n, τf⟩ := by
@@ -433,7 +433,7 @@ theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State G
     (G₂ : TrSpec Expr State GF) (a : Fuel) (h : List (HistEntry Expr State)) (n : Nat)
     (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
     (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
-    (hf : Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+    (hf : Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf) :
     sysStep Sys ⊢ record G₂ n -∗
       historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
@@ -470,7 +470,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
         (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
         (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
         (fu : Fuel) (o : ThreadId),
-        ⌜r < n ∧ Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+        ⌜r < n ∧ Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
           owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf ∧
           get? Ω k = some (.assigned fu o)⌝ -∗
         historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗

@@ -7,3 +7,5 @@ module
 public import Lantana.Temporal.Trace
 public import Lantana.Temporal.TracePropRules
 public import Lantana.Temporal.Pool
+public import Lantana.Temporal.Fairness
+public import Lantana.Temporal.FairScheduling

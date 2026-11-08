@@ -15,7 +15,7 @@ temporal interpretation, under the deferred shape `|={⊤,∅}=> ALC (|={∅,⊤
 
 The run is a sequence of configurations `τf` with a schedule `sched`, the adequacy proof's
 internal instrument: at every position `n`, the thread `sched n` takes a trace step
-(`Fairness.Schedule`). No thread of the pool is stuck at `n`: a stuck thread's `lWP` (at
+(`Schedule sched ⟨0, τf⟩`). No thread of the pool is stuck at `n`: a stuck thread's `lWP` (at
 `NotStuck`) proves its reducibility, whichever thread it is. `run_step` then inverts the trace
 step of the thread the schedule names:
 * it steps: its `lWP` takes the step (the pre-step model update, the progress and physical rounds
@@ -328,7 +328,7 @@ theorem run_step_stuck {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
 theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : BehFscnt τf sched γ)
+    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : BehFscnt sched γ ⟨0, τf⟩)
     (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) (hlen : h.length = n + 1)
     (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).notStuck)
     (hd : ThreadDone i (tp, σ) (τf (n + 1))) :
@@ -364,7 +364,7 @@ theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
 theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : BehFscnt τf sched γ)
+    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : BehFscnt sched γ ⟨0, τf⟩)
     (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) (hlen : h.length = n + 1)
     (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).notStuck)
     (hstep : ThreadStep i (tp, σ) (τf (n + 1))) :
@@ -425,7 +425,7 @@ trace step of the thread the schedule names. -/
 theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hsch : Fairness.Schedule τf sched) (hcnt : BehFscnt τf sched γ)
+    {γ : Nat → ThreadId → Nat} (hsch : Schedule sched ⟨0, τf⟩) (hcnt : BehFscnt sched γ ⟨0, τf⟩)
     (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ threadsRun tp Ψ ⊢
       |={⊤,∅}=> ALC iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
@@ -440,8 +440,8 @@ theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : Sta
     obtain ⟨j, e, he, hst⟩ := hns
     iapply run_step_stuck hLb ⟨e, he, Language.not_notStuck_iff.mp hst⟩
     iframe HH HM HT
-  have hts := hsch n
-  simp only [Fairness.Pool.step_def, TraceStep, hnow] at hts
+  have hts := (schedule_iff.mp hsch) n (Nat.zero_le n)
+  simp only [Pool.step_def, TraceStep, hnow] at hts
   rcases hts with hs | hd | hst
   · iapply run_step_step c hcnt hLb hh hlen hnow rfl hns hs
     iframe HH HM HT

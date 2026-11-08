@@ -24,13 +24,15 @@ with the **one-step property** `sysStep` (`lWP` is one, `Adequacy/Temporal`).
 
 The pure facts about the run `τf : Nat → Cfg Expr State` (D18): the schedule
 `sched : Nat → ThreadId`, the adequacy proof's internal instrument (traces carry no thread
-label), names a thread whose trace step each position is (`Fairness.Schedule`); the fairness
-counters are an explicit sequence `γ : Nat → ThreadId → Nat` along the run under the schedule
-(`BehFscnt`); the witnesses are bounded below by the fair-scheduler measure of the current
-counters (`owitInvLb`); the ghost history is a prefix of the run (`histTrace`); and across a step
-every assigned obligation's measure drops (`oblsDrop`). The first two are facts about the whole
-run, the same at every position. Records are a guarded fixpoint (`recordTrI`): the certificates
-hold the records under a later.
+label), names a thread whose trace step each position is (`Schedule sched ⟨0, τf⟩`); the
+fairness counters are an explicit sequence `γ : Nat → ThreadId → Nat` along the run under the
+schedule (`BehFscnt sched γ ⟨0, τf⟩`); the witnesses are bounded below by the fair-scheduler
+measure of the current counters (`owitInvLb`); the ghost history is a prefix of the run
+(`histTrace`); and across a step every assigned obligation's measure drops (`oblsDrop`). The
+first two are trace properties of the run from position `0` (`Lantana.Temporal.Pool`,
+`Lantana.Temporal.FairScheduling`), read at a position `n` through `schedule_iff` and
+`behFscnt_iff`; they are the same at every position. Records are a guarded fixpoint
+(`recordTrI`): the certificates hold the records under a later.
 
 `TrSpec.canon P` is the canonical (strongest) specification guaranteed by `P`. The rules are in
 `Lantana.Trace.GuaranteeRules`; the class `StateFact` of the atoms of trace specifications is
@@ -95,7 +97,7 @@ def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :
   iprop(□ ∀ (c : Nat) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
       (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
-    ⌜Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
     historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
     |={⊤,∅}=> ∃ l, bundlePre tg l n ∗ ▷ |={∅,⊤}=> |={⊤,∅}=> ALC iprop(|={∅,⊤}=>
@@ -115,7 +117,7 @@ def recordPre (tg : RecT Expr State GF) : RecT Expr State GF := fun f n =>
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
       (σ : State) (tp : ThreadPool Expr),
     sysStepPre tg Sys -∗
-    ⌜Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundlePre tg l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -279,7 +281,7 @@ theorem recordTrI_intro (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
       (σ : State) (tp : ThreadPool Expr),
     sysStep Sys -∗
-    ⌜Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -295,7 +297,7 @@ theorem recordTrI_elim (f : Trace (Cfg Expr State) → IProp GF) {Sys : SysT Exp
     {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
     recordTrI f n ⊢ sysStep Sys -∗
-    ⌜Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -316,7 +318,7 @@ theorem record_intro (G : TrSpec Expr State GF) (n : Nat) :
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
       (σ : State) (tp : ThreadPool Expr),
     sysStep Sys -∗
-    ⌜Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -329,7 +331,7 @@ theorem record_elim (G : TrSpec Expr State GF) {Sys : SysT Expr State GF}
     {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
     record G n ⊢ sysStep Sys -∗
-    ⌜Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗

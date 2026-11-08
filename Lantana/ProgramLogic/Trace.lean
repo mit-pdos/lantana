@@ -24,7 +24,8 @@ configuration (`Cfg.active`, `Cfg.inactive`), convex along a run (`Cfg.active_co
 
 Traces carry no thread label: nothing observable names the thread that steps. The adequacy
 proof chooses a schedule, the stepping thread at each position, as its internal instrument
-(`Lantana.Trace.FairScheduling`, `Fairness.Schedule`).
+(`Schedule`, `Lantana.Temporal.FairScheduling`). The facts of this instance that fair scheduling
+needs are in `Lantana.Trace.FairScheduling`.
 -/
 
 @[expose] public section

@@ -9,8 +9,9 @@ public import Lantana.Init
 /-! # Least witnesses on `Nat`
 
 The least witness of a satisfiable predicate on `Nat` (classical), used by the fairness
-counters: the distance to a thread's next turn (`Lantana.Trace.FairScheduling`) and the budget
-of refusals before the next grant (`Lantana.Trace.Fairness`).
+theory: the next hit and the budget of refusals before the next grant
+(`Lantana.Temporal.Fairness.AttemptGrant`), and a thread's next step
+(`Lantana.Temporal.Fairness.Thread`).
 -/
 
 @[expose] public section
