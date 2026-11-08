@@ -7,6 +7,7 @@ module
 public import Lantana.Trace.TraceProp
 public import Lantana.Trace.TracePropRules
 public import Lantana.Trace.FairScheduling
+public import Lantana.Trace.Fairness
 public import Lantana.Trace.TrIProp
 public import Lantana.Trace.TrSpec
 public import Lantana.Trace.TrSpecFixpoint
