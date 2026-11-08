@@ -576,9 +576,9 @@ gets created that is `0` until it is `1` and then `1`, and a task queue gets cre
 makes release progress (Rocq `task_queue_client_adequacy`). -/
 @[lantana_alias task_queue_client_adequacy]
 theorem taskQueueClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain 0 τ ∧ rQueue τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 (gMain 0) (rMain 0 ∧ₜ rQueue)
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (rMain 0 ∧ₜ rQueue)
     (gMain_impl 0) τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
@@ -596,14 +596,14 @@ theorem taskQueueClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
   · iapply guar_mainRes
   iframe
 
-/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+/-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the main thread has returned, its value is `1` (Rocq
 `task_queue_client_safety_adequacy`). -/
 @[lantana_alias task_queue_client_safety_adequacy]
 theorem taskQueueClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = v1) τ := by
-  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
   intro _ _
   refine ⟨2, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
@@ -623,7 +623,7 @@ theorem taskQueueClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavio
 `task_queue_client_liveness_safety`). -/
 @[lantana_alias task_queue_client_liveness_safety]
 theorem taskQueueClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     (rMain 0 τ ∧ rQueue τ) ∧ safetyIris 0 (fun _ v => v = v1) τ :=
   ⟨taskQueueClient_adequacy τ hbeh hfair hpos hinit,
     taskQueueClient_safety_adequacy τ hbeh hfair hpos hinit⟩

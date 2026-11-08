@@ -54,10 +54,12 @@ discharged. Lean names are in the namespace `Lantana`, and files in `Lantana/`.
 The two adequacy theorems:
 
 - `lwp_adequacy_temporal`: if the initial threads have `lWP`s and a resource `P` guarantees a
-  trace specification `G` (`P ⊨ₜ G`), then every fair behavior from the initial configuration
-  satisfies the trace reading of `G`.
-- `lwp_adequacy_safety`: on fair behaviors the scheduled thread is never stuck and a terminated
-  initial thread satisfies its postcondition.
+  trace specification `G` (`P ⊨ₜ G`), then every behavior with fair scheduling from the initial
+  configuration (`fairScheduling`: the strong fairness of each thread's scheduling action,
+  enabled where the thread is active and granted at its step; traces carry no scheduled-thread
+  label, the adequacy proof chooses the schedule) satisfies the trace reading of `G`.
+- `lwp_adequacy_safety`: on such behaviors no thread is ever stuck and a terminated initial
+  thread satisfies its postcondition.
 
 ## Proving a liveness property
 
@@ -151,8 +153,9 @@ no coverage report).
   unfolding lemmas, and nothing outside the model unfolds them.
 - **Fixed concrete choices**: the fair-scheduler bound `η a := ω ×ⱼ a +ₕ ω` and fuel `Ordinal.{1}`
   instead of classes; fairness counters are an explicit sequence instead of a coinductive
-  predicate; `always` reads a single formula and safety is derived from the generalised single
-  step `run_step`.
+  predicate, read under a schedule the adequacy proof chooses by the fair-labelling theorem of
+  `Lantana/Trace/Fairness`; `always` reads a single formula and safety is derived from the
+  generalised single step `run_step`.
 - **Allocation exposes ghost names**: the ghost-state classes are too large for the existential
   property of the step index, so allocation lemmas return records of names from which the
   instances are rebuilt (used by both adequacy theorems).
