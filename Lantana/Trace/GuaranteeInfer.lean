@@ -325,24 +325,25 @@ instance TrSpec.ext_true :
 /-- The trace reading of the canonical specification of `P`, through its inferred
 specification. -/
 @[lantana_alias trSpec_ext_canon]
-instance TrSpec.ext_canon (P : IProp GF) (G : TrSpec Expr State GF) (R : TrProp Expr State)
+instance TrSpec.ext_canon (P : IProp GF) (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State))
     [GuarOf P G] [TrSpec.Ext G R] : TrSpec.Ext (TrSpec.canon P) R :=
   ⟨fun _ hτ => TrSpec.Ext.ext_of (G := G) _ (TrSpec.canon_external GuarOf.guar_of hτ)⟩
 
 /-- `P` guarantees the trace property `R`: the form adequacy takes. -/
 @[lantana_alias IntoTrace]
-class IntoTrace (P : IProp GF) (R : outParam (TrProp Expr State)) : Prop where
+class IntoTrace (P : IProp GF) (R : outParam (TrProp (Cfg Expr State))) : Prop where
   into_trace : trCanon (Expr := Expr) (State := State) P ⊆ R
 
 attribute [lantana_alias into_trace] IntoTrace.into_trace
 
 @[lantana_alias into_trace_of]
-instance intoTrace_of (P : IProp GF) (G : TrSpec Expr State GF) (R : TrProp Expr State)
+instance intoTrace_of (P : IProp GF) (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State))
     [GuarOf P G] [TrSpec.Ext G R] : IntoTrace P R :=
   ⟨(trCanon_le P R).mpr ⟨G, GuarOf.guar_of, TrSpec.Ext.ext_of⟩⟩
 
 /-- The trace property inferred for `P` (Rocq `tr_inferred`, read with `tr_of`). -/
-abbrev trOf (P : IProp GF) {R : TrProp Expr State} [IntoTrace P R] : TrProp Expr State := R
+abbrev trOf (P : IProp GF) {R : TrProp (Cfg Expr State)} [IntoTrace P R] :
+    TrProp (Cfg Expr State) := R
 
 end Read
 
@@ -532,7 +533,7 @@ theorem naiveImpRule_unsound
 omit instM instT [StateInterp Expr State GF] in
 /-- The conclusion of the naive rule holds on no trace. -/
 @[lantana_alias trSpec_impl_true_false_empty]
-theorem trSpec_imp_true_false_empty (τ : Trace Expr State) :
+theorem trSpec_imp_true_false_empty (τ : Trace (Cfg Expr State)) :
     ¬ (TrSpec.true (Expr := Expr) (State := State) (GF := GF) →ₛ ⌜False⌝ₛ).external τ :=
   fun h => h trivial
 

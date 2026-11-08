@@ -435,7 +435,7 @@ variable {GF : BundledGFunctors}
 
 /-- The main thread `i` returns `1`, and a flag gets created that is `0` until it is `1` and
 then stays `1`; in particular, the task chain run by the worker sets it (Rocq `R_main`). -/
-def rMain (i : ThreadId) : TrProp Exp State :=
+def rMain (i : ThreadId) : TrProp (Cfg Exp State) :=
   ◇ₜ TrProp.state (threadExprSat i [] (.val v1)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
 
 /-- What the commitments guarantee (Rocq `G_main`). -/
@@ -503,7 +503,7 @@ theorem taskQueueClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF]
 gets created that is `0` until it is `1` and then `1`, and a task queue gets created whose lock
 makes release progress (Rocq `task_queue_client_adequacy`). -/
 @[lantana_alias task_queue_flag_stable_client.task_queue_client_adequacy]
-theorem taskQueueClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+theorem taskQueueClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain 0 τ ∧ rQueue τ := by
   refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (rMain 0 ∧ₜ rQueue)
@@ -528,7 +528,7 @@ theorem taskQueueClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
 stuck, and once the main thread has returned, its value is `1` (Rocq
 `task_queue_client_safety_adequacy`). -/
 @[lantana_alias task_queue_flag_stable_client.task_queue_client_safety_adequacy]
-theorem taskQueueClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+theorem taskQueueClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = v1) τ := by
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
@@ -550,7 +550,7 @@ theorem taskQueueClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavio
 /-- Liveness and safety together, over the same fair behaviors (Rocq
 `task_queue_client_liveness_safety`). -/
 @[lantana_alias task_queue_flag_stable_client.task_queue_client_liveness_safety]
-theorem taskQueueClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
+theorem taskQueueClient_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     (rMain 0 τ ∧ rQueue τ) ∧ safetyIris 0 (fun _ v => v = v1) τ :=
   ⟨taskQueueClient_adequacy τ hbeh hfair hpos hinit,
@@ -558,7 +558,7 @@ theorem taskQueueClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavio
 
 /-- The stronger flag property, which the guarantee of `Flag` does not give: once the flag is
 `1`, it stays `1`. -/
-theorem taskQueueClient_flag_stays (τ : Trace Exp State) (hbeh : IsBehavior τ)
+theorem taskQueueClient_flag_stays (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ := by
   obtain ⟨m, hm, ⟨x, hx⟩, hbef⟩ := (taskQueueClient_adequacy τ hbeh hfair hpos hinit).1.2

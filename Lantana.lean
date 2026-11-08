@@ -6,6 +6,7 @@ module
 
 public import Lantana.Init
 public import Lantana.Prelude
+public import Lantana.Temporal
 public import Lantana.Algebra
 public import Lantana.BaseLogic
 public import Lantana.HeapLang

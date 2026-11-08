@@ -59,7 +59,7 @@ example (G : TrSpec Expr State GF) : (□ₛ G) ⊑ₛ TrSpec.nu (TrSpec.alwaysB
 example (G : TrSpec Expr State GF) : TrSpec.nu (TrSpec.alwaysBody G) ⊑ₛ (□ₛ G) :=
   TrSpec.nu_le_always G
 
-example (G₁ G₂ : TrSpec Expr State GF) (τ : Trace Expr State) :
+example (G₁ G₂ : TrSpec Expr State GF) (τ : Trace (Cfg Expr State)) :
     (TrSpec.mu (TrSpec.untilBody G₁ G₂)).external τ ↔ (G₁.external 𝒰ₜ G₂.external) τ :=
   TrSpec.mu_until_ext_iff G₁ G₂ τ
 

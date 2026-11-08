@@ -50,7 +50,7 @@ are `iProp`s with guarantees `P ⊨ₜ G`, and trace specifications have two ent
 - **Two entailments of trace specifications:** in-logic entailment `G ⊑ₛ H` (`TrSpec.le`)
   transports guarantees (`guar_weaken`) but is too weak for temporal reasoning
   (`TrSpec.always_elim_not_le`); trace entailment `G.external ⊆ R` is LTL on traces
-  (`Trace/TracePropRules.lean`), and `TrSpec.cast` transports it along a guarantee
+  (`Temporal/TracePropRules.lean`), and `TrSpec.cast` transports it along a guarantee
   (`guar_cast`). `IntoTrace P R` infers the trace property that `P` guarantees.
 
 Lean also departs from Rocq in its implementation (see *Design* in the
@@ -109,8 +109,8 @@ fuel type, and ghost names exposed by allocation.
 
 | Paper | Lean | File |
 |---|---|---|
-| `Cfg`, `TPool`, THREAD-STEP/THREAD-DONE, `Trace`, `Behavior` | `Cfg`, `ThreadPool` (a list; thread ids are positions), `ThreadStep` / `ThreadDone`, `Trace`, `IsBehaviorOf` / `IsBehaviorOfPool`; no observations. Additionally `ThreadStuck`: a stuck thread stutters, so stuck executions are behaviors too. Traces carry no scheduled-thread label: a behavior is a run in which some thread takes a trace step (`TraceStep i`) at every position, and the adequacy proof chooses the schedule (lane `fairness-sched`, 2026-11-08) | `ProgramLogic/Trace.lean` |
-| temporal properties `Φ, Ψ` and `⟦·⟧_t` | trace specifications `TrSpec`, trace reading `TrSpec.external` (step-indexed reading `TrSpec.internal`); `Always` = `TrSpec.always`, `Until` = `TrSpec.strongUntil`, `Finally` = `TrSpec.eventually`; trace properties `TrProp` with `□ₜ`, `𝒰ₜ`, `◇ₜ` (`TrProp.always`, `TrProp.strongUntil`, `TrProp.eventually`) | `Trace/TrSpec.lean`, `Trace/TraceProp.lean` (rules: `Trace/TrSpec.lean`, `Trace/TracePropRules.lean`) |
+| `Cfg`, `TPool`, THREAD-STEP/THREAD-DONE, `Trace`, `Behavior` | `Cfg`, `ThreadPool` (a list; thread ids are positions), `ThreadStep` / `ThreadDone`, `Trace (Cfg Expr State)` (traces of any configuration type), `IsBehaviorOf` / `IsBehaviorOfPool` (`IsBehavior` over the thread system `Pool (Cfg Expr State)`); no observations. Additionally `ThreadStuck`: a stuck thread stutters, so stuck executions are behaviors too. Traces carry no scheduled-thread label: a behavior is a run in which some thread takes a trace step (`TraceStep i`) at every position, and the adequacy proof chooses the schedule (lane `fairness-sched`, 2026-11-08) | `Temporal/Trace.lean`, `Temporal/Pool.lean`, `ProgramLogic/Trace.lean` |
+| temporal properties `Φ, Ψ` and `⟦·⟧_t` | trace specifications `TrSpec`, trace reading `TrSpec.external` (step-indexed reading `TrSpec.internal`); `Always` = `TrSpec.always`, `Until` = `TrSpec.strongUntil`, `Finally` = `TrSpec.eventually`; trace properties `TrProp` with `□ₜ`, `𝒰ₜ`, `◇ₜ` (`TrProp.always`, `TrProp.strongUntil`, `TrProp.eventually`) | `Trace/TrSpec.lean`, `Temporal/Trace.lean`, `Trace/TraceProp.lean` (rules: `Trace/TrSpec.lean`, `Temporal/TracePropRules.lean`, `Trace/TracePropRules.lean`) |
 | `Fair` (fair scheduling) | `fairScheduling`: the strong fairness `Fairness.Sched.SF` of every thread's scheduling action (enabled where the thread is active, granted at its trace step); equal to weak fairness since activity is convex (`fairScheduling_sf_iff_wf`) | `Trace/FairScheduling.lean`, `Trace/Fairness/` |
 | logical assertions `φ` and `⟦·⟧_l` | no syntax: temporal formulas are `iProp`s; guarantee `P ⊨ₜ G` (`Guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
 | `lift` | `TrSpec.canon P`, the canonical trace specification guaranteed by `P` (`guar_canon`); `trSpecOf P`, the one inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |

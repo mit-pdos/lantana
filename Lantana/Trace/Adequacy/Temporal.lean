@@ -181,7 +181,7 @@ schedule as its instrument (`exists_fair_schedule_behFscnt`). -/
 theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
     {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
     (σ : State) (tp : ThreadPool Expr) (G : TrSpec Expr State GF)
-    (R : TrProp Expr State) (hGR : G.external ⊆ R) (τ : Trace Expr State)
+    (R : TrProp (Cfg Expr State)) (hGR : G.external ⊆ R) (τ : Trace (Cfg Expr State))
     (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp, σ))
     (hwp : ∀ [ModelGS GF] [TemporalGS Expr State GF],

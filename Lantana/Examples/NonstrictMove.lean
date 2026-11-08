@@ -121,7 +121,7 @@ theorem guar_mainRes {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] :
 every fair behavior from the initial configuration, eventually `False`. -/
 @[lantana_alias nonstrict_move_unsound]
 theorem nonstrictMove_unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNonstrict ExGF)
-    (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp0, σ0)) : False := by
   refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gMain ⌜False⌝ₜ gMain_false τ hbeh hfair
     hpos hinit ?_
@@ -172,7 +172,7 @@ theorem loop_primStep (σ : State) :
 
 /-- The run of the loop: thread `0` steps from `loop ()` to `loop ()` forever. -/
 @[lantana_alias nonstrict_move.loop_run]
-def loopRun : Trace Exp State := ⟨0, fun _ => (tp0, σ0)⟩
+def loopRun : Trace (Cfg Exp State) := ⟨0, fun _ => (tp0, σ0)⟩
 
 /-- Thread `0` takes a trace step at every position: `loop ()` steps to itself. -/
 theorem loopRun_traceStep (m : Nat) : TraceStep 0 (loopRun.seq m) (loopRun.seq (m + 1)) := by
@@ -182,7 +182,8 @@ theorem loopRun_traceStep (m : Nat) : TraceStep 0 (loopRun.seq m) (loopRun.seq (
   exact h
 
 @[lantana_alias nonstrict_move.loop_run_behavior]
-theorem loopRun_behavior : IsBehavior loopRun := fun m _ => ⟨0, loopRun_traceStep m⟩
+theorem loopRun_behavior : IsBehavior loopRun :=
+  isBehavior_iff.mpr fun m _ => ⟨0, loopRun_traceStep m⟩
 
 /-- Thread `0` is active and steps at every position; no other thread is ever active. -/
 @[lantana_alias nonstrict_move.loop_run_fair]

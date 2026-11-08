@@ -99,7 +99,7 @@ instance guarOf_flagTk (l : Loc) (k : Oid) :
 
 /-- The response property: whenever the flag is `0`, it is eventually `1` forever. -/
 @[lantana_alias flag_stable.flag_response]
-def flagResponse (l : Loc) : TrProp Exp State :=
+def flagResponse (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (pointsToTr l v0 →ₜ ◇ₜ □ₜ pointsToTr l v1)
 
 omit [ModelGS GF] [HeapGS GF] in
@@ -465,7 +465,7 @@ variable {GF : BundledGFunctors}
 
 /-- The flag at the level of traces: `0` until `1` forever, or `1` forever. -/
 @[lantana_alias flag_stable.is_flag_tr]
-def isFlagTr (l : Loc) : TrProp Exp State :=
+def isFlagTr (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ ((pointsToTr l v0 𝒰ₜ □ₜ pointsToTr l v1) ∨ₜ □ₜ pointsToTr l v1)
 
 @[lantana_alias flag_stable.flag_trSpec_impl]
@@ -474,7 +474,7 @@ theorem flagTrSpec_impl (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFla
 
 /-- Once the flag is `1`, it stays `1`. -/
 @[lantana_alias flag_stable.flag_stays_tr]
-def flagStaysTr (l : Loc) : TrProp Exp State :=
+def flagStaysTr (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (pointsToTr l v1 →ₜ □ₜ pointsToTr l v1)
 
 /-- When the flag is `1`, the until (whose left formula is `0`) is fulfilled. -/

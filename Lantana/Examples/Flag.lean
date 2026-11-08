@@ -130,12 +130,12 @@ instance guarOf_flagTk (l : Loc) (k : Oid) :
   ⟨guar_flagTk l k⟩
 
 /-- `l ↦ v` as a trace property. -/
-abbrev pointsToTr (l : Loc) (v : Val) : TrProp Exp State :=
+abbrev pointsToTr (l : Loc) (v : Val) : TrProp (Cfg Exp State) :=
   TrProp.state (pointstoSat l (DFrac.own 1) v)
 
 /-- The response property: whenever the flag is `0`, it is eventually `1`. -/
 @[lantana_alias flag_response]
-def flagResponse (l : Loc) : TrProp Exp State :=
+def flagResponse (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (pointsToTr l v0 →ₜ ◇ₜ pointsToTr l v1)
 
 /-- The flag's two values differ. -/
@@ -481,7 +481,7 @@ variable {GF : BundledGFunctors}
 
 /-- The flag at the level of traces: `0` until `1`, and `1` from then on. -/
 @[lantana_alias is_flag_tr]
-def isFlagTr (l : Loc) : TrProp Exp State :=
+def isFlagTr (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ ((pointsToTr l v0 𝒰ₜ pointsToTr l v1) ∨ₜ pointsToTr l v1)
 
 @[lantana_alias flag_trSpec_impl]

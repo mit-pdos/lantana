@@ -45,13 +45,13 @@ def Cfg.ifTermVal (j : ThreadId) (Φ : ThreadId → Val → Prop) (ρ : Cfg Expr
 
 /-- The safety facts at the current position: no thread of the pool is stuck and a terminated
 thread `j` satisfies `Φ j`. -/
-def safeNow (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp Expr State :=
+def safeNow (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
   TrProp.now Cfg.notStuck ∧ₜ TrProp.now (Cfg.ifTermVal (Val := Val) j Φ)
 
 /-- Iris-style safety: always, no thread of the pool is stuck and a terminated thread `j`
 satisfies `Φ j` (Rocq `safety_iris`). -/
 @[lantana_alias safety_iris]
-def safetyIris (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp Expr State :=
+def safetyIris (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
   □ₜ (TrProp.now Cfg.notStuck ∧ₜ TrProp.now (Cfg.ifTermVal (Val := Val) j Φ))
 
 section SafetyTrI
@@ -67,7 +67,7 @@ def safetyIrisTrI (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrIProp Expr
 /-- Satisfiability of the step-indexed reading gives safety (Rocq `safety_iris_trI_trProp`). -/
 @[lantana_alias safety_iris_trI_trProp]
 theorem safetyIrisTrI_trProp (F : IProp GF) (j : ThreadId) (Φ : ThreadId → Val → Prop)
-    (τ : Trace Expr State) (hs : (iPropSatLcAtFrame F ⊤).sat (safetyIrisTrI j Φ τ)) :
+    (τ : Trace (Cfg Expr State)) (hs : (iPropSatLcAtFrame F ⊤).sat (safetyIrisTrI j Φ τ)) :
     safetyIris j Φ τ :=
   TrIProp.always_tr_always F _ (safeNow j Φ) (fun _ h => (iPropSatLcAtFrame F ⊤).elim h) τ hs
 
@@ -127,7 +127,7 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
   isplit
   · ipureintro
     exact hsafe
-  · rw [show (⟨n, τf⟩ : Trace Expr State).next = ⟨n + 1, τf⟩ from rfl]
+  · rw [show (⟨n, τf⟩ : Trace (Cfg Expr State)).next = ⟨n + 1, τf⟩ from rfl]
     iapply IH $$ %(h ++ [(σ', tp')]) %(n + 1) %σ' %tp' %Ψ' %g' %v' %Ω' %W' %hfacts
     iframe HH HM HT
 
@@ -140,7 +140,7 @@ stuck, and `j`, once terminated, satisfies `Φ j`. -/
 @[lantana_alias lwp_adequacy_safety_iris]
 theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
     (σ : State) (tp : ThreadPool Expr) (j : ThreadId) (Φ : ThreadId → Val → Prop)
-    (τ : Trace Expr State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (τ : Trace (Cfg Expr State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp, σ)) (hj : j < tp.length)
     (hwp : ∀ [ModelGS GF] [TemporalGS Expr State GF],
       ∃ c : Fuel, ⊢@{IProp GF} |={⊤}=>

@@ -39,7 +39,7 @@ open Iris Iris.BI Iris.Std
 open Ordinals Ordinal Lantana Lantana.Model Lantana.HeapLang
 
 /-- The functor of saved trace predicates of HeapLang. -/
-abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace Exp State => LaterOF IdOF
+abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace (Cfg Exp State) => LaterOF IdOF
 
 /-- The contractivity of the ghost variable's functor, as `GhostVarG` expects it (here, instance
 search would find Lantana's `constOFP_rFunctorContractive` instead). -/
