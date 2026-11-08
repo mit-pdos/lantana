@@ -4,21 +4,23 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
+public import Lantana.Temporal.Fairness.MissHit
 public import Lantana.Temporal.Fairness.AttemptGrant
 public import Lantana.Temporal.Fairness.Action
-public import Lantana.Temporal.Fairness.Sched
+public import Lantana.Temporal.Fairness.Scheduling
 public import Lantana.Temporal.Fairness.Thread
 public import Lantana.Temporal.Fairness.FairLabel
 
 /-! # The attempt–grant model of fairness: the general theory
 
 The general theory of the attempt–grant model, layers 0 to 2, over trace properties
-(`Lantana.Temporal.Trace`) and generic over a thread system (`Lantana.Temporal.Pool`): a type of
-configurations with the trace step of the thread at each position and the activity predicate the
-language supplies.  Everything is in the namespace `Lantana.Fairness`.  The theory was first
-ported from xv6iris-lean's `MachCSL/Liveness/FairnessTheory.lean` (positions `Nat → Prop`, branch
-`lean-lantana` at `050cf0808`) and then restated over trace properties with the temporal operators;
-the names are the ported file's where the formula is the same, which is nearly all of them.
+(`Lantana.Temporal.Trace`) and generic over a thread system (`Lantana.Temporal.ThreadSystem`): a
+type of configurations with the trace step of the thread at each position and the activity
+predicate the language supplies.  Everything is in the namespace `Lantana.Fairness`.  The theory
+was first ported from xv6iris-lean's `MachCSL/Liveness/FairnessTheory.lean` (positions
+`Nat → Prop`, branch `lean-lantana` at `050cf0808`) and then restated over trace properties with
+the temporal operators; the names are the ported file's where the formula is the same, which is
+nearly all of them.
 
 **The idea.**  Fairness is about two trace properties, the *attempts* and the *grants*.  A hit is a
 granted attempt, and a miss is a refused one.  Attempt–grant fairness says that infinitely many
@@ -46,16 +48,19 @@ stepping thread, and the adequacy proof chooses a schedule that does.
 
 **Map of the modules.**
 
+0. `Lantana.Temporal.Fairness.MissHit`, section 0: the engine `MissHit`, arithmetic on positions
+   and not part of the theory's interface: miss–hit fairness over two position predicates and its
+   counter, the oracle budget (`MissHit.fair_iff_counter`); and the bridge from trace properties
+   to position predicates (`always_eventually_iff_infOften`).
 1. `Lantana.Temporal.Fairness.AttemptGrant`, section 1: `AttemptGrant`, layer 0, the attempt–grant
    pair over two trace properties (`hit`, `miss`, `Fair`, `IsCounter`, `Certain`); its meaning
    (`fair_iff_attempt`), its counter (`fair_iff_counter`) and the counter's rules, stated once for
-   every layer; restriction (`fair_mono`); a certain grant (`fair_of_certain`).  The engine
-   underneath, `MissHit`, is arithmetic on positions.
+   every layer; restriction (`fair_mono`, `fair_mono_of_le`); a certain grant (`fair_of_certain`).
 2. `Lantana.Temporal.Fairness.Action`, section 2: `Action`, layer 1, the state form of an action
    `(A, G)`: `enabled A := now A`, `grant G := step G`, `SF`, `Response`, `WF`, `Convex`;
    `sf_iff_fair`, `sf_iff_counter`, `sf_of_response`, `wf_of_sf`, `sf_of_certain`,
    `sf_iff_wf_of_convex`.
-3. `Lantana.Temporal.Fairness.Sched`, sections 3 and 4: a pair that is one thread's
+3. `Lantana.Temporal.Fairness.Scheduling`, sections 3 and 4: a pair that is one thread's
    (`AttemptGrant.OwnStep`, `AttemptGrant.counter_stay_of_other`); the scheduling action `Sched`
    (`SF`, `attempt`, `AG`, `ownGrant`, `stepsInfOften_of_sf`, `certain`, `ag`, `counter_zero`); the
    schedule as a proof instrument (`SoleOwner`, `labelledView`, `labelledView_of_sf`).

@@ -5,7 +5,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import Lantana.Trace.TemporalFormulaRun
-public import Lantana.Trace.FairScheduling
 public import Lantana.Trace.Adequacy.Alloc
 public import Lantana.Trace.Adequacy.RunStep
 

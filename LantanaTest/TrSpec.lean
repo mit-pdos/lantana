@@ -9,7 +9,7 @@ public import Lantana
 /-! Tests for trace specifications: instance resolution of `Complete`, `Instant`, `Ext` and
 `Mono`, existentials, and the fixpoint characterizations of always and until. -/
 
-namespace LantanaTest.Trace
+namespace LantanaTest.TrSpec
 
 open Iris Lantana
 open scoped Lantana.TrProp Lantana.TrSpec
@@ -63,4 +63,4 @@ example (G₁ G₂ : TrSpec Expr State GF) (τ : Trace (Cfg Expr State)) :
     (TrSpec.mu (TrSpec.untilBody G₁ G₂)).external τ ↔ (G₁.external 𝒰ₜ G₂.external) τ :=
   TrSpec.mu_until_ext_iff G₁ G₂ τ
 
-end LantanaTest.Trace
+end LantanaTest.TrSpec

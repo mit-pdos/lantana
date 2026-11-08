@@ -12,8 +12,8 @@ The rules of `R ⊆ S` (Rocq `trace_prop_rules.v`), over traces of any configura
 connectives, the step, negation and position atoms, the laws of LTL, the tail invariance of
 `□ₜ ◇ₜ` and `◇ₜ □ₜ` with their classical dualities and their bridges to positions, the absolute
 properties (the same at every position of a run), and the fixpoint rules. Everything is provable
-by unfolding; `TrProp.unfold` is the escape hatch. The rules of Lantana's state atoms are in
-`Lantana.Trace.TracePropRules`.
+by unfolding; `TrProp.unfold` is the escape hatch. The rules of Lantana's state atom are in
+`Lantana.Trace.StateAtom`.
 -/
 
 @[expose] public section

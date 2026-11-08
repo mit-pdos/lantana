@@ -18,8 +18,8 @@ public import Lantana.Init
 /-! # Languages
 
 The language interface of Lantana (Rocq `lantana/program_logic/language.v`, without the
-trace part, which is `Lantana.ProgramLogic.Trace`). A step knows nothing about threads: the
-thread pool is a list and a thread id is a position in it, so forked threads get fresh ids by
+trace part, which is `Lantana.ProgramLogic.Configuration`). A step knows nothing about threads:
+the thread pool is a list and a thread id is a position in it, so forked threads get fresh ids by
 being appended (design decision D14), and there are no observations (D15). Hence a Lantana
 language is Iris-Lean's `ToVal` plus a primitive step relation `primStep e σ e' σ' efs`.
 

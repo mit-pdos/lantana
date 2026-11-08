@@ -8,7 +8,7 @@ public import Iris.Instances.IProp
 public import Iris.BI
 public import Iris.BI.Lib.MonoList
 public import Iris.ProofMode
-public import Lantana.ProgramLogic.Trace
+public import Lantana.ProgramLogic.Configuration
 
 /-! # The history of configurations and the state interpretation
 

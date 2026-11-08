@@ -29,7 +29,7 @@ fairness counters are an explicit sequence `γ : Nat → ThreadId → Nat` along
 schedule (`BehFscnt sched γ ⟨0, τf⟩`); the witnesses are bounded below by the fair-scheduler
 measure of the current counters (`owitInvLb`); the ghost history is a prefix of the run
 (`histTrace`); and across a step every assigned obligation's measure drops (`oblsDrop`). The
-first two are trace properties of the run from position `0` (`Lantana.Temporal.Pool`,
+first two are trace properties of the run from position `0` (`Lantana.Temporal.ThreadSystem`,
 `Lantana.Temporal.FairScheduling`), read at a position `n` through `schedule_iff` and
 `behFscnt_iff`; they are the same at every position. Records are a guarded fixpoint
 (`recordTrI`): the certificates hold the records under a later.

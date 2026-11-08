@@ -441,7 +441,7 @@ theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : Sta
     iapply run_step_stuck hLb ⟨e, he, Language.not_notStuck_iff.mp hst⟩
     iframe HH HM HT
   have hts := (schedule_iff.mp hsch) n (Nat.zero_le n)
-  simp only [Pool.step_def, TraceStep, hnow] at hts
+  simp only [ThreadSystem.step_def, TraceStep, hnow] at hts
   rcases hts with hs | hd | hst
   · iapply run_step_step c hcnt hLb hh hlen hnow rfl hns hs
     iframe HH HM HT

@@ -4,15 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.ProgramLogic.Trace
+public import Lantana.ProgramLogic.Configuration
 
 /-! # The state atoms of Lantana's trace properties
 
 Trace properties (`TrProp`, Rocq `trProp`), their connectives and notations are generic, over
 any configuration type (`Lantana.Temporal.Trace`). Lantana's traces are `Trace (Cfg Expr State)`,
 and this module adds the language's atoms: a predicate on the current state and thread pool
-(`TrProp.state`). Their rules are in `Lantana.Trace.TracePropRules`, the facts of fair
-scheduling at Lantana's instance in `Lantana.Trace.FairScheduling`.
+(`TrProp.state`). Their rules are in `Lantana.Trace.TracePropRules`.
 -/
 
 @[expose] public section

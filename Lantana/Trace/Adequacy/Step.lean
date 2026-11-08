@@ -6,7 +6,6 @@ module
 
 public import Lantana.BaseLogic.Model
 public import Lantana.ProgramLogic.OblForest
-public import Lantana.Trace.FairScheduling
 
 /-! # Adequacy: facts about one step
 
