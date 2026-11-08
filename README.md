@@ -45,7 +45,7 @@ discharged. Lean names are in the namespace `Lantana`, and files in `Lantana/`.
 | The obligation predicates and their rules, as a sealed interface that the program logic uses | obligations `Obl.*`, witnesses `Wit.*`, threads `Th.*`, the children `Par.kids p K` of a parent `p` (`thKids i K`, `oblKids k K`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | The model update, which changes obligations and witnesses | `\|={E₁,E₂}=>m P` (`mupd`) | `ProgramLogic/OblForest.lean` |
 | The model of the interface | `Model.OPreds`, over the obligation model (`ModelGS`) | `BaseLogic/Model/OPreds.lean` |
-| Trace properties, with LTL on traces | `TrProp`, `□ₜ` `◇ₜ` `○ₜ` `𝒰ₜ`, entailment `R ⊆ S` | `Temporal/Trace.lean`, `Temporal/TracePropRules.lean` |
+| Trace properties, with LTL on traces; the attempt–grant theory of fairness over them, and fair scheduling as the strong fairness of each thread's scheduling action | `TrProp`, `□ₜ` `◇ₜ` `○ₜ` `𝒰ₜ`, entailment `R ⊆ S`; `Fairness.Action.SF`, `Fairness.Sched.SF`, `fairScheduling` | `Temporal/Trace.lean`, `Temporal/TracePropRules.lean`, `Temporal/Fairness/`, `Temporal/FairScheduling.lean` |
 | Trace specifications: a trace property with an internal, step-indexed reading adequate for it | `TrSpec` (`TrSpec.external`, `TrSpec.internal`), entailment `G ⊑ₛ H` | `Trace/TrSpec.lean` |
 | Guarantees: whenever `P` holds, the rest of the execution satisfies `G` | `P ⊨ₜ G` (`Guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
 | Temporal formulas, which are `iProp`s with guarantees | `alwaysI N P`, `untilI N k q P Q`, `finallyI N k q Q` | `Trace/TemporalFormula.lean`, `Trace/TemporalFormulaRules.lean` |
@@ -85,11 +85,11 @@ forks a thread that sets a flag and waits for the flag.
 | Directory | Contents | Rocq |
 |---|---|---|
 | `Lantana/Prelude` | thread and obligation ids, `Parent`; layers and fuel (ordinals) | `prelude/` |
-| `Lantana/Temporal` | traces of a configuration type, trace properties with LTL and their rules, thread systems (`Pool`) and behaviors; language-independent, Iris-free | the trace part of `program_logic/language.v` and `trace/trace_prop*.v` |
+| `Lantana/Temporal` | traces of a configuration type, trace properties with LTL and their rules, thread systems (`Pool`) and behaviors, the attempt–grant theory of fairness (`Fairness/`), fair scheduling as the strong fairness of each thread's scheduling action with the fair-labelling theorem and the fairness counters (`FairScheduling.lean`); language-independent, Iris-free | the trace part of `program_logic/language.v`, `trace/trace_prop*.v` and `trace/fair_scheduling.v` |
 | `Lantana/Algebra` | measures `Measure.rep`, ordered commutative monoids, the bank and bounded-credit cameras, `AuthMra` | `algebra/` |
 | `Lantana/BaseLogic` | relational update `|==>r`, ordinal later credits `£ₒ α`, the fancy update, satisfiability, invariants; the obligation model (`Model/`: `osat`, `owit`, `oforest`, the model history, `modelInterp`, the model update `mupd` as a least fixpoint, `mprog`/`mphys`, the user predicates) | `base_logic/` |
 | `Lantana/ProgramLogic` | languages with thread pools, their trace steps as a thread system (`Pool`), the history, the temporal registry, the sealed obligation-forest interface (`OblForest.lean`) and its derived rules, `lWP` (a least fixpoint) with its rules and lifting lemmas | `program_logic/` |
-| `Lantana/Trace` | the state atoms of trace properties, fair scheduling, step-indexed trace predicates, trace specifications `TrSpec`, guarantees `⊨ₜ` and their inference, the temporal formulas `alwaysI`/`untilI`/`finallyI`, the adequacy theorems | `trace/` |
+| `Lantana/Trace` | the state atoms of trace properties, fair scheduling of Lantana's threads, step-indexed trace predicates, trace specifications `TrSpec`, guarantees `⊨ₜ` and their inference, the temporal formulas `alwaysI`/`untilI`/`finallyI`, the adequacy theorems | `trace/` |
 | `Lantana/HeapLang` | HeapLang with labels and `chooseNat` (forked from Iris-Lean's), its laws, temporal laws and tactics (`lwp_pure`, `lwp_step`, `lwp_pures`, `lwp_bind`) | `lantana_heap_lang/` |
 | `Lantana/Examples` | the case studies (below), a closed world `ExGF` for end-to-end theorems | `lantana_heap_lang/examples/` |
 
@@ -156,7 +156,7 @@ no coverage report).
 - **Fixed concrete choices**: the fair-scheduler bound `η a := ω ×ⱼ a +ₕ ω` and fuel `Ordinal.{1}`
   instead of classes; fairness counters are an explicit sequence instead of a coinductive
   predicate, read under a schedule the adequacy proof chooses by the fair-labelling theorem of
-  `Lantana/Trace/Fairness`; `always` reads a single formula and safety is derived from the
+  `Lantana/Temporal/Fairness`; `always` reads a single formula and safety is derived from the
   generalised single step `run_step`.
 - **Allocation exposes ghost names**: the ghost-state classes are too large for the existential
   property of the step index, so allocation lemmas return records of names from which the
