@@ -12,8 +12,9 @@ public import Lantana.Trace.Adequacy.Temporal
 Rocq `lantana/trace/adequacy_safety.v`: Iris-style safety on fair behaviors, read off the run
 directly (no guarantees): no thread of the pool is ever stuck, and a terminated thread `j` of
 the initial pool satisfies its postcondition. (Rocq asks it of the scheduled thread; traces here
-carry no thread label, and the statement for every thread is the stronger one.) Lantana-Lean derives it from the generalized
-single-step simulation `run_step` (D20) instead of duplicating that proof: the step-indexed
+carry no thread label, and the statement for every thread is the stronger one.) Lantana-Lean
+derives it from the generalized single-step simulation `run_step` (D20) instead of duplicating
+that proof: the step-indexed
 reading `safetyIrisTrI` (an `always` of a pure predicate) is a Löb induction whose body is one
 `run_step` (`threadsRun_safety`), and satisfiability reads it off (`safetyIrisTrI_trProp`).
 

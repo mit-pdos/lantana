@@ -64,3 +64,21 @@ test 407 jobs, audit ok, check-imports ok (282 imports).
   strengthened to "no thread of the pool is stuck"; target `lake build Lantana.Trace --wfail`.
   Brief: `local-plan/lantana-fairness/briefs/brief-2a.md`.
 - Task 2b (after 2a): the examples, the tests and the README; brief `brief-2b.md`.
+
+Result 2a (`d284169`, merged, lean-prover-1): `Trace.seq : Nat → Cfg`, `TraceStep i` per thread,
+`IsBehavior` = some thread's trace step at every position, `fairScheduling τ := ∀ i,
+Fairness.Sched.SF Cfg.active i τ.seq`, `BehFscnt σ sched γ` (the former `BehFscntSched`), the
+schedule threaded as one more binder through `sysStepPre`, `recordPre`, the record lemmas,
+`sysStepIter`, `alwaysRun`, `untilRun*`, `run_step`, `threadsRun_safety`, `lwp_adequacy_internal`;
+`Cfg.notStuck` quantifies over every thread of the pool and is proved in `run_step` by a classical
+case split and `run_step_stuck` (which never needed the stuck thread to be the scheduled one);
+`lwp_adequacy_temporal` and `lwp_adequacy_safety` lose the thread argument and take
+`hinit : τ.seq 0 = (tp, σ)`; `TraceState`, `turn`, `turnDist`, `fscntNextRel*` gone (Rocq names
+`trace_state`, `trace_thread`, `thread_turn`, `fscnt_next_rel_th`, `fscnt_next_rel`,
+`exists_fscnt_next` recorded with `#lantana_ignore`).  Prover's decisions accepted: the post-step
+facts no longer repeat the two global facts (`Schedule`, `BehFscnt`); `runStepPost` has no `sched`
+argument; the stuck case of `run_step` still goes through `run_step_stuck`.  Two files outside the
+brief needed the extra binder (`GuaranteeRules.lean`, `TemporalFormulaRules.lean`).  `lake build
+Lantana.Trace --wfail` green (62 modules); `Lantana.HeapLang` builds unchanged; the examples and
+the tests break as expected (task 2b).  Lead's fix after the merge: one over-long docstring line
+in `Safety.lean`.
