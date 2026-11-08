@@ -31,3 +31,17 @@ subagents (Opus) work in `/work/wt/sub-*` on `agent/sub-*`, branched from this b
   value stays a value) and the convexity of activity along a run.
 - Task 1c (after 1a and 1b): the instance `Pool (Cfg Expr State)`, `IsBehavior` at position 0 is
   `PoolRun`, `Action.Convex` of activity, `BehFscnt` from the fair schedule.
+
+Results (2026-11-08).  Task 1b (`531bd56`, merged): `TraceStepOf i`, `TraceStep` its instance at the
+scheduled thread, `Cfg.active`/`Cfg.inactive` with their two lemmas, the step facts (`length_le`,
+`get?_ne`, `get?_of_val`, `isSome_of_isSome`, `active_of_step_ne`, `inactive_of_step_of_isSome`) and
+the run facts (`isSome_mono`, `inactive_mono_of_isSome`, `active_convex`); no downstream proof needed
+a change (`rcases` sees through the new layer).  Task 1a (`476f614`, merged): the six modules (505 +
+136 + 229 + 260 + 217 + 108 lines) and `LantanaTest/Fairness.lean` (54 lines, seven axiom prints;
+`Action.sf_iff_wf_of_convex` uses no axiom).  The lead diffed the module bodies against the source's
+`namespace Fairness … end Fairness` (1032 vs 1015 non-blank lines): the only differences are the
+least-witness copies replaced by `Lantana.Nat.*` (12 call sites), one `show` → `change`
+(`FairLabel.visit_infOften`, the `show` linter) and the section note on the least witnesses; no name
+changed.  Lead's fix after the merge: the naming policy's last sentence, which named MachCSL's
+`Fairness.lean`, now points at the language instance.  Green after both merges: build 379 jobs,
+test 407 jobs, audit ok, check-imports ok (281 imports).  Sub worktrees and branches removed.

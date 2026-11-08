@@ -104,5 +104,6 @@ thread's `AttemptGrant`), `hown` for `OwnGrant`, `hos` for `OwnStep`, `hso` for 
 for a `Schedule`, `hper` for `Persists`, `hstab` for stability, `hrun` for `PoolRun`, `hδ` for a
 counter, `hc` for `Certain`,
 and `ha`, `hg`, `hA`, `hs` for the facts at a position (an attempt, a grant, `A` holds, the thread
-steps).  The names every action of `Fairness.lean` has are in that file's header.
+steps).  A language instance (Lantana's traces: `Lantana.Trace.FairScheduling`) names its pool's
+step, its activity predicate and its declared actions in the same style.
 -/
