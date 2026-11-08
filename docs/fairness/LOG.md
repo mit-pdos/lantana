@@ -194,3 +194,18 @@ similar cases).  Lead's target (brief `briefs/brief-S4.md`): the class `Pool` re
 its two inclusions as `□ₜ` trace properties from the current position (the entailment form is
 `fair_mono_of_le`), which is what the schedule, a `□ₜ` from `τ.pos`, provides.  Task S4 to
 lean-prover-3.
+
+Result S4 (`7036ecd`, `cb578f5`, merged, lean-prover-3): the target structure as briefed, every
+rename with `git mv` (`Temporal/Pool.lean` → `ThreadSystem.lean` with the class renamed,
+`Fairness/Sched.lean` → `Scheduling.lean`, `ProgramLogic/Trace.lean` → `Configuration.lean` with
+Lantana's fair-scheduling facts in a last section, `Trace/TraceProp.lean` + `TracePropRules.lean`
+→ `Trace/StateAtom.lean`, `LantanaTest/Trace.lean` → `TrSpec.lean`; new
+`Temporal/Fairness/MissHit.lean` with the engine and the bridge; `Trace/FairScheduling.lean`
+deleted; `TrProp.along` in `Temporal/Trace.lean`; the three `#lantana_ignore fscnt_*` next to
+`BehFscnt`).  `AttemptGrant.fair_mono` is the general restriction (the two inclusions as `□ₜ`
+properties from the current position) and `fair_mono_of_le` the entailment form;
+`labelledView_of_sf` is `fair_mono` applied to the schedule and the sole owner, with the easy
+direction of `sf_iff_fair` inlined so that it still uses no axiom.  Two commits because git paired
+the merged state-atom file with the rules file otherwise.  **Step 3 complete.**  Final checks on
+`agent/fairness`: `lake build --wfail` 383 jobs, `lake test` green, `scripts/audit.sh` ok,
+`scripts/check-imports.sh` ok (286 imports); no sub worktree or branch left.
