@@ -60,6 +60,17 @@ variable {Expr State Val : Type} [Lantana.Language Expr State Val]
 
 example : Lantana.Fairness.Pool (Lantana.Cfg Expr State) := inferInstance
 
+/-- Fair scheduling is the strong fairness of every thread's scheduling action on the run; it
+names no scheduled thread. -/
+example (τ : Lantana.Trace Expr State) :
+    Lantana.fairScheduling τ ↔ ∀ i, Lantana.Fairness.Sched.SF Lantana.Cfg.active i τ.seq :=
+  Iff.rfl
+
+/-- A behavior from position `0` is a run of the pool. -/
+example (τ : Lantana.Trace Expr State) (h : Lantana.IsBehavior τ) (hpos : τ.pos = 0) :
+    Lantana.Fairness.PoolRun τ.seq :=
+  h.poolRun hpos
+
 end Pool
 
 /--

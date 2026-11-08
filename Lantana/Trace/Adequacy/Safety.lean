@@ -10,8 +10,9 @@ public import Lantana.Trace.Adequacy.Temporal
 /-! # Adequacy: safety
 
 Rocq `lantana/trace/adequacy_safety.v`: Iris-style safety on fair behaviors, read off the run
-directly (no guarantees): the scheduled thread is never stuck, and a terminated thread `j` of
-the initial pool satisfies its postcondition. Lantana-Lean derives it from the generalized
+directly (no guarantees): no thread of the pool is ever stuck, and a terminated thread `j` of
+the initial pool satisfies its postcondition. (Rocq asks it of the scheduled thread; traces here
+carry no thread label, and the statement for every thread is the stronger one.) Lantana-Lean derives it from the generalized
 single-step simulation `run_step` (D20) instead of duplicating that proof: the step-indexed
 reading `safetyIrisTrI` (an `always` of a pure predicate) is a Löb induction whose body is one
 `run_step` (`threadsRun_safety`), and satisfiability reads it off (`safetyIrisTrI_trProp`).
@@ -38,20 +39,19 @@ variable {Expr State Val : Type} [Language Expr State Val]
 
 /-- If thread `j` has terminated with the value `v`, then `Φ j v` (Rocq `if_term_val`). -/
 @[lantana_alias if_term_val]
-def TraceState.ifTermVal (j : ThreadId) (Φ : ThreadId → Val → Prop)
-    (ts : TraceState Expr State) : Prop :=
-  ∀ e v, ts.cfg.1[j]? = some e → toVal e = some v → Φ j v
+def Cfg.ifTermVal (j : ThreadId) (Φ : ThreadId → Val → Prop) (ρ : Cfg Expr State) : Prop :=
+  ∀ e v, ρ.1[j]? = some e → toVal e = some v → Φ j v
 
-/-- The safety facts at the current position: the scheduled thread is not stuck and a
-terminated thread `j` satisfies `Φ j`. -/
+/-- The safety facts at the current position: no thread of the pool is stuck and a terminated
+thread `j` satisfies `Φ j`. -/
 def safeNow (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp Expr State :=
-  TrProp.now TraceState.notStuck ∧ₜ TrProp.now (TraceState.ifTermVal (Val := Val) j Φ)
+  TrProp.now Cfg.notStuck ∧ₜ TrProp.now (Cfg.ifTermVal (Val := Val) j Φ)
 
-/-- Safety in the sense of Iris: always, the scheduled thread is not stuck and a terminated
-thread `j` satisfies `Φ j` (Rocq `safety_iris`). -/
+/-- Iris-style safety: always, no thread of the pool is stuck and a terminated thread `j`
+satisfies `Φ j` (Rocq `safety_iris`). -/
 @[lantana_alias safety_iris]
 def safetyIris (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp Expr State :=
-  □ₜ (TrProp.now TraceState.notStuck ∧ₜ TrProp.now (TraceState.ifTermVal (Val := Val) j Φ))
+  □ₜ (TrProp.now Cfg.notStuck ∧ₜ TrProp.now (Cfg.ifTermVal (Val := Val) j Φ))
 
 section SafetyTrI
 
@@ -78,23 +78,23 @@ variable {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Val GF]
   [TemporalInterp Expr State GF]
 
 /-- The running threads are safe (Rocq `lwp_fix_safety_iris_trI`): by Löb induction, each
-position is one `run_step`, which gives the reducibility of the scheduled thread; the
-postcondition of `j` holds whenever `j` is a value, and does not change across steps. -/
+position is one `run_step`, which gives that no thread of the pool is stuck; the postcondition of
+`j` holds whenever `j` is a value, and does not change across steps. -/
 @[lantana_alias lwp_fix_safety_iris_trI]
-theorem threadsRun_safety (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat)
-    (j : ThreadId) (Φ : ThreadId → Val → Prop) :
+theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId)
+    (γ : Nat → ThreadId → Nat) (j : ThreadId) (Φ : ThreadId → Val → Prop) :
     ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
       (Ψ : ThreadId → Val → IProp GF) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses),
-      ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n, τf⟩ γ ∧
+      ⌜Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
         owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf ∧ j < tp.length ∧
         ∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ -∗
       historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ threadsRun tp Ψ -∗
       safetyIrisTrI j Φ ⟨n, τf⟩ := by
   iloeb as IH
-  iintro %h %n %σ %tp %Ψ %g %v %Ω %W %⟨hbeh, hcnt, hLb, hh, hj, hΨ⟩ ⟨HH, HM, HT⟩
+  iintro %h %n %σ %tp %Ψ %g %v %Ω %W %⟨hsch, hcnt, hLb, hh, hj, hΨ⟩ ⟨HH, HM, HT⟩
   icases persistent_entails_left (threadsRun_ifTermVal hΨ) $$ HT with ⟨HT, %hval⟩
   icases persistent_entails_left (historyTInterp_wf h n σ tp) $$ HH with ⟨HH, %⟨-, hlast⟩⟩
-  obtain ⟨i, hnow⟩ := hh n σ tp hlast
+  have hnow := hh n σ tp hlast
   have hunf : TrIProp.alwaysPre (fun τ => iprop(⌜safeNow (Expr := Expr) (State := State) j Φ τ⌝))
       (safetyIrisTrI (GF := GF) j Φ) ⟨n, τf⟩ ⊢ safetyIrisTrI j Φ ⟨n, τf⟩ :=
     (TrIProp.always_unfold _ _).mpr
@@ -105,23 +105,23 @@ theorem threadsRun_safety (τf : Nat → TraceState Expr State) (γ : Nat → Th
   inext
   imod Hclose with -
   imodintro
-  imod run_step 0 hbeh hcnt hLb hh $$ [HH HM HT] with H
+  imod run_step 0 hsch hcnt hLb hh $$ [HH HM HT] with H
   · iframe HH HM HT
   imodintro
   iapply ALC_wand $$ [] H
   iintro H
   unfold runStepPost
   imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W',
-    %⟨hbeh', hcnt', hLb', hh', -, hns, hle, hΨ'⟩, -, HH, HM, HT⟩
+    %⟨hLb', hh', -, hns, hle, hΨ'⟩, -, HH, HM, HT⟩
   have hsafe : safeNow (Expr := Expr) (State := State) j Φ ⟨n, τf⟩ := by
     unfold safeNow TrProp.and TrProp.now
     refine ⟨hns, ?_⟩
     simp only [Trace.now, hnow]
     exact hval
-  have hfacts : IsBehavior (⟨n + 1, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+  have hfacts : Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
       j < tp'.length ∧ ∀ v, Ψ' j v ⊢ ⌜Φ j v⌝ :=
-    ⟨hbeh', hcnt', hLb', hh', Nat.lt_of_lt_of_le hj hle, by rw [hΨ' j hj]; exact hΨ⟩
+    ⟨hsch, hcnt, hLb', hh', Nat.lt_of_lt_of_le hj hle, by rw [hΨ' j hj]; exact hΨ⟩
   imodintro
   isplit
   · ipureintro
@@ -134,12 +134,13 @@ end SafetyRun
 
 /-- Safety adequacy (Rocq `lwp_adequacy_safety_iris`): if, in every world, the initial threads
 can be given `lWP`s whose postcondition for the initial thread `j` implies `Φ j`, then every
-fair behavior from the initial configuration is safe for `j`. -/
+fair behavior from the initial configuration is safe for `j`: no thread of the pool is ever
+stuck, and `j`, once terminated, satisfies `Φ j`. -/
 @[lantana_alias lwp_adequacy_safety_iris]
 theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
-    (σ : State) (tp : ThreadPool Expr) (i j : ThreadId) (Φ : ThreadId → Val → Prop)
+    (σ : State) (tp : ThreadPool Expr) (j : ThreadId) (Φ : ThreadId → Val → Prop)
     (τ : Trace Expr State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(tp, σ), i⟩) (hj : j < tp.length)
+    (hinit : τ.seq 0 = (tp, σ)) (hj : j < tp.length)
     (hwp : ∀ [ModelGS GF] [TemporalGS Expr State GF],
       ∃ c : Fuel, ⊢@{IProp GF} |={⊤}=>
         ∃ (SI : StateInterp Expr State GF) (forkPost : ThreadId → Val → IProp GF)
@@ -153,7 +154,8 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
   obtain ⟨n, τf⟩ := τ
   simp only at hpos hinit
   subst hpos
-  obtain ⟨γc, hγc⟩ := fairScheduling_behFscnt hfair
+  obtain ⟨sched, γc, hsch, hγc⟩ :=
+    exists_fair_schedule_behFscnt (σ := τf) (hbeh.poolRun rfl) hfair
   obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp)
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
@@ -164,7 +166,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
     | zero =>
       simp only [List.getElem?_cons_zero, Option.some.injEq, Prod.mk.injEq] at hn'
       obtain ⟨rfl, rfl⟩ := hn'
-      exact ⟨i, hinit⟩
+      exact hinit
     | succ n' => simp at hn'
   have hLb₀ : owitInvLb (fairMeasure (γc 0)) ∅ ∅ := mapForall2_empty
   refine safetyIrisTrI_trProp iprop(emp) j Φ ⟨0, τf⟩ (SatFUpd.fupd
@@ -201,12 +203,12 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
   imod mupd_modelInterp_steps (fairMeasure (γc 0)) (owitInvLbMonoFair_fairMeasure _) ⊤ ⊤
     [(σ, tp)] 0 σ tp [(0, ∅)] 0 ∅ ∅ _ hLb₀ $$ Hwp HHT HM
     with ⟨HT, HHT, %g', %v', %Ω', %W', %⟨-, hLb'⟩, HM⟩
-  have hfacts : IsBehavior (⟨0, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨0, τf⟩ γc ∧
+  have hfacts : Fairness.Schedule τf sched ∧ BehFscnt τf sched γc ∧
       owitInvLb (fairMeasure (γc 0)) Ω' W' ∧ histTrace [(σ, tp)] τf ∧ j < tp.length ∧
       ∀ v, Ψ j v ⊢ ⌜Φ j v⌝ :=
-    ⟨hbeh, hγc, hLb', hh₀, hj, hΨ⟩
+    ⟨hsch, hγc, hLb', hh₀, hj, hΨ⟩
   imodintro
-  iapply threadsRun_safety τf γc j Φ $$ %([(σ, tp)]) %0 %σ %tp %Ψ %_ %_ %Ω' %W' %hfacts
+  iapply threadsRun_safety τf sched γc j Φ $$ %([(σ, tp)]) %0 %σ %tp %Ψ %_ %_ %Ω' %W' %hfacts
   iframe HHT HM HT
 
 end Lantana

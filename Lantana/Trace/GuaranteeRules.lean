@@ -41,7 +41,7 @@ theorem recordTrI_all {X : Sort _} (f : X → Trace Expr State → IProp GF) (n 
   iintro #H
   iapply recordTrI_intro
   imodintro
-  iintro %Sys %l %h %g %v %Ω %W %τf %γ %σ %tp #ST %Hf #B HW
+  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %Hf #B HW
   iintro %x
   iapply recordTrI_elim (f x) $$ [H] ST %Hf B HW
   iapply H
@@ -51,7 +51,7 @@ theorem recordTrI_and (f₁ f₂ : Trace Expr State → IProp GF) (n : Nat) :
   iintro ⟨#H₁, #H₂⟩
   iapply recordTrI_intro
   imodintro
-  iintro %Sys %l %h %g %v %Ω %W %τf %γ %σ %tp #ST %Hf #B HW
+  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %Hf #B HW
   isplit
   · iapply recordTrI_elim f₁ $$ H₁ ST %Hf B HW
   · iapply recordTrI_elim f₂ $$ H₂ ST %Hf B HW
@@ -71,7 +71,7 @@ theorem record_until_now (G₁ G₂ : TrSpec Expr State GF) (n : Nat) :
   iintro #H
   iapply record_intro
   imodintro
-  iintro %Sys %l %h %g %v %Ω %W %τf %γ %σ %tp #ST %Hf #B HW
+  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %Hf #B HW
   have hU : ▷ G₂.internal ⟨n, τf⟩ ⊢ (G₁ 𝒰ₛ G₂).internal ⟨n, τf⟩ :=
     (later_mono or_intro_l).trans <| TrIProp.defer_intro_later.trans <|
       (TrIProp.until_unfold G₁.internal G₂.internal 0 _).mpr.trans <|
@@ -119,7 +119,7 @@ theorem guar_true : ⊢@{IProp GF} P ⊨ₜ TrSpec.true (Expr := Expr) (State :=
   iintro %h %n %σ %tp %m %i %Ω %W -
   iapply record_intro
   imodintro
-  iintro %Sys %l %h' %g %v %Ω' %W' %τf %γ %σ' %tp' - - - -
+  iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - - - -
   have hτ : ⊢@{IProp GF} TrSpec.true.internal (⟨n, τf⟩ : Trace Expr State) := pure_intro trivial
   iapply hτ
 
@@ -131,7 +131,7 @@ theorem guar_pure (φ : Prop) :
   iintro %h %n %σ %tp %m %i %Ω %W ⟨-, -, %hφ⟩
   iapply record_intro
   imodintro
-  iintro %Sys %l %h' %g %v %Ω' %W' %τf %γ %σ' %tp' - - - -
+  iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - - - -
   have hτ : ⊢@{IProp GF} (TrSpec.pure φ).internal (⟨n, τf⟩ : Trace Expr State) := pure_intro hφ
   iapply hτ
 
@@ -384,14 +384,14 @@ theorem guar_state (φ : State → ThreadPool Expr → Prop) (P : IProp GF)
   · iframe
   iapply record_intro
   imodintro
-  iintro %Sys %l %h' %g %v %Ω' %W' %τf %γ %σ' %tp' - %Hf - ⟨HI', -, -⟩
+  iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - %Hf - ⟨HI', -, -⟩
   ihave %hh := historyInterp_histEvent_lookup h' (n + 1) σ' tp' n (σ, tp) $$ [HI']
   · isplitl [HI']
     · iexact HI'
     · iexact HE
-  obtain ⟨i', hτ⟩ := Hf.2.2.2 n σ tp hh
+  have hτ := Hf.2.2.2 n σ tp hh
   have hst : ⊢@{IProp GF} (TrSpec.state φ).internal (⟨n, τf⟩ : Trace Expr State) := by
-    change ⊢@{IProp GF} iprop(⌜φ (τf n).cfg.2 (τf n).cfg.1⌝)
+    change ⊢@{IProp GF} iprop(⌜φ (τf n).2 (τf n).1⌝)
     rw [hτ]
     exact pure_intro hσ
   iapply hst
