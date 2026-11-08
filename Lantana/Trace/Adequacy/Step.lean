@@ -6,16 +6,17 @@ module
 
 public import Lantana.BaseLogic.Model
 public import Lantana.ProgramLogic.OblForest
-public import Lantana.Trace.FairScheduling
 
 /-! # Adequacy: facts about one step
 
-Rocq `lantana/trace/adequacy_step.v`, the pure part: after the progress round of the scheduled
-thread, witnesses that strictly decrease and keep both witness invariants exist
-(`mprog_exists_step`). The witness of an assigned obligation with fuel `a` and owner `o` is the
-fair-scheduler measure `fairMeasure (γ (τ.pos + 1)) o a` of the next position: the fuel of the
-scheduled thread's obligations dropped, the fairness counter of every other active owner dropped
-(D18: the counters are an explicit sequence `γ`, so no choice is needed for them).
+Rocq `lantana/trace/adequacy_step.v`, the pure part: after the progress round of the thread the
+schedule names at position `n` (`sched n`, the adequacy proof's instrument), witnesses that
+strictly decrease and keep both witness invariants exist (`mprog_exists_step`). The witness of an
+assigned obligation with fuel `a` and owner `o` is the fair-scheduler measure
+`fairMeasure (γ (n + 1)) o a` of the next position: the fuel of the named thread's obligations
+dropped, the fairness counter of every other active owner dropped (D18: the counters are an
+explicit sequence `γ` along the run under the schedule, the trace property `BehFscnt` of the run
+from position `0`, so no choice is needed for them).
 
 The ghost-state part: from the model interpretation and the `Th.done` tokens of the finished
 threads, every assigned obligation's owner is active (`getOblsThreadActive`); a stutter of a
@@ -32,42 +33,44 @@ open Lantana.Model Iris.Std LawfulPartialMap
 
 variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
 
-/-- Every assigned obligation is owned by a thread that is active at the current position
+/-- Every assigned obligation is owned by a thread that is active at the configuration `ρ`
 (Rocq `obls_thread_active`). -/
 @[lantana_alias obls_thread_active]
-def oblsThreadActive (Ω : Obls) (τ : Trace Expr State) : Prop :=
-  ∀ k a i, get? Ω k = some (.assigned a i) → τ.now.active i
+def oblsThreadActive (Ω : Obls) (ρ : Cfg Expr State) : Prop :=
+  ∀ k a i, get? Ω k = some (.assigned a i) → ρ.active i
 
 /-- The fair-scheduler measures of the next position are strictly below those of the current
-one for the scheduled thread's obligations (whose fuel dropped) and for the other active
-owners (whose counter dropped). -/
-theorem fairMeasure_next_lt {τ : Trace Expr State} {γ : Nat → ThreadId → Nat}
-    (hcnt : BehFscnt τ γ) {i o o' : ThreadId} {a a' : Fuel} (hi : i = τ.thread)
-    (hact : τ.now.active o) (h : (o = i ∧ a' < a) ∨ (o ≠ i ∧ a' = a ∧ o' = o)) :
-    fairMeasure (γ (τ.pos + 1)) o' a' < fairMeasure (γ τ.pos) o a := by
+one for the obligations of the thread the schedule names (whose fuel dropped) and for the other
+active owners (whose counter dropped). -/
+theorem fairMeasure_next_lt {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} (hcnt : BehFscnt sched γ ⟨0, τf⟩) {n : Nat} {i o o' : ThreadId}
+    {a a' : Fuel} (hi : sched n = i) (hact : (τf n).active o)
+    (h : (o = i ∧ a' < a) ∨ (o ≠ i ∧ a' = a ∧ o' = o)) :
+    fairMeasure (γ (n + 1)) o' a' < fairMeasure (γ n) o a := by
   rcases h with ⟨-, hlt⟩ | ⟨hne, ha, ho⟩
   · exact fairMeasure_lt_mono hlt
   · rw [ha, ho]
-    have hdec : γ (τ.pos + 1) o < γ τ.pos o := by
-      rcases hcnt τ.pos (Nat.le_refl _) o with hna | ⟨-, hturn | hlt⟩
-      · exact absurd ⟨hact, hna⟩ (TraceState.not_active_and_inactive o _)
-      · exact absurd (hturn.symm.trans hi.symm) hne
+    have hdec : γ (n + 1) o < γ n o := by
+      rcases behFscnt_iff.mp hcnt n (Nat.zero_le n) o with hna | ⟨-, hturn | hlt⟩
+      · exact absurd hact hna
+      · exact absurd (hturn.symm.trans hi) hne
       · exact hlt
     unfold fairMeasure
     exact Ordinals.Ordinal.nadd_lt_nadd_left (Ordinals.Ordinal.ofNat_lt_ofNat_iff.mpr hdec) _
 
-/-- After the progress round of the scheduled thread `i` (Rocq `mprog_exists_step`): the
-witnesses `fairMeasure (γ (τ.pos + 1))` of the new obligations strictly decrease the assigned
-witnesses and keep the witness invariant and its lower bound. -/
+/-- After the progress round of the thread `i` the schedule names at `n` (Rocq
+`mprog_exists_step`): the witnesses `fairMeasure (γ (n + 1))` of the new obligations strictly
+decrease the assigned witnesses and keep the witness invariant and its lower bound. -/
 @[lantana_alias mprog_exists_step]
-theorem mprog_exists_step {τ : Trace Expr State} {γ : Nat → ThreadId → Nat} {i : ThreadId}
-    {Ω₁ Ω₂ : Obls} {W₁ : Witnesses} (hi : i = τ.thread) (hact : oblsThreadActive Ω₁ τ)
-    (hI : owitInvFair Ω₁ W₁) (hLb : owitInvLb (fairMeasure (γ τ.pos)) Ω₁ W₁)
-    (hcnt : BehFscnt τ γ) (hprog : Obls.condProgress (Obl.condOwner i) Ω₁ Ω₂) :
+theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} {Ω₁ Ω₂ : Obls} {W₁ : Witnesses}
+    (hi : sched n = i) (hact : oblsThreadActive Ω₁ (τf n)) (hI : owitInvFair Ω₁ W₁)
+    (hLb : owitInvLb (fairMeasure (γ n)) Ω₁ W₁) (hcnt : BehFscnt sched γ ⟨0, τf⟩)
+    (hprog : Obls.condProgress (Obl.condOwner i) Ω₁ Ω₂) :
     ∃ W₂ : Witnesses, Witnesses.condProgress Witness.condAssigned W₁ W₂ ∧ owitInvFair Ω₂ W₂ ∧
-      owitInvLb (fairMeasure (γ (τ.pos + 1))) Ω₂ W₂ := by
+      owitInvLb (fairMeasure (γ (n + 1))) Ω₂ W₂ := by
   obtain ⟨W₂, hW₂⟩ := mapForall2_choice (B := Witness)
-    (P := fun _ g₂ w₂ => w₂ = witOf (fairMeasure (γ (τ.pos + 1))) g₂) Ω₂
+    (P := fun _ g₂ w₂ => w₂ = witOf (fairMeasure (γ (n + 1))) g₂) Ω₂
     (fun _ g₂ _ => ⟨_, rfl⟩)
   -- the new obligation of every old one
   have hnew : ∀ k g₁, get? Ω₁ k = some g₁ → ∃ g₂, get? Ω₂ k = some g₂ ∧ Obl.keep g₁ g₂ ∧
@@ -116,8 +119,8 @@ theorem mprog_exists_step {τ : Trace Expr State} {γ : Nat → ThreadId → Nat
           | assigned a' o' =>
             left
             refine ⟨trivial, .inl ?_⟩
-            change fairMeasure (γ (τ.pos + 1)) o' a' < b
-            have hlb : fairMeasure (γ τ.pos) o a ≤ b := mapForall2.lookup hLb eg₁ e₁
+            change fairMeasure (γ (n + 1)) o' a' < b
+            have hlb : fairMeasure (γ n) o a ≤ b := mapForall2.lookup hLb eg₁ e₁
             refine Ordinals.Ordinal.lt_of_lt_of_le ?_ hlb
             refine fairMeasure_next_lt hcnt hi (hact k a o eg₁) ?_
             rcases hstep with ⟨ho, hlt⟩ | ⟨hno, heq⟩
@@ -163,15 +166,17 @@ def oblsDrop (m m' : ThreadId → Fuel → Fuel) (Ω Ω' : Obls) : Prop :=
   ∀ k fu o fu' o', get? Ω k = some (.assigned fu o) → get? Ω' k = some (.assigned fu' o') →
     m' o' fu' < m o fu
 
-/-- A step of the scheduled thread `i` drops every measure (Rocq `obls_drop_step`): through the
-pre-step model update `Ω ≤ Ω₀`, the progress round `Ω₀ → Ω₂` of `i` and the post-step update
-`Ω₂ ≤ Ω'`, the obligations of `i` lose fuel and the other active owners lose a counter. -/
+/-- A step of the thread `i` the schedule names at `n` drops every measure (Rocq
+`obls_drop_step`): through the pre-step model update `Ω ≤ Ω₀`, the progress round `Ω₀ → Ω₂` of
+`i` and the post-step update `Ω₂ ≤ Ω'`, the obligations of `i` lose fuel and the other active
+owners lose a counter. -/
 @[lantana_alias obls_drop_step]
-theorem oblsDrop_step {τ : Trace Expr State} {γ : Nat → ThreadId → Nat} {i : ThreadId}
-    (hi : i = τ.thread) (hcnt : BehFscnt τ γ) {Ω Ω₀ Ω₂ Ω' : Obls} (h₀ : Obls.le Ω Ω₀)
+theorem oblsDrop_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} (hi : sched n = i)
+    (hcnt : BehFscnt sched γ ⟨0, τf⟩) {Ω Ω₀ Ω₂ Ω' : Obls} (h₀ : Obls.le Ω Ω₀)
     (hprog : Obls.condProgress (Obl.condOwner i) Ω₀ Ω₂) (h₂ : Obls.le Ω₂ Ω')
-    (hact : oblsThreadActive Ω₂ τ) :
-    oblsDrop (fairMeasure (γ τ.pos)) (fairMeasure (γ (τ.pos + 1))) Ω Ω' := by
+    (hact : oblsThreadActive Ω₂ (τf n)) :
+    oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' := by
   intro k fu o fu' o' hk hk'
   obtain ⟨g₀, hk₀⟩ : ∃ g₀, get? Ω₀ k = some g₀ :=
     Option.isSome_iff_exists.mp (h₀.1 k (by rw [hk]; rfl))
@@ -216,18 +221,19 @@ theorem oblsDrop_step {τ : Trace Expr State} {γ : Nat → ThreadId → Nat} {i
           subst ho'
           exact fairMeasure_next_lt hcnt hi (hact k fu₀ o hk₂) (.inr ⟨fun h => hno h, heq', rfl⟩)
 
-/-- A stutter of a finished thread drops every measure through the fairness counters
-(Rocq `obls_drop_na`). -/
+/-- A stutter of a finished thread, the one the schedule names, drops every measure through the
+fairness counters (Rocq `obls_drop_na`). -/
 @[lantana_alias obls_drop_na]
-theorem oblsDrop_na {τ : Trace Expr State} {γ : Nat → ThreadId → Nat} (hcnt : BehFscnt τ γ)
-    (hna : τ.now.inactive τ.thread) {Ω : Obls} (hact : oblsThreadActive Ω τ) :
-    oblsDrop (fairMeasure (γ τ.pos)) (fairMeasure (γ (τ.pos + 1))) Ω Ω := by
+theorem oblsDrop_na {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} (hcnt : BehFscnt sched γ ⟨0, τf⟩) {n : Nat}
+    (hna : (τf n).inactive (sched n)) {Ω : Obls} (hact : oblsThreadActive Ω (τf n)) :
+    oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω := by
   intro k fu o fu' o' hk hk'
   rw [hk] at hk'
   cases hk'
   refine fairMeasure_next_lt hcnt rfl (hact k fu o hk) (.inr ⟨?_, rfl, rfl⟩)
   intro ho
-  exact TraceState.not_active_and_inactive o _ ⟨hact k fu o hk, by rw [ho]; exact hna⟩
+  exact Cfg.not_active_and_inactive o _ ⟨hact k fu o hk, by rw [ho]; exact hna⟩
 
 /-! ## A stutter of a finished thread -/
 
@@ -235,10 +241,11 @@ theorem oblsDrop_na {τ : Trace Expr State} {γ : Nat → ThreadId → Nat} (hcn
 the next position (Rocq `owit_inv_lb_step_na_turn`): the counter of every active owner
 dropped. -/
 @[lantana_alias owit_inv_lb_step_na_turn]
-theorem owitInvLb_step_na_turn {τ : Trace Expr State} {γ : Nat → ThreadId → Nat}
-    (hcnt : BehFscnt τ γ) (hna : τ.now.inactive τ.thread) {Ω : Obls} {W : Witnesses}
-    (hact : oblsThreadActive Ω τ) (hLb : owitInvLb (fairMeasure (γ τ.pos)) Ω W) :
-    owitInvLb (fairMeasure (γ (τ.pos + 1))) Ω W := by
+theorem owitInvLb_step_na_turn {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} (hcnt : BehFscnt sched γ ⟨0, τf⟩) {n : Nat}
+    (hna : (τf n).inactive (sched n)) {Ω : Obls} {W : Witnesses}
+    (hact : oblsThreadActive Ω (τf n)) (hLb : owitInvLb (fairMeasure (γ n)) Ω W) :
+    owitInvLb (fairMeasure (γ (n + 1))) Ω W := by
   refine mapForall2_intro fun k => (hLb.inv k).imp id fun ⟨g, w, eg, ew, hr⟩ => ⟨g, w, eg, ew, ?_⟩
   cases g with
   | discharged => cases w <;> first | exact hr.elim | trivial
@@ -249,7 +256,7 @@ theorem owitInvLb_step_na_turn {τ : Trace Expr State} {γ : Nat → ThreadId �
       refine Ordinals.Ordinal.le_trans (Ordinals.Ordinal.le_of_lt ?_) (show _ ≤ b from hr)
       refine fairMeasure_next_lt hcnt rfl (hact k a o eg) (.inr ⟨?_, rfl, rfl⟩)
       intro ho
-      exact TraceState.not_active_and_inactive o _ ⟨hact k a o eg, by rw [ho]; exact hna⟩
+      exact Cfg.not_active_and_inactive o _ ⟨hact k a o eg, by rw [ho]; exact hna⟩
 
 /-! ## The owners of the obligations are active -/
 
@@ -293,15 +300,15 @@ theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnes
   intro k fu o hk
   exact h k o (Obls.ownerOf_eq hk)
 
-/-- Every assigned obligation's owner is active at a position whose pool is `tp`: it is a
+/-- Every assigned obligation's owner is active at a configuration whose pool is `tp`: it is a
 thread of the pool, and not a finished one since a finished thread owns no obligation (Rocq
 `get_obls_thread_active_gen`). -/
 @[lantana_alias get_obls_thread_active_gen]
-theorem getOblsThreadActive {tp : ThreadPool Expr} {τ : Trace Expr State}
-    (hτ : τ.now.cfg.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses) (n : Nat) :
-    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length ⊢ ⌜oblsThreadActive Ω τ⌝ := by
+theorem getOblsThreadActive {tp : ThreadPool Expr} {ρ : Cfg Expr State}
+    (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses) (n : Nat) :
+    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length ⊢ ⌜oblsThreadActive Ω ρ⌝ := by
   classical
-  by_cases hact : oblsThreadActive Ω τ
+  by_cases hact : oblsThreadActive Ω ρ
   · exact pure_intro hact
   simp only [oblsThreadActive, Classical.not_forall] at hact
   obtain ⟨k, fu, o, hk, hna⟩ := hact

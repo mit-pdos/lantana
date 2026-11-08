@@ -7,7 +7,7 @@ module
 public import Lantana.Prelude.Ordinal
 public import Lantana.BaseLogic.Satisfiable
 public import Lantana.ProgramLogic.TemporalClass
-public import Lantana.Trace.TracePropRules
+public import Lantana.Trace.StateAtom
 
 /-! # Step-indexed trace predicates
 
@@ -31,7 +31,7 @@ open scoped Lantana.TrProp
 
 /-- A step-indexed trace predicate. -/
 @[lantana_alias trIProp]
-abbrev TrIProp (Expr State : Type) (GF : BundledGFunctors) := Trace Expr State → IProp GF
+abbrev TrIProp (Expr State : Type) (GF : BundledGFunctors) := Trace (Cfg Expr State) → IProp GF
 
 namespace TrIProp
 
@@ -48,7 +48,7 @@ def or (P Q : TrIProp Expr State GF) : TrIProp Expr State GF := fun τ => iprop(
 
 /-- Implication with a *trace property* as antecedent: it is assumed at the level of traces. -/
 @[lantana_alias trI_impl]
-def imp (P : TrProp Expr State) (Q : TrIProp Expr State GF) : TrIProp Expr State GF :=
+def imp (P : TrProp (Cfg Expr State)) (Q : TrIProp Expr State GF) : TrIProp Expr State GF :=
   fun τ => iprop(⌜P τ⌝ → Q τ)
 
 @[lantana_alias trI_forall]
@@ -134,7 +134,7 @@ instance alwaysPre_contractive (P : TrIProp Expr State GF) : OFE.Contractive (al
 def always (P : TrIProp Expr State GF) : TrIProp Expr State GF := fixpoint (alwaysPre P)
 
 @[lantana_alias trI_always_unfold]
-theorem always_unfold (P : TrIProp Expr State GF) (τ : Trace Expr State) :
+theorem always_unfold (P : TrIProp Expr State GF) (τ : Trace (Cfg Expr State)) :
     always P τ ⊣⊢ alwaysPre P (always P) τ :=
   BiEntails.of_eq (congrFun (fixpoint_unfold (alwaysPre P).toContractiveHom) τ)
 
@@ -158,7 +158,7 @@ def strongUntil (P Q : TrIProp Expr State GF) : Fuel → TrIProp Expr State GF :
   fixpoint (untilPre P Q)
 
 @[lantana_alias trI_until_unfold]
-theorem until_unfold (P Q : TrIProp Expr State GF) (a : Fuel) (τ : Trace Expr State) :
+theorem until_unfold (P Q : TrIProp Expr State GF) (a : Fuel) (τ : Trace (Cfg Expr State)) :
     strongUntil P Q a τ ⊣⊢ untilPre P Q (strongUntil P Q) a τ :=
   BiEntails.of_eq (congrFun (congrFun (fixpoint_unfold (untilPre P Q).toContractiveHom) a) τ)
 
@@ -169,19 +169,19 @@ theorem until_unfold (P Q : TrIProp Expr State GF) (a : Fuel) (τ : Trace Expr S
   "The instances `SatExists (iPropSatLcAtFrame F E) X` follow from `iPropSat_exists`."
 
 /-- Satisfiability of `always P` at `τ` gives `P` at `τ` and `always P` at the next position. -/
-theorem always_sat_unfold {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace Expr State}
+theorem always_sat_unfold {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace (Cfg Expr State)}
     (hs : (iPropSatLcAtFrame F ⊤).sat (always P τ)) :
     (iPropSatLcAtFrame F ⊤).sat (P τ) ∧ (iPropSatLcAtFrame F ⊤).sat (always P τ.next) :=
   SatPred.sat_and _ (sat_defer ((iPropSatLcAtFrame F ⊤).mono (always_unfold P τ).mp hs))
 
 @[lantana_alias trI_always_trace_next]
-theorem always_trace_next {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace Expr State}
+theorem always_trace_next {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace (Cfg Expr State)}
     (hs : (iPropSatLcAtFrame F ⊤).sat (always P τ)) :
     (iPropSatLcAtFrame F ⊤).sat (always P τ.next) :=
   (always_sat_unfold hs).2
 
 @[lantana_alias trI_always_trace_later]
-theorem always_trace_later {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace Expr State}
+theorem always_trace_later {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trace (Cfg Expr State)}
     (hs : (iPropSatLcAtFrame F ⊤).sat (always P τ)) (m : Nat) (hm : τ.pos ≤ m) :
     (iPropSatLcAtFrame F ⊤).sat (always P { τ with pos := m }) := by
   obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le hm
@@ -190,8 +190,8 @@ theorem always_trace_later {F : IProp GF} {P : TrIProp Expr State GF} {τ : Trac
   | succ k ih => exact always_trace_next (ih (Nat.le_add_right _ _))
 
 @[lantana_alias trI_always_tr_always]
-theorem always_tr_always (F : IProp GF) (P : TrIProp Expr State GF) (R : TrProp Expr State)
-    (h : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (P τ) → R τ) (τ : Trace Expr State)
+theorem always_tr_always (F : IProp GF) (P : TrIProp Expr State GF) (R : TrProp (Cfg Expr State))
+    (h : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (P τ) → R τ) (τ : Trace (Cfg Expr State))
     (hs : (iPropSatLcAtFrame F ⊤).sat (always P τ)) : (□ₜ R) τ :=
   TrProp.always_coind (X := fun τ => (iPropSatLcAtFrame F ⊤).sat (always P τ))
     (fun τ hs => And.intro (h τ (always_sat_unfold hs).1) (always_sat_unfold hs).2) τ hs
@@ -199,7 +199,7 @@ theorem always_tr_always (F : IProp GF) (P : TrIProp Expr State GF) (R : TrProp 
 /-- Satisfiability of `strongUntil P Q a` at `τ` gives `Q` at `τ`, or `P` at `τ` and
 `strongUntil P Q a'` at the next position for a smaller rank `a'`. -/
 theorem until_sat_unfold {F : IProp GF} {P Q : TrIProp Expr State GF} {a : Fuel}
-    {τ : Trace Expr State} (hs : (iPropSatLcAtFrame F ⊤).sat (strongUntil P Q a τ)) :
+    {τ : Trace (Cfg Expr State)} (hs : (iPropSatLcAtFrame F ⊤).sat (strongUntil P Q a τ)) :
     (iPropSatLcAtFrame F ⊤).sat (Q τ) ∨ ((iPropSatLcAtFrame F ⊤).sat (P τ) ∧
       ∃ a' < a, (iPropSatLcAtFrame F ⊤).sat (strongUntil P Q a' τ.next)) := by
   have h := sat_defer ((iPropSatLcAtFrame F ⊤).mono (until_unfold P Q a τ).mp hs)
@@ -210,10 +210,10 @@ theorem until_sat_unfold {F : IProp GF} {P Q : TrIProp Expr State GF} {a : Fuel}
   exact ⟨h₁, a', (iPropSatLcAtFrame F ⊤).elim hlt, h₂⟩
 
 @[lantana_alias trI_until_tr_until_gen]
-theorem until_tr_until (F : IProp GF) (P Q : TrIProp Expr State GF) (R S : TrProp Expr State)
+theorem until_tr_until (F : IProp GF) (P Q : TrIProp Expr State GF) (R S : TrProp (Cfg Expr State))
     (hP : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (P τ) → R τ)
     (hQ : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (Q τ) → S τ)
-    (τ : Trace Expr State)
+    (τ : Trace (Cfg Expr State))
     (hs : (iPropSatLcAtFrame F ⊤).sat (ex (fun a => strongUntil P Q a) τ)) :
     (R 𝒰ₜ S) τ := by
   obtain ⟨a, ha⟩ := SatPred.sat_exists _ hs

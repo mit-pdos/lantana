@@ -514,7 +514,7 @@ end Guarantee
 /-- Every `putTask` or `runTask` that takes the queue's lock eventually releases it (Rocq
 `task_queue_release_progress`). -/
 @[lantana_alias task_queue.task_queue_release_progress]
-theorem taskQueue_release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace Exp State)
+theorem taskQueue_release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace (Cfg Exp State))
     (h : (taskQueueTrSpec (GF := GF) ql).external τ) :
     ∃ lhptr ltptr next curr : Loc,
       ql = vQueue lhptr ltptr (vLock next curr) ∧ releaseProgress next curr τ :=

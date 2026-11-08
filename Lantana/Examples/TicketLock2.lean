@@ -1045,13 +1045,13 @@ variable {GF : BundledGFunctors}
 
 /-- `l ↦ v` in the current state of the trace (Rocq `tr_pointsto`). -/
 @[lantana_alias ticket_lock2.tr_pointsto]
-abbrev trPointsTo (l : Loc) (v : Val) : TrProp Exp State :=
+abbrev trPointsTo (l : Loc) (v : Val) : TrProp (Cfg Exp State) :=
   TrProp.state (pointstoSat l (.own 1) v)
 
 /-- Starvation freedom of the ticket lock `(next, curr)` (Rocq `starvation_free`): whenever
 `next ↦ n` and `curr ↦ c`, every ticket `t` with `c < t ≤ n` is eventually served. -/
 @[lantana_alias ticket_lock2.starvation_free]
-def starvationFree (next curr : Loc) : TrProp Exp State :=
+def starvationFree (next curr : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (∀ₜ (n : Int) (c : Int) (t : Int), trPointsTo next (vInt n) →ₜ
     trPointsTo curr (vInt c) →ₜ ⌜c < t ∧ t ≤ n⌝ₜ →ₜ ◇ₜ trPointsTo curr (vInt t))
 
@@ -1087,7 +1087,7 @@ theorem lockInvTrSpec_starvationFree (next curr : Loc) :
 /-- The trace property of a fair lock: starvation freedom of its two cells (Rocq
 `fair_lock_sf`). -/
 @[lantana_alias ticket_lock2.fair_lock_sf]
-def fairLockSf (tl : Val) : TrProp Exp State :=
+def fairLockSf (tl : Val) : TrProp (Cfg Exp State) :=
   ∃ₜ (next : Loc) (curr : Loc), ⌜tl = hl_val((#next, #curr))⌝ₜ ∧ₜ starvationFree next curr
 
 @[lantana_alias ticket_lock2.fair_lock_starvation_free]
@@ -1099,7 +1099,7 @@ theorem fairLock_starvationFree (tl : Val) :
 /-- The holder of a lock token (serving the ticket `u`) eventually releases the lock (Rocq
 `lock_token_tr`). -/
 @[lantana_alias ticket_lock2.lock_token_tr]
-def lockTokenTr (tl : Val) : TrProp Exp State :=
+def lockTokenTr (tl : Val) : TrProp (Cfg Exp State) :=
   ∃ₜ (next : Loc) (curr : Loc) (u : Int), ⌜tl = hl_val((#next, #curr))⌝ₜ ∧ₜ
     trPointsTo curr (vInt u) ∧ₜ ◇ₜ trPointsTo curr (vInt (u + 1))
 

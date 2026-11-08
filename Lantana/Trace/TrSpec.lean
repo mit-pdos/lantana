@@ -36,11 +36,12 @@ structure TrSpec (Expr State : Type) (GF : BundledGFunctors) where
   internal : ∀ [ModelGS GF] [TemporalGS Expr State GF],
     TrIProp Expr State GF
   /-- The trace reading, which adequacy concludes. -/
-  external : TrProp Expr State
+  external : TrProp (Cfg Expr State)
   /-- Adequacy: satisfiability of the internal reading at `τ` (with any frame, under the
   credit supply and world satisfaction) gives the external reading at `τ`. -/
   adeq : ∀ [ModelGS GF] [TemporalGS Expr State GF]
-    (F : IProp GF) (τ : Trace Expr State), (iPropSatLcAtFrame F ⊤).sat (internal τ) → external τ
+    (F : IProp GF) (τ : Trace (Cfg Expr State)),
+      (iPropSatLcAtFrame F ⊤).sat (internal τ) → external τ
 
 namespace TrSpec
 
@@ -50,7 +51,7 @@ variable {Expr State : Type} {GF : BundledGFunctors}
 @[lantana_alias trSpec_le]
 def le (G H : TrSpec Expr State GF) : Prop :=
   ∀ [ModelGS GF] [TemporalGS Expr State GF]
-    (τ : Trace Expr State), G.internal τ ⊢ H.internal τ
+    (τ : Trace (Cfg Expr State)), G.internal τ ⊢ H.internal τ
 
 scoped infix:50 " ⊑ₛ " => TrSpec.le
 
@@ -131,7 +132,7 @@ def state (φ : State → ThreadPool Expr → Prop) : TrSpec Expr State GF where
 
 /-- The same internal reading with a weaker external one: imports trace-level reasoning. -/
 @[lantana_alias trSpec_cast]
-def cast (G : TrSpec Expr State GF) (R : TrProp Expr State) (pf : G.external ⊆ R) :
+def cast (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State)) (pf : G.external ⊆ R) :
     TrSpec Expr State GF where
   internal := G.internal
   external := R
@@ -187,13 +188,13 @@ scoped macro_rules
 @[lantana_alias TrSpecComplete]
 class Complete (G : TrSpec Expr State GF) : Prop where
   complete : ∀ [ModelGS GF] [TemporalGS Expr State GF]
-    (τ : Trace Expr State), G.external τ → ⊢ G.internal τ
+    (τ : Trace (Cfg Expr State)), G.external τ → ⊢ G.internal τ
 
 /-- The in-logic reading gives the trace reading, internally. -/
 @[lantana_alias TrSpecInstant]
 class Instant (G : TrSpec Expr State GF) : Prop where
   instant : ∀ [ModelGS GF] [TemporalGS Expr State GF]
-    (τ : Trace Expr State), G.internal τ ⊢ ⌜G.external τ⌝
+    (τ : Trace (Cfg Expr State)), G.internal τ ⊢ ⌜G.external τ⌝
 
 @[lantana_alias trSpec_complete_pure]
 instance pure_complete (p : Prop) : Complete (pure (Expr := Expr) (State := State) (GF := GF) p) :=
@@ -380,19 +381,20 @@ theorem imp_elim [Instant A] : (A ∧ₛ (A →ₛ G)) ⊑ₛ G := fun τ =>
     BI.and_elim_r.trans <| (BI.and_intro (pure_intro hA) .rfl).trans imp_elim_right
 
 @[lantana_alias trSpec_cast_le]
-theorem cast_le (R : TrProp Expr State) (pf : G.external ⊆ R) : G ⊑ₛ G.cast R pf :=
+theorem cast_le (R : TrProp (Cfg Expr State)) (pf : G.external ⊆ R) : G ⊑ₛ G.cast R pf :=
   fun _ => .rfl
 
 @[lantana_alias trSpec_le_cast]
-theorem le_cast (R : TrProp Expr State) (pf : G.external ⊆ R) : G.cast R pf ⊑ₛ G :=
+theorem le_cast (R : TrProp (Cfg Expr State)) (pf : G.external ⊆ R) : G.cast R pf ⊑ₛ G :=
   fun _ => .rfl
 
 @[lantana_alias trSpec_cast_ext]
-theorem cast_external (R : TrProp Expr State) (pf : G.external ⊆ R) : (G.cast R pf).external = R :=
+theorem cast_external (R : TrProp (Cfg Expr State)) (pf : G.external ⊆ R) :
+    (G.cast R pf).external = R :=
   rfl
 
 @[lantana_alias trSpec_cast_complete]
-theorem cast_complete [Complete G] (R : TrProp Expr State) (pf : G.external ⊆ R)
+theorem cast_complete [Complete G] (R : TrProp (Cfg Expr State)) (pf : G.external ⊆ R)
     (hR : R ⊆ G.external) : Complete (G.cast R pf) :=
   ⟨fun τ h => Complete.complete (G := G) τ (hR τ h)⟩
 
@@ -446,7 +448,7 @@ end Rules
 /-- `Ext G R`: the external reading of `G` entails `R` (computed from the shape of `G`; the
 fallback is `G.external` itself). -/
 @[lantana_alias TrSpecExt]
-class Ext (G : TrSpec Expr State GF) (R : outParam (TrProp Expr State)) : Prop where
+class Ext (G : TrSpec Expr State GF) (R : outParam (TrProp (Cfg Expr State))) : Prop where
   ext_of : G.external ⊆ R
 
 @[lantana_alias trSpec_ext_default]
@@ -459,32 +461,32 @@ instance ext_pure (p : Prop) : Ext (pure (Expr := Expr) (State := State) (GF := 
 instance ext_state (φ : State → ThreadPool Expr → Prop) :
     Ext (state (GF := GF) φ) (TrProp.state φ) := ⟨TrProp.le_refl _⟩
 @[lantana_alias trSpec_ext_and]
-instance ext_and (G H : TrSpec Expr State GF) (R S : TrProp Expr State) [Ext G R] [Ext H S] :
+instance ext_and (G H : TrSpec Expr State GF) (R S : TrProp (Cfg Expr State)) [Ext G R] [Ext H S] :
     Ext (G ∧ₛ H) (R ∧ₜ S) := ⟨TrProp.and_mono Ext.ext_of Ext.ext_of⟩
 @[lantana_alias trSpec_ext_or]
-instance ext_or (G H : TrSpec Expr State GF) (R S : TrProp Expr State) [Ext G R] [Ext H S] :
+instance ext_or (G H : TrSpec Expr State GF) (R S : TrProp (Cfg Expr State)) [Ext G R] [Ext H S] :
     Ext (G ∨ₛ H) (R ∨ₜ S) := ⟨TrProp.or_mono Ext.ext_of Ext.ext_of⟩
 @[lantana_alias trSpec_ext_impl]
-instance ext_imp (A G : TrSpec Expr State GF) (R : TrProp Expr State) [Ext G R] :
+instance ext_imp (A G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State)) [Ext G R] :
     Ext (A →ₛ G) (A.external →ₜ R) := ⟨TrProp.imp_mono (TrProp.le_refl _) Ext.ext_of⟩
 @[lantana_alias trSpec_ext_forall]
-instance ext_all {Y : Type _} (G : Y → TrSpec Expr State GF) (R : Y → TrProp Expr State)
+instance ext_all {Y : Type _} (G : Y → TrSpec Expr State GF) (R : Y → TrProp (Cfg Expr State))
     [∀ y, Ext (G y) (R y)] : Ext (all G) (∀ₜ y, R y) := ⟨TrProp.all_mono fun _ => Ext.ext_of⟩
 @[lantana_alias trSpec_ext_exist]
 instance ext_ex {Y : Type _} [SIdxLarge SI Y] (G : Y → TrSpec Expr State GF)
-    (R : Y → TrProp Expr State) [∀ y, Ext (G y) (R y)] : Ext (ex G) (∃ₜ y, R y) :=
+    (R : Y → TrProp (Cfg Expr State)) [∀ y, Ext (G y) (R y)] : Ext (ex G) (∃ₜ y, R y) :=
   ⟨TrProp.ex_mono fun _ => Ext.ext_of⟩
 @[lantana_alias trSpec_ext_always]
-instance ext_always (G : TrSpec Expr State GF) (R : TrProp Expr State) [Ext G R] :
+instance ext_always (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State)) [Ext G R] :
     Ext (□ₛ G) (□ₜ R) := ⟨TrProp.always_mono Ext.ext_of⟩
 @[lantana_alias trSpec_ext_finally]
-instance (priority := high) ext_eventually (G : TrSpec Expr State GF) (R : TrProp Expr State)
+instance (priority := high) ext_eventually (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State))
     [Ext G R] : Ext (◇ₛ G) (◇ₜ R) := ⟨TrProp.until_mono (TrProp.le_refl _) Ext.ext_of⟩
 @[lantana_alias trSpec_ext_until]
-instance ext_strongUntil (G H : TrSpec Expr State GF) (R S : TrProp Expr State) [Ext G R]
+instance ext_strongUntil (G H : TrSpec Expr State GF) (R S : TrProp (Cfg Expr State)) [Ext G R]
     [Ext H S] : Ext (G 𝒰ₛ H) (R 𝒰ₜ S) := ⟨TrProp.until_mono Ext.ext_of Ext.ext_of⟩
 @[lantana_alias trSpec_ext_cast]
-instance ext_cast (G : TrSpec Expr State GF) (R : TrProp Expr State) (pf : G.external ⊆ R) :
+instance ext_cast (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State)) (pf : G.external ⊆ R) :
     Ext (G.cast R pf) R := ⟨TrProp.le_refl _⟩
 
 end TrSpec

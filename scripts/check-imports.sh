@@ -4,13 +4,14 @@
 #
 # Check the layering of the library: a module of Lantana/ imports only modules of its own layer
 # or of earlier ones, in the order
-#   Std, Init < Prelude < Algebra < BaseLogic < ProgramLogic < Trace < HeapLang < Examples
+#   Std, Init < Prelude < Temporal < Algebra < BaseLogic < ProgramLogic < Trace < HeapLang
+#   < Examples
 # (the layer of Lantana.L.… and of the aggregator Lantana.L is L; the root module Lantana
 # imports everything and is not checked).
 # Usage: scripts/check-imports.sh [dir]   (default: the package root)
 set -euo pipefail
 root=${1:-$(dirname "$0")/..}
-layers=(Std Init Prelude Algebra BaseLogic ProgramLogic Trace HeapLang Examples)
+layers=(Std Init Prelude Temporal Algebra BaseLogic ProgramLogic Trace HeapLang Examples)
 # Allowed exceptions, as "Importer Imported" pairs (module names); none at present.
 allowed=()
 

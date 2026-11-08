@@ -13,7 +13,7 @@ instances, the allocation, a registration and the marker argument.
 
 Universes: the list camera `MonoList (DiscreteO (Nat × RegEntry))` is in `Type`, so its slot is
 `ULiftOF` of it (`ElemG.ofEqLift`), as for the history. The saved predicates
-`DFracAgreeRF (DiscreteFunOF fun _ : Trace Exp State => LaterOF IdOF)` take their results in
+`DFracAgreeRF (DiscreteFunOF fun _ : Trace (Cfg Exp State) => LaterOF IdOF)` take their results in
 the universe of `IProp TestGF` (`Type 4`) already, so the slot is the functor itself
 (`ElemG.ofEq`); no annotation is needed. -/
 
@@ -22,7 +22,7 @@ namespace LantanaTest.Registry
 open Iris Iris.BI Iris.ProofMode Lantana Lantana.HeapLang
 
 /-- The functor of saved trace predicates of HeapLang. -/
-abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace Exp State => LaterOF IdOF
+abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace (Cfg Exp State) => LaterOF IdOF
 
 noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   match n with
@@ -43,7 +43,7 @@ noncomputable instance : MonoListG TestGF (HistEntry Exp State) :=
 example : ⊢@{IProp TestGF} |==> ∃ _ : RegGS Exp State TestGF, regAuth [] :=
   regGS_alloc
 
-example (f : Trace Exp State → IProp TestGF) : ⊢@{IProp TestGF} |==> ∃ γ, savedTrI γ f :=
+example (f : Trace (Cfg Exp State) → IProp TestGF) : ⊢@{IProp TestGF} |==> ∃ γ, savedTrI γ f :=
   savedTrI_alloc f
 
 /-- Allocate the registry and register two entries; the second is at index `1`. -/
@@ -93,7 +93,7 @@ example (l : List (Nat × RegEntry)) (j p : Nat) (e : RegEntry) (hj : l.length �
   · exact h
 
 /-- Saved trace predicates agree up to a later. -/
-example (γ : GName) (f g : Trace Exp State → IProp TestGF) (τ : Trace Exp State) :
+example (γ : GName) (f g : Trace (Cfg Exp State) → IProp TestGF) (τ : Trace (Cfg Exp State)) :
     savedTrI γ f ∗ savedTrI γ g ⊢@{IProp TestGF} ▷ (f τ ≡ g τ) := by
   iintro ⟨Hf, Hg⟩
   ihave H := savedTrI_agree_fun γ f g $$ Hf Hg

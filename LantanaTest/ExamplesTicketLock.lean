@@ -59,7 +59,7 @@ variable {GF : BundledGFunctors}
 
 /-- A lock that cannot be deleted makes progress, and with a monotone `next` every pending
 ticket is served. -/
-example (tl : Val) (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ)
+example (tl : Val) (τ : Trace (Cfg Exp State)) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ)
     (hmon : ∀ next curr : Loc, tl = vLock next curr → nextMonotone next τ) :
     ∃ next curr : Loc, tl = vLock next curr ∧ starvationFree next curr τ := by
   obtain ⟨next, curr, htl, hrp⟩ := aliveFairLock_release_progress tl τ h

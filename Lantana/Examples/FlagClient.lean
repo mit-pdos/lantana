@@ -272,7 +272,7 @@ variable {GF : BundledGFunctors}
 
 /-- The flag is `0` until it is `1`, and then `1`; it is `0` until it is `1`; the writer
 returns `()` and the reader returns `1` (Rocq `R_main`). -/
-def rClient : TrProp Exp State :=
+def rClient : TrProp (Cfg Exp State) :=
   isFlagTr xLoc ∧ₜ (pointsToTr xLoc v0 𝒰ₜ pointsToTr xLoc v1) ∧ₜ
     ◇ₜ TrProp.state (threadExprSat 0 [] (.val vUnit)) ∧ₜ
     ◇ₜ TrProp.state (threadExprSat 1 [] (.val v1))
@@ -341,10 +341,10 @@ theorem flagClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF] (hs : HeapSta
 /-- In every fair behavior from the initial configuration, the flag is `0` until it is `1`, and
 then `1`, the writer returns `()` and the reader returns `1`. -/
 @[lantana_alias flag_client_adequacy]
-theorem flagClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem flagClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rClient τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 gClient rClient gClient_impl τ hbeh hfair
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gClient rClient gClient_impl τ hbeh hfair
     hpos hinit ?_
   intro _ _
   refine ⟨4, ?_⟩
@@ -365,10 +365,10 @@ theorem flagClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
 
 /-- Safety for one thread `j`, for any property `Φ` implied by its return value. -/
 theorem flagClient_safety_of (j : ThreadId) (hj : j < tp0.length) (Φ : ThreadId → Val → Prop)
-    (hΦ : ∀ v, clientVal j v → Φ j v) (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+    (hΦ : ∀ v, clientVal j v → Φ j v) (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris j Φ τ := by
-  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 j Φ τ hbeh hfair hpos hinit hj ?_
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 j Φ τ hbeh hfair hpos hinit hj ?_
   intro _ _
   refine ⟨4, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, Hl, HT⟩
@@ -385,19 +385,19 @@ theorem flagClient_safety_of (j : ThreadId) (hj : j < tp0.length) (Φ : ThreadId
   · iframe
   iapply Hwp $$ HP
 
-/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+/-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the writer (resp. the reader) has returned, its value is `()` (resp. `1`). -/
 @[lantana_alias flag_client_safety_adequacy]
-theorem flagClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem flagClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = vUnit) τ ∧ safetyIris 1 (fun _ v => v = v1) τ :=
   ⟨flagClient_safety_of 0 (by decide) _ (fun _ h => h) τ hbeh hfair hpos hinit,
     flagClient_safety_of 1 (by decide) _ (fun _ h => h) τ hbeh hfair hpos hinit⟩
 
 /-- Liveness and safety together, over the same fair behaviors. -/
 @[lantana_alias flag_client_liveness_safety]
-theorem flagClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem flagClient_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rClient τ ∧ (safetyIris 0 (fun _ v => v = vUnit) τ ∧ safetyIris 1 (fun _ v => v = v1) τ) :=
   ⟨flagClient_adequacy τ hbeh hfair hpos hinit,
     flagClient_safety_adequacy τ hbeh hfair hpos hinit⟩

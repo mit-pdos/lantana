@@ -5,7 +5,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import Lantana.Trace.TemporalFormulaRun
-public import Lantana.Trace.FairScheduling
 public import Lantana.Trace.Adequacy.Alloc
 public import Lantana.Trace.Adequacy.RunStep
 
@@ -22,6 +21,10 @@ of the run (`run_step`, in `Lantana.Trace.Adequacy.RunStep`). From a position `n
 (whose record at `n` is eliminated after the first step against the bundle of the check at `n`)
 and the `lWP`s of the threads. The theorem allocates the ghost state at its names (D32,
 `adequacy_alloc_names`), and reads the internal reading off by satisfiability (`TrSpec.adeq`).
+
+The behavior carries no thread label. The proof chooses a fair schedule of it and fairness
+counters under that schedule (`exists_fair_schedule_behFscnt`), the instruments that the run is
+threaded with.
 
 The ghost state is allocated inside the proof, so the premise quantifies over its instances; the
 user then chooses the state interpretation (after allocating the language's ghost state), the
@@ -71,7 +74,7 @@ theorem sysStep_lwp :
     ⊢ sysStep (sysLwp (Expr := Expr) (State := State) (Val := Val) (GF := GF)) := by
   rw [sysStep_eq]
   unfold sysStepPre
-  iintro !> %c %h %n %σ %tp %g %v %Ω %W %τf %γ %⟨hbeh, hcnt, hLb, hh⟩ ⟨HI, MI, HS⟩
+  iintro !> %c %h %n %σ %tp %g %v %Ω %W %τf %sched %γ %⟨hsch, hcnt, hLb, hh⟩ ⟨HI, MI, HS⟩
   unfold sysLwp
   icases HS with ⟨HR, %Ψ, HT⟩
   imod regCheck n h σ tp g v Ω W $$ HR HI MI with ⟨HR, HI, MI, %l, #B⟩
@@ -88,19 +91,19 @@ theorem sysStep_lwp :
   imodintro
   ihave HH := (historyTInterp_reg h n σ tp).mpr $$ [HI HR]
   · iframe HI HR
-  imod run_step c hbeh hcnt hLb hh $$ [HH MI HT] with H
+  imod run_step c hsch hcnt hLb hh $$ [HH MI HT] with H
   · iframe HH MI HT
   imodintro
   iapply ALC_wand $$ [] H
   iintro H
   unfold runStepPost
-  imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W', %⟨h₁, h₂, h₃, h₄, h₅, -⟩, Hc, HH, MI, HT⟩
+  imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W', %⟨h₃, h₄, h₅, -⟩, Hc, HH, MI, HT⟩
   icases (historyTInterp_reg _ _ _ _).mp $$ HH with ⟨HI, HR⟩
   imodintro
   iexists σ', tp', g', v', Ω', W'
   isplitr
   · ipureintro
-    exact ⟨h₁, h₂, h₃, h₄, h₅⟩
+    exact ⟨h₃, h₄, h₅⟩
   iframe Hc HI MI HR
   iexists Ψ'
   iexact HT
@@ -111,9 +114,9 @@ at `n` is eliminated after the first step, against the bundle of the check at `n
 @[lantana_alias lwp_adequacy_internal]
 theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} (Ψ : ThreadId → Val → IProp GF) {g : List MEvent} {v : Nat}
-    {Ω : Obls} {W : Witnesses} {τf : Nat → TraceState Expr State} {γ : Nat → ThreadId → Nat}
-    (G : TrSpec Expr State GF) (hbeh : IsBehavior (⟨n, τf⟩ : Trace Expr State))
-    (hcnt : BehFscnt ⟨n, τf⟩ γ) (hLb : owitInvLb (fairMeasure (γ n)) Ω W)
+    {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} (G : TrSpec Expr State GF) (hsch : Schedule sched ⟨0, τf⟩)
+    (hcnt : BehFscnt sched γ ⟨0, τf⟩) (hLb : owitInvLb (fairMeasure (γ n)) Ω W)
     (hh : histTrace h τf) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗
       (|={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ G) ∗ P ∗
@@ -144,18 +147,18 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
   imod regCheck n h σ tp _ _ Ω₂ W₂ $$ HR HI MI with ⟨HR, HI, MI, %l, #B⟩
   ihave HH := (historyTInterp_reg h n σ tp).mpr $$ [HI HR]
   · iframe HI HR
-  imod run_step 0 hbeh hcnt hLb₂ hh $$ [HH MI HT] with H
+  imod run_step 0 hsch hcnt hLb₂ hh $$ [HH MI HT] with H
   · iframe HH MI HT
   imodintro
   iapply ALC_wand $$ [] H
   iintro H
   unfold runStepPost
-  imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W', %⟨-, h₂, h₃, h₄, -⟩, -, HH, MI, HT⟩
+  imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W', %⟨h₃, h₄, -⟩, -, HH, MI, HT⟩
   icases (historyTInterp_reg _ _ _ _).mp $$ HH with ⟨HI, HR⟩
   imodintro
-  have hf : IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+  have hf : Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf :=
-    ⟨hbeh, h₂, h₃, h₄⟩
+    ⟨hsch, hcnt, h₃, h₄⟩
   iapply record_elim G (Sys := sysLwp (Expr := Expr) (State := State) (Val := Val) (GF := GF))
     $$ TF ST %hf B
   iframe HI MI
@@ -170,14 +173,16 @@ end Lwp
 by its trace reading. If, for every allocation of the temporal ghost state, the user can
 produce (under a fancy update, from some amount `c` of later credits and the initial threads'
 empty sets of children) a resource `P` that guarantees `G` together with `lWP`s for the
-initial threads, then every fair behavior from the initial configuration satisfies `R`. -/
+initial threads, then every fair behavior from the initial configuration satisfies `R`.
+Fairness is the strong fairness of every thread's scheduling action (`fairScheduling`, a trace
+property); the proof chooses a schedule as its instrument (`exists_fair_schedule_behFscnt`). -/
 @[lantana_alias lwp_adequacy_temporal]
 theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
     {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
-    (σ : State) (tp : ThreadPool Expr) (i : ThreadId) (G : TrSpec Expr State GF)
-    (R : TrProp Expr State) (hGR : G.external ⊆ R) (τ : Trace Expr State)
+    (σ : State) (tp : ThreadPool Expr) (G : TrSpec Expr State GF)
+    (R : TrProp (Cfg Expr State)) (hGR : G.external ⊆ R) (τ : Trace (Cfg Expr State))
     (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(tp, σ), i⟩)
+    (hinit : τ.seq 0 = (tp, σ))
     (hwp : ∀ [ModelGS GF] [TemporalGS Expr State GF],
       ∃ c : Fuel, ⊢@{IProp GF} |={⊤}=>
         ∃ (SI : StateInterp Expr State GF) (forkPost : ThreadId → Val → IProp GF)
@@ -193,7 +198,7 @@ theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
   obtain ⟨n, τf⟩ := τ
   simp only at hpos hinit
   subst hpos
-  obtain ⟨γc, hγc⟩ := fairScheduling_behFscnt hfair
+  obtain ⟨sched, γc, hsch, hγc⟩ := exists_fair_schedule_behFscnt hbeh hfair
   obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp)
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
@@ -204,7 +209,7 @@ theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
     | zero =>
       simp only [List.getElem?_cons_zero, Option.some.injEq, Prod.mk.injEq] at hn'
       obtain ⟨rfl, rfl⟩ := hn'
-      exact ⟨i, hinit⟩
+      exact hinit
     | succ n' => simp at hn'
   have hLb₀ : owitInvLb (fairMeasure (γc 0)) ∅ ∅ := mapForall2_empty
   refine G.adeq iprop(emp) ⟨0, τf⟩ ?_
@@ -234,7 +239,7 @@ theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
   ispecialize Hwp $$ Hc Hk
   ihave HHT := (historyTInterp_reg [(σ, tp)] 0 σ tp).mpr $$ [HH HTI]
   · iframe HH HTI
-  iapply lwp_adequacy_internal Ψ G hbeh hγc hLb₀ hh₀
+  iapply lwp_adequacy_internal Ψ G hsch hγc hLb₀ hh₀
   iframe HHT HM Hwp
 
 end Lantana

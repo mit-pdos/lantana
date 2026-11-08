@@ -22,11 +22,16 @@ certificates for `n`: each registered structure (`TemporalRegistry`) has its con
 at every position (`certPre`, a later-guarded record). A record holds for any running system
 with the **one-step property** `sysStep` (`lWP` is one, `Adequacy/Temporal`).
 
-The pure facts about the run (D18): the trace is a behavior from the current position, the
-fairness counters are an explicit sequence `γ : Nat → ThreadId → Nat` along the trace
-(`BehFscnt`), the witnesses are bounded below by the fair-scheduler measure of the current
-counters (`owitInvLb`), the ghost history is a prefix of the trace (`histTrace`), and across a
-step every assigned obligation's measure drops (`oblsDrop`). Records are a guarded fixpoint
+The pure facts about the run `τf : Nat → Cfg Expr State` (D18): the schedule
+`sched : Nat → ThreadId`, the adequacy proof's internal instrument (traces carry no thread
+label), names a thread whose trace step each position is (`Schedule sched ⟨0, τf⟩`); the
+fairness counters are an explicit sequence `γ : Nat → ThreadId → Nat` along the run under the
+schedule (`BehFscnt sched γ ⟨0, τf⟩`); the witnesses are bounded below by the fair-scheduler
+measure of the current counters (`owitInvLb`); the ghost history is a prefix of the run
+(`histTrace`); and across a step every assigned obligation's measure drops (`oblsDrop`). The
+first two are trace properties of the run from position `0` (`Lantana.Temporal.ThreadSystem`,
+`Lantana.Temporal.FairScheduling`), read at a position `n` through `schedule_iff` and
+`behFscnt_iff`; they are the same at every position. Records are a guarded fixpoint
 (`recordTrI`): the certificates hold the records under a later.
 
 `TrSpec.canon P` is the canonical (strongest) specification guaranteed by `P`. The rules are in
@@ -46,14 +51,14 @@ variable {Expr State Val : Type} {GF : BundledGFunctors}
 
 /-! ## Records, certificates and the one-step property -/
 
-/-- The ghost history `h` is a prefix of the trace `τf`. -/
+/-- The ghost history `h` is a prefix of the run `τf`. -/
 @[lantana_alias hist_trace]
-def histTrace (h : List (HistEntry Expr State)) (τf : Nat → TraceState Expr State) : Prop :=
-  ∀ n' σ' tp', h[n']? = some (σ', tp') → ∃ i', τf n' = ⟨(tp', σ'), i'⟩
+def histTrace (h : List (HistEntry Expr State)) (τf : Nat → Cfg Expr State) : Prop :=
+  ∀ n' σ' tp', h[n']? = some (σ', tp') → τf n' = (tp', σ')
 
 /-- Records: a reading `f` at a position (Rocq `recT`). -/
 abbrev RecT (Expr State : Type) (GF : BundledGFunctors) :=
-  (Trace Expr State → IProp GF) → Nat → IProp GF
+  (Trace (Cfg Expr State) → IProp GF) → Nat → IProp GF
 
 /-- A running system: a resource indexed by the position and the configuration
 (Rocq `sysT`). -/
@@ -69,8 +74,8 @@ For an until, the record of its left or right formula at `n`, or, if it was disc
 @[lantana_alias cert_pre]
 def certPre (tg : RecT Expr State GF) (n : Nat) : RegEntry → IProp GF
   | .mark => iprop(True)
-  | .always _ γ => iprop(∃ f : Trace Expr State → IProp GF, savedTrI γ f ∗ ▷ tg f n)
-  | .until _ k γP γQ => iprop(∃ fP fQ : Trace Expr State → IProp GF,
+  | .always _ γ => iprop(∃ f : Trace (Cfg Expr State) → IProp GF, savedTrI γ f ∗ ▷ tg f n)
+  | .until _ k γP γQ => iprop(∃ fP fQ : Trace (Cfg Expr State) → IProp GF,
       savedTrI γP fP ∗ savedTrI γQ fQ ∗
       (▷ (tg fP n ∨ tg fQ n) ∨
         ▷ (∃ (n' i' : Nat) (Ω' : Obls),
@@ -91,15 +96,14 @@ credits. The modalities are those of `TrIProp.defer`. -/
 def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :=
   iprop(□ ∀ (c : Nat) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
       (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
-      (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat),
-    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n, τf⟩ γ ∧
+      (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
     historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
     |={⊤,∅}=> ∃ l, bundlePre tg l n ∗ ▷ |={∅,⊤}=> |={⊤,∅}=> ALC iprop(|={∅,⊤}=>
       ∃ (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent) (v' : Nat) (Ω' : Obls)
         (W' : Witnesses),
-        ⌜IsBehavior (⟨n + 1, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
-          owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
+        ⌜owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
           oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ ∗
         £ₙ c ∗ historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
         modelInterp g' v' Ω' W' (n + 1) tp'.length ∗ Sys (n + 1) σ' tp'))
@@ -110,10 +114,10 @@ def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :
 def recordPre (tg : RecT Expr State GF) : RecT Expr State GF := fun f n =>
   iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
       (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
-      (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat) (σ : State)
-      (tp : ThreadPool Expr),
+      (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
+      (σ : State) (tp : ThreadPool Expr),
     sysStepPre tg Sys -∗
-    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundlePre tg l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -156,7 +160,7 @@ theorem sysStepPre_contractive {k : SI} {tg₁ tg₂ : RecT Expr State GF}
     sysStepPre tg₁ Sys ≡{k}≡ sysStepPre tg₂ Sys := by
   unfold sysStepPre
   refine intuitionistically_ne.ne ?_
-  iterate 11 refine forall_ne fun _ => ?_
+  iterate 12 refine forall_ne fun _ => ?_
   exact wand_ne.ne .rfl <| wand_ne.ne .rfl <| fupd_ne.ne <| exists_ne fun l =>
     sep_ne.ne (bundlePre_contractive h l _) .rfl
 
@@ -166,7 +170,7 @@ instance recordPre_contractive :
   distLater_dist h f n := by
     unfold recordPre
     refine intuitionistically_ne.ne ?_
-    iterate 11 refine forall_ne fun _ => ?_
+    iterate 12 refine forall_ne fun _ => ?_
     exact wand_ne.ne (sysStepPre_contractive h _) <| wand_ne.ne .rfl <|
       wand_ne.ne (bundlePre_contractive h _ _) .rfl
 
@@ -182,18 +186,18 @@ variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Val]
 @[lantana_alias record_trI]
 def recordTrI : RecT Expr State GF := fixpoint recordPre
 
-theorem recordTrI_eq (f : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_eq (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     recordTrI f n = recordPre recordTrI f n :=
   congrFun (congrFun (fixpoint_unfold (recordPre (Expr := Expr) (State := State)
     (GF := GF)).toContractiveHom) f) n
 
 @[lantana_alias record_trI_unfold]
-theorem recordTrI_unfold (f : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_unfold (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     recordTrI f n ⊣⊢ recordPre recordTrI f n :=
   BiEntails.of_eq (recordTrI_eq f n)
 
 @[lantana_alias record_trI_persistent]
-instance recordTrI_persistent (f : Trace Expr State → IProp GF) (n : Nat) :
+instance recordTrI_persistent (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     Persistent (recordTrI f n) := by
   rw [recordTrI_eq]
   unfold recordPre
@@ -201,17 +205,17 @@ instance recordTrI_persistent (f : Trace Expr State → IProp GF) (n : Nat) :
 
 @[lantana_alias record_trI_ne]
 instance recordTrI_ne (n : Nat) :
-    OFE.NonExpansive (fun f : Trace Expr State → IProp GF => recordTrI f n) where
+    OFE.NonExpansive (fun f : Trace (Cfg Expr State) → IProp GF => recordTrI f n) where
   ne k f₁ f₂ hf := by
     simp only [recordTrI_eq]
     unfold recordPre
     refine intuitionistically_ne.ne ?_
-    iterate 11 refine forall_ne fun _ => ?_
+    iterate 12 refine forall_ne fun _ => ?_
     exact wand_ne.ne .rfl <| wand_ne.ne .rfl <| wand_ne.ne .rfl <| wand_ne.ne .rfl (hf _)
 
 /-- Records of internally equal readings (the agreement of saved readings is internal). -/
 @[lantana_alias record_trI_eq]
-theorem recordTrI_internalEq (f g : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_internalEq (f g : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(f ≡ g) ⊢ recordTrI f n -∗ recordTrI g n :=
   wand_intro <| sep_and.trans <| imp_elim (internalEq.rewrite (fun f => recordTrI f n))
 
@@ -271,13 +275,13 @@ instance sysStep_persistent (Sys : SysT Expr State GF) : Persistent (sysStep Sys
 /-! ### Introducing and eliminating records -/
 
 @[lantana_alias record_trI_intro]
-theorem recordTrI_intro (f : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_intro (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
       (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
-      (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat) (σ : State)
-      (tp : ThreadPool Expr),
+      (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
+      (σ : State) (tp : ThreadPool Expr),
     sysStep Sys -∗
-    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -288,12 +292,12 @@ theorem recordTrI_intro (f : Trace Expr State → IProp GF) (n : Nat) :
   exact .rfl
 
 @[lantana_alias record_trI_elim]
-theorem recordTrI_elim (f : Trace Expr State → IProp GF) {Sys : SysT Expr State GF}
+theorem recordTrI_elim (f : Trace (Cfg Expr State) → IProp GF) {Sys : SysT Expr State GF}
     {l : List (Nat × RegEntry)} {h : List (HistEntry Expr State)} {n : Nat} {g : List MEvent}
-    {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → TraceState Expr State}
+    {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
     recordTrI f n ⊢ sysStep Sys -∗
-    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -304,16 +308,17 @@ theorem recordTrI_elim (f : Trace Expr State → IProp GF) {Sys : SysT Expr Stat
   exact intuitionistically_elim.trans <| (forall_elim Sys).trans <| (forall_elim l).trans <|
     (forall_elim h).trans <| (forall_elim g).trans <| (forall_elim v).trans <|
     (forall_elim Ω).trans <| (forall_elim W).trans <| (forall_elim τf).trans <|
-    (forall_elim γ).trans <| (forall_elim σ).trans <| forall_elim tp
+    (forall_elim sched).trans <| (forall_elim γ).trans <| (forall_elim σ).trans <|
+    forall_elim tp
 
 @[lantana_alias record_intro]
 theorem record_intro (G : TrSpec Expr State GF) (n : Nat) :
     iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
       (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
-      (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat) (σ : State)
-      (tp : ThreadPool Expr),
+      (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
+      (σ : State) (tp : ThreadPool Expr),
     sysStep Sys -∗
-    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -323,10 +328,10 @@ theorem record_intro (G : TrSpec Expr State GF) (n : Nat) :
 @[lantana_alias record_elim]
 theorem record_elim (G : TrSpec Expr State GF) {Sys : SysT Expr State GF}
     {l : List (Nat × RegEntry)} {h : List (HistEntry Expr State)} {n : Nat} {g : List MEvent}
-    {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → TraceState Expr State}
+    {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
     record G n ⊢ sysStep Sys -∗
-    ⌜IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
+    ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
     historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
@@ -334,12 +339,12 @@ theorem record_elim (G : TrSpec Expr State GF) {Sys : SysT Expr State GF}
   recordTrI_elim G.internal
 
 /-- Records are monotone in the reading. -/
-theorem recordTrI_mono {f f' : Trace Expr State → IProp GF} (hf : ∀ τ, f τ ⊢ f' τ) (n : Nat) :
+theorem recordTrI_mono {f f' : Trace (Cfg Expr State) → IProp GF} (hf : ∀ τ, f τ ⊢ f' τ) (n : Nat) :
     recordTrI f n ⊢ recordTrI f' n := by
   rw [recordTrI_eq, recordTrI_eq]
   unfold recordPre
   refine intuitionistically_mono ?_
-  iterate 11 refine forall_mono fun _ => ?_
+  iterate 12 refine forall_mono fun _ => ?_
   exact wand_mono_right <| wand_mono_right <| wand_mono_right <| wand_mono_right (hf _)
 
 @[lantana_alias record_mono]

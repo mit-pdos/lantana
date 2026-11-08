@@ -40,10 +40,10 @@ variable {Expr State : Type} {GF : BundledGFunctors}
 /-- What is valid in the logic (for every instance of the ghost state) holds on the trace. -/
 @[lantana_alias trSpec_valid_ext]
 theorem valid_ext [TemporalGpreS Expr State GF] (G : TrSpec Expr State GF)
-    (τ : Trace Expr State) (hG : ∀ [ModelGS GF] [TemporalGS Expr State GF], ⊢ G.internal τ) :
+    (τ : Trace (Cfg Expr State)) (hG : ∀ [ModelGS GF] [TemporalGS Expr State GF], ⊢ G.internal τ) :
     G.external τ := by
   obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc
-    (adequacy_alloc_names (GF := GF) (τ.seq τ.pos).cfg.2 (τ.seq τ.pos).cfg.1)
+    (adequacy_alloc_names (GF := GF) (τ.seq τ.pos).2 (τ.seq τ.pos).1)
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
   refine G.adeq iprop(emp) τ (iPropSatLcAtFrame_sat.mpr (iPropSat.mono ?_ hγ))
@@ -62,7 +62,7 @@ theorem le_sound [TemporalGpreS Expr State GF] (G G' : TrSpec Expr State GF) [Co
 /-- Incompleteness: `□ ⊥ ⊆ ⊥` holds on traces, but `□ ⊥ ⊑ₛ ⊥` does not hold in the logic
 (the reading of `□ ⊥` starts with a later, so it is proved by Löb induction). -/
 @[lantana_alias trSpec_always_elim_not_le]
-theorem always_elim_not_le [TemporalGpreS Expr State GF] (τ : Trace Expr State) :
+theorem always_elim_not_le [TemporalGpreS Expr State GF] (τ : Trace (Cfg Expr State)) :
     ¬ ((□ₛ ⌜False⌝ₛ) ⊑ₛ (⌜False⌝ₛ : TrSpec Expr State GF)) := by
   intro hle
   refine valid_ext (⌜False⌝ₛ : TrSpec Expr State GF) τ ?_
@@ -87,7 +87,7 @@ induction. -/
 @[lantana_alias trSpec_guarded_prefix_valid]
 theorem guarded_prefix_valid (M : TrSpec Expr State GF)
     (hM : untilBody TrSpec.true ⌜False⌝ₛ M ⊑ₛ M) [ModelGS GF] [TemporalGS Expr State GF]
-    (τ : Trace Expr State) : ⊢ M.internal τ := by
+    (τ : Trace (Cfg Expr State)) : ⊢ M.internal τ := by
   suffices h : ⊢ ∀ τ, M.internal τ from h.trans (forall_elim τ)
   iloeb as IH
   iintro %τ
@@ -106,13 +106,13 @@ theorem guarded_prefix_valid (M : TrSpec Expr State GF)
 /-- The pre-fixpoint is true on every trace. -/
 @[lantana_alias trSpec_guarded_prefix_ext]
 theorem guarded_prefix_ext [TemporalGpreS Expr State GF] (M : TrSpec Expr State GF)
-    (τ : Trace Expr State) (hM : untilBody TrSpec.true ⌜False⌝ₛ M ⊑ₛ M) : M.external τ :=
+    (τ : Trace (Cfg Expr State)) (hM : untilBody TrSpec.true ⌜False⌝ₛ M ⊑ₛ M) : M.external τ :=
   valid_ext M τ (guarded_prefix_valid M hM τ)
 
 /-- The guarded body has no fold: on traces its least fixpoint is `⊤ 𝒰 ⊥`, which is empty,
 whereas a fold would make it a pre-fixpoint, true on every trace. -/
 @[lantana_alias trSpec_mu_unfold_r_guarded]
-theorem mu_unfold_r_guarded [TemporalGpreS Expr State GF] (τ : Trace Expr State) :
+theorem mu_unfold_r_guarded [TemporalGpreS Expr State GF] (τ : Trace (Cfg Expr State)) :
     ¬ (untilBody TrSpec.true ⌜False⌝ₛ (mu (untilBody TrSpec.true ⌜False⌝ₛ)) ⊑ₛ
       mu (untilBody (TrSpec.true : TrSpec Expr State GF) ⌜False⌝ₛ)) := by
   intro hfold

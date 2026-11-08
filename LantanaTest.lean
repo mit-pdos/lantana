@@ -14,6 +14,7 @@ public import LantanaTest.ExamplesQueue
 public import LantanaTest.ExamplesTicketLock
 public import LantanaTest.ExamplesTicketLock2
 public import LantanaTest.ExamplesTicketLockMono
+public import LantanaTest.Fairness
 public import LantanaTest.FUpd
 public import LantanaTest.Guarantee
 public import LantanaTest.GuaranteeInfer
@@ -28,7 +29,8 @@ public import LantanaTest.OPreds
 public import LantanaTest.OSat
 public import LantanaTest.OWit
 public import LantanaTest.Registry
+public import LantanaTest.Temporal
 public import LantanaTest.TemporalFormula
-public import LantanaTest.Trace
+public import LantanaTest.TrSpec
 public import LantanaTest.TrSpecModel
 public import LantanaTest.WeakestPre

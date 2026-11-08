@@ -1990,11 +1990,11 @@ section Trace
 
 /-- `l ↦ v` in the current state of the trace (Rocq `tr_pointsto`). -/
 @[lantana_alias ticket_lock.tr_pointsto]
-def trPointsTo (l : Loc) (v : Val) : TrProp Exp State :=
+def trPointsTo (l : Loc) (v : Val) : TrProp (Cfg Exp State) :=
   TrProp.state (pointstoSat l (DFrac.own 1) v)
 
 /-- A location holds one value at a time (`HeapLang.pointsToTr_agree`, at a trace). -/
-theorem state_pointsto_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {τ : Trace Exp State}
+theorem state_pointsto_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {τ : Trace (Cfg Exp State)}
     (h₁ : TrProp.state (pointstoSat l dq₁ v₁) τ) (h₂ : TrProp.state (pointstoSat l dq₂ v₂) τ) :
     v₁ = v₂ :=
   HeapLang.pointsToTr_agree l dq₁ dq₂ v₁ v₂ τ ⟨h₁, h₂⟩
@@ -2003,7 +2003,7 @@ theorem state_pointsto_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {
 served out (`curr ↦ c`, `next ↦ n`, `c < n`), `curr` is eventually incremented. So every holder
 of the lock eventually releases it (Rocq `release_progress`). -/
 @[lantana_alias ticket_lock.release_progress]
-def releaseProgress (next curr : Loc) : TrProp Exp State :=
+def releaseProgress (next curr : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (∀ₜ (n : Int) (c : Int), trPointsTo next (vz n) →ₜ trPointsTo curr (vz c) →ₜ ⌜c < n⌝ₜ →ₜ
     ◇ₜ trPointsTo curr (vz (c + 1)))
 
@@ -2022,7 +2022,7 @@ theorem lockInvAliveTrSpec_release_progress {GF : BundledGFunctors} (next curr :
 
 @[lantana_alias ticket_lock.alive_fair_lock_release_progress]
 theorem aliveFairLock_release_progress {GF : BundledGFunctors} (tl : Val)
-    (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
+    (τ : Trace (Cfg Exp State)) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
     ∃ next curr : Loc, tl = vLock next curr ∧ releaseProgress next curr τ := by
   obtain ⟨-, next, curr, htl, hal⟩ := h
   exact ⟨next, curr, htl, lockInvAliveTrSpec_release_progress (GF := GF) next curr τ hal⟩
@@ -2031,19 +2031,19 @@ theorem aliveFairLock_release_progress {GF : BundledGFunctors} (tl : Val)
 allocates its obligation), so starvation freedom also needs this: the code ensures it, the
 guarantee does not record it (see Rocq `ticket_lock_mono.v`) (Rocq `next_monotone`). -/
 @[lantana_alias ticket_lock.next_monotone]
-def nextMonotone (next : Loc) : TrProp Exp State :=
+def nextMonotone (next : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (∀ₜ n : Int, trPointsTo next (vz n) →ₜ
     □ₜ (∃ₜ n' : Int, trPointsTo next (vz n') ∧ₜ ⌜n ≤ n'⌝ₜ))
 
 /-- Starvation freedom: every pending ticket `t` (`c < t ≤ n`) is eventually served (Rocq
 `starvation_free`). -/
 @[lantana_alias ticket_lock.starvation_free]
-def starvationFree (next curr : Loc) : TrProp Exp State :=
+def starvationFree (next curr : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (∀ₜ (n : Int) (c : Int) (t : Int), trPointsTo next (vz n) →ₜ trPointsTo curr (vz c) →ₜ
     ⌜c < t ∧ t ≤ n⌝ₜ →ₜ ◇ₜ trPointsTo curr (vz t))
 
 /-- By induction on `t - c₀`, from any time at which `curr ↦ c₀ < t ≤ next`. -/
-theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → TraceState Exp State)
+theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → Cfg Exp State)
     (t : Int) (Hrp : releaseProgress next curr ⟨k, τf⟩) (Hmon : nextMonotone next ⟨k, τf⟩) :
     ∀ (d m₀ : Nat) (c₀ : Int), (t - c₀).toNat = d → k ≤ m₀ →
       trPointsTo curr (vz c₀) ⟨m₀, τf⟩ → c₀ < t →
@@ -2065,7 +2065,7 @@ theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → TraceS
     exact ⟨m', by omega, ht'⟩
 
 @[lantana_alias ticket_lock.release_progress_starvation_free]
-theorem releaseProgress_starvationFree (next curr : Loc) (τ : Trace Exp State)
+theorem releaseProgress_starvationFree (next curr : Loc) (τ : Trace (Cfg Exp State))
     (Hrp : releaseProgress next curr τ) (Hmon : nextMonotone next τ) :
     starvationFree next curr τ := by
   obtain ⟨k, τf⟩ := τ

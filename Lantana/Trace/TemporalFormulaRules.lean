@@ -219,7 +219,7 @@ theorem guar_alwaysIGuar {G : TrSpec Expr State GF} :
     omega
   iapply record_intro
   imodintro
-  iintro %Sys %l %h' %g %v %Ω' %W' %τf %γ %σ' %tp' #ST %⟨hbeh, hfs, hlb, hht⟩ #B HS
+  iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' #ST %⟨hsch, hfs, hlb, hht⟩ #B HS
   ihave #C := bundleAlwaysCert l n j r N γa G hrn $$ B Hj Hγ []
   · iintro %hr'
     subst hr'
@@ -230,9 +230,9 @@ theorem guar_alwaysIGuar {G : TrSpec Expr State GF} :
   iapply hU
   inext
   isplit
-  · iapply record_elim G $$ C ST %⟨hbeh, hfs, hlb, hht⟩ B HS
-  · iapply alwaysRun Sys N γa G j r $$ ST Hj Hγ %h' %(n + 1) %σ' %tp' %g %v %Ω' %W' %τf %γ
-      %⟨by omega, hbeh.next, hfs, hlb, hht⟩ HS
+  · iapply record_elim G $$ C ST %⟨hsch, hfs, hlb, hht⟩ B HS
+  · iapply alwaysRun Sys N γa G j r $$ ST Hj Hγ %h' %(n + 1) %σ' %tp' %g %v %Ω' %W' %τf %sched
+      %γ %⟨by omega, hsch, hfs, hlb, hht⟩ HS
 
 @[lantana_alias guar_alwaysI_as]
 theorem guar_alwaysIAs {V : IProp GF} :
@@ -641,7 +641,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     omega
   iapply record_intro
   imodintro
-  iintro %Sys %l %h' %g %v' %Ω' %W' %τf %γ %σ' %tp' #ST %⟨hbeh, hfs, hlb, hht⟩ #B
+  iintro %Sys %l %h' %g %v' %Ω' %W' %τf %sched %γ %σ' %tp' #ST %⟨hsch, hfs, hlb, hht⟩ #B
     ⟨HI', MI', Sy'⟩
   icases bundleUntilCert l n j r N k γP γQ G₁ G₂ hrn $$ B Hj HγP HγQ [] with #C
   · iintro %hr'
@@ -697,7 +697,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
       imodintro
       iright
       isplit
-      · iapply record_elim G₁ $$ TrecP ST %⟨hbeh, hfs, hlb, hht⟩ B [HI' MI' Sy']
+      · iapply record_elim G₁ $$ TrecP ST %⟨hsch, hfs, hlb, hht⟩ B [HI' MI' Sy']
         iframe HI' MI' Sy'
       · iexists Ordinals.Ordinal.succ (fairMeasure (γ (n + 1)) o' fu')
         isplit
@@ -705,7 +705,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
           refine Ordinals.Ordinal.succ_lt_succ_iff.mpr (Ordinals.Ordinal.lt_succ_iff.mpr ?_)
           exact Ordinals.Ordinal.le_trans (fairMeasure_le_ub _ o' fu') (fairMeasureUb_le_mono hfu)
         · iapply untilRun Sys N k γP γQ j r P G₁ G₂ $$ ST Hj HγP HγQ OI %h' %(n + 1) %σ' %tp' %g
-            %v' %Ω' %W' %τf %γ %fu' %o' %⟨by omega, hbeh.next, hfs, hlb, hht, hk'⟩
+            %v' %Ω' %W' %τf %sched %γ %fu' %o' %⟨by omega, hsch, hfs, hlb, hht, hk'⟩
             [HI' MI' Sy']
           iframe HI' MI' Sy'
     · -- discharged during the step: at `n` (before the step) or at `n + 1` (after)
@@ -729,25 +729,25 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
       by_cases hnn : n' = n
       · subst hnn
         ileft
-        iapply record_elim G₂ $$ TQ' ST %⟨hbeh, hfs, hlb, hht⟩ B [HI' MI' Sy']
+        iapply record_elim G₂ $$ TQ' ST %⟨hsch, hfs, hlb, hht⟩ B [HI' MI' Sy']
         iframe HI' MI' Sy'
       · have hn' : n' = n + 1 := by simp only at hn₁; omega
         subst hn'
         iright
         isplit
-        · iapply record_elim G₁ $$ TrecP ST %⟨hbeh, hfs, hlb, hht⟩ B [HI' MI' Sy']
+        · iapply record_elim G₁ $$ TrecP ST %⟨hsch, hfs, hlb, hht⟩ B [HI' MI' Sy']
           iframe HI' MI' Sy'
         · iexists 0
           isplit
           · ipureintro
             exact Ordinals.Ordinal.zero_lt_succ _
-          · iapply untilRunDischarged Sys G₁.internal G₂ 0 h' (n + 1) σ' tp' g v' Ω' W' τf γ
-              ⟨hbeh.next, hfs, hlb, hht⟩ $$ ST TQ' [HI' MI' Sy']
+          · iapply untilRunDischarged Sys G₁.internal G₂ 0 h' (n + 1) σ' tp' g v' Ω' W' τf sched γ
+              ⟨hsch, hfs, hlb, hht⟩ $$ ST TQ' [HI' MI' Sy']
             iframe HI' MI' Sy'
   · -- `Q` holds at `n`
     imodintro
     ileft
-    iapply record_elim G₂ $$ TrecQ ST %⟨hbeh, hfs, hlb, hht⟩ B [HI' MI' Sy']
+    iapply record_elim G₂ $$ TrecQ ST %⟨hsch, hfs, hlb, hht⟩ B [HI' MI' Sy']
     iframe HI' MI' Sy'
   · -- discharged before the check: the discharge was at `n`
     icases eventObl_assigned_discharged_le $$ [EA EF] with %hn₂
@@ -756,7 +756,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     subst hnn
     imodintro
     ileft
-    iapply record_elim G₂ $$ TQ' ST %⟨hbeh, hfs, hlb, hht⟩ B [HI' MI' Sy']
+    iapply record_elim G₂ $$ TQ' ST %⟨hsch, hfs, hlb, hht⟩ B [HI' MI' Sy']
     iframe HI' MI' Sy'
 
 @[lantana_alias guar_untilI]

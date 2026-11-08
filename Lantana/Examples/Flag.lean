@@ -130,12 +130,12 @@ instance guarOf_flagTk (l : Loc) (k : Oid) :
   ⟨guar_flagTk l k⟩
 
 /-- `l ↦ v` as a trace property. -/
-abbrev pointsToTr (l : Loc) (v : Val) : TrProp Exp State :=
+abbrev pointsToTr (l : Loc) (v : Val) : TrProp (Cfg Exp State) :=
   TrProp.state (pointstoSat l (DFrac.own 1) v)
 
 /-- The response property: whenever the flag is `0`, it is eventually `1`. -/
 @[lantana_alias flag_response]
-def flagResponse (l : Loc) : TrProp Exp State :=
+def flagResponse (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (pointsToTr l v0 →ₜ ◇ₜ pointsToTr l v1)
 
 /-- The flag's two values differ. -/
@@ -481,19 +481,18 @@ variable {GF : BundledGFunctors}
 
 /-- The flag at the level of traces: `0` until `1`, and `1` from then on. -/
 @[lantana_alias is_flag_tr]
-def isFlagTr (l : Loc) : TrProp Exp State :=
+def isFlagTr (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ ((pointsToTr l v0 𝒰ₜ pointsToTr l v1) ∨ₜ pointsToTr l v1)
 
 @[lantana_alias flag_trSpec_impl]
 theorem flagTrSpec_impl (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l :=
   fun _ ⟨_, h⟩ m hm => (h m hm).imp id And.right
 
-/-- The run `0, 1, 0, 1, 1, …` of a single idle thread. -/
+/-- The run `0, 1, 0, 1, 1, …` of the flag, with an empty pool. -/
 @[lantana_alias flag_run]
-def flagRun (l : Loc) (n : Nat) : TraceState Exp State :=
-  { cfg := ([], ⟨(∅ : Std.ExtTreeMap Loc (Option Val) compare).insert l
-      (some (if n = 0 ∨ n = 2 then v0 else v1))⟩),
-    thread := 0 }
+def flagRun (l : Loc) (n : Nat) : Cfg Exp State :=
+  ([], ⟨(∅ : Std.ExtTreeMap Loc (Option Val) compare).insert l
+    (some (if n = 0 ∨ n = 2 then v0 else v1))⟩)
 
 @[lantana_alias flag_run_at]
 theorem flagRun_at (l : Loc) (m : Nat) (v : Val) :

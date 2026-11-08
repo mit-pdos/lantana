@@ -236,7 +236,7 @@ variable {GF : BundledGFunctors}
 
 /-- At the level of traces (Rocq `R_main`): eventually `x` holds `1` while `y` holds `7` from
 then on and `x` later holds `2`; and eventually `x` holds `2`. -/
-def rMain (x y : Loc) : TrProp Exp State :=
+def rMain (x y : Loc) : TrProp (Cfg Exp State) :=
   ◇ₜ (pointsToTr x v1 ∧ₜ □ₜ pointsToTr y v7 ∧ₜ ◇ₜ pointsToTr x v2) ∧ₜ ◇ₜ pointsToTr x v2
 
 /-- What the resources guarantee; the first commitment's right formula keeps its nested
@@ -287,10 +287,10 @@ theorem heap0_pointsTo {GF : BundledGFunctors} [HeapStateGS GF] :
 /-- In every fair behavior from the initial configuration, eventually `x` holds `1` while `y`
 holds `7` from then on and `x` later holds `2`, and eventually `x` holds `2`. -/
 @[lantana_alias cert_discharge_adequacy]
-theorem certDischarge_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem certDischarge_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain x0 y0 τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 (gMain x0 y0) (rMain x0 y0)
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain x0 y0) (rMain x0 y0)
     (gMain_impl x0 y0) τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
@@ -317,13 +317,13 @@ theorem certDischarge_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
   iapply BigSepL.bigSepL_singleton.mpr
   iexact Hwp
 
-/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+/-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the main thread has returned, its value is `()`. -/
 @[lantana_alias cert_discharge_safety_adequacy]
-theorem certDischarge_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem certDischarge_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = hl_val(#())) τ := by
-  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
   intro _ _
   refine ⟨2, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, Hh, HT⟩
@@ -348,8 +348,8 @@ theorem certDischarge_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior 
 
 /-- Liveness and safety together, over the same fair behaviors. -/
 @[lantana_alias cert_discharge_liveness_safety]
-theorem certDischarge_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem certDischarge_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain x0 y0 τ ∧ safetyIris 0 (fun _ v => v = hl_val(#())) τ :=
   ⟨certDischarge_adequacy τ hbeh hfair hpos hinit,
     certDischarge_safety_adequacy τ hbeh hfair hpos hinit⟩

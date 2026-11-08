@@ -121,9 +121,9 @@ theorem guar_mainRes {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] :
 every fair behavior from the initial configuration, eventually `False`. -/
 @[lantana_alias nonstrict_move_unsound]
 theorem nonstrictMove_unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNonstrict ExGF)
-    (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) : False := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 gMain ⌜False⌝ₜ gMain_false τ hbeh hfair
+    (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (hinit : τ.seq 0 = (tp0, σ0)) : False := by
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gMain ⌜False⌝ₜ gMain_false τ hbeh hfair
     hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
@@ -172,26 +172,31 @@ theorem loop_primStep (σ : State) :
 
 /-- The run of the loop: thread `0` steps from `loop ()` to `loop ()` forever. -/
 @[lantana_alias nonstrict_move.loop_run]
-def loopRun : Trace Exp State := ⟨0, fun _ => ⟨(tp0, σ0), 0⟩⟩
+def loopRun : Trace (Cfg Exp State) := ⟨0, fun _ => (tp0, σ0)⟩
 
-@[lantana_alias nonstrict_move.loop_run_behavior]
-theorem loopRun_behavior : IsBehavior loopRun := by
-  intro m _
+/-- Thread `0` takes a trace step at every position: `loop ()` steps to itself. -/
+theorem loopRun_traceStep (m : Nat) : TraceStep 0 (loopRun.seq m) (loopRun.seq (m + 1)) := by
   left
   have h := ThreadStep.step (i := 0) (tp := tp0) (σ := σ0) rfl (loop_primStep σ0)
   simp only [List.set_cons_zero, List.append_nil] at h
   exact h
 
+@[lantana_alias nonstrict_move.loop_run_behavior]
+theorem loopRun_behavior : IsBehavior loopRun :=
+  isBehavior_iff.mpr fun m _ => ⟨0, loopRun_traceStep m⟩
+
+/-- Thread `0` is active and steps at every position; no other thread is ever active. -/
 @[lantana_alias nonstrict_move.loop_run_fair]
 theorem loopRun_fair : fairScheduling loopRun := by
-  intro m _ j
-  rcases Nat.eq_zero_or_pos j with rfl | hj
-  · right
-    exact ⟨⟨_, rfl, rfl⟩, m, Nat.le_refl m, rfl, fun _ _ _ => trivial⟩
-  · left
-    left
-    simp [Trace.now, loopRun]
-    omega
+  intro i hinf
+  rcases Nat.eq_zero_or_pos i with rfl | hi
+  · exact TrProp.always_eventually_iff.mpr fun n _ =>
+      ⟨n, Nat.le_refl n, active_iff.mpr ⟨_, rfl, rfl⟩, steps_iff.mpr (loopRun_traceStep n)⟩
+  · obtain ⟨m, -, hm⟩ := TrProp.always_eventually_iff.mp hinf 0 (Nat.le_refl _)
+    obtain ⟨e, he, -⟩ := active_iff.mp hm
+    simp only [loopRun] at he
+    rw [List.getElem?_eq_none (by simp [Trace.now]; omega)] at he
+    cases he
 
 /-- **The non-strict move is unsound**: assuming it, the fair run of the loop satisfies
 "eventually `False`". -/

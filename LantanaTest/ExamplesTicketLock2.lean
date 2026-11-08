@@ -34,8 +34,8 @@ example (tl : Val) :
   TicketLock2.fairLock_starvationFree tl
 
 /-- The end-to-end statement of `ticket_lock2_client.v`, liveness and safety. -/
-example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = ⟨(TicketLock2Client.tp0, TicketLock2Client.σ0), 0⟩) :
+example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+    (hpos : τ.pos = 0) (hinit : τ.seq 0 = (TicketLock2Client.tp0, TicketLock2Client.σ0)) :
     (◇ₜ TrProp.state (threadExprSat 0 [] (.val TicketLock2Client.v42)) ∧ₜ
       ◇ₜ (∃ₜ (next : Loc) (curr : Loc), TicketLock2.starvationFree next curr)) τ ∧
       safetyIris 0 (fun _ v => v = TicketLock2Client.v42) τ :=

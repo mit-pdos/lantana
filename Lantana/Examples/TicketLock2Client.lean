@@ -251,7 +251,7 @@ variable {GF : BundledGFunctors}
 /-- The main thread `i` returns `42`, and a ticket lock gets created that is starvation free
 (Rocq `client_spec`). -/
 @[lantana_alias ticket_lock2_client.client_spec]
-def clientSpec (i : ThreadId) : TrProp Exp State :=
+def clientSpec (i : ThreadId) : TrProp (Cfg Exp State) :=
   ◇ₜ TrProp.state (threadExprSat i [] (.val v42)) ∧ₜ
     ◇ₜ (∃ₜ (next : Loc) (curr : Loc), starvationFree next curr)
 
@@ -301,10 +301,10 @@ abbrev σ0 : State := ⟨∅⟩
 /-- In every fair behavior from the initial configuration, the main thread returns `42`, and a
 ticket lock gets created that is starvation free. -/
 @[lantana_alias ticket_lock2_client.ticket_lock_client_adequacy]
-theorem ticketLockClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem ticketLockClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     clientSpec 0 τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 0 (gMain 0) (clientSpec 0)
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (clientSpec 0)
     (gMain_impl 0) τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
@@ -330,13 +330,13 @@ theorem ticketLockClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
   iapply BigSepL.bigSepL_singleton.mpr
   iexact Hwp
 
-/-- Safety: in every fair behavior from the initial configuration, the scheduled thread is never
+/-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the main thread has returned, its value is `42`. -/
 @[lantana_alias ticket_lock2_client.ticket_lock_client_safety_adequacy]
-theorem ticketLockClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem ticketLockClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ w => w = v42) τ := by
-  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
+  refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
   intro _ _
   refine ⟨2, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
@@ -359,10 +359,10 @@ theorem ticketLockClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavi
   iexact Hwp
 
 /-- Liveness and safety together, over the same fair behaviors: the main thread returns `42`,
-a starvation-free lock gets created, and no scheduled thread is ever stuck. -/
+a starvation-free lock gets created, and no thread is ever stuck. -/
 @[lantana_alias ticket_lock2_client.ticket_lock_client_liveness_safety]
-theorem ticketLockClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
-    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = ⟨(tp0, σ0), 0⟩) :
+theorem ticketLockClient_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+    (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     clientSpec 0 τ ∧ safetyIris 0 (fun _ w => w = v42) τ :=
   ⟨ticketLockClient_adequacy τ hbeh hfair hpos hinit,
     ticketLockClient_safety_adequacy τ hbeh hfair hpos hinit⟩

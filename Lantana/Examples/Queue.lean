@@ -1139,7 +1139,7 @@ end Guarantee
 /-- The queue's lock makes release progress (`releaseProgress`): every `enqueue` or `dequeue`
 that takes the lock eventually releases it (Rocq `queue_release_progress`). -/
 @[lantana_alias queue.queue_release_progress]
-theorem queue_release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace Exp State)
+theorem queue_release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace (Cfg Exp State))
     (h : (queueTrSpec (GF := GF) ql).external τ) :
     ∃ lhptr ltptr next curr : Loc,
       ql = vQueue lhptr ltptr (vLock next curr) ∧ releaseProgress next curr τ := by

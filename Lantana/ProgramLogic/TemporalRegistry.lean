@@ -95,7 +95,7 @@ language. -/
 @[lantana_alias tregGpreS] -- Rocq `tregGS.tregGpreS`
 class RegGpreS (Expr : outParam Type) (State : outParam Type) (GF : BundledGFunctors) where
   [listG : MonoListG GF (Nat × RegEntry)]
-  [predG : SavedPredG GF (Trace Expr State)]
+  [predG : SavedPredG GF (Trace (Cfg Expr State))]
 
 attribute [reducible, instance] RegGpreS.listG RegGpreS.predG
 
@@ -310,22 +310,22 @@ variable {Expr : Type} {State : Type} {GF : BundledGFunctors} [RegGpreS Expr Sta
 
 /-- The ghost name `γ` saves the trace predicate `f` (persistently). -/
 @[lantana_alias saved_trI]
-def savedTrI (γ : GName) (f : Trace Expr State → IProp GF) : IProp GF :=
+def savedTrI (γ : GName) (f : Trace (Cfg Expr State) → IProp GF) : IProp GF :=
   saved_pred_own γ .discard f
 
 @[lantana_alias saved_trI_persistent]
-instance savedTrI_persistent (γ : GName) (f : Trace Expr State → IProp GF) :
+instance savedTrI_persistent (γ : GName) (f : Trace (Cfg Expr State) → IProp GF) :
     Persistent (savedTrI γ f) := by
   unfold savedTrI; infer_instance
 
 @[lantana_alias saved_trI_alloc]
-theorem savedTrI_alloc (f : Trace Expr State → IProp GF) :
+theorem savedTrI_alloc (f : Trace (Cfg Expr State) → IProp GF) :
     ⊢@{IProp GF} |==> ∃ γ, savedTrI γ f :=
   saved_pred_alloc f .discard DFrac.valid_discard
 
 /-- Agreement up to a later, which the step-indexed readings absorb. -/
 @[lantana_alias saved_trI_agree_fun]
-theorem savedTrI_agree_fun (γ : GName) (f g : Trace Expr State → IProp GF) :
+theorem savedTrI_agree_fun (γ : GName) (f g : Trace (Cfg Expr State) → IProp GF) :
     savedTrI γ f ⊢ savedTrI γ g -∗ ▷ (f ≡ g) := by
   refine wand_intro ?_
   refine .trans ?_ (later_mono (discreteFun_equivI f g).mpr)
