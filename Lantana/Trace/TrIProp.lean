@@ -215,7 +215,7 @@ theorem until_tr_until (F : IProp GF) (P Q : TrIProp Expr State GF) (R S : TrPro
     (hQ : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (Q τ) → S τ)
     (τ : Trace (Cfg Expr State))
     (hs : (iPropSatLcAtFrame F ⊤).sat (ex (fun a => strongUntil P Q a) τ)) :
-    (R 𝒰ₜ S) τ := by
+    (R Uₜ S) τ := by
   obtain ⟨a, ha⟩ := SatPred.sat_exists _ hs
   clear hs
   induction a using Ordinals.Ordinal.lt_wf.induction generalizing τ with

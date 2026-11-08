@@ -99,12 +99,12 @@ abbrev pointsToSpec (l : Loc) (v : Val) : TrSpec Exp State GF :=
 @[lantana_alias flag_trSpec]
 def flagTrSpec (l : Loc) : TrSpec Exp State GF :=
   TrSpec.true ∧ₛ
-    □ₛ ((pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) ∨ₛ
+    □ₛ ((pointsToSpec l v0 Uₛ pointsToSpec l v1) ∨ₛ
       (TrSpec.true ∧ₛ pointsToSpec l v1))
 
 instance guarOf_flagInv (l : Loc) (k : Oid) :
     GuarOf (flagInv (GF := GF) l k)
-      ((pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) ∨ₛ
+      ((pointsToSpec l v0 Uₛ pointsToSpec l v1) ∨ₛ
         (TrSpec.true ∧ₛ pointsToSpec l v1)) := by
   unfold flagInv; infer_instance
 
@@ -115,7 +115,7 @@ theorem guar_isFlag (l : Loc) (k : Oid) (ℓ : Layer) :
 
 @[lantana_alias guar_flag_tk]
 theorem guar_flagTk (l : Loc) (k : Oid) :
-    ⊢@{IProp GF} flagTk l k ⊨ₜ (pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) := by
+    ⊢@{IProp GF} flagTk l k ⊨ₜ (pointsToSpec l v0 Uₛ pointsToSpec l v1) := by
   unfold flagTk; exact IntoGuar.into_guar
 
 /-- The flag's guarantee as an instance, for the inference (and checking) of the guarantees of
@@ -126,7 +126,7 @@ instance guarOf_isFlag (l : Loc) (k : Oid) (ℓ : Layer) :
 
 /-- The setter's token's guarantee as an instance. -/
 instance guarOf_flagTk (l : Loc) (k : Oid) :
-    GuarOf (flagTk (GF := GF) l k) (pointsToSpec l v0 𝒰ₛ pointsToSpec l v1) :=
+    GuarOf (flagTk (GF := GF) l k) (pointsToSpec l v0 Uₛ pointsToSpec l v1) :=
   ⟨guar_flagTk l k⟩
 
 /-- `l ↦ v` as a trace property. -/
@@ -482,7 +482,7 @@ variable {GF : BundledGFunctors}
 /-- The flag at the level of traces: `0` until `1`, and `1` from then on. -/
 @[lantana_alias is_flag_tr]
 def isFlagTr (l : Loc) : TrProp (Cfg Exp State) :=
-  □ₜ ((pointsToTr l v0 𝒰ₜ pointsToTr l v1) ∨ₜ pointsToTr l v1)
+  □ₜ ((pointsToTr l v0 Uₜ pointsToTr l v1) ∨ₜ pointsToTr l v1)
 
 @[lantana_alias flag_trSpec_impl]
 theorem flagTrSpec_impl (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l :=

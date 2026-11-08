@@ -149,7 +149,7 @@ instance guarOf_alwaysIAs (V : IProp GF) (G : TrSpec Expr State GF) [GuarOf V G]
   ⟨guar_alwaysIAs_valid GuarOf.guar_of⟩
 
 instance guarOf_untilIGuar (G₁ G₂ : TrSpec Expr State GF) :
-    GuarOf (untilIGuar N k q P Q G₁ G₂) (G₁ 𝒰ₛ G₂) :=
+    GuarOf (untilIGuar N k q P Q G₁ G₂) (G₁ Uₛ G₂) :=
   ⟨guar_untilIGuar⟩
 
 /-- A finally is inferred as such (`finallyI` is not unfolded by instance resolution). -/
@@ -232,9 +232,9 @@ instance intoGuar_persistently (G : TrSpec Expr State GF) [IntoGuar P G] :
 
 /-- A finally target, as the until of `TrSpec.true` (`◇ₛ` is not unfolded by instance
 resolution). -/
-instance intoGuar_eventually (G : TrSpec Expr State GF) [IntoGuar P (TrSpec.true 𝒰ₛ G)] :
+instance intoGuar_eventually (G : TrSpec Expr State GF) [IntoGuar P (TrSpec.true Uₛ G)] :
     IntoGuar P (◇ₛ G) :=
-  ⟨IntoGuar.into_guar (G := TrSpec.true 𝒰ₛ G)⟩
+  ⟨IntoGuar.into_guar (G := TrSpec.true Uₛ G)⟩
 
 @[lantana_alias into_guar_alwaysI_guar]
 instance intoGuar_alwaysIGuar (G : TrSpec Expr State GF) :
@@ -253,27 +253,27 @@ instance intoGuar_alwaysI (G : TrSpec Expr State GF) [IntoGuar P G] :
 
 @[lantana_alias into_guar_untilI_guar]
 instance intoGuar_untilIGuar (G₁ G₂ : TrSpec Expr State GF) :
-    IntoGuar (untilIGuar N k q P Q G₁ G₂) (G₁ 𝒰ₛ G₂) :=
+    IntoGuar (untilIGuar N k q P Q G₁ G₂) (G₁ Uₛ G₂) :=
   ⟨guar_untilIGuar⟩
 
 @[lantana_alias into_guar_untilI]
 instance intoGuar_untilI (G₁ G₂ : TrSpec Expr State GF) [IntoGuar P G₁] [IntoGuar Q G₂] :
-    IntoGuar (untilI (Expr := Expr) (State := State) N k q P Q) (G₁ 𝒰ₛ G₂) :=
+    IntoGuar (untilI (Expr := Expr) (State := State) N k q P Q) (G₁ Uₛ G₂) :=
   ⟨guar_untilI_valid IntoGuar.into_guar IntoGuar.into_guar⟩
 
 instance intoGuar_finallyI (G₁ G₂ : TrSpec Expr State GF) [IntoGuar iprop(True) G₁]
-    [IntoGuar Q G₂] : IntoGuar (finallyI (Expr := Expr) (State := State) N k q Q) (G₁ 𝒰ₛ G₂) :=
+    [IntoGuar Q G₂] : IntoGuar (finallyI (Expr := Expr) (State := State) N k q Q) (G₁ Uₛ G₂) :=
   ⟨guar_untilI_valid IntoGuar.into_guar IntoGuar.into_guar⟩
 
 /-- A done until, against an until with any left formula. -/
 @[lantana_alias into_guar_untilI_done_guar]
 instance intoGuar_untilIDoneGuar (G₁ G₂ : TrSpec Expr State GF) :
-    IntoGuar (untilIDoneGuar k Q G₂) (G₁ 𝒰ₛ G₂) :=
+    IntoGuar (untilIDoneGuar k Q G₂) (G₁ Uₛ G₂) :=
   ⟨guar_untilIDoneGuar G₁ G₂⟩
 
 @[lantana_alias into_guar_untilI_done]
 instance intoGuar_untilIDone (G₁ G₂ : TrSpec Expr State GF) [IntoGuar Q G₂] :
-    IntoGuar (untilIDone (Expr := Expr) (State := State) k Q) (G₁ 𝒰ₛ G₂) :=
+    IntoGuar (untilIDone (Expr := Expr) (State := State) k Q) (G₁ Uₛ G₂) :=
   ⟨guar_untilIDone_valid G₁ IntoGuar.into_guar⟩
 
 /-- A state fact guarantees its state atom. -/
@@ -405,7 +405,7 @@ theorem ex_until_done_export (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure
     (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] (G₁ : TrSpec Expr State GF) :
     parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Q -∗
       |={E}=>m Par.kids p K ∗
-        ∃ P : IProp GF, (P ⊨ₜ (G₁ 𝒰ₛ TrSpec.state φ)) ∗ P ∗ (P -∗ Q) := by
+        ∃ P : IProp GF, (P ⊨ₜ (G₁ Uₛ TrSpec.state φ)) ∗ P ∗ (P -∗ Q) := by
   iintro B Kp HQ
   imod Obl.new E p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Oa, -, -⟩
   have hmem : k ∈ K.insert k := Std.ExtTreeSet.mem_insert_self
@@ -428,7 +428,7 @@ theorem ex_until_done_export (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure
   iframe U
   isplitl []
   · iapply (IntoGuar.into_guar :
-      ⊢ untilIDone (Expr := Expr) (State := State) k Q ⊨ₜ (G₁ 𝒰ₛ TrSpec.state φ))
+      ⊢ untilIDone (Expr := Expr) (State := State) k Q ⊨ₜ (G₁ Uₛ TrSpec.state φ))
   · iintro U
     icases untilIDone_elim $$ U with ⟨HQ, -⟩
     iexact HQ
@@ -439,7 +439,7 @@ theorem ex_until_discharged (p : Parent) (K : Oids) (Q : IProp GF)
     (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] (P : IProp GF) (hN : ↑N ⊆ E)
     (hk : k ∈ K) :
     £ₙ 1 ⊢ untilI (Expr := Expr) (State := State) N k 1 P Q -∗ Par.kids p K -∗ oblKids k ∅ -∗
-      Q -∗ |={E}=>m ∃ U : IProp GF, (U ⊨ₜ (TrSpec.canon P 𝒰ₛ TrSpec.state φ)) ∗ U ∗
+      Q -∗ |={E}=>m ∃ U : IProp GF, (U ⊨ₜ (TrSpec.canon P Uₛ TrSpec.state φ)) ∗ U ∗
         Par.kids p (K.erase k) := by
   iintro LC HU Kp Kk HQ
   imod untilI_discharge_done hN $$ HU with HU
@@ -452,7 +452,7 @@ theorem ex_until_discharged (p : Parent) (K : Oids) (Q : IProp GF)
   iexists untilIDone (Expr := Expr) (State := State) k Q
   iframe U Kp
   iapply (IntoGuar.into_guar :
-    ⊢ untilIDone (Expr := Expr) (State := State) k Q ⊨ₜ (TrSpec.canon P 𝒰ₛ TrSpec.state φ))
+    ⊢ untilIDone (Expr := Expr) (State := State) k Q ⊨ₜ (TrSpec.canon P Uₛ TrSpec.state φ))
 
 /-- The inferred specification of a done until is the finally of its right formula. -/
 @[lantana_alias ex_trSpec_of_done]

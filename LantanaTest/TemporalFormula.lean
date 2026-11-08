@@ -34,7 +34,7 @@ example (N : Namespace) (k : Oid) (P Q : IProp GF) :
 /-- The guarantee of a formula is inferred through `alwaysI` and `untilI`. -/
 example (N : Namespace) (k : Oid) (q : Qp) (φ ψ : Prop) :
     ⊢@{IProp GF} iprop(alwaysI N iprop(⌜φ⌝) ∗ untilI N k q iprop(⌜φ⌝) iprop(⌜ψ⌝)) ⊨ₜ
-      ((□ₛ ⌜φ⌝ₛ) ∧ₛ (⌜φ⌝ₛ 𝒰ₛ ⌜ψ⌝ₛ) : TrSpec Expr State GF) :=
+      ((□ₛ ⌜φ⌝ₛ) ∧ₛ (⌜φ⌝ₛ Uₛ ⌜ψ⌝ₛ) : TrSpec Expr State GF) :=
   IntoGuar.into_guar
 
 /-- A done until guarantees a finally. -/

@@ -37,7 +37,7 @@ example (φ ψ : Prop) :
 
 /-- An until is fulfilled by its right formula at once. -/
 example (G : TrSpec Expr State GF) (φ : Prop) :
-    ⊢@{IProp GF} iprop(⌜φ⌝) ⊨ₜ (G 𝒰ₛ ⌜φ⌝ₛ) := by
+    ⊢@{IProp GF} iprop(⌜φ⌝) ⊨ₜ (G Uₛ ⌜φ⌝ₛ) := by
   iapply guar_until_now
   inext
   iapply guar_pure

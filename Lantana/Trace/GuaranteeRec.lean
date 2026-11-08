@@ -249,10 +249,10 @@ theorem renew_intro (k : Oid) :
 @[lantana_alias guar_renew]
 theorem guar_renew : ⊢@{IProp GF} renew N Q G ⊨ₜ TrSpec.nu (renewBody G) := by
   have h₁ : ⊢ iprop(∃ k : Oid, untilIGuar N k 1 iprop(True) iprop(Q ∗ renew N Q G) TrSpec.true
-      (renewTrSpec G)) ⊨ₜ (TrSpec.true 𝒰ₛ renewTrSpec G) :=
+      (renewTrSpec G)) ⊨ₜ (TrSpec.true Uₛ renewTrSpec G) :=
     (forall_intro fun k => guar_untilIGuar (N := N) (k := k) (q := 1) (P := iprop(True))
       (Q := iprop(Q ∗ renew N Q G))).trans (guar_ex_ghost _)
-  have h₂ : (TrSpec.true 𝒰ₛ renewTrSpec G) ⊑ₛ TrSpec.nu (renewBody G) :=
+  have h₂ : (TrSpec.true Uₛ renewTrSpec G) ⊑ₛ TrSpec.nu (renewBody G) :=
     TrSpec.nu_unfold_r (renewBody G)
   rw [renew_unfold]
   exact h₁.trans (guar_weaken h₂)

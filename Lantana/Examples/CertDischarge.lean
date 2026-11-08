@@ -24,7 +24,7 @@ eventually `x` holds `1` while `y` holds `7` from then on and `x` later holds `2
 `x` holds `2`. `certDischarge_safety_adequacy` is the safety statement.
 
 Statement adaptations: thread ids are list positions, so the main thread is `0`; locations
-`x = ⟨0⟩`, `y = ⟨1⟩`. The guarantee of a `finallyI` is inferred as `⌜True⌝ₛ 𝒰ₛ G`, which is
+`x = ⟨0⟩`, `y = ⟨1⟩`. The guarantee of a `finallyI` is inferred as `⌜True⌝ₛ Uₛ G`, which is
 `◇ₛ G` by definition. The measure is `10` per obligation, as in Rocq; the two later credits of
 the discharges come from the first step.
 -/

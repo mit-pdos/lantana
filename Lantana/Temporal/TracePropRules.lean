@@ -220,11 +220,11 @@ theorem always_coind (h : X ⊆ (R ∧ₜ ○ₜ X)) : X ⊆ (□ₜ R) := by
 /-! ## Until and eventually -/
 
 @[lantana_alias tr_until_now]
-theorem until_now : S ⊆ (R 𝒰ₜ S) :=
+theorem until_now : S ⊆ (R Uₜ S) :=
   fun τ h => ⟨τ.pos, Nat.le_refl _, by simpa using h, fun _ h₁ h₂ => absurd h₁ (Nat.not_le.mpr h₂)⟩
 
 @[lantana_alias tr_until_step]
-theorem until_step : (R ∧ₜ ○ₜ (R 𝒰ₜ S)) ⊆ (R 𝒰ₜ S) := by
+theorem until_step : (R ∧ₜ ○ₜ (R Uₜ S)) ⊆ (R Uₜ S) := by
   intro τ ⟨hR, m, hm, hS, hbefore⟩
   refine ⟨m, Nat.le_of_succ_le hm, hS, fun l hl hlm => ?_⟩
   rcases Nat.eq_or_lt_of_le hl with rfl | hl
@@ -232,17 +232,17 @@ theorem until_step : (R ∧ₜ ○ₜ (R 𝒰ₜ S)) ⊆ (R 𝒰ₜ S) := by
   · exact hbefore l hl hlm
 
 @[lantana_alias tr_until_unfold]
-theorem until_unfold : (R 𝒰ₜ S) ⊆ (S ∨ₜ (R ∧ₜ ○ₜ (R 𝒰ₜ S))) := by
+theorem until_unfold : (R Uₜ S) ⊆ (S ∨ₜ (R ∧ₜ ○ₜ (R Uₜ S))) := by
   intro τ ⟨m, hm, hS, hbefore⟩
   rcases Nat.eq_or_lt_of_le hm with rfl | hm
   · exact .inl (by simpa using hS)
   · exact .inr ⟨by simpa using hbefore τ.pos (Nat.le_refl _) hm,
       m, hm, hS, fun l hl hlm => hbefore l (Nat.le_of_succ_le hl) hlm⟩
 
-/-- Induction for `𝒰ₜ`: a property implied by `S` and preserved backwards by `R ∧ₜ ○ₜ ·`
-contains `R 𝒰ₜ S`. -/
+/-- Induction for `Uₜ`: a property implied by `S` and preserved backwards by `R ∧ₜ ○ₜ ·`
+contains `R Uₜ S`. -/
 @[lantana_alias tr_until_ind]
-theorem until_ind (h₁ : S ⊆ X) (h₂ : (R ∧ₜ ○ₜ X) ⊆ X) : (R 𝒰ₜ S) ⊆ X := by
+theorem until_ind (h₁ : S ⊆ X) (h₂ : (R ∧ₜ ○ₜ X) ⊆ X) : (R Uₜ S) ⊆ X := by
   intro τ ⟨m, hm, hS, hbefore⟩
   obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le hm
   induction k generalizing τ with
@@ -255,11 +255,11 @@ theorem until_ind (h₁ : S ⊆ X) (h₂ : (R ∧ₜ ○ₜ X) ⊆ X) : (R 𝒰�
     exact hbefore l (by simp [Trace.next] at hl; omega) (by simp [Trace.next] at hlm; omega)
 
 @[lantana_alias tr_until_mono]
-theorem until_mono (h₁ : R ⊆ R') (h₂ : S ⊆ S') : (R 𝒰ₜ S) ⊆ (R' 𝒰ₜ S') :=
+theorem until_mono (h₁ : R ⊆ R') (h₂ : S ⊆ S') : (R Uₜ S) ⊆ (R' Uₜ S') :=
   fun _ ⟨m, hm, hS, hb⟩ => ⟨m, hm, h₂ _ hS, fun l hl hlm => h₁ _ (hb l hl hlm)⟩
 
 @[lantana_alias tr_until_finally]
-theorem until_eventually : (R 𝒰ₜ S) ⊆ (◇ₜ S) := until_mono true_intro (le_refl _)
+theorem until_eventually : (R Uₜ S) ⊆ (◇ₜ S) := until_mono true_intro (le_refl _)
 
 @[lantana_alias tr_finally_intro]
 theorem eventually_intro : S ⊆ (◇ₜ S) := until_now
