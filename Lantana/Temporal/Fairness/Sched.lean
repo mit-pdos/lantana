@@ -43,8 +43,8 @@ def OwnStep (i : ThreadId) (attempt : TrProp C) : Prop := attempt ⊆ Steps i
 /-- A thread's pair has a counter that never moves at another thread's step.  The one rule that
 names a thread. -/
 theorem counter_stay_of_other (hos : OwnStep i attempt) (hδ : IsCounter attempt grant δ τ)
-    (hs : ¬ Steps i τ) : δ τ.pos = δ (τ.pos + 1) := by
-  sorry
+    (hs : ¬ Steps i τ) : δ τ.pos = δ (τ.pos + 1) :=
+  counter_stay hδ fun ha => hs (hos τ ha)
 
 end AttemptGrant
 
@@ -69,27 +69,25 @@ abbrev AG (i : ThreadId) : TrProp C := AttemptGrant.Fair (attempt i) (Action.gra
 variable {i : ThreadId} {τ : Trace C}
 
 /-- Own grant: the grant is the thread's step.  `Thread.OwnGrant i (grant i)`. -/
-theorem ownGrant : ∀ {c c' : C}, grant i c c' → Pool.Step i c c' := by
-  sorry
+theorem ownGrant : ∀ {c c' : C}, grant i c c' → Pool.Step i c c' := fun hg => hg
 
 /-- What every completeness theorem needs: a thread active infinitely often and fairly scheduled
 steps infinitely often. -/
-theorem stepsInfOften_of_sf : (SF i ∧ₜ □ₜ ◇ₜ active i : TrProp C) ⊆ StepsInfOften i := by
-  sorry
+theorem stepsInfOften_of_sf : (SF i ∧ₜ □ₜ ◇ₜ active i : TrProp C) ⊆ StepsInfOften i :=
+  fun τ ⟨hsf, hinf⟩ => TrProp.always_eventually_mono (fun _ h => h.2) τ (hsf hinf)
 
 /-- The thread's view of its own scheduling has no misses: every attempt is a step, so every
 attempt is granted.  Scheduling has no cheap path. -/
-theorem certain : AttemptGrant.Certain (attempt i) (Action.grant (grant i)) τ := by
-  sorry
+theorem certain : AttemptGrant.Certain (attempt i) (Action.grant (grant i)) τ :=
+  fun _ _ ha => ha.1
 
 /-- The thread's view of its scheduling holds outright. -/
-theorem ag : AG i τ := by
-  sorry
+theorem ag : AG i τ := AttemptGrant.fair_of_certain τ certain
 
 /-- The counter of the thread's view of its scheduling is zero. -/
 theorem counter_zero :
-    AttemptGrant.IsCounter (attempt i) (Action.grant (grant i)) (fun _ => 0) τ := by
-  sorry
+    AttemptGrant.IsCounter (attempt i) (Action.grant (grant i)) (fun _ => 0) τ :=
+  AttemptGrant.counter_zero_of_certain certain
 
 end Sched
 
@@ -116,6 +114,11 @@ owner, and a labelled miss is a relational miss.  Layer 0's restriction
 theorem labelledView_of_sf (hsch : Schedule sched τ)
     (hso : SoleOwner i (fun c c' => A c ∧ G c c')) (hsf : Action.SF A G τ) :
     labelledView sched i A G τ := by
-  sorry
+  intro hmiss
+  have hhit := hsf (TrProp.always_eventually_mono (fun _ h => h.1.2) τ hmiss)
+  refine TrProp.always_eventually_iff.mpr fun n hn => ?_
+  obtain ⟨m, hnm, hA, hg⟩ := TrProp.always_eventually_iff.mp hhit n hn
+  exact ⟨m, hnm,
+    ⟨hso _ _ ⟨hA, hg⟩ (sched m) (schedule_iff.mp hsch m (Nat.le_trans hn hnm)), hA⟩, hg⟩
 
 end Lantana.Fairness
