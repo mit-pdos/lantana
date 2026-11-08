@@ -179,3 +179,18 @@ stutter lemmas of `Step.lean`.  **Step 2 complete.**  Final checks on `agent/fai
 (100 theorems in the fairness modules); the branch differs from `main` in 65 Lean files
 (+3226/−1180).  No sub worktree or branch left.  Still for the owner: `docs/rocq-correspondence.md`
 is stale (no Rocq checkout here).  Next: M2, `docs/fairness/DESIGN.md`.
+
+## 4. Step 3: structure and names (2026-11-08)
+
+Owner's review of step 2: generalize `fair_mono` so that `labelledView_of_sf` is its instance, and
+revise file names and structure (the two state-atom files merged under a name that says so, and
+similar cases).  Lead's target (brief `briefs/brief-S4.md`): the class `Pool` renamed
+`ThreadSystem` (file `Temporal/ThreadSystem.lean`; `Pool` clashed in the reader's mind with
+`ThreadPool Expr`); the engine `MissHit` and the bridge in their own `Temporal/Fairness/MissHit.lean`,
+`TrProp.along` in `Temporal/Trace.lean`; `Fairness/Sched.lean` → `Scheduling.lean`;
+`ProgramLogic/Trace.lean` → `Configuration.lean`, absorbing Lantana's fair-scheduling facts;
+`Trace/TraceProp.lean` + `Trace/TracePropRules.lean` → `Trace/StateAtom.lean`;
+`Trace/FairScheduling.lean` deleted; `LantanaTest/Trace.lean` → `TrSpec.lean`.  `fair_mono` takes
+its two inclusions as `□ₜ` trace properties from the current position (the entailment form is
+`fair_mono_of_le`), which is what the schedule, a `□ₜ` from `τ.pos`, provides.  Task S4 to
+lean-prover-3.
