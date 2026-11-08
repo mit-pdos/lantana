@@ -104,3 +104,15 @@ Not done, for the owner: `docs/rocq-correspondence.md` is stale for the rows `tr
 `scripts/rocq-table.sh` needs the Rocq checkout, which this container does not have (without it
 the script drops the Rocq grouping and the coverage report).  Next milestone: M2,
 `docs/fairness/DESIGN.md`, then the owner's confirmation of D2–D6 before M3.
+
+## 3. Step 2: the language-independent trace layer and the theory over `TrProp` (2026-11-08)
+
+Plan `local-plan/lantana-fairness/PLAN-trace-generalization.md`, approved by the owner with the
+recommendations T1–T6.  Lead's decision on the namespaces (brief S1): the generic declarations keep
+today's names and namespaces (`Lantana.Trace C`, `Lantana.TrProp C`, the connectives
+`Lantana.TrProp.*`), and Lantana's traces are written `Trace (Cfg Expr State)` at the use sites,
+since an abbreviation with the old name at a different arity is impossible and re-exporting the
+~35 downstream names would be fragile.
+
+- Task S1 (lean-prover-1): the layer `Lantana/Temporal/{Trace,TracePropRules,Pool}.lean`, Lantana's
+  instance of `Pool`, the use sites, the layering script, the docs.  Brief `briefs/brief-S1.md`.
