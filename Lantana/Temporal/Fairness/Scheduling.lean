@@ -4,23 +4,23 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.Temporal.Pool
+public import Lantana.Temporal.ThreadSystem
 public import Lantana.Temporal.Fairness.Action
 
 /-! # A pair that is one thread's; the scheduling action and the schedule
 
-Over a thread system (`Pool`, `Lantana.Temporal.Pool`).  A pair of layer 0 is the thread's at `i`
-when its attempts are steps of that thread (`AttemptGrant.OwnStep`); its counter then stays at
-every other thread's step (`AttemptGrant.counter_stay_of_other`), the one rule that names a
-thread.
+Over a thread system (`ThreadSystem`, `Lantana.Temporal.ThreadSystem`).  A pair of layer 0 is
+the thread's at `i` when its attempts are steps of that thread (`AttemptGrant.OwnStep`); its
+counter then stays at every other thread's step (`AttemptGrant.counter_stay_of_other`), the one
+rule that names a thread.
 
 Fair scheduling is an action of the attempt–grant model: enabled where the thread is active, the
 predicate the thread system supplies, and granted at the thread's trace step (`Sched.SF`).  It
 gives a thread active infinitely often infinitely many steps (`Sched.stepsInfOften_of_sf`).  The
 thread's own view of its scheduling has no misses (`Sched.certain`), so scheduling has no cheap
 path.  A schedule names the stepping thread at each position, a proof instrument of adequacy
-(`Schedule`, in `Lantana.Temporal.Pool`); under any schedule, an action whose hit only its thread
-can take (`SoleOwner`) gives that thread its labelled view (`labelledView_of_sf`).
+(`Schedule`, in `Lantana.Temporal.ThreadSystem`); under any schedule, an action whose hit only
+its thread can take (`SoleOwner`) gives that thread its labelled view (`labelledView_of_sf`).
 -/
 
 @[expose] public section
@@ -29,7 +29,7 @@ namespace Lantana.Fairness
 
 open scoped Lantana.TrProp
 
-variable {C : Type} [Pool C]
+variable {C : Type} [ThreadSystem C]
 
 /-! ## 3. A pair that is one thread's -/
 
@@ -53,23 +53,24 @@ end AttemptGrant
 namespace Sched
 
 /-- The grant of the scheduling action of the thread at `i`: its trace step. -/
-abbrev grant (i : ThreadId) : C → C → Prop := Pool.Step i
+abbrev grant (i : ThreadId) : C → C → Prop := ThreadSystem.Step i
 
 /-- Fair scheduling of the thread at `i`: the strong fairness of its scheduling action, enabled
 where the thread is active and granted at its trace step. -/
-abbrev SF (i : ThreadId) : TrProp C := Action.SF (Pool.active i) (grant i)
+abbrev SF (i : ThreadId) : TrProp C := Action.SF (ThreadSystem.active i) (grant i)
 
 /-- The thread at `i` attempts, in its view of its scheduling: it steps while active.
-`Thread.attempt i (Pool.active i)`, restated because layer 2 comes later. -/
+`Thread.attempt i (ThreadSystem.active i)`, restated because layer 2 comes later. -/
 abbrev attempt (i : ThreadId) : TrProp C := Steps i ∧ₜ active i
 
-/-- The thread's own view of its scheduling: `Thread.AttemptGrant i (Pool.active i) (grant i)`. -/
+/-- The thread's own view of its scheduling:
+`Thread.AttemptGrant i (ThreadSystem.active i) (grant i)`. -/
 abbrev AG (i : ThreadId) : TrProp C := AttemptGrant.Fair (attempt i) (Action.grant (grant i))
 
 variable {i : ThreadId} {τ : Trace C}
 
 /-- Own grant: the grant is the thread's step.  `Thread.OwnGrant i (grant i)`. -/
-theorem ownGrant : ∀ {c c' : C}, grant i c c' → Pool.Step i c c' := fun hg => hg
+theorem ownGrant : ∀ {c c' : C}, grant i c c' → ThreadSystem.Step i c c' := fun hg => hg
 
 /-- What every completeness theorem needs: a thread active infinitely often and fairly scheduled
 steps infinitely often. -/
@@ -97,7 +98,7 @@ end Sched
 trace step accepts the transition is `i`.  Stated for the hit `A c ∧ G c c'` of an action, since a
 stuttering thread's step may satisfy a grant vacuously. -/
 def SoleOwner (i : ThreadId) (G : C → C → Prop) : Prop :=
-  ∀ c c', G c c' → ∀ j, Pool.Step j c c' → j = i
+  ∀ c c', G c c' → ∀ j, ThreadSystem.Step j c c' → j = i
 
 /-- The thread's view under a schedule: attempts are the positions where the schedule names the
 thread and `A` holds. -/
@@ -113,12 +114,9 @@ owner, and a labelled miss is a relational miss.  Layer 0's restriction
 (`AttemptGrant.fair_mono`). -/
 theorem labelledView_of_sf (hsch : Schedule sched τ)
     (hso : SoleOwner i (fun c c' => A c ∧ G c c')) (hsf : Action.SF A G τ) :
-    labelledView sched i A G τ := by
-  intro hmiss
-  have hhit := hsf (TrProp.always_eventually_mono (fun _ h => h.1.2) τ hmiss)
-  refine TrProp.always_eventually_iff.mpr fun n hn => ?_
-  obtain ⟨m, hnm, hA, hg⟩ := TrProp.always_eventually_iff.mp hhit n hn
-  exact ⟨m, hnm,
-    ⟨hso _ _ ⟨hA, hg⟩ (sched m) (schedule_iff.mp hsch m (Nat.le_trans hn hnm)), hA⟩, hg⟩
+    labelledView sched i A G τ :=
+  AttemptGrant.fair_mono τ ⟨fun _ _ ha => ha.2,
+    fun m hm ⟨hA, hg⟩ => ⟨hso _ _ ⟨hA, hg⟩ (sched m) (schedule_iff.mp hsch m hm), hA⟩,
+    fun hmiss => hsf (TrProp.always_eventually_mono (fun _ h => h.1) τ hmiss)⟩
 
 end Lantana.Fairness

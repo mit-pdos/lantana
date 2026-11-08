@@ -18,10 +18,12 @@ The connectives carry a subscript `ₜ` (`∧ₜ`, `□ₜ`, `◇ₜ`, `○ₜ`,
 clash with the `iProp` connectives (D28); the notations are scoped in `Lantana.TrProp`. Entailment
 `R ⊆ S` is validity of `R →ₜ S`. Besides LTL, three atoms: a predicate on the current
 configuration (`TrProp.now`), a relation between the current configuration and the next one
-(`TrProp.step`), and a fact about the current position (`TrProp.atPos`). Rules are in
-`Lantana.Temporal.TracePropRules`, thread systems and their behaviors in `Lantana.Temporal.Pool`.
-This layer is independent of the language and of Iris: Lantana's language is an instance
-(`Lantana.ProgramLogic.Trace`), whose traces are `Trace (Cfg Expr State)`.
+(`TrProp.step`), and a fact about the current position (`TrProp.atPos`); a trace property read
+along the run of a trace is a predicate on positions (`TrProp.along`). Rules are in
+`Lantana.Temporal.TracePropRules`, thread systems and their behaviors in
+`Lantana.Temporal.ThreadSystem`. This layer is independent of the language and of Iris: Lantana's
+language is an instance (`Lantana.ProgramLogic.Configuration`), whose traces are
+`Trace (Cfg Expr State)`.
 -/
 
 @[expose] public section
@@ -119,6 +121,9 @@ def step (R : C → C → Prop) : TrProp C := fun τ => R τ.now τ.next.now
 
 /-- A fact about the current position. -/
 def atPos (f : Nat → Prop) : TrProp C := fun τ => f τ.pos
+
+/-- The trace property `P` read along the run of `τ`, as a predicate on positions. -/
+def along (P : TrProp C) (τ : Trace C) (n : Nat) : Prop := P { τ with pos := n }
 
 /-! ## Notations -/
 

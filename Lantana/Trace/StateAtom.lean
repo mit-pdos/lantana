@@ -4,25 +4,34 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.Trace.TraceProp
+public import Lantana.ProgramLogic.Configuration
 
-/-! # Rules of the state atoms
+/-! # The state atom
 
-The rules of `R ⊆ S` (Rocq `trace_prop_rules.v`) for Lantana's state atoms (`TrProp.state`). The
-rules of the connectives, of LTL and of the fixpoints are generic, in
-`Lantana.Temporal.TracePropRules`.
+The state atom of Lantana's trace properties: a predicate on the current state and thread pool,
+and its rules; the connectives and the LTL rules are generic (`Lantana.Temporal`).
+
+Trace properties (`TrProp`, Rocq `trProp`), their connectives and notations are generic, over
+any configuration type (`Lantana.Temporal.Trace`), and so are the rules of `R ⊆ S` (Rocq
+`trace_prop_rules.v`) for the connectives, LTL and the fixpoints
+(`Lantana.Temporal.TracePropRules`). Lantana's traces are `Trace (Cfg Expr State)`, and this
+module adds the language's atom (`TrProp.state`) and its rules.
 -/
 
 @[expose] public section
 
 namespace Lantana.TrProp
 
-
 variable {Expr : Type} {State : Type}
 
 open scoped Lantana.TrProp
 
-/-! ## State atoms -/
+/-- A predicate on the current state and thread pool: the state atoms. -/
+@[lantana_alias tr_state]
+def state (φ : State → ThreadPool Expr → Prop) : TrProp (Cfg Expr State) :=
+  fun τ => φ τ.cfg.2 τ.cfg.1
+
+/-! ## Rules -/
 
 @[lantana_alias tr_state_mono]
 theorem state_mono {φ ψ : State → ThreadPool Expr → Prop} (h : ∀ σ tp, φ σ tp → ψ σ tp) :

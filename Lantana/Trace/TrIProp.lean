@@ -7,7 +7,7 @@ module
 public import Lantana.Prelude.Ordinal
 public import Lantana.BaseLogic.Satisfiable
 public import Lantana.ProgramLogic.TemporalClass
-public import Lantana.Trace.TracePropRules
+public import Lantana.Trace.StateAtom
 
 /-! # Step-indexed trace predicates
 

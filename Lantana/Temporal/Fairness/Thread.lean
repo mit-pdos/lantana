@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.Temporal.Fairness.Sched
+public import Lantana.Temporal.Fairness.Scheduling
 
 /-! # The thread's view of an action (layer 2)
 
@@ -28,7 +28,7 @@ open scoped Lantana.TrProp
 
 namespace Thread
 
-variable {C : Type} [Pool C]
+variable {C : Type} [ThreadSystem C]
 
 /-! ### Definitions -/
 
@@ -62,11 +62,11 @@ abbrev Certain (i : ThreadId) (A : C → Prop) (G : C → C → Prop) : TrProp C
 /-- Own grant: the grant is one of the thread's transitions.  The property that makes the thread's
 view sound. -/
 def OwnGrant (i : ThreadId) (G : C → C → Prop) : Prop :=
-  ∀ {c c' : C}, G c c' → Pool.Step i c c'
+  ∀ {c c' : C}, G c c' → ThreadSystem.Step i c c'
 
 /-- `A` is stable under every other thread's step. -/
 def Stable (i : ThreadId) (A : C → Prop) : Prop :=
-  ∀ {j : ThreadId} {c c' : C}, j ≠ i → Pool.Step j c c' → A c → A c'
+  ∀ {j : ThreadId} {c c' : C}, j ≠ i → ThreadSystem.Step j c c' → A c → A c'
 
 /-- `A` persists along the run: where it holds, the thread steps now, or `A` still holds at the
 next position, or `A` never holds again.  The general interface: it says nothing about how `A`
@@ -100,10 +100,10 @@ theorem attemptGrant_iff_attempt :
 /-! ### Soundness: under own grant, `SF` gives the thread's counter -/
 
 /-- **Soundness.**  Under own grant, `SF` gives the attempt–grant form: layer 0's restriction
-`AttemptGrant.fair_mono` applied to `Action.sf_iff_fair`. -/
+`AttemptGrant.fair_mono_of_le` applied to `Action.sf_iff_fair`. -/
 theorem attemptGrant_of_sf (hown : OwnGrant i G) : Action.SF A G ⊆ AttemptGrant i A G :=
-  fun τ hsf => AttemptGrant.fair_mono (fun _ ha => ha.2) (fun _ ⟨hA, hg⟩ => ⟨hown hg, hA⟩) τ
-    (Action.sf_iff_fair.1 hsf)
+  fun τ hsf => AttemptGrant.fair_mono_of_le (fun _ ha => ha.2)
+    (fun _ ⟨hA, hg⟩ => ⟨hown hg, hA⟩) τ (Action.sf_iff_fair.1 hsf)
 
 /-- Under own grant, the response form gives the attempt–grant form. -/
 theorem attemptGrant_of_response (hown : OwnGrant i G) :
@@ -135,7 +135,8 @@ theorem persists_of_stable (hstab : Stable i A) : IsBehavior ⊆ Persists i A :=
 at every later position reached by other threads' steps only, in particular at the thread's next
 step. -/
 theorem attempt_pending (hstab : Stable i A) (hA : A τ.now) {k : Nat} (hk : τ.pos ≤ k)
-    (hothers : ∀ k', τ.pos ≤ k' → k' < k → ∃ j, j ≠ i ∧ Pool.Step j (τ.seq k') (τ.seq (k' + 1))) :
+    (hothers : ∀ k', τ.pos ≤ k' → k' < k →
+      ∃ j, j ≠ i ∧ ThreadSystem.Step j (τ.seq k') (τ.seq (k' + 1))) :
     A (τ.seq k) := by
   induction k with
   | zero =>

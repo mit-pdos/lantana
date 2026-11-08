@@ -35,24 +35,25 @@ example (A G : TrProp C) : (□ₜ ◇ₜ A →ₜ □ₜ ◇ₜ G) ⊆ (◇ₜ 
 
 end Generic
 
-section Pool
+section ThreadSystem
 
-variable {C : Type} [Pool C]
+variable {C : Type} [ThreadSystem C]
 
 /-- A behavior is a run of the thread system from the current position on. -/
 example (τ : Trace C) :
-    IsBehavior τ ↔ ∀ m, τ.pos ≤ m → ∃ i, Pool.Step i (τ.seq m) (τ.seq (m + 1)) :=
+    IsBehavior τ ↔
+      ∀ m, τ.pos ≤ m → ∃ i, ThreadSystem.Step i (τ.seq m) (τ.seq (m + 1)) :=
   isBehavior_iff
 
 example (τ : Trace C) (h : IsBehavior τ) : IsBehavior τ.next.next := h.next.next
 
-end Pool
+end ThreadSystem
 
 section Lantana
 
 variable {Expr State Val : Type} [Language Expr State Val]
 
-example : Pool (Cfg Expr State) := inferInstance
+example : ThreadSystem (Cfg Expr State) := inferInstance
 
 /-- At Lantana's instance, a behavior is a sequence of trace steps from the current position. -/
 example (τ : Trace (Cfg Expr State)) :

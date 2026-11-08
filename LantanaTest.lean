@@ -31,6 +31,6 @@ public import LantanaTest.OWit
 public import LantanaTest.Registry
 public import LantanaTest.Temporal
 public import LantanaTest.TemporalFormula
-public import LantanaTest.Trace
+public import LantanaTest.TrSpec
 public import LantanaTest.TrSpecModel
 public import LantanaTest.WeakestPre

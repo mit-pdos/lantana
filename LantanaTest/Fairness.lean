@@ -69,22 +69,23 @@ open Lantana
 
 /-- Fair scheduling is the strong fairness of every thread's scheduling action; it names no
 scheduled thread. -/
-example {C : Type} [Pool C] (τ : Trace C) : fairScheduling τ ↔ ∀ i, Fairness.Sched.SF i τ :=
+example {C : Type} [ThreadSystem C] (τ : Trace C) :
+    fairScheduling τ ↔ ∀ i, Fairness.Sched.SF i τ :=
   Iff.rfl
 
 /-! Lantana's configurations are a thread system, and fair scheduling of its threads is weak
 fairness along a behavior. -/
 
-section Pool
+section ThreadSystem
 
 variable {Expr State Val : Type} [Language Expr State Val]
 
-example : Pool (Cfg Expr State) := inferInstance
+example : ThreadSystem (Cfg Expr State) := inferInstance
 
 example (τ : Trace (Cfg Expr State)) (h : IsBehavior τ) (i : ThreadId) :
     Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Cfg.active i) (TraceStep i) τ :=
   fairScheduling_sf_iff_wf' h i
 
-end Pool
+end ThreadSystem
 
 end LantanaTest.Fairness

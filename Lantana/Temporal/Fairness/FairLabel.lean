@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.Temporal.Fairness.Sched
+public import Lantana.Temporal.Fairness.Scheduling
 
 /-! # Fair labelling
 
@@ -70,12 +70,13 @@ theorem visit_infOften (i : Nat) : MissHit.InfOften (fun k => (visit k).2 = i) :
 
 /-! ### The frontier and the positions taken -/
 
-variable {C : Type} [Pool C] (τ : Trace C)
+variable {C : Type} [ThreadSystem C] (τ : Trace C)
 
 /-- Position `n` is a claim of thread `i`: `n` is at or after the current position, the thread is
 active at `n`, and the step taken at `n` is one of its steps. -/
 def claim (i n : Nat) : Prop :=
-  τ.pos ≤ n ∧ Pool.active i (τ.seq n) ∧ Pool.Step i (τ.seq n) (τ.seq (n + 1))
+  τ.pos ≤ n ∧ ThreadSystem.active i (τ.seq n) ∧
+    ThreadSystem.Step i (τ.seq n) (τ.seq (n + 1))
 
 open Classical in
 /-- The frontier before visit `k`.  The thread visited at `k` takes its least claim at or beyond
@@ -154,7 +155,7 @@ noncomputable def sched (hrun : IsBehavior τ) (n : Nat) : ThreadId :=
 
 /-- The schedule names a stepping thread at every position from the current one on. -/
 theorem sched_step (hrun : IsBehavior τ) {n : Nat} (hn : τ.pos ≤ n) :
-    Pool.Step (sched hrun n) (τ.seq n) (τ.seq (n + 1)) := by
+    ThreadSystem.Step (sched hrun n) (τ.seq n) (τ.seq (n + 1)) := by
   rw [sched]
   split
   · next h => exact h.choose_spec.2.1.2.2
@@ -168,7 +169,7 @@ theorem sched_of_takes (hrun : IsBehavior τ) {k n : Nat} (h : takes τ k n) :
 
 end FairLabel
 
-variable {C : Type} [Pool C] {τ : Trace C}
+variable {C : Type} [ThreadSystem C] {τ : Trace C}
 
 /-- **Fair labelling.**  A behavior on which every thread is fairly scheduled (`Sched.SF`: a thread
 active infinitely often steps infinitely often) admits a schedule under which every thread active

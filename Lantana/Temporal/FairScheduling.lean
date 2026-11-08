@@ -29,7 +29,7 @@ namespace Lantana
 
 open scoped Lantana.TrProp
 
-variable {C : Type} [Pool C]
+variable {C : Type} [ThreadSystem C]
 
 /-- Fair scheduling: the strong fairness of the scheduling action of every thread, enabled where
 the thread is active and granted at its trace step (`Fairness.Sched.SF`).  A statement about the
@@ -53,12 +53,19 @@ def BehFscnt (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat) : TrProp
   □ₜ ∀ₜ i : ThreadId, inactive i ∨ₜ
     (active i ∧ₜ (TrProp.atPos (fun n => sched n = i) ∨ₜ TrProp.atPos fun n => γ (n + 1) i < γ n i))
 
+#lantana_ignore fscnt_next_rel_th
+  "the counters are global along the run under the schedule; the next-position relation is `BehFscnt` at one position"
+#lantana_ignore fscnt_next_rel
+  "the counters are global along the run under the schedule; the next-position relation is `BehFscnt` at one position"
+#lantana_ignore exists_fscnt_next
+  "the counters are global along the run under the schedule; the next-position relation is `BehFscnt` at one position"
+
 variable {τ : Trace C} {sched : Nat → ThreadId} {γ : Nat → ThreadId → Nat}
 
 /-- The counters, unfolded at a position: the form the adequacy proof reads. -/
 theorem behFscnt_iff : BehFscnt sched γ τ ↔
-    ∀ m, τ.pos ≤ m → ∀ i, ¬ Pool.active i (τ.seq m) ∨
-      (Pool.active i (τ.seq m) ∧ (sched m = i ∨ γ (m + 1) i < γ m i)) :=
+    ∀ m, τ.pos ≤ m → ∀ i, ¬ ThreadSystem.active i (τ.seq m) ∨
+      (ThreadSystem.active i (τ.seq m) ∧ (sched m = i ∨ γ (m + 1) i < γ m i)) :=
   Iff.rfl
 
 /-- Layer 0's counters of the threads' scheduling pairs under a schedule are fairness counters:
@@ -68,7 +75,7 @@ theorem behFscnt_of_counters {δ : ThreadId → Nat → Nat}
       (δ i) τ) :
     BehFscnt sched (fun m i => δ i m) τ := by
   refine behFscnt_iff.mpr fun m hm i => ?_
-  by_cases hA : Pool.active i (τ.seq m)
+  by_cases hA : ThreadSystem.active i (τ.seq m)
   · refine .inr ⟨hA, ?_⟩
     by_cases hs : sched m = i
     · exact .inl hs
@@ -102,8 +109,10 @@ theorem exists_fair_schedule_behFscnt (hrun : IsBehavior τ) (hsf : fairScheduli
 
 /-- Where a thread's activity is convex, its fair scheduling is weak fairness, the usual justice
 requirement. -/
-theorem fairScheduling_sf_iff_wf {i : ThreadId} (hconv : Fairness.Action.Convex (Pool.active i) τ) :
-    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Pool.active i) (Pool.Step i) τ :=
+theorem fairScheduling_sf_iff_wf {i : ThreadId}
+    (hconv : Fairness.Action.Convex (ThreadSystem.active i) τ) :
+    Fairness.Sched.SF i τ ↔
+      Fairness.Action.WF (ThreadSystem.active i) (ThreadSystem.Step i) τ :=
   Fairness.Action.sf_iff_wf_of_convex hconv
 
 end Lantana
