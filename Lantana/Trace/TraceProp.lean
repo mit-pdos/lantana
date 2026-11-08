@@ -20,9 +20,9 @@ fair scheduling in `Lantana.Trace.FairScheduling`.
 namespace Lantana
 
 
-/-- A predicate on trace states. -/
+/-- A predicate on configurations. -/
 @[lantana_alias tsProp]
-abbrev TsProp (Expr : Type) (State : Type) := TraceState Expr State → Prop
+abbrev TsProp (Expr : Type) (State : Type) := Cfg Expr State → Prop
 
 /-- A predicate on traces: the external reading of a temporal property. -/
 @[lantana_alias trProp]
@@ -32,7 +32,7 @@ namespace TrProp
 
 variable {Expr : Type} {State : Type}
 
-/-- A predicate on the current trace state. -/
+/-- A predicate on the current configuration. -/
 @[lantana_alias ts_emb]
 def now (P : TsProp Expr State) : TrProp Expr State := fun τ => P τ.now
 

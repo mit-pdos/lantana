@@ -351,16 +351,15 @@ system at `n + 1`, the facts about the step and `c` later credits. -/
 @[lantana_alias sys_step_iter]
 theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Expr State))
     (n : Nat) (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls)
-    (W : Witnesses) (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat)
-    (C Φ : IProp GF)
-    (hf : IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n, τf⟩ γ ∧
+    (W : Witnesses) (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId)
+    (γ : Nat → ThreadId → Nat) (C Φ : IProp GF)
+    (hf : Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf) :
     sysStep Sys ⊢ historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
       (∀ l, bundle (Expr := Expr) (State := State) l n -∗ ▷ C) -∗
       ▷ (∀ (l : List (Nat × RegEntry)) (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent)
           (v' : Nat) (Ω' : Obls) (W' : Witnesses),
-        ⌜IsBehavior (⟨n + 1, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n + 1, τf⟩ γ ∧
-          owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
+        ⌜owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
           oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ -∗
         bundle (Expr := Expr) (State := State) l n -∗ C -∗ £ₙ c -∗
         historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
@@ -370,7 +369,7 @@ theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Ex
   rw [sysStep_eq]
   unfold sysStepPre TrIProp.defer
   iintro #ST HS HC K
-  imod ST $$ %c %h %n %σ %tp %g %v %Ω %W %τf %γ %hf HS with ⟨%l, B, Step⟩
+  imod ST $$ %c %h %n %σ %tp %g %v %Ω %W %τf %sched %γ %hf HS with ⟨%l, B, Step⟩
   have hb : bundlePre (recordTrI (Expr := Expr) (State := State) (GF := GF)) l n ⊢
       bundle (Expr := Expr) (State := State) l n := by
     rw [bundle_eq]
@@ -397,33 +396,33 @@ theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
     sysStep Sys ⊢ regIdx j r (.always N γa) -∗ savedTrI γa G.internal -∗
       ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
         (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
-        (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat),
-        ⌜r < n ∧ IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n, τf⟩ γ ∧
+        (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
+        ⌜r < n ∧ Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
           owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
         historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
         TrIProp.always G.internal ⟨n, τf⟩ := by
   iintro #ST #Hj #Hγ
   iloeb as IH
-  iintro %h %n %σ %tp %g %v %Ω %W %τf %γ %⟨hrn, hbeh, hfs, hlb, hht⟩ HS
+  iintro %h %n %σ %tp %g %v %Ω %W %τf %sched %γ %⟨hrn, hsch, hfs, hlb, hht⟩ HS
   have hU : TrIProp.defer iprop(G.internal ⟨n, τf⟩ ∧ TrIProp.always G.internal ⟨n + 1, τf⟩) ⊢
       TrIProp.always G.internal ⟨n, τf⟩ :=
     (TrIProp.always_unfold G.internal ⟨n, τf⟩).mpr
   iapply hU
-  iapply sysStepIter Sys 0 h n σ tp g v Ω W τf γ (record G n)
+  iapply sysStepIter Sys 0 h n σ tp g v Ω W τf sched γ (record G n)
     iprop(G.internal ⟨n, τf⟩ ∧ TrIProp.always G.internal ⟨n + 1, τf⟩)
-    ⟨hbeh, hfs, hlb, hht⟩ $$ ST HS [] []
+    ⟨hsch, hfs, hlb, hht⟩ $$ ST HS [] []
   · iintro %l #B
     iapply bundleAlwaysCert l n j r N γa G (Nat.le_of_lt hrn) $$ B Hj Hγ
     iintro %hr
     exfalso
     omega
   · inext
-    iintro %l %σ' %tp' %g' %v' %Ω' %W' %⟨hbeh', hfs', hlb', hht', -⟩ #B #C - HS'
+    iintro %l %σ' %tp' %g' %v' %Ω' %W' %⟨hlb', hht', -⟩ #B #C - HS'
     imodintro
     isplit
-    · iapply record_elim G $$ C ST %⟨hbeh, hfs', hlb', hht'⟩ B HS'
-    · iapply IH $$ %(h ++ [(σ', tp')]) %(n + 1) %σ' %tp' %g' %v' %Ω' %W' %τf %γ
-        %⟨by omega, hbeh', hfs', hlb', hht'⟩ HS'
+    · iapply record_elim G $$ C ST %⟨hsch, hfs, hlb', hht'⟩ B HS'
+    · iapply IH $$ %(h ++ [(σ', tp')]) %(n + 1) %σ' %tp' %g' %v' %Ω' %W' %τf %sched %γ
+        %⟨by omega, hsch, hfs, hlb', hht'⟩ HS'
 
 /-! ### The until loop -/
 
@@ -433,8 +432,8 @@ theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
 theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State GF)
     (G₂ : TrSpec Expr State GF) (a : Fuel) (h : List (HistEntry Expr State)) (n : Nat)
     (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
-    (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat)
-    (hf : IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n, τf⟩ γ ∧
+    (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
+    (hf : Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf) :
     sysStep Sys ⊢ record G₂ n -∗
       historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
@@ -445,7 +444,7 @@ theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State G
       TrIProp.strongUntil fP G₂.internal a ⟨n, τf⟩ :=
     (TrIProp.until_unfold fP G₂.internal a ⟨n, τf⟩).mpr
   iapply hU
-  iapply sysStepIter Sys 0 h n σ tp g v Ω W τf γ iprop(True)
+  iapply sysStepIter Sys 0 h n σ tp g v Ω W τf sched γ iprop(True)
     iprop(G₂.internal ⟨n, τf⟩ ∨ (fP ⟨n, τf⟩ ∧ ∃ a' : Fuel, ⌜a' < a⌝ ∧
       TrIProp.strongUntil fP G₂.internal a' ⟨n + 1, τf⟩))
     hf $$ ST HS [] []
@@ -453,10 +452,10 @@ theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State G
     inext
     itrivial
   · inext
-    iintro %l %σ' %tp' %g' %v' %Ω' %W' %⟨hbeh', hfs', hlb', hht', -⟩ #B - - HS'
+    iintro %l %σ' %tp' %g' %v' %Ω' %W' %⟨hlb', hht', -⟩ #B - - HS'
     imodintro
     ileft
-    iapply record_elim G₂ $$ TQ ST %⟨hf.1, hfs', hlb', hht'⟩ B HS'
+    iapply record_elim G₂ $$ TQ ST %⟨hf.1, hf.2.1, hlb', hht'⟩ B HS'
 
 /-- A registered until whose obligation is assigned at `n`, read off a run after its
 registration, with the rank of the obligation's measure at `n` (Rocq `until_run`). The bundle
@@ -469,8 +468,9 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
       savedTrI γQ G₂.internal -∗ Obl.inv N k P (untilDischarged k G₂) -∗
       ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
         (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
-        (τf : Nat → TraceState Expr State) (γ : Nat → ThreadId → Nat) (fu : Fuel) (o : ThreadId),
-        ⌜r < n ∧ IsBehavior (⟨n, τf⟩ : Trace Expr State) ∧ BehFscnt ⟨n, τf⟩ γ ∧
+        (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
+        (fu : Fuel) (o : ThreadId),
+        ⌜r < n ∧ Fairness.Schedule τf sched ∧ BehFscnt τf sched γ ∧
           owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf ∧
           get? Ω k = some (.assigned fu o)⌝ -∗
         historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
@@ -478,7 +478,8 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
           (Ordinals.Ordinal.succ (fairMeasure (γ n) o fu)) ⟨n, τf⟩ := by
   iintro #ST #Hj #HγP #HγQ #OI
   iloeb as IH
-  iintro %h %n %σ %tp %g %v %Ω %W %τf %γ %fu %o %⟨hrn, hbeh, hfs, hlb, hht, hk⟩ ⟨HI, MI, Sy⟩
+  iintro %h %n %σ %tp %g %v %Ω %W %τf %sched %γ %fu %o %⟨hrn, hsch, hfs, hlb, hht, hk⟩
+    ⟨HI, MI, Sy⟩
   ihave #EA := modelInterp_eventObl hk $$ MI
   have hU : TrIProp.defer iprop(G₂.internal ⟨n, τf⟩ ∨ (G₁.internal ⟨n, τf⟩ ∧ ∃ a' : Fuel,
       ⌜a' < Ordinals.Ordinal.succ (fairMeasure (γ n) o fu)⌝ ∧
@@ -487,14 +488,14 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
         (Ordinals.Ordinal.succ (fairMeasure (γ n) o fu)) ⟨n, τf⟩ :=
     (TrIProp.until_unfold G₁.internal G₂.internal _ ⟨n, τf⟩).mpr
   iapply hU
-  iapply sysStepIter Sys 1 h n σ tp g v Ω W τf γ
+  iapply sysStepIter Sys 1 h n σ tp g v Ω W τf sched γ
     iprop((record G₁ n ∨ record G₂ n) ∨
       (∃ (n' i' : Nat) (Ω' : Obls), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
         record G₂ n'))
     iprop(G₂.internal ⟨n, τf⟩ ∨ (G₁.internal ⟨n, τf⟩ ∧ ∃ a' : Fuel,
       ⌜a' < Ordinals.Ordinal.succ (fairMeasure (γ n) o fu)⌝ ∧
       TrIProp.strongUntil G₁.internal G₂.internal a' ⟨n + 1, τf⟩))
-    ⟨hbeh, hfs, hlb, hht⟩ $$ ST [HI MI Sy] [] []
+    ⟨hsch, hfs, hlb, hht⟩ $$ ST [HI MI Sy] [] []
   · iframe HI MI Sy
   · iintro %l #B
     icases bundleUntilCert l n j r N k γP γQ G₁ G₂ (Nat.le_of_lt hrn) $$ B Hj HγP HγQ []
@@ -509,7 +510,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
       iright
       iexact C
   inext
-  iintro %l %σ' %tp' %g' %v' %Ω' %W' %⟨hbeh', hfs', hlb', hht', hdrop⟩ #B #C LC
+  iintro %l %σ' %tp' %g' %v' %Ω' %W' %⟨hlb', hht', hdrop⟩ #B #C LC
     ⟨HI', MI', Sy'⟩
   icases C with ((#TrecP | #TrecQ) | ⟨%n', %i', %Ω'', %hn', #EF, #TQ'⟩)
   · -- `P` holds at `n`: the obligation at `n + 1` decides
@@ -528,14 +529,14 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
       imodintro
       iright
       isplit
-      · iapply record_elim G₁ $$ TrecP ST %⟨hbeh, hfs', hlb', hht'⟩ B [HI' MI' Sy']
+      · iapply record_elim G₁ $$ TrecP ST %⟨hsch, hfs, hlb', hht'⟩ B [HI' MI' Sy']
         iframe HI' MI' Sy'
       · iexists Ordinals.Ordinal.succ (fairMeasure (γ (n + 1)) o' fu')
         isplit
         · ipureintro
           exact Ordinals.Ordinal.succ_lt_succ_iff.mpr (hdrop k fu o fu' o' hk hk')
-        · iapply IH $$ %(h ++ [(σ', tp')]) %(n + 1) %σ' %tp' %g' %v' %Ω' %W' %τf %γ %fu' %o'
-            %⟨by omega, hbeh', hfs', hlb', hht', hk'⟩ [HI' MI' Sy']
+        · iapply IH $$ %(h ++ [(σ', tp')]) %(n + 1) %σ' %tp' %g' %v' %Ω' %W' %τf %sched %γ
+            %fu' %o' %⟨by omega, hsch, hfs, hlb', hht', hk'⟩ [HI' MI' Sy']
           iframe HI' MI' Sy'
     · -- discharged during the step: at `n` (before the step) or at `n + 1` (after)
       iunfold untilDischarged at R
@@ -557,25 +558,25 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
       by_cases hnn : n' = n
       · subst hnn
         ileft
-        iapply record_elim G₂ $$ TQ' ST %⟨hbeh, hfs', hlb', hht'⟩ B [HI' MI' Sy']
+        iapply record_elim G₂ $$ TQ' ST %⟨hsch, hfs, hlb', hht'⟩ B [HI' MI' Sy']
         iframe HI' MI' Sy'
       · have hn' : n' = n + 1 := by simp only at hn₁; omega
         subst hn'
         iright
         isplit
-        · iapply record_elim G₁ $$ TrecP ST %⟨hbeh, hfs', hlb', hht'⟩ B [HI' MI' Sy']
+        · iapply record_elim G₁ $$ TrecP ST %⟨hsch, hfs, hlb', hht'⟩ B [HI' MI' Sy']
           iframe HI' MI' Sy'
         · iexists 0
           isplit
           · ipureintro
             exact Ordinals.Ordinal.zero_lt_succ _
           · iapply untilRunDischarged Sys G₁.internal G₂ 0 (h ++ [(σ', tp')]) (n + 1) σ' tp' g' v'
-              Ω' W' τf γ ⟨hbeh', hfs', hlb', hht'⟩ $$ ST TQ' [HI' MI' Sy']
+              Ω' W' τf sched γ ⟨hsch, hfs, hlb', hht'⟩ $$ ST TQ' [HI' MI' Sy']
             iframe HI' MI' Sy'
   · -- `Q` holds at `n`
     imodintro
     ileft
-    iapply record_elim G₂ $$ TrecQ ST %⟨hbeh, hfs', hlb', hht'⟩ B [HI' MI' Sy']
+    iapply record_elim G₂ $$ TrecQ ST %⟨hsch, hfs, hlb', hht'⟩ B [HI' MI' Sy']
     iframe HI' MI' Sy'
   · -- discharged before the check: the discharge was at `n`
     icases eventObl_assigned_discharged_le $$ [EA EF] with %hn₂
@@ -584,7 +585,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
     subst hnn
     imodintro
     ileft
-    iapply record_elim G₂ $$ TQ' ST %⟨hbeh, hfs', hlb', hht'⟩ B [HI' MI' Sy']
+    iapply record_elim G₂ $$ TQ' ST %⟨hsch, hfs, hlb', hht'⟩ B [HI' MI' Sy']
     iframe HI' MI' Sy'
 
 end Loops

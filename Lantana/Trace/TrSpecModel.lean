@@ -43,7 +43,7 @@ theorem valid_ext [TemporalGpreS Expr State GF] (G : TrSpec Expr State GF)
     (τ : Trace Expr State) (hG : ∀ [ModelGS GF] [TemporalGS Expr State GF], ⊢ G.internal τ) :
     G.external τ := by
   obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc
-    (adequacy_alloc_names (GF := GF) (τ.seq τ.pos).cfg.2 (τ.seq τ.pos).cfg.1)
+    (adequacy_alloc_names (GF := GF) (τ.seq τ.pos).2 (τ.seq τ.pos).1)
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
   refine G.adeq iprop(emp) τ (iPropSatLcAtFrame_sat.mpr (iPropSat.mono ?_ hγ))
