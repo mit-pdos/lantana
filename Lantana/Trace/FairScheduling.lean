@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
+public import Lantana.Prelude.Nat
 public import Lantana.Trace.TracePropRules
 
 /-! # Fair scheduling
@@ -37,28 +38,9 @@ theorem fairScheduling_next {τ : Trace Expr State} (h : fairScheduling τ) :
     fairScheduling τ.next :=
   fun m hm => h m (Nat.le_of_succ_le hm)
 
-/-! ## The fairness counter (D18) -/
+/-! ## The fairness counter (D18)
 
-/-- A minimal witness of a satisfiable predicate on `Nat` (classical). -/
-theorem Nat.exists_min {p : Nat → Prop} : ∀ n, p n → ∃ m, p m ∧ ∀ k, k < m → ¬ p k
-  | n, hn => by
-    classical
-    by_cases h : ∃ k, k < n ∧ p k
-    · obtain ⟨k, hk, hpk⟩ := h
-      exact Nat.exists_min k hpk
-    · exact ⟨n, hn, fun k hk hpk => h ⟨k, hk, hpk⟩⟩
-termination_by n => n
-
-/-- The least witness of a satisfiable predicate on `Nat`. -/
-noncomputable def Nat.minWitness {p : Nat → Prop} (h : ∃ n, p n) : Nat :=
-  Classical.choose (Nat.exists_min h.choose h.choose_spec)
-
-theorem Nat.minWitness_spec {p : Nat → Prop} (h : ∃ n, p n) : p (Nat.minWitness h) :=
-  (Classical.choose_spec (Nat.exists_min h.choose h.choose_spec)).1
-
-theorem Nat.minWitness_min {p : Nat → Prop} (h : ∃ n, p n) {k : Nat}
-    (hk : k < Nat.minWitness h) : ¬ p k :=
-  (Classical.choose_spec (Nat.exists_min h.choose h.choose_spec)).2 k hk
+The least witnesses `Nat.minWitness` are in `Lantana.Prelude.Nat`. -/
 
 /-- Fairness counters along a trace (Rocq `beh_fscnt`): from the current position on, every
 thread is inactive, or active and either scheduled or with a strictly decreasing counter. -/
