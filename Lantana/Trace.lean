@@ -5,7 +5,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import Lantana.Trace.StateAtom
-public import Lantana.Trace.TracePropRules
 public import Lantana.Trace.TrIProp
 public import Lantana.Trace.TrSpec
 public import Lantana.Trace.TrSpecFixpoint
