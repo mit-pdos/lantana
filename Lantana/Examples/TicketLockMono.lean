@@ -1555,14 +1555,14 @@ theorem lockInvAliveTrSpec_next_monotone {GF : BundledGFunctors} (next curr : Lo
 
 @[lantana_alias ticket_lock_mono.alive_fair_lock_release_progress]
 theorem aliveFairLock_release_progress {GF : BundledGFunctors} (tl : Val)
-    (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
+    (τ : Trace (Cfg Exp State)) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
     ∃ next curr : Loc, tl = vLock next curr ∧ TicketLock.releaseProgress next curr τ := by
   obtain ⟨-, next, curr, htl, hal⟩ := h
   exact ⟨next, curr, htl, lockInvAliveTrSpec_release_progress (GF := GF) next curr τ hal⟩
 
 @[lantana_alias ticket_lock_mono.alive_fair_lock_next_monotone]
 theorem aliveFairLock_next_monotone {GF : BundledGFunctors} (tl : Val)
-    (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
+    (τ : Trace (Cfg Exp State)) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
     ∃ next curr : Loc, tl = vLock next curr ∧ TicketLock.nextMonotone next τ := by
   obtain ⟨-, next, curr, htl, hal⟩ := h
   exact ⟨next, curr, htl, lockInvAliveTrSpec_next_monotone (GF := GF) next curr τ hal⟩
@@ -1571,7 +1571,7 @@ theorem aliveFairLock_next_monotone {GF : BundledGFunctors} (tl : Val)
 (Rocq `alive_fair_lock_starvation_free`). -/
 @[lantana_alias ticket_lock_mono.alive_fair_lock_starvation_free]
 theorem aliveFairLock_starvationFree {GF : BundledGFunctors} (tl : Val)
-    (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
+    (τ : Trace (Cfg Exp State)) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
     ∃ next curr : Loc, tl = vLock next curr ∧ TicketLock.starvationFree next curr τ := by
   obtain ⟨-, next, curr, htl, hal⟩ := h
   exact ⟨next, curr, htl, TicketLock.releaseProgress_starvationFree next curr τ

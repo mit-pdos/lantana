@@ -489,7 +489,7 @@ variable {GF : BundledGFunctors}
 
 /-- The cell `b` holds `v` in the current state of the trace (any fraction). -/
 @[lantana_alias tr_cell]
-def trCell (b : Loc) (v : Val) : TrProp Exp State :=
+def trCell (b : Loc) (v : Val) : TrProp (Cfg Exp State) :=
   ∃ₜ dq : DFrac, TrProp.state (pointstoSat b dq v)
 
 @[lantana_alias tr_cell_intro]
@@ -499,7 +499,7 @@ theorem trCell_intro (b : Loc) (dq : DFrac) (v : Val) :
 
 /-- At all times the cell is empty or holds a task. -/
 @[lantana_alias handoff_tr]
-def handoffTr (b : Loc) : TrProp Exp State :=
+def handoffTr (b : Loc) : TrProp (Cfg Exp State) :=
   □ₜ (trCell b vNone ∨ₜ ∃ₜ (f : Val) (a : Val), trCell b (vSome f a))
 
 @[lantana_alias handoff_inv_trSpec_ext]

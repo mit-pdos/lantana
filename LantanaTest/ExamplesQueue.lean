@@ -53,7 +53,7 @@ example : TaskQueueClient.main = hl_val(λ _, let q := v(&TaskQueue.init) #();
 /-! ## Traces -/
 
 /-- The lock of a task queue makes release progress. -/
-example {GF : Iris.BundledGFunctors} (ql : Val) (τ : Trace Exp State)
+example {GF : Iris.BundledGFunctors} (ql : Val) (τ : Trace (Cfg Exp State))
     (h : (TaskQueue.taskQueueTrSpec (GF := GF) ql).external τ) :
     ∃ lhptr ltptr next curr : Loc,
       ql = Queue.vQueue lhptr ltptr (TicketLock.vLock next curr) ∧
@@ -61,15 +61,15 @@ example {GF : Iris.BundledGFunctors} (ql : Val) (τ : Trace Exp State)
   TaskQueue.taskQueue_release_progress ql τ h
 
 /-- The end-to-end statement of `task_queue_client.v`, liveness and safety. -/
-example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = (TaskQueueClient.tp0, TaskQueueClient.σ0)) :
+example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+    (hpos : τ.pos = 0) (hinit : τ.seq 0 = (TaskQueueClient.tp0, TaskQueueClient.σ0)) :
     (TaskQueueClient.rMain 0 τ ∧ TaskQueueClient.rQueue τ) ∧
       safetyIris 0 (fun _ v => v = Flag.v1) τ :=
   TaskQueueClient.taskQueueClient_liveness_safety τ hbeh hfair hpos hinit
 
 /-- Over the stable flag, the flag stays set once set. -/
-example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = (TaskQueueClient.tp0, TaskQueueClient.σ0)) :
+example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+    (hpos : τ.pos = 0) (hinit : τ.seq 0 = (TaskQueueClient.tp0, TaskQueueClient.σ0)) :
     (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ :=
   TaskQueueFlagStableClient.taskQueueClient_flag_stays τ hbeh hfair hpos hinit
 

@@ -29,6 +29,7 @@ public import LantanaTest.OPreds
 public import LantanaTest.OSat
 public import LantanaTest.OWit
 public import LantanaTest.Registry
+public import LantanaTest.Temporal
 public import LantanaTest.TemporalFormula
 public import LantanaTest.Trace
 public import LantanaTest.TrSpecModel

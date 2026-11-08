@@ -36,7 +36,7 @@ variable [Language Expr State Val] [ModelGS GF] [TemporalGS Expr State GF]
 
 section Records
 
-theorem recordTrI_all {X : Sort _} (f : X → Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_all {X : Sort _} (f : X → Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(∀ x, recordTrI (f x) n) ⊢ recordTrI (fun τ => iprop(∀ x, f x τ)) n := by
   iintro #H
   iapply recordTrI_intro
@@ -46,7 +46,7 @@ theorem recordTrI_all {X : Sort _} (f : X → Trace Expr State → IProp GF) (n 
   iapply recordTrI_elim (f x) $$ [H] ST %Hf B HW
   iapply H
 
-theorem recordTrI_and (f₁ f₂ : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_and (f₁ f₂ : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(recordTrI f₁ n ∧ recordTrI f₂ n) ⊢ recordTrI (fun τ => iprop(f₁ τ ∧ f₂ τ)) n := by
   iintro ⟨#H₁, #H₂⟩
   iapply recordTrI_intro
@@ -97,7 +97,8 @@ theorem guar_weaken (h : G ⊑ₛ H) : (P ⊨ₜ G) ⊢ P ⊨ₜ H := by
 
 /-- Exporting trace-level consequences. -/
 @[lantana_alias guar_cast]
-theorem guar_cast (R : TrProp Expr State) (pf : G.external ⊆ R) : (P ⊨ₜ G) ⊢ P ⊨ₜ G.cast R pf :=
+theorem guar_cast (R : TrProp (Cfg Expr State)) (pf : G.external ⊆ R) :
+    (P ⊨ₜ G) ⊢ P ⊨ₜ G.cast R pf :=
   guar_weaken (TrSpec.cast_le R pf)
 
 @[lantana_alias guar_mono]
@@ -120,7 +121,8 @@ theorem guar_true : ⊢@{IProp GF} P ⊨ₜ TrSpec.true (Expr := Expr) (State :=
   iapply record_intro
   imodintro
   iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - - - -
-  have hτ : ⊢@{IProp GF} TrSpec.true.internal (⟨n, τf⟩ : Trace Expr State) := pure_intro trivial
+  have hτ : ⊢@{IProp GF} TrSpec.true.internal (⟨n, τf⟩ : Trace (Cfg Expr State)) :=
+    pure_intro trivial
   iapply hτ
 
 @[lantana_alias guar_pure]
@@ -132,7 +134,8 @@ theorem guar_pure (φ : Prop) :
   iapply record_intro
   imodintro
   iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - - - -
-  have hτ : ⊢@{IProp GF} (TrSpec.pure φ).internal (⟨n, τf⟩ : Trace Expr State) := pure_intro hφ
+  have hτ : ⊢@{IProp GF} (TrSpec.pure φ).internal (⟨n, τf⟩ : Trace (Cfg Expr State)) :=
+    pure_intro hφ
   iapply hτ
 
 @[lantana_alias guar_and]
@@ -327,7 +330,7 @@ theorem TrSpec.canon_le {Q : IProp GF} {G : TrSpec Expr State GF} (h : ⊢ Q ⊨
 
 @[lantana_alias trSpec_canon_ext]
 theorem TrSpec.canon_external {Q : IProp GF} {G : TrSpec Expr State GF} (h : ⊢ Q ⊨ₜ G)
-    {τ : Trace Expr State} (hτ : (TrSpec.canon Q).external τ) : G.external τ :=
+    {τ : Trace (Cfg Expr State)} (hτ : (TrSpec.canon Q).external τ) : G.external τ :=
   hτ ⟨G, h⟩
 
 /-- `TrSpec.canon Q` is the greatest lower bound of what `Q` validly guarantees: through it,
@@ -340,10 +343,10 @@ theorem guar_canon_complete (Q : IProp GF) (G : TrSpec Expr State GF) :
 /-- The trace reading of the canonical specification: the strongest trace property that `Q`
 validly guarantees. -/
 @[lantana_alias tr_canon]
-def trCanon (Q : IProp GF) : TrProp Expr State := (TrSpec.canon Q).external
+def trCanon (Q : IProp GF) : TrProp (Cfg Expr State) := (TrSpec.canon Q).external
 
 @[lantana_alias tr_canon_le]
-theorem trCanon_le (Q : IProp GF) (R : TrProp Expr State) :
+theorem trCanon_le (Q : IProp GF) (R : TrProp (Cfg Expr State)) :
     trCanon Q ⊆ R ↔ ∃ G : TrSpec Expr State GF, (⊢ Q ⊨ₜ G) ∧ G.external ⊆ R := by
   constructor
   · intro hR
@@ -390,7 +393,7 @@ theorem guar_state (φ : State → ThreadPool Expr → Prop) (P : IProp GF)
     · iexact HI'
     · iexact HE
   have hτ := Hf.2.2.2 n σ tp hh
-  have hst : ⊢@{IProp GF} (TrSpec.state φ).internal (⟨n, τf⟩ : Trace Expr State) := by
+  have hst : ⊢@{IProp GF} (TrSpec.state φ).internal (⟨n, τf⟩ : Trace (Cfg Expr State)) := by
     change ⊢@{IProp GF} iprop(⌜φ (τf n).2 (τf n).1⌝)
     rw [hτ]
     exact pure_intro hσ

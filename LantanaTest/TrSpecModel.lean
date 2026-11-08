@@ -28,7 +28,7 @@ open Ordinals Ordinal Lantana Lantana.Model Lantana.HeapLang
 open scoped Lantana.TrProp Lantana.TrSpec
 
 /-- The functor of saved trace predicates of HeapLang. -/
-abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace Exp State => LaterOF IdOF
+abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace (Cfg Exp State) => LaterOF IdOF
 
 noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   match n with
@@ -145,7 +145,7 @@ example (σ : State) (tp : ThreadPool Exp) : ∃ γ : ModelNames × TemporalName
 /-! The lemmas in the closed world. -/
 
 section
-variable (τ : Trace Exp State)
+variable (τ : Trace (Cfg Exp State))
 
 example (G : TrSpec Exp State TestGF)
     (h : ∀ [ModelGS TestGF] [TemporalGS Exp State TestGF], ⊢ G.internal τ) : G.external τ :=

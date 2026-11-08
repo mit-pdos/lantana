@@ -17,7 +17,7 @@ open scoped Lantana.TrProp Lantana.TrSpec
 variable {GF : Iris.BundledGFunctors}
 
 /-- The run `0, 1, 0, 1, 1, …` separates the guarantees of the two flags. -/
-example (l : Loc) : ∃ τ : Trace Exp State,
+example (l : Loc) : ∃ τ : Trace (Cfg Exp State),
     (Flag.flagTrSpec (GF := GF) l).external τ ∧
       ¬ (FlagStable.flagTrSpec (GF := GF) l).external τ :=
   ⟨_, Flag.flagRun_satisfies_guarantee l, FlagStable.flagRun_violates_guarantee l⟩
@@ -68,8 +68,8 @@ example : Handoff.receive =
   rfl
 
 /-- The end-to-end statement of `flag_fork.v`, liveness and safety. -/
-example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = (FlagFork.tp0, FlagFork.σ0)) :
+example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+    (hpos : τ.pos = 0) (hinit : τ.seq 0 = (FlagFork.tp0, FlagFork.σ0)) :
     FlagFork.rMain 0 τ ∧ safetyIris 0 (fun _ v => v = FlagFork.v42) τ :=
   FlagFork.main_liveness_safety τ hbeh hfair hpos hinit
 
@@ -85,13 +85,13 @@ example : @RocqLantana.handoff_client_adequacy = @HandoffClient.handoffClient_ad
 
 /-- The clients of the stable flag export its stronger property: once the flag is `1`, it stays
 `1`. -/
-example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = (FlagClient.tp0, FlagClient.σ0)) :
+example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+    (hpos : τ.pos = 0) (hinit : τ.seq 0 = (FlagClient.tp0, FlagClient.σ0)) :
     FlagStable.flagStaysTr FlagClient.xLoc τ :=
   FlagStable.isFlagTr_stays _ τ (FlagStableClient.flagClient_adequacy τ hbeh hfair hpos hinit).1
 
-example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = (HandoffClient.tp0, HandoffClient.σ0)) :
+example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+    (hpos : τ.pos = 0) (hinit : τ.seq 0 = (HandoffClient.tp0, HandoffClient.σ0)) :
     (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ :=
   HandoffFlagStableClient.handoffClient_flag_stays τ hbeh hfair hpos hinit
 

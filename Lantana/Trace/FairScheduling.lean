@@ -54,9 +54,9 @@ instance : Fairness.Pool (Cfg Expr State) := ⟨TraceStep⟩
     Fairness.Pool.Step i ρ₁ ρ₂ = TraceStep i ρ₁ ρ₂ := rfl
 
 /-- The configurations of a behavior from position `0` are a run of the pool. -/
-theorem IsBehavior.poolRun {τ : Trace Expr State} (h : IsBehavior τ) (hpos : τ.pos = 0) :
+theorem IsBehavior.poolRun {τ : Trace (Cfg Expr State)} (h : IsBehavior τ) (hpos : τ.pos = 0) :
     Fairness.PoolRun τ.seq :=
-  fun n => h n (hpos ▸ Nat.zero_le n)
+  fun n => isBehavior_iff.mp h n (hpos ▸ Nat.zero_le n)
 
 /-- Activity is convex along a run of the pool: a thread is active from its fork until it becomes
 a value, and never again. -/
@@ -79,10 +79,10 @@ the thread is active and granted at its trace step (`Fairness.Sched.SF`).  A sta
 run that names no scheduled thread; since activity is convex, it is the usual justice requirement
 (`fairScheduling_sf_iff_wf`). -/
 @[lantana_alias fair_scheduling]
-def fairScheduling : TrProp Expr State := fun τ => ∀ i, Fairness.Sched.SF Cfg.active i τ.seq
+def fairScheduling : TrProp (Cfg Expr State) := fun τ => ∀ i, Fairness.Sched.SF Cfg.active i τ.seq
 
 @[lantana_alias fair_scheduling_next]
-theorem fairScheduling_next {τ : Trace Expr State} (h : fairScheduling τ) :
+theorem fairScheduling_next {τ : Trace (Cfg Expr State)} (h : fairScheduling τ) :
     fairScheduling τ.next :=
   h
 

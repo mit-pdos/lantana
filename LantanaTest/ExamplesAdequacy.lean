@@ -26,8 +26,8 @@ example : CertDischarge.σ0.get? CertDischarge.x0 = some (some CertDischarge.v0)
   decide
 
 /-- The end-to-end statement of `cert_discharge.v`, liveness and safety. -/
-example (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
-    (hinit : τ.seq 0 = (CertDischarge.tp0, CertDischarge.σ0)) :
+example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+    (hpos : τ.pos = 0) (hinit : τ.seq 0 = (CertDischarge.tp0, CertDischarge.σ0)) :
     CertDischarge.rMain CertDischarge.x0 CertDischarge.y0 τ ∧
       safetyIris 0 (fun _ v => v = hl_val(#())) τ :=
   CertDischarge.certDischarge_liveness_safety τ hbeh hfair hpos hinit

@@ -62,14 +62,14 @@ abbrev freedTrSpec {GF : BundledGFunctors} (l : Loc) : TrSpec Exp State GF :=
 @[lantana_alias tr_pointsto_agree]
 theorem pointsToTr_agree (l : Loc) (dq₁ dq₂ : DFrac) (v₁ v₂ : Val) :
     (TrProp.state (pointstoSat l dq₁ v₁) ∧ₜ TrProp.state (pointstoSat l dq₂ v₂) :
-      TrProp Exp State) ⊆ ⌜v₁ = v₂⌝ₜ := by
+      TrProp (Cfg Exp State)) ⊆ ⌜v₁ = v₂⌝ₜ := by
   intro τ ⟨h₁, h₂⟩
   simp only [TrProp.state, pointstoSat] at h₁ h₂
   exact (by simpa using h₁.symm.trans h₂ : v₁ = v₂)
 
 /-- A location is not both allocated and freed (Rocq `tr_pointsto_freed`). -/
 @[lantana_alias tr_pointsto_freed]
-theorem state_pointsto_freed {l : Loc} {dq : DFrac} {v : Val} {τ : Trace Exp State}
+theorem state_pointsto_freed {l : Loc} {dq : DFrac} {v : Val} {τ : Trace (Cfg Exp State)}
     (h₁ : TrProp.state (pointstoSat l dq v) τ) (h₂ : TrProp.state (freedSat l) τ) : False := by
   simp only [TrProp.state, pointstoSat, freedSat] at h₁ h₂
   exact absurd (h₁.symm.trans h₂) (by simp)

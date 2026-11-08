@@ -38,7 +38,7 @@ variable {Expr State : Type} {GF : BundledGFunctors}
 
 /-- Any trace predicate, read in the logic as a pure fact. -/
 @[lantana_alias trSpec_trp]
-def trp (R : TrProp Expr State) : TrSpec Expr State GF where
+def trp (R : TrProp (Cfg Expr State)) : TrSpec Expr State GF where
   internal := fun τ => iprop(⌜R τ⌝)
   external := R
   adeq _ _ h := (iPropSatLcAtFrame _ ⊤).elim h
@@ -304,10 +304,10 @@ def nuInternal [ModelGS GF] [TemporalGS Expr State GF] : TrIProp Expr State GF :
 
 /-- The core of the adequacy of `nu F`: a trace predicate `S` adequate for the internal reading
 of `nu F` is a post-fixpoint of the trace functor. -/
-theorem nu_post [Mono F] (S : TrProp Expr State)
-    (hS : ∀ [ModelGS GF] [TemporalGS Expr State GF] (F' : IProp GF) (τ : Trace Expr State),
+theorem nu_post [Mono F] (S : TrProp (Cfg Expr State))
+    (hS : ∀ [ModelGS GF] [TemporalGS Expr State GF] (F' : IProp GF) (τ : Trace (Cfg Expr State)),
       (iPropSatLcAtFrame F' ⊤).sat (nuInternal F τ) → S τ)
-    [ModelGS GF] [TemporalGS Expr State GF] (F' : IProp GF) (τ : Trace Expr State)
+    [ModelGS GF] [TemporalGS Expr State GF] (F' : IProp GF) (τ : Trace (Cfg Expr State))
     (hs : (iPropSatLcAtFrame F' ⊤).sat (nuInternal F τ)) : (F (trp S)).external τ := by
   let N : TrSpec Expr State GF := ⟨nuInternal F, S, hS⟩
   have hXN : ∀ X : TrSpec Expr State GF, X ⊑ₛ F X → X ⊑ₛ N := fun X hX => fun τ' =>
@@ -348,7 +348,7 @@ theorem nu_unfold_r : F (nu F) ⊑ₛ nu F :=
   nu_coind F (Mono.mono_le (nu_unfold_l F))
 
 @[lantana_alias trSpec_nu_ext]
-theorem nu_ext (τ : Trace Expr State) :
+theorem nu_ext (τ : Trace (Cfg Expr State)) :
     (nu F).external τ ↔ TrProp.gfp (fun R => (F (trp R)).external) τ :=
   .rfl
 
@@ -428,11 +428,11 @@ theorem mu_unfold_r [Cont F] : F (mu F) ⊑ₛ mu F := by
   exact Mono.mono_le <| ex_ub (X := { β : Fuel // β < Ordinals.Ordinal.succ α })
     (fun b => muApprox F b.1) ⟨α, Ordinals.Ordinal.lt_succ α⟩
 
-theorem trp_mono : TrProp.Mono fun R : TrProp Expr State => (F (trp R)).external :=
+theorem trp_mono : TrProp.Mono fun R : TrProp (Cfg Expr State) => (F (trp R)).external :=
   fun _ _ hR => Mono.mono_ext (X := trp _) (Y := trp _) hR
 
 @[lantana_alias trSpec_mu_ext]
-theorem mu_ext (τ : Trace Expr State) :
+theorem mu_ext (τ : Trace (Cfg Expr State)) :
     (mu F).external τ → TrProp.lfp (fun R => (F (trp R)).external) τ := by
   rintro ⟨α, hα⟩
   induction α using Ordinals.Ordinal.lt_wf.induction generalizing τ with
@@ -445,16 +445,17 @@ theorem mu_ext (τ : Trace Expr State) :
 /-- The trace reading is a pre-fixpoint of the trace functor: the supremum of the ranks of its
 traces bounds them all (classical choice of the ranks). -/
 @[lantana_alias trSpec_mu_ext_pre]
-theorem mu_ext_pre (τ : Trace Expr State) :
+theorem mu_ext_pre (τ : Trace (Cfg Expr State)) :
     (F (trp (mu F).external)).external τ → (mu F).external τ := by
   intro hτ
-  have hf : ∀ τ' : Trace Expr State, ∃ α : Fuel, (mu F).external τ' → (muApprox F α).external τ' :=
+  have hf : ∀ τ' : Trace (Cfg Expr State), ∃ α : Fuel,
+      (mu F).external τ' → (muApprox F α).external τ' :=
     fun τ' => (Classical.em ((mu F).external τ')).elim (fun ⟨α, h⟩ => ⟨α, fun _ => h⟩)
       (fun hn => ⟨0, fun h => absurd h hn⟩)
   let f := fun τ' => Classical.choose (hf τ')
   have hf : ∀ τ', (mu F).external τ' → (muApprox F (f τ')).external τ' :=
     fun τ' => Classical.choose_spec (hf τ')
-  let s : Fuel := Ordinals.Ordinal.sup fun t : ULift.{1} (Trace Expr State) => f t.down
+  let s : Fuel := Ordinals.Ordinal.sup fun t : ULift.{1} (Trace (Cfg Expr State)) => f t.down
   refine ⟨Ordinals.Ordinal.succ s, ?_⟩
   change (muApprox F (Ordinals.Ordinal.succ s)).external τ
   rw [muApprox_unfold]
@@ -462,29 +463,30 @@ theorem mu_ext_pre (τ : Trace Expr State) :
     (Y := ex (X := { β : Fuel // β < Ordinals.Ordinal.succ s }) fun b => muApprox F b.1)
     (fun τ' h => ?_) τ hτ
   exact ⟨⟨f τ', Ordinals.Ordinal.lt_of_le_of_lt
-    (Ordinals.Ordinal.le_sup (fun t : ULift.{1} (Trace Expr State) => f t.down) ⟨τ'⟩)
+    (Ordinals.Ordinal.le_sup (fun t : ULift.{1} (Trace (Cfg Expr State)) => f t.down) ⟨τ'⟩)
     (Ordinals.Ordinal.lt_succ s)⟩, hf τ' h⟩
 
 @[lantana_alias trSpec_mu_ext_lfp]
-theorem mu_ext_lfp (τ : Trace Expr State) :
+theorem mu_ext_lfp (τ : Trace (Cfg Expr State)) :
     TrProp.lfp (fun R => (F (trp R)).external) τ → (mu F).external τ :=
   fun h => h _ (mu_ext_pre F)
 
 @[lantana_alias trSpec_mu_ext_iff]
-theorem mu_ext_iff (τ : Trace Expr State) :
+theorem mu_ext_iff (τ : Trace (Cfg Expr State)) :
     (mu F).external τ ↔ TrProp.lfp (fun R => (F (trp R)).external) τ :=
   ⟨mu_ext F τ, mu_ext_lfp F τ⟩
 
 /-- On traces, `mu F` is a fixpoint of `F`, for any monotone body. -/
 @[lantana_alias trSpec_mu_ext_unfold_l]
-theorem mu_ext_unfold_l (τ : Trace Expr State) : (mu F).external τ → (F (mu F)).external τ := by
+theorem mu_ext_unfold_l (τ : Trace (Cfg Expr State)) :
+    (mu F).external τ → (F (mu F)).external τ := by
   rintro ⟨α, hα⟩
   rw [muApprox_unfold] at hα
   exact Mono.mono_ext (X := ex (X := { β : Fuel // β < α }) fun b => muApprox F b.1) (Y := mu F)
     (fun _ ⟨b, h⟩ => ⟨b.1, h⟩) τ hα
 
 @[lantana_alias trSpec_mu_ext_unfold_r]
-theorem mu_ext_unfold_r (τ : Trace Expr State) : (F (mu F)).external τ → (mu F).external τ :=
+theorem mu_ext_unfold_r (τ : Trace (Cfg Expr State)) : (F (mu F)).external τ → (mu F).external τ :=
   fun h => mu_ext_pre F τ (Mono.mono_ext (X := mu F) (Y := trp _) (TrProp.le_refl _) τ h)
 
 end Mu
@@ -605,7 +607,7 @@ theorem mu_le_until : mu (untilBody G₁ G₂) ⊑ₛ (G₁ 𝒰ₛ G₂) :=
       exists_intro (Ψ := fun a => TrIProp.strongUntil G₁.internal G₂.internal a τ) α)
 
 @[lantana_alias trSpec_mu_until_ext_iff]
-theorem mu_until_ext_iff (τ : Trace Expr State) :
+theorem mu_until_ext_iff (τ : Trace (Cfg Expr State)) :
     (mu (untilBody G₁ G₂)).external τ ↔ (G₁.external 𝒰ₜ G₂.external) τ :=
   ⟨mu_until_ext G₁ G₂ τ, fun h => mu_ext_lfp _ τ fun R hR =>
     TrProp.until_ind (X := R) (fun τ h => hR τ (.inl h)) (fun τ h => hR τ (.inr h)) τ h⟩
@@ -621,7 +623,7 @@ instance evenBody_mono : Mono (evenBody G) :=
    fun h => TrProp.and_mono (TrProp.le_refl _) fun τ => h τ.next.next⟩
 
 @[lantana_alias trSpec_nu_even_ext]
-theorem nu_even_ext (τ : Trace Expr State) :
+theorem nu_even_ext (τ : Trace (Cfg Expr State)) :
     (nu (evenBody G)).external τ ↔ ∀ k, G.external { τ with pos := τ.pos + 2 * k } := by
   constructor
   · rintro ⟨R, hR, hτ⟩

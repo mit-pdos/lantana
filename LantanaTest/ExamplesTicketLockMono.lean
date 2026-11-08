@@ -60,7 +60,8 @@ variable {GF : BundledGFunctors}
 
 /-- A lock that cannot be deleted is starvation free, with no hypothesis about `next` (compare
 `LantanaTest.ExamplesTicketLock`, where `next` is assumed monotone). -/
-example (tl : Val) (τ : Trace Exp State) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
+example (tl : Val) (τ : Trace (Cfg Exp State))
+    (h : (aliveFairLockTrSpec (GF := GF) tl).external τ) :
     ∃ next curr : Loc, tl = vLock next curr ∧ TicketLock.starvationFree next curr τ :=
   aliveFairLock_starvationFree tl τ h
 

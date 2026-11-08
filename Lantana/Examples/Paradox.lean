@@ -542,7 +542,7 @@ section Guarantee
 variable {GF : BundledGFunctors}
 
 /-- Eventually `False` (and eventually `True`) (Rocq `R_main`). -/
-def rMain : TrProp Exp State := ◇ₜ ⌜False⌝ₜ ∧ₜ ◇ₜ ⌜True⌝ₜ
+def rMain : TrProp (Cfg Exp State) := ◇ₜ ⌜False⌝ₜ ∧ₜ ◇ₜ ⌜True⌝ₜ
 
 /-- What the resources guarantee (Rocq `G_main`, inferred): thread `0`'s `True 𝒰 False`, and
 thread `1`'s first until, read with `True` on the right. -/
@@ -574,7 +574,7 @@ abbrev σ0 : State := ⟨∅⟩
 configuration, eventually `False`. -/
 @[lantana_alias loop_paradox]
 theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
-    (τ : Trace Exp State) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp0, σ0)) : rMain τ := by
   refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gMain rMain gMain_impl τ hbeh hfair hpos
     hinit ?_
@@ -617,7 +617,7 @@ theorem loop_primStep (σ : State) :
 
 /-- The run of the two loops: every step takes `loop ()` to `loop ()`. -/
 @[lantana_alias paradox.loop_run]
-def loopRun : Trace Exp State := ⟨0, fun _ => (tp0, σ0)⟩
+def loopRun : Trace (Cfg Exp State) := ⟨0, fun _ => (tp0, σ0)⟩
 
 /-- Both threads run the loop. -/
 theorem tp0_getElem? {j : Nat} (hj : j < 2) : tp0[j]? = some hl(v(&loop) #()) := by
@@ -640,7 +640,8 @@ theorem loopRun_traceStep (m : Nat) {j : Nat} (hj : j < 2) :
   exact h
 
 @[lantana_alias paradox.loop_run_behavior]
-theorem loopRun_behavior : IsBehavior loopRun := fun m _ => ⟨0, loopRun_traceStep m (by decide)⟩
+theorem loopRun_behavior : IsBehavior loopRun :=
+  isBehavior_iff.mpr fun m _ => ⟨0, loopRun_traceStep m (by decide)⟩
 
 /-- Both threads are active and step at every position; no other thread is ever active. -/
 @[lantana_alias paradox.loop_run_fair]

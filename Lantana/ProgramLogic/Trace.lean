@@ -5,20 +5,22 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import Lantana.Prelude.Ids
+public import Lantana.Temporal
 public import Lantana.ProgramLogic.Language
 
-/-! # Configurations, traces and behaviors
+/-! # Configurations, trace steps and behaviors
 
 The trace part of Rocq `lantana/program_logic/language.v`. A thread pool is a list of
 expressions and a thread id is a position in it (D14); a step of thread `i` replaces its
 expression and appends the forked threads, so forked threads get fresh ids. A trace step of
 thread `i` (`TraceStep i`) is its primitive step, or its stutter when it is a value or stuck.
 
-A trace is a position in an infinite sequence of configurations; a behavior is a trace along
-which, from the current position on, some thread takes a trace step at every position (a run
-of the pool, `Fairness.PoolRun`). Both are plain `∀`-statements over positions: no coinduction
-(D18). Activity is a property of the configuration (`Cfg.active`, `Cfg.inactive`), convex along
-a run (`Cfg.active_convex`).
+Lantana's language is an instance of the thread systems of `Lantana.Temporal`
+(`Pool (Cfg Expr State)`): the trace step of the thread at `i` is `TraceStep i` and its activity
+`Cfg.active i`. Its traces are `Trace (Cfg Expr State)`, and a behavior is `IsBehavior` at that
+instance: from the current position on, some thread takes a trace step at every position (a
+plain `∀`-statement over positions: no coinduction, D18). Activity is a property of the
+configuration (`Cfg.active`, `Cfg.inactive`), convex along a run (`Cfg.active_convex`).
 
 Traces carry no thread label: nothing observable names the thread that steps. The adequacy
 proof chooses a schedule, the stepping thread at each position, as its internal instrument
@@ -66,64 +68,6 @@ def ThreadStuck (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Prop :=
 def TraceStep (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Prop :=
   ThreadStep i ρ₁ ρ₂ ∨ ThreadDone i ρ₁ ρ₂ ∨ ThreadStuck i ρ₁ ρ₂
 
-end
-
-#lantana_ignore trace_state
-  "no thread label on traces: the schedule is the adequacy proof's instrument (lane fairness-sched, 2026-11-08)"
-
-/-- A trace: a position in an infinite sequence of configurations. -/
-@[lantana_alias trace]
-structure Trace (Expr : Type) (State : Type) where
-  pos : Nat
-  seq : Nat → Cfg Expr State
-
-namespace Trace
-
-variable {Expr : Type} {State : Type}
-
-/-- The trace one position later. -/
-@[lantana_alias trace_next]
-def next (τ : Trace Expr State) : Trace Expr State := { τ with pos := τ.pos + 1 }
-
-/-- The current configuration. -/
-@[lantana_alias trace_now]
-def now (τ : Trace Expr State) : Cfg Expr State := τ.seq τ.pos
-
-#lantana_ignore trace_thread
-  "no thread label on traces: the schedule is the adequacy proof's instrument (lane fairness-sched, 2026-11-08)"
-
-/-- The current configuration (`Trace.now`). -/
-def cfg (τ : Trace Expr State) : Cfg Expr State := τ.now
-
-@[simp] theorem next_pos (τ : Trace Expr State) : τ.next.pos = τ.pos + 1 := rfl
-@[simp] theorem next_seq (τ : Trace Expr State) : τ.next.seq = τ.seq := rfl
-@[simp] theorem now_next (τ : Trace Expr State) : τ.next.now = τ.seq (τ.pos + 1) := rfl
-
-end Trace
-
-section
-variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
-
-/-- A behavior: from the current position on, every position is followed by a trace step of
-some thread (a run of the pool, `Fairness.PoolRun`, from the current position). -/
-@[lantana_alias behavior]
-def IsBehavior (τ : Trace Expr State) : Prop :=
-  ∀ m, τ.pos ≤ m → ∃ i, TraceStep i (τ.seq m) (τ.seq (m + 1))
-
-@[lantana_alias behavior_S]
-theorem IsBehavior.next {τ : Trace Expr State} (h : IsBehavior τ) : IsBehavior τ.next :=
-  fun m hm => h m (Nat.le_of_succ_le hm)
-
-/-- The behaviors starting from the configuration `ρ`. -/
-@[lantana_alias behavior_cfg]
-def IsBehaviorOf (ρ : Cfg Expr State) (τ : Trace Expr State) : Prop :=
-  τ.seq 0 = ρ ∧ IsBehavior τ
-
-/-- The behaviors starting from the thread pool `tp` (in any state). -/
-@[lantana_alias behavior_tp]
-def IsBehaviorOfPool (tp : ThreadPool Expr) (τ : Trace Expr State) : Prop :=
-  ∃ σ, IsBehaviorOf (tp, σ) τ
-
 /-! ## Threads at a configuration -/
 
 /-- Thread `i` is active at `ρ`: in the pool and not a value. -/
@@ -156,6 +100,32 @@ theorem Cfg.not_active_and_inactive (i : ThreadId) (ρ : Cfg Expr State) :
   · simp [he] at he'
     subst he'
     simp [hv] at hv'
+
+/-- Inactivity is the negation of activity. -/
+theorem Cfg.inactive_iff_not_active {i : ThreadId} {ρ : Cfg Expr State} :
+    ρ.inactive i ↔ ¬ ρ.active i :=
+  ⟨fun h ha => Cfg.not_active_and_inactive i ρ ⟨ha, h⟩,
+    fun h => (Cfg.active_or_inactive i ρ).resolve_left h⟩
+
+/-! ## Lantana's thread system -/
+
+/-- Lantana's configurations are a thread system: the trace step of the thread at `i` is its
+`TraceStep i` (a primitive step, or a stutter as a value or when stuck), its activity
+`Cfg.active i`. -/
+instance : Pool (Cfg Expr State) := ⟨TraceStep, Cfg.active⟩
+
+/-- The thread system's step on Lantana's configurations is the trace step. -/
+@[simp] theorem Pool.step_def {i : ThreadId} {ρ₁ ρ₂ : Cfg Expr State} :
+    Pool.Step i ρ₁ ρ₂ = TraceStep i ρ₁ ρ₂ := rfl
+
+/-- The thread system's activity on Lantana's configurations is `Cfg.active`. -/
+@[simp] theorem Pool.active_def {i : ThreadId} {ρ : Cfg Expr State} :
+    Pool.active i ρ = ρ.active i := rfl
+
+/-- The behaviors starting from the thread pool `tp` (in any state). -/
+@[lantana_alias behavior_tp]
+def IsBehaviorOfPool (tp : ThreadPool Expr) (τ : Trace (Cfg Expr State)) : Prop :=
+  ∃ σ, IsBehaviorOf (tp, σ) τ
 
 /-! ## Facts about trace steps -/
 

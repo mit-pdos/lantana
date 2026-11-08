@@ -357,7 +357,7 @@ variable {GF : BundledGFunctors}
 /-- The main thread `i` returns `1`, and a flag gets created that is `0` until it is `1`
 forever, or `1` forever; in particular, the receiver thread runs the task `set x` (Rocq
 `R_main`). -/
-def rMain (i : ThreadId) : TrProp Exp State :=
+def rMain (i : ThreadId) : TrProp (Cfg Exp State) :=
   ◇ₜ TrProp.state (threadExprSat i [] (.val v1)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
 
 /-- What the commitments guarantee (Rocq `G_main`). -/
@@ -392,7 +392,7 @@ section Adequacy
 gets created that is `0` until it is `1` forever (or `1` forever), and a handoff cell gets
 created that from then on always holds `NONE` or a task. -/
 @[lantana_alias handoff_flag_stable_client.handoff_client_adequacy]
-theorem handoffClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+theorem handoffClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain 0 τ ∧ rHandoff τ := by
   refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (rMain 0 ∧ₜ rHandoff)
@@ -422,7 +422,7 @@ theorem handoffClient_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
   iexact Hwp
 
 /-- The stronger flag property: some flag gets created that, once it is `1`, stays `1`. -/
-theorem handoffClient_flag_stays (τ : Trace Exp State) (hbeh : IsBehavior τ)
+theorem handoffClient_flag_stays (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ := by
   obtain ⟨⟨_, m, hm, ⟨x, hx⟩, hbef⟩, _⟩ := handoffClient_adequacy τ hbeh hfair hpos hinit
@@ -431,7 +431,7 @@ theorem handoffClient_flag_stays (τ : Trace Exp State) (hbeh : IsBehavior τ)
 /-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the main thread has returned, its value is `1`. -/
 @[lantana_alias handoff_flag_stable_client.handoff_client_safety_adequacy]
-theorem handoffClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior τ)
+theorem handoffClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = v1) τ := by
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
@@ -458,7 +458,7 @@ theorem handoffClient_safety_adequacy (τ : Trace Exp State) (hbeh : IsBehavior 
 
 /-- Liveness and safety together, over the same fair behaviors. -/
 @[lantana_alias handoff_flag_stable_client.handoff_client_liveness_safety]
-theorem handoffClient_liveness_safety (τ : Trace Exp State) (hbeh : IsBehavior τ)
+theorem handoffClient_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     (rMain 0 τ ∧ rHandoff τ) ∧ safetyIris 0 (fun _ v => v = v1) τ :=
   ⟨handoffClient_adequacy τ hbeh hfair hpos hinit,

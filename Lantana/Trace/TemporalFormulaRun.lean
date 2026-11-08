@@ -284,7 +284,7 @@ theorem bundleAlwaysCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespa
   icases regIdx_lb_pos j r _ hlast $$ Hlb Hj with %hpos
   rcases hpos with hin | hle
   · have hc : ([∗list] pe ∈ l, certPre (recordTrI (Expr := Expr) (State := State)) n pe.2) ⊢
-        iprop(∃ f : Trace Expr State → IProp GF, savedTrI γ f ∗ ▷ recordTrI f n) :=
+        iprop(∃ f : Trace (Cfg Expr State) → IProp GF, savedTrI γ f ∗ ▷ recordTrI f n) :=
       BigSepL.bigSepL_lookup (Φ := fun _ pe =>
         certPre (recordTrI (Expr := Expr) (State := State)) n pe.2) hin
     icases hc $$ Cs with ⟨%f, #Hf, #Cj⟩
@@ -312,7 +312,7 @@ theorem bundleUntilCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespac
   icases regIdx_lb_pos j r _ hlast $$ Hlb Hj with %hpos
   rcases hpos with hin | hle
   · have hc : ([∗list] pe ∈ l, certPre (recordTrI (Expr := Expr) (State := State)) n pe.2) ⊢
-        iprop(∃ fP fQ : Trace Expr State → IProp GF, savedTrI γP fP ∗ savedTrI γQ fQ ∗
+        iprop(∃ fP fQ : Trace (Cfg Expr State) → IProp GF, savedTrI γP fP ∗ savedTrI γQ fQ ∗
           (▷ (recordTrI fP n ∨ recordTrI fQ n) ∨
             ▷ (∃ (n' i' : Nat) (Ω' : Obls),
               ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗ recordTrI fQ n'))) :=

@@ -56,7 +56,7 @@ def histTrace (h : List (HistEntry Expr State)) (τf : Nat → Cfg Expr State) :
 
 /-- Records: a reading `f` at a position (Rocq `recT`). -/
 abbrev RecT (Expr State : Type) (GF : BundledGFunctors) :=
-  (Trace Expr State → IProp GF) → Nat → IProp GF
+  (Trace (Cfg Expr State) → IProp GF) → Nat → IProp GF
 
 /-- A running system: a resource indexed by the position and the configuration
 (Rocq `sysT`). -/
@@ -72,8 +72,8 @@ For an until, the record of its left or right formula at `n`, or, if it was disc
 @[lantana_alias cert_pre]
 def certPre (tg : RecT Expr State GF) (n : Nat) : RegEntry → IProp GF
   | .mark => iprop(True)
-  | .always _ γ => iprop(∃ f : Trace Expr State → IProp GF, savedTrI γ f ∗ ▷ tg f n)
-  | .until _ k γP γQ => iprop(∃ fP fQ : Trace Expr State → IProp GF,
+  | .always _ γ => iprop(∃ f : Trace (Cfg Expr State) → IProp GF, savedTrI γ f ∗ ▷ tg f n)
+  | .until _ k γP γQ => iprop(∃ fP fQ : Trace (Cfg Expr State) → IProp GF,
       savedTrI γP fP ∗ savedTrI γQ fQ ∗
       (▷ (tg fP n ∨ tg fQ n) ∨
         ▷ (∃ (n' i' : Nat) (Ω' : Obls),
@@ -184,18 +184,18 @@ variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Val]
 @[lantana_alias record_trI]
 def recordTrI : RecT Expr State GF := fixpoint recordPre
 
-theorem recordTrI_eq (f : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_eq (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     recordTrI f n = recordPre recordTrI f n :=
   congrFun (congrFun (fixpoint_unfold (recordPre (Expr := Expr) (State := State)
     (GF := GF)).toContractiveHom) f) n
 
 @[lantana_alias record_trI_unfold]
-theorem recordTrI_unfold (f : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_unfold (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     recordTrI f n ⊣⊢ recordPre recordTrI f n :=
   BiEntails.of_eq (recordTrI_eq f n)
 
 @[lantana_alias record_trI_persistent]
-instance recordTrI_persistent (f : Trace Expr State → IProp GF) (n : Nat) :
+instance recordTrI_persistent (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     Persistent (recordTrI f n) := by
   rw [recordTrI_eq]
   unfold recordPre
@@ -203,7 +203,7 @@ instance recordTrI_persistent (f : Trace Expr State → IProp GF) (n : Nat) :
 
 @[lantana_alias record_trI_ne]
 instance recordTrI_ne (n : Nat) :
-    OFE.NonExpansive (fun f : Trace Expr State → IProp GF => recordTrI f n) where
+    OFE.NonExpansive (fun f : Trace (Cfg Expr State) → IProp GF => recordTrI f n) where
   ne k f₁ f₂ hf := by
     simp only [recordTrI_eq]
     unfold recordPre
@@ -213,7 +213,7 @@ instance recordTrI_ne (n : Nat) :
 
 /-- Records of internally equal readings (the agreement of saved readings is internal). -/
 @[lantana_alias record_trI_eq]
-theorem recordTrI_internalEq (f g : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_internalEq (f g : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(f ≡ g) ⊢ recordTrI f n -∗ recordTrI g n :=
   wand_intro <| sep_and.trans <| imp_elim (internalEq.rewrite (fun f => recordTrI f n))
 
@@ -273,7 +273,7 @@ instance sysStep_persistent (Sys : SysT Expr State GF) : Persistent (sysStep Sys
 /-! ### Introducing and eliminating records -/
 
 @[lantana_alias record_trI_intro]
-theorem recordTrI_intro (f : Trace Expr State → IProp GF) (n : Nat) :
+theorem recordTrI_intro (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
       (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
@@ -290,7 +290,7 @@ theorem recordTrI_intro (f : Trace Expr State → IProp GF) (n : Nat) :
   exact .rfl
 
 @[lantana_alias record_trI_elim]
-theorem recordTrI_elim (f : Trace Expr State → IProp GF) {Sys : SysT Expr State GF}
+theorem recordTrI_elim (f : Trace (Cfg Expr State) → IProp GF) {Sys : SysT Expr State GF}
     {l : List (Nat × RegEntry)} {h : List (HistEntry Expr State)} {n : Nat} {g : List MEvent}
     {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
@@ -337,7 +337,7 @@ theorem record_elim (G : TrSpec Expr State GF) {Sys : SysT Expr State GF}
   recordTrI_elim G.internal
 
 /-- Records are monotone in the reading. -/
-theorem recordTrI_mono {f f' : Trace Expr State → IProp GF} (hf : ∀ τ, f τ ⊢ f' τ) (n : Nat) :
+theorem recordTrI_mono {f f' : Trace (Cfg Expr State) → IProp GF} (hf : ∀ τ, f τ ⊢ f' τ) (n : Nat) :
     recordTrI f n ⊢ recordTrI f' n := by
   rw [recordTrI_eq, recordTrI_eq]
   unfold recordPre
