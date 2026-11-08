@@ -150,3 +150,14 @@ than through `fair_mono`, because `fair_mono`'s hypotheses are entailments on ev
 schedule only holds from `τ.pos` on.  Group C (`abfc86c`, merged): `FairLabel.lean` and
 `FairScheduling.lean`, 19 theorems, no statement changed; the fair-labelling proof carries over
 with the claim's `τ.pos ≤ n` conjunct and the claims taken from `max N τ.pos`.
+Group A (`44e3146`, merged): `AttemptGrant.lean` and `Action.lean`, the bridge and 31 theorems, no
+statement changed; one helper, `always_eventually_iff_infOften_from` (the bridge with positions
+shifted by `τ.pos`), because `IsCounter` constrains the counter from `τ.pos` on while the engine's
+counter constrains every position, so the counter-to-fairness direction of `fair_iff_counter`
+shifts the run.  **S2 complete**: 74 theorems proved, `lake build Lantana.Temporal.Fairness
+Lantana.Temporal.FairScheduling --wfail` green (76 jobs), no `sorry` under `Lantana/Temporal`,
+`scripts/audit.sh` ok.  The theory is not yet imported by the aggregator (S3).
+
+- Task S3 (one Opus prover): the switch to the new theory, Lantana's fair-scheduling facts, the
+  adequacy proofs on the `TrProp` statements, the examples' fairness proofs, tests, docs.  Brief
+  `briefs/brief-S3.md`.
