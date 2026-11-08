@@ -116,3 +116,30 @@ since an abbreviation with the old name at a different arity is impossible and r
 
 - Task S1 (lean-prover-1): the layer `Lantana/Temporal/{Trace,TracePropRules,Pool}.lean`, Lantana's
   instance of `Pool`, the use sites, the layering script, the docs.  Brief `briefs/brief-S1.md`.
+
+Result S1 (`4588f1a`, merged, lean-prover-1): `Lantana/Temporal/{Trace,TracePropRules,Pool}.lean`
+(178 + 463 + 92 lines) and `LantanaTest/Temporal.lean` (78); the generic `Trace C`, `TsProp C`,
+`TrProp C`, the connectives with the new atoms `step`, `not` (`¬ₜ`), `atPos`, the rules with
+tail invariance, the classical dualities, the position bridges and `Absolute`; the class `Pool`
+(`Step`, `active`), `Steps`, `active`, `inactive`, `IsBehavior := □ₜ ∃ₜ i, Steps i`,
+`IsBehaviorOf`, `Schedule`, `StepsInfOften` with unfolding lemmas (`Iff.rfl`); Lantana's instance
+`Pool (Cfg Expr State) := ⟨TraceStep, Cfg.active⟩` in `ProgramLogic/Trace.lean`; 193 replacements
+of the two-argument trace types in 43 files; `check-imports.sh` with the layer `Temporal` after
+`Prelude`; README and paper-correspondence rows.  Only three proofs needed more than the rename
+(the two `loopRun_behavior`, `IsBehavior.poolRun`, all through `isBehavior_iff`).  Note: the layer
+has no Iris logic, but `Lantana.Init` and `Prelude.Ids` bring `Iris.Init` and `Iris.Std`.
+
+S2 hand-out.  The lead wrote the skeleton of the theory over `TrProp`
+(`Lantana/Temporal/Fairness/{AttemptGrant,Action,Sched,Thread,FairLabel}.lean`,
+`Lantana/Temporal/Fairness.lean`, `Lantana/Temporal/FairScheduling.lean`): every definition and
+every theorem statement, proofs `sorry`, the ported `MissHit` engine spliced in unchanged; it
+typechecks (`lake build Lantana.Temporal`, 77 jobs).  Committed as a WIP on this branch so that
+the three provers branch from one base; the branch has `sorry`s until the three merges land, and
+the audit is run after them.  Provers: A (lean-prover-1) `AttemptGrant` and `Action`;
+B (lean-prover-2) `Sched` and `Thread`; C (lean-prover-3) `FairLabel` and `FairScheduling`.
+Two statement fixes while typechecking: dot notation does not work on `TrProp C` (an abbreviation
+of a function type), so the bridge is `TrProp.along P τ`; `Sched.stepsInfOften_of_sf` needs the
+ascription `: TrProp C`.
+The skeleton reuses the namespace `Lantana.Fairness` of the positional theory still in
+`Lantana/Trace/Fairness/`, so it is not imported by the `Lantana.Temporal` aggregator until S3
+deletes the old theory (both in one environment clash); the provers build their modules by name.
