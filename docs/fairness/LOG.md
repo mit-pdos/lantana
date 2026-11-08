@@ -161,3 +161,21 @@ Lantana.Temporal.FairScheduling --wfail` green (76 jobs), no `sorry` under `Lant
 - Task S3 (one Opus prover): the switch to the new theory, Lantana's fair-scheduling facts, the
   adequacy proofs on the `TrProp` statements, the examples' fairness proofs, tests, docs.  Brief
   `briefs/brief-S3.md`.
+
+Result S3 (`54e399b`, merged, lean-prover-2): `Lantana/Trace/Fairness/` (positional theory, 1456
+lines) deleted; the aggregator `Lantana.Temporal` imports the theory and the generic fair
+scheduling; `Lantana/Trace/FairScheduling.lean` holds only Lantana's instance facts
+(`Cfg.active_convex' : IsBehavior ⊆ Action.Convex (Cfg.active i)`, `fairScheduling_sf_iff_wf'`);
+the adequacy facts are `Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧ owitInvLb … ∧ histTrace`,
+read at `n` with `schedule_iff`/`behFscnt_iff`; `GuaranteeRules.lean` and
+`TemporalFormulaRules.lean` compiled unchanged; `lwp_adequacy_temporal`/`lwp_adequacy_safety`
+keep their statements, with `fairScheduling` now the generic trace property at Lantana's instance;
+the two `loopRun_fair` proofs redone; `LantanaTest/Fairness.lean` rewritten (nine axiom guards:
+`Action.sf_iff_wf_of_convex` and `fairScheduling_sf_iff_wf` use `propext` only,
+`labelledView_of_sf` no axiom, the rest the standard three); `Cfg.inactive` kept in the two
+stutter lemmas of `Step.lean`.  **Step 2 complete.**  Final checks on `agent/fairness`:
+`lake build --wfail` 384 jobs, `lake test` 413 jobs (exit 0), `scripts/audit.sh` ok,
+`scripts/check-imports.sh` ok (290 imports).  The new layer `Lantana/Temporal` is 2182 lines
+(100 theorems in the fairness modules); the branch differs from `main` in 65 Lean files
+(+3226/−1180).  No sub worktree or branch left.  Still for the owner: `docs/rocq-correspondence.md`
+is stale (no Rocq checkout here).  Next: M2, `docs/fairness/DESIGN.md`.
