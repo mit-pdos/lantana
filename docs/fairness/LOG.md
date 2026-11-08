@@ -45,3 +45,22 @@ least-witness copies replaced by `Lantana.Nat.*` (12 call sites), one `show` →
 changed.  Lead's fix after the merge: the naming policy's last sentence, which named MachCSL's
 `Fairness.lean`, now points at the language instance.  Green after both merges: build 379 jobs,
 test 407 jobs, audit ok, check-imports ok (281 imports).  Sub worktrees and branches removed.
+
+Task 1c (`4010d76`, merged, lean-prover-3): the instance `Fairness.Pool (Cfg Expr State)` with
+`TraceStepOf` as the step, `IsBehavior.poolRun`, `isBehavior_of_schedule`, `Cfg.active_convex'`,
+`fairScheduling_sf_iff_wf` (fair scheduling is weak fairness, since activity is convex),
+`BehFscntSched`, `behFscntSched_of_counters`, `exists_behFscntSched_of_fair_schedule`,
+`exists_fair_schedule_behFscnt`, `behFscnt_of_behFscntSched`, and the relabelling corollary
+`IsBehavior.exists_relabel_behFscnt` (a fairly scheduled behavior relabelled by a fair schedule has
+fairness counters); one explicit `(active := Cfg.active)` was needed.  **Commit 1 complete**: the
+theory and Lantana's instance, with the labelled traces still in place.  Green: build 379 jobs,
+test 407 jobs, audit ok, check-imports ok (282 imports).
+
+## 2. Commit 2, the behavior refactor: tasks handed out (2026-11-08)
+
+- Task 2a (one Opus prover): the label removed from `Trace`, `fairScheduling := ∀ i, Sched.SF
+  Cfg.active i τ.seq`, `BehFscnt` the counters of a run under a schedule, the schedule threaded
+  through `Guarantee`, `TemporalFormulaRun`, `Adequacy/{Step,RunStep,Temporal,Safety}`, safety
+  strengthened to "no thread of the pool is stuck"; target `lake build Lantana.Trace --wfail`.
+  Brief: `local-plan/lantana-fairness/briefs/brief-2a.md`.
+- Task 2b (after 2a): the examples, the tests and the README; brief `brief-2b.md`.
