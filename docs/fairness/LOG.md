@@ -219,3 +219,17 @@ layer 1's action becomes a structure `Fairness.Action` (`enabled`, `grant`); the
 `Action.strong` (SF), `Action.weak` (WF), `Action.own i` (the thread's view), `Sched.assumption i`.
 The theory refactoring is task S5 (lean-prover-1, brief `briefs/brief-S5.md`); the `lwp` update
 itself is on hold while the owner brainstorms.
+
+Result S5 (`5c24499`, merged, lean-prover-1): `Action` is a structure (`enabled`, `grant`) with the
+atoms `enabledNow`, `granted`; layer 1, `Scheduling` (`Sched.action i`, `labelledView sched i a`),
+layer 2 and the two Lantana statements in `ProgramLogic/Configuration.lean` are restated over `a`,
+every theorem name kept; the new `Temporal/Fairness/Assumption.lean` (263 lines): `Assumption`
+(`attempt`, `grant`), `attempted`, `granted`, `hit`, `miss`, `holds`, `IsCounter`, `Certain`,
+`Move`, `move` with `move_eq_*_iff`, `holds_absolute`, `holds_iff_attempted`, `holds_iff_counter`,
+`counter_of_holds`, `holds_of_counter`, `IsCounter.mono`, the three rules by move, `isCounter_iff_move`,
+`holds_of_certain`, `counter_zero_of_certain`; the constructors `Action.strong/weak/own`,
+`Sched.assumption` with `holds_strong`, `isCounter_strong`, `holds_weak` (the WF equivalence, a real
+proof), `holds_own`, `isCounter_own`, `holds_assumption`.  Prover's calls accepted: `Sched.grant`
+kept as the relation, `stepsInfOften_of_sf`'s premise stays `□ₜ ◇ₜ active i`.  Green: build 384
+jobs, test green, audit ok, check-imports ok (288 imports).  The lane branch is ready to merge into
+`fairness` when the owner asks.
