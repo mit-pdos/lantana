@@ -46,13 +46,13 @@ def Cfg.ifTermVal (j : ThreadId) (Φ : ThreadId → Val → Prop) (ρ : Cfg Expr
 /-- The safety facts at the current position: no thread of the pool is stuck and a terminated
 thread `j` satisfies `Φ j`. -/
 def safeNow (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
-  TrProp.now Cfg.notStuck ∧ₜ TrProp.now (Cfg.ifTermVal (Val := Val) j Φ)
+  TrProp.atomic Cfg.notStuck ∧ₜ TrProp.atomic (Cfg.ifTermVal (Val := Val) j Φ)
 
 /-- Iris-style safety: always, no thread of the pool is stuck and a terminated thread `j`
 satisfies `Φ j` (Rocq `safety_iris`). -/
 @[lantana_alias safety_iris]
 def safetyIris (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
-  □ₜ (TrProp.now Cfg.notStuck ∧ₜ TrProp.now (Cfg.ifTermVal (Val := Val) j Φ))
+  □ₜ (TrProp.atomic Cfg.notStuck ∧ₜ TrProp.atomic (Cfg.ifTermVal (Val := Val) j Φ))
 
 section SafetyTrI
 
@@ -86,7 +86,7 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
     (γ : Nat → ThreadId → Nat) (j : ThreadId) (Φ : ThreadId → Val → Prop) :
     ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
       (Ψ : ThreadId → Val → IProp GF) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses),
-      ⌜Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
+      ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
         owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf ∧ j < tp.length ∧
         ∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ -∗
       historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ threadsRun tp Ψ -∗
@@ -115,11 +115,11 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
   imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W',
     %⟨hLb', hh', -, hns, hle, hΨ'⟩, -, HH, HM, HT⟩
   have hsafe : safeNow (Expr := Expr) (State := State) j Φ ⟨n, τf⟩ := by
-    unfold safeNow TrProp.and TrProp.now
+    unfold safeNow TrProp.and TrProp.atomic
     refine ⟨hns, ?_⟩
     simp only [Trace.now, hnow]
     exact hval
-  have hfacts : Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
+  have hfacts : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
       j < tp'.length ∧ ∀ v, Ψ' j v ⊢ ⌜Φ j v⌝ :=
     ⟨hsch, hcnt, hLb', hh', Nat.lt_of_lt_of_le hj hle, by rw [hΨ' j hj]; exact hΨ⟩
@@ -155,7 +155,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
   obtain ⟨n, τf⟩ := τ
   simp only at hpos hinit
   subst hpos
-  obtain ⟨sched, γc, hsch, hγc⟩ := exists_fair_schedule_behFscnt hbeh hfair
+  obtain ⟨sched, γc, hsch, hγc⟩ := exists_fair_schedule_schedCounters hbeh hfair
   obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp)
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
@@ -203,7 +203,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
   imod mupd_modelInterp_steps (fairMeasure (γc 0)) (owitInvLbMonoFair_fairMeasure _) ⊤ ⊤
     [(σ, tp)] 0 σ tp [(0, ∅)] 0 ∅ ∅ _ hLb₀ $$ Hwp HHT HM
     with ⟨HT, HHT, %g', %v', %Ω', %W', %⟨-, hLb'⟩, HM⟩
-  have hfacts : Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γc ⟨0, τf⟩ ∧
+  have hfacts : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γc ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γc 0)) Ω' W' ∧ histTrace [(σ, tp)] τf ∧ j < tp.length ∧
       ∀ v, Ψ j v ⊢ ⌜Φ j v⌝ :=
     ⟨hsch, hγc, hLb', hh₀, hj, hΨ⟩

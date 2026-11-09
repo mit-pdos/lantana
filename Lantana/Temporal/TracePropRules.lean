@@ -8,30 +8,26 @@ public import Lantana.Temporal.Trace
 
 /-! # Rules of trace entailment
 
-The rules of `R ⊆ S` (Rocq `trace_prop_rules.v`), over traces of any configuration type:
-connectives, the step, negation and position atoms, the laws of LTL, the tail invariance of
-`□ₜ ◇ₜ` and `◇ₜ □ₜ` with their classical dualities and their bridges to positions, the absolute
-properties (the same at every position of a run), and the fixpoint rules. Everything is provable
-by unfolding; `TrProp.unfold` is the escape hatch. The rules of Lantana's state atom are in
-`Lantana.Trace.StateAtom`.
+The rules of `R ⊆ S` (Rocq `trace/trace_prop_rules.v`): introduction, elimination and
+monotonicity for the connectives and the atoms, coinduction for `□ₜ` and induction for `Uₜ`, the
+classical dualities, infinitely often and eventually always read at positions, the absolute
+properties (`Absolute`, the same at every position of a run), and the fixpoint rules.
+See `docs/temporal.md`.
 -/
 
 @[expose] public section
 
 namespace Lantana.TrProp
 
-
 variable {C : Type}
 variable {R S X A B P Q R' S' A' : TrProp C}
 
 open scoped Lantana.TrProp
 
-/-- The definitions, for `simp` (Rocq `tr_unfold`). -/
-@[lantana_alias tr_unfold]
-theorem unfold : True := trivial
+#lantana_ignore tr_unfold "the definitions are a local simp set"
 
 attribute [local simp] le HasSubset.Subset pure and or imp all ex always strongUntil eventually next
-  now step not atPos
+  atomic step not atPos
 
 @[simp] theorem pos_set_pos (τ : Trace C) (m : Nat) :
     ({ τ with pos := m } : Trace C).pos = m := rfl
@@ -154,12 +150,13 @@ theorem ex_elim {α : Sort _} {P : α → TrProp C} (h : ∀ a, P a ⊆ S) :
 theorem ex_mono {α : Sort _} {P Q : α → TrProp C} (h : ∀ a, P a ⊆ Q a) :
     (∃ₜ a, P a) ⊆ (∃ₜ a, Q a) := fun τ ⟨a, ha⟩ => ⟨a, h a τ ha⟩
 
-/-! ## Step, negation and position -/
+/-! ## Atoms and negation -/
 
 theorem step_mono {T T' : C → C → Prop} (h : ∀ c c', T c c' → T' c c') : step T ⊆ step T' :=
   fun _ hT => h _ _ hT
 
-theorem now_mono {φ ψ : TsProp C} (h : ∀ c, φ c → ψ c) : now φ ⊆ now ψ := fun _ hφ => h _ hφ
+theorem atomic_mono {φ ψ : AProp C} (h : ∀ c, φ c → ψ c) : atomic φ ⊆ atomic ψ :=
+  fun _ hφ => h _ hφ
 
 theorem not_intro (h : (R ∧ₜ A) ⊆ ⌜False⌝ₜ) : R ⊆ ¬ₜ A := fun τ hR hA => h τ ⟨hR, hA⟩
 

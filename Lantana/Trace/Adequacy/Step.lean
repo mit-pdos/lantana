@@ -14,9 +14,9 @@ schedule names at position `n` (`sched n`, the adequacy proof's instrument), wit
 strictly decrease and keep both witness invariants exist (`mprog_exists_step`). The witness of an
 assigned obligation with fuel `a` and owner `o` is the fair-scheduler measure
 `fairMeasure (γ (n + 1)) o a` of the next position: the fuel of the named thread's obligations
-dropped, the fairness counter of every other active owner dropped (D18: the counters are an
-explicit sequence `γ` along the run under the schedule, the trace property `BehFscnt` of the run
-from position `0`, so no choice is needed for them).
+dropped, the fairness counter of every other active owner dropped (the counters are an
+explicit sequence `γ` along the run under the schedule, the trace property `SchedCounters` of the
+run from position `0`, so no choice is needed for them).
 
 The ghost-state part: from the model interpretation and the `Th.done` tokens of the finished
 threads, every assigned obligation's owner is active (`getOblsThreadActive`); a stutter of a
@@ -43,7 +43,7 @@ def oblsThreadActive (Ω : Obls) (ρ : Cfg Expr State) : Prop :=
 one for the obligations of the thread the schedule names (whose fuel dropped) and for the other
 active owners (whose counter dropped). -/
 theorem fairMeasure_next_lt {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hcnt : BehFscnt sched γ ⟨0, τf⟩) {n : Nat} {i o o' : ThreadId}
+    {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat} {i o o' : ThreadId}
     {a a' : Fuel} (hi : sched n = i) (hact : (τf n).active o)
     (h : (o = i ∧ a' < a) ∨ (o ≠ i ∧ a' = a ∧ o' = o)) :
     fairMeasure (γ (n + 1)) o' a' < fairMeasure (γ n) o a := by
@@ -51,7 +51,7 @@ theorem fairMeasure_next_lt {τf : Nat → Cfg Expr State} {sched : Nat → Thre
   · exact fairMeasure_lt_mono hlt
   · rw [ha, ho]
     have hdec : γ (n + 1) o < γ n o := by
-      rcases behFscnt_iff.mp hcnt n (Nat.zero_le n) o with hna | ⟨-, hturn | hlt⟩
+      rcases schedCounters_iff.mp hcnt n (Nat.zero_le n) o with hna | ⟨-, hturn | hlt⟩
       · exact absurd hact hna
       · exact absurd (hturn.symm.trans hi) hne
       · exact hlt
@@ -65,7 +65,7 @@ decrease the assigned witnesses and keep the witness invariant and its lower bou
 theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} {Ω₁ Ω₂ : Obls} {W₁ : Witnesses}
     (hi : sched n = i) (hact : oblsThreadActive Ω₁ (τf n)) (hI : owitInvFair Ω₁ W₁)
-    (hLb : owitInvLb (fairMeasure (γ n)) Ω₁ W₁) (hcnt : BehFscnt sched γ ⟨0, τf⟩)
+    (hLb : owitInvLb (fairMeasure (γ n)) Ω₁ W₁) (hcnt : SchedCounters sched γ ⟨0, τf⟩)
     (hprog : Obls.condProgress (Obl.condOwner i) Ω₁ Ω₂) :
     ∃ W₂ : Witnesses, Witnesses.condProgress Witness.condAssigned W₁ W₂ ∧ owitInvFair Ω₂ W₂ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω₂ W₂ := by
@@ -173,7 +173,7 @@ owners lose a counter. -/
 @[lantana_alias obls_drop_step]
 theorem oblsDrop_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} (hi : sched n = i)
-    (hcnt : BehFscnt sched γ ⟨0, τf⟩) {Ω Ω₀ Ω₂ Ω' : Obls} (h₀ : Obls.le Ω Ω₀)
+    (hcnt : SchedCounters sched γ ⟨0, τf⟩) {Ω Ω₀ Ω₂ Ω' : Obls} (h₀ : Obls.le Ω Ω₀)
     (hprog : Obls.condProgress (Obl.condOwner i) Ω₀ Ω₂) (h₂ : Obls.le Ω₂ Ω')
     (hact : oblsThreadActive Ω₂ (τf n)) :
     oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' := by
@@ -225,7 +225,7 @@ theorem oblsDrop_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
 fairness counters (Rocq `obls_drop_na`). -/
 @[lantana_alias obls_drop_na]
 theorem oblsDrop_na {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hcnt : BehFscnt sched γ ⟨0, τf⟩) {n : Nat}
+    {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat}
     (hna : (τf n).inactive (sched n)) {Ω : Obls} (hact : oblsThreadActive Ω (τf n)) :
     oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω := by
   intro k fu o fu' o' hk hk'
@@ -242,7 +242,7 @@ the next position (Rocq `owit_inv_lb_step_na_turn`): the counter of every active
 dropped. -/
 @[lantana_alias owit_inv_lb_step_na_turn]
 theorem owitInvLb_step_na_turn {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hcnt : BehFscnt sched γ ⟨0, τf⟩) {n : Nat}
+    {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat}
     (hna : (τf n).inactive (sched n)) {Ω : Obls} {W : Witnesses}
     (hact : oblsThreadActive Ω (τf n)) (hLb : owitInvLb (fairMeasure (γ n)) Ω W) :
     owitInvLb (fairMeasure (γ (n + 1))) Ω W := by

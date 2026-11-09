@@ -8,21 +8,12 @@ public import Lantana.Temporal.Fairness.Scheduling
 
 /-! # Fair labelling
 
-Every behavior on which each thread is fairly scheduled admits a schedule that is fair as well
-(`exists_fair_schedule`): a schedule names one stepping thread at each position from the current
-one on, and it is fair when every thread active infinitely often is named infinitely often while
-active.  No behavior and no assumption names the thread that takes a step, but the adequacy proof
-needs one owner per step; the theorem says that the owner can be chosen fairly.
-
-A *claim* of thread `i` is a position at or after the current one where `i` is active and the
-step taken is one of `i`'s steps.  The construction is diagonal: stage `s` visits the threads
-`0, …, s`; a frontier only moves forward; a visited thread with a claim at or beyond the frontier
-takes the least such claim and the frontier moves just past it.  Two visits never take the same
-position (`takes_unique`), and a thread with infinitely many claims takes positions as far out as
-wanted (`exists_takes_ge`).  The schedule names at a taken position the thread that took it, at
-any other position at or after the current one some thread that steps there, and `0` before the
-current position, where a schedule is unconstrained.  Classical; the names in `FairLabel` are
-auxiliary.
+A behavior on which every thread is fairly scheduled has a schedule that names every thread active
+infinitely often infinitely often while active (`exists_fair_schedule`), by a diagonal
+construction in `FairLabel`: stage `s` visits the threads `0, …, s`, and a visited thread takes
+its least claim beyond a frontier that only moves forward.  Under such a schedule the fairness
+counters exist (`exists_fair_schedule_schedCounters`).
+See `docs/temporal.md`.
 -/
 
 @[expose] public section
@@ -30,8 +21,6 @@ auxiliary.
 namespace Lantana.Fairness
 
 open scoped Lantana.TrProp
-
-/-! ## 6. The schedule as a proof instrument: fair labelling -/
 
 namespace FairLabel
 
@@ -76,12 +65,11 @@ variable {C : Type} [ThreadSystem C] (τ : Trace C)
 active at `n`, and the step taken at `n` is one of its steps. -/
 def claim (i n : Nat) : Prop :=
   τ.pos ≤ n ∧ ThreadSystem.active i (τ.seq n) ∧
-    ThreadSystem.Step i (τ.seq n) (τ.seq (n + 1))
+    ThreadSystem.step i (τ.seq n) (τ.seq (n + 1))
 
 open Classical in
-/-- The frontier before visit `k`.  The thread visited at `k` takes its least claim at or beyond
-the frontier, if it has one, and the frontier moves just past that claim.  Otherwise the frontier
-stays. -/
+/-- The frontier before visit `k`: the thread visited at `k` takes its least claim at or beyond
+the frontier, if it has one, and the frontier moves just past that claim. -/
 noncomputable def front : Nat → Nat
   | 0 => 0
   | k + 1 =>
@@ -155,7 +143,7 @@ noncomputable def sched (hrun : IsBehavior τ) (n : Nat) : ThreadId :=
 
 /-- The schedule names a stepping thread at every position from the current one on. -/
 theorem sched_step (hrun : IsBehavior τ) {n : Nat} (hn : τ.pos ≤ n) :
-    ThreadSystem.Step (sched hrun n) (τ.seq n) (τ.seq (n + 1)) := by
+    ThreadSystem.step (sched hrun n) (τ.seq n) (τ.seq (n + 1)) := by
   rw [sched]
   split
   · next h => exact h.choose_spec.2.1.2.2
@@ -171,14 +159,11 @@ end FairLabel
 
 variable {C : Type} [ThreadSystem C] {τ : Trace C}
 
-/-- **Fair labelling.**  A behavior on which every thread is fairly scheduled (`Sched.SF`: a thread
-active infinitely often steps infinitely often) admits a schedule under which every thread active
-infinitely often is named infinitely often while active.  The adequacy proof uses the schedule
-for its per-thread bookkeeping; no assumption mentions it. -/
+/-- **Fair labelling.**  A behavior on which every thread is fairly scheduled admits a schedule
+under which every thread active infinitely often is named infinitely often while active. -/
 theorem exists_fair_schedule (hrun : IsBehavior τ) (hsf : ∀ i, Sched.SF i τ) :
     ∃ sched : Nat → ThreadId, Schedule sched τ ∧
-      ∀ i, (□ₜ ◇ₜ active i) τ →
-        (□ₜ ◇ₜ (active i ∧ₜ TrProp.atPos fun n => sched n = i)) τ := by
+      ∀ i, (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ := by
   refine ⟨FairLabel.sched hrun, schedule_iff.mpr fun _ hn => FairLabel.sched_step hrun hn, ?_⟩
   intro i hA
   have hcl : MissHit.InfOften (FairLabel.claim τ i) := by
@@ -191,12 +176,38 @@ theorem exists_fair_schedule (hrun : IsBehavior τ) (hsf : ∀ i, Sched.SF i τ)
   obtain ⟨k, n, hk, hN, ht⟩ := FairLabel.exists_takes_ge hcl N
   exact ⟨n, hN, hk ▸ ht.2.1.2.1, (FairLabel.sched_of_takes hrun ht).trans hk⟩
 
-/-- Under a fair schedule the thread's scheduling counter exists: it resets where the schedule
-names the thread, drops where the thread is active and not named, and stays where it is inactive.
-Normalised, this is `BehFscnt` (`Lantana.Temporal.FairScheduling`). -/
+/-- Under a fair schedule the thread's counter exists: it resets where the schedule names the
+thread, drops where the thread is active and not named, and stays where it is inactive. -/
 theorem Sched.exists_counter_of_fair_schedule {sched : Nat → ThreadId} {i : ThreadId}
-    (hfair : (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ TrProp.atPos fun n => sched n = i)) τ) :
-    ∃ δ, AttemptGrant.IsCounter (active i) (TrProp.atPos fun n => sched n = i) δ τ :=
+    (hfair : (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ) :
+    ∃ δ, AttemptGrant.IsCounter (active i) (scheduled sched i) δ τ :=
   AttemptGrant.fair_iff_counter.1 (AttemptGrant.fair_iff_attempt.2 hfair)
 
 end Lantana.Fairness
+
+namespace Lantana
+
+open scoped Lantana.TrProp
+
+variable {C : Type} [ThreadSystem C] {τ : Trace C}
+
+/-- Under a schedule that names every thread active infinitely often infinitely often while it is
+active, the run has fairness counters. -/
+theorem exists_schedCounters_of_fair_schedule {sched : Nat → ThreadId}
+    (hfair : ∀ i, (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ) :
+    ∃ γ, SchedCounters sched γ τ :=
+  ⟨fun m i => Classical.choose (Fairness.Sched.exists_counter_of_fair_schedule (hfair i)) m,
+    schedCounters_of_counters fun i =>
+      Classical.choose_spec (Fairness.Sched.exists_counter_of_fair_schedule (hfair i))⟩
+
+/-- A behavior on which every thread is fairly scheduled admits a schedule and fairness counters
+under it. -/
+@[lantana_alias fair_scheduling_fscnt]
+theorem exists_fair_schedule_schedCounters (hrun : IsBehavior τ) (hsf : fairScheduling τ) :
+    ∃ (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
+      Schedule sched τ ∧ SchedCounters sched γ τ := by
+  obtain ⟨sched, hsch, hfair⟩ := Fairness.exists_fair_schedule hrun hsf
+  obtain ⟨γ, hγ⟩ := exists_schedCounters_of_fair_schedule hfair
+  exact ⟨sched, γ, hsch, hγ⟩
+
+end Lantana

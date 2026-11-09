@@ -6,21 +6,15 @@ module
 
 public import Lantana.Temporal.Fairness.MissHit
 
-/-! # The attempt–grant pair (layer 0)
+/-! # The core: attempt–grant fairness over trace properties
 
-Layer 0 of the attempt–grant model of fairness, over trace properties: two predicates on traces,
-the *attempts* and the *grants*; a hit is a granted attempt, a miss a refused one; attempt–grant
-fairness says that infinitely many misses force infinitely many hits (`Fair`), and it is the
-existence of a counter, the budget of refusals before the next grant (`fair_iff_counter`).  The
-counter's rules (`counter_reset`, `counter_drop`, `counter_stay`) are stated here once, for every
-layer; restriction (`fair_mono`, with the inclusions holding from the current position on, and
-`fair_mono_of_le`, with entailments) and a certain grant (`fair_of_certain`) too.
-
-The statements are trace properties read at the current position of a trace `τ`; every formula
-is a `□ₜ`, `◇ₜ` or an implication between such, so it is the same at every position of the run
-(`TrProp.Absolute`).  They are proved from the engine `MissHit`
-(`Lantana.Temporal.Fairness.MissHit`), arithmetic on positions that is not part of the theory's
-interface, through the bridge `always_eventually_iff_infOften`.
+`AttemptGrant` is the core of the fairness theory, over two trace properties, the attempts and the
+grants: `hit`, `miss`, `Fair` (infinitely many misses force infinitely many hits), `IsCounter`
+and `Certain`.  Its theorems are stated once for every instance: the meaning (`fair_iff_attempt`),
+the counter (`fair_iff_counter`) and its rules (`counter_reset`, `counter_drop`, `counter_stay`),
+what it bounds (`counter_bounds_misses`), restriction (`fair_mono`) and a certain grant
+(`fair_of_certain`).  They are proved from the engine `MissHit`.
+See `docs/temporal.md`.
 -/
 
 @[expose] public section
@@ -28,8 +22,6 @@ interface, through the bridge `always_eventually_iff_infOften`.
 namespace Lantana.Fairness
 
 open scoped Lantana.TrProp
-
-/-! ## 1. Layer 0: the attempt–grant pair over trace properties (`AttemptGrant`) -/
 
 namespace AttemptGrant
 
@@ -95,21 +87,10 @@ theorem fair_iff_attempt :
   · intro h hinf
     exact h (MissHit.infOften_mono (fun _ hm => hm.1) hinf)
 
-/-- A response property gives fairness: every attempt is followed by a granted attempt, at it or
-later. -/
-theorem fair_of_response : (□ₜ (attempt →ₜ ◇ₜ hit attempt grant)) ⊆ Fair attempt grant := by
-  intro τ h hmiss
-  refine TrProp.always_eventually_iff.mpr fun n hn => ?_
-  obtain ⟨m, hm, ha, -⟩ := TrProp.always_eventually_iff.mp hmiss n hn
-  obtain ⟨k, hk, hhit⟩ := TrProp.eventually_iff.mp (h m (Nat.le_trans hn hm) ha)
-  exact ⟨k, Nat.le_trans hm hk, hhit⟩
-
 /-! ### The counter and its rules
 
-Attempt–grant fairness is the existence of a counter.  At a granted attempt the counter resets, at
-a refused attempt it drops by one, and where there is no attempt it stays.  The three rules are
-the counter's definition (`isCounter_iff`).  The rules are stated at the current position; a
-counter from `τ` is a counter from every later position (`IsCounter.mono`). -/
+At a granted attempt the counter resets, at a refused attempt it drops by one, and where there is
+no attempt it stays (`isCounter_iff`).  The rules are stated at the current position. -/
 
 /-- Attempt–grant fairness is the existence of a counter. -/
 theorem fair_iff_counter : Fair attempt grant τ ↔ ∃ δ, IsCounter attempt grant δ τ := by
@@ -127,8 +108,9 @@ theorem fair_iff_counter : Fair attempt grant τ ↔ ∃ δ, IsCounter attempt g
       ⟨fun _ => (hδ _ (Nat.le_add_right _ _)).1, fun _ => (hδ _ (Nat.le_add_right _ _)).2.1,
         fun _ hh hm => (hδ _ (Nat.le_add_right _ _)).2.2 fun ha =>
           (attempt_iff.1 ha).elim hh hm⟩
-    exact always_eventually_iff_infOften_from.2
-      (MissHit.fair_of_counter hδ' (always_eventually_iff_infOften_from.1 hmiss))
+    have hinf := (MissHit.infOften_shift (k := τ.pos)).2 (always_eventually_iff_infOften.1 hmiss)
+    exact always_eventually_iff_infOften.2
+      (MissHit.infOften_shift.1 (MissHit.fair_of_counter hδ' hinf))
 
 /-- Attempt–grant fairness gives a counter. -/
 theorem counter_of_fair (hag : Fair attempt grant τ) : ∃ δ, IsCounter attempt grant δ τ :=
@@ -215,9 +197,7 @@ theorem counter_bounds_misses (hδ : IsCounter attempt grant δ τ) (k : Nat)
 /-! ### Restriction -/
 
 /-- Fairness survives shrinking the attempts to a subset that still contains every granted
-attempt, the two inclusions holding from the current position on: the attempts of the smaller
-pair are attempts of the larger one, and every granted attempt of the larger is an attempt of the
-smaller. -/
+attempt, the two inclusions holding from the current position on. -/
 theorem fair_mono {attempt' : TrProp C} :
     (□ₜ (attempt' →ₜ attempt) ∧ₜ □ₜ (attempt ∧ₜ grant →ₜ attempt') ∧ₜ Fair attempt grant) ⊆
       Fair attempt' grant := by
@@ -242,8 +222,7 @@ theorem fair_of_certain : Certain attempt grant ⊆ Fair attempt grant := by
   obtain ⟨m, hm, ha, hg⟩ := TrProp.always_eventually_iff.mp hmiss τ.pos (Nat.le_refl _)
   exact absurd (hc m hm ha) hg
 
-/-- With a certain grant the zero function is a counter: it resets at every granted attempt and
-stays elsewhere, and never drops. -/
+/-- With a certain grant the zero function is a counter. -/
 theorem counter_zero_of_certain (hc : Certain attempt grant τ) :
     IsCounter attempt grant (fun _ => 0) τ :=
   fun m hm => ⟨fun _ => rfl, fun hmiss => absurd (hc m hm hmiss.1) hmiss.2, fun _ => rfl⟩
