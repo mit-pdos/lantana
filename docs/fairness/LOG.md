@@ -209,3 +209,13 @@ direction of `sf_iff_fair` inlined so that it still uses no axiom.  Two commits 
 the merged state-atom file with the rules file otherwise.  **Step 3 complete.**  Final checks on
 `agent/fairness`: `lake build --wfail` 383 jobs, `lake test` green, `scripts/audit.sh` ok,
 `scripts/check-imports.sh` ok (286 imports); no sub worktree or branch left.
+
+## 5. The `lwp` generalization: design (2026-11-08/09)
+
+Design document `local-plan/lantana-fairness/DESIGN-lwp-fairness.md` (brainstorm and proposal for
+user-declared fairness assumptions in `lwp`; revised 2026-11-09 with the stepwise analysis and the
+names).  Owner's decisions 2026-11-09: the step-local attempt–grant notion is `Fairness.Assumption`;
+layer 1's action becomes a structure `Fairness.Action` (`enabled`, `grant`); the constructors are
+`Action.strong` (SF), `Action.weak` (WF), `Action.own i` (the thread's view), `Sched.assumption i`.
+The theory refactoring is task S5 (lean-prover-1, brief `briefs/brief-S5.md`); the `lwp` update
+itself is on hold while the owner brainstorms.
