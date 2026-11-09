@@ -34,7 +34,7 @@ variable {C : Type} [ThreadSystem C]
 /-! ### Definitions -/
 
 /-- The thread at `i` attempts: it steps from a configuration where the action is enabled. -/
-abbrev attempt (i : ThreadId) (a : Action C) : TrProp C := Steps i ∧ₜ a.enabledNow
+abbrev attempt (i : ThreadId) (a : Action C) : TrProp C := threadStep i ∧ₜ a.enabledNow
 
 /-- The thread's attempt is granted: it steps from a configuration where the action is enabled,
 and its step is a grant. -/
@@ -63,17 +63,17 @@ abbrev Certain (i : ThreadId) (a : Action C) : TrProp C :=
 /-- Own grant: the grant is one of the thread's transitions.  The property that makes the thread's
 view sound. -/
 def OwnGrant (i : ThreadId) (a : Action C) : Prop :=
-  ∀ {c c' : C}, a.grant c c' → ThreadSystem.Step i c c'
+  ∀ {c c' : C}, a.grant c c' → ThreadSystem.step i c c'
 
 /-- The enabling condition is stable under every other thread's step. -/
 def Stable (i : ThreadId) (a : Action C) : Prop :=
-  ∀ {j : ThreadId} {c c' : C}, j ≠ i → ThreadSystem.Step j c c' → a.enabled c → a.enabled c'
+  ∀ {j : ThreadId} {c c' : C}, j ≠ i → ThreadSystem.step j c c' → a.enabled c → a.enabled c'
 
 /-- The enabling condition persists along the run: where it holds, the thread steps now, or it
 still holds at the next position, or it never holds again.  The general interface: it says
 nothing about how the condition can be lost. -/
 def Persists (i : ThreadId) (a : Action C) : TrProp C :=
-  □ₜ (a.enabledNow →ₜ Steps i ∨ₜ ○ₜ a.enabledNow ∨ₜ ○ₜ □ₜ ¬ₜ a.enabledNow)
+  □ₜ (a.enabledNow →ₜ threadStep i ∨ₜ ○ₜ a.enabledNow ∨ₜ ○ₜ □ₜ ¬ₜ a.enabledNow)
 
 variable {i : ThreadId} {a : Action C} {δ : Nat → Nat} {τ : Trace C}
 
@@ -84,14 +84,14 @@ theorem ownStep : AttemptGrant.OwnStep i (attempt i a) := fun _ h => h.1
 
 /-- A miss is a step of the thread from a configuration where the action is enabled that is not a
 grant. -/
-theorem miss_iff : miss i a τ ↔ Steps i τ ∧ a.enabled τ.now ∧ ¬ a.grant τ.now τ.next.now :=
+theorem miss_iff : miss i a τ ↔ threadStep i τ ∧ a.enabled τ.now ∧ ¬ a.grant τ.now τ.next.now :=
   and_assoc
 
 /-- A hit of the thread is a step of the thread at a granted position of the action. -/
-theorem hit_iff_steps_action_hit : hit i a τ ↔ Steps i τ ∧ a.hit τ := and_assoc
+theorem hit_iff_steps_action_hit : hit i a τ ↔ threadStep i τ ∧ a.hit τ := and_assoc
 
 /-- A miss of the thread is a step of the thread at a refused position of the action. -/
-theorem miss_iff_steps_action_miss : miss i a τ ↔ Steps i τ ∧ a.miss τ :=
+theorem miss_iff_steps_action_miss : miss i a τ ↔ threadStep i τ ∧ a.miss τ :=
   miss_iff
 
 /-- The meaning of the attempt–grant form: a thread that attempts infinitely often is granted
@@ -117,7 +117,7 @@ theorem counter_of_sf (hown : OwnGrant i a) (hsf : a.SF τ) : ∃ δ, IsCounter 
   AttemptGrant.counter_of_fair (attemptGrant_of_sf hown τ hsf)
 
 /-- Stay: at every step that is not the thread's the counter is unchanged. -/
-theorem counter_stay_of_other (hδ : IsCounter i a δ τ) (hs : ¬ Steps i τ) :
+theorem counter_stay_of_other (hδ : IsCounter i a δ τ) (hs : ¬ threadStep i τ) :
     δ τ.pos = δ (τ.pos + 1) :=
   AttemptGrant.counter_stay_of_other ownStep hδ hs
 
@@ -137,7 +137,7 @@ holds now, it holds at every later position reached by other threads' steps only
 the thread's next step. -/
 theorem attempt_pending (hstab : Stable i a) (hA : a.enabled τ.now) {k : Nat} (hk : τ.pos ≤ k)
     (hothers : ∀ k', τ.pos ≤ k' → k' < k →
-      ∃ j, j ≠ i ∧ ThreadSystem.Step j (τ.seq k') (τ.seq (k' + 1))) :
+      ∃ j, j ≠ i ∧ ThreadSystem.step j (τ.seq k') (τ.seq (k' + 1))) :
     a.enabled (τ.seq k) := by
   induction k with
   | zero =>
@@ -155,7 +155,7 @@ theorem attempt_pending (hstab : Stable i a) (hA : a.enabled τ.now) {k : Nat} (
 /-- **Completeness.**  Under fair scheduling of the thread and persistence of the enabling
 condition, the attempt–grant form gives `SF`. -/
 theorem sf_of_attemptGrant :
-    (StepsInfOften i ∧ₜ Persists i a ∧ₜ AttemptGrant i a) ⊆ a.SF := by
+    (ThreadStepInfOften i ∧ₜ Persists i a ∧ₜ AttemptGrant i a) ⊆ a.SF := by
   rintro τ ⟨hsched, hper, hag⟩ hA
   refine Classical.byContradiction fun hno => hno ?_
   obtain ⟨N, -, hN⟩ := TrProp.eventually_always_iff.mp (TrProp.not_always_eventually_le τ hno)
@@ -166,7 +166,7 @@ theorem sf_of_attemptGrant :
   have hτn : τ.pos ≤ n := Nat.le_trans hn₀ (Nat.le_trans (Nat.le_max_left _ _) hn)
   obtain ⟨m, hm, hsm⟩ := TrProp.always_eventually_iff.mp hsched n hτn
   obtain ⟨m', ⟨hnm', hsm'⟩, hmin⟩ :=
-    Nat.exists_min (p := fun m => n ≤ m ∧ Steps i { τ with pos := m }) m ⟨hm, hsm⟩
+    Nat.exists_min (p := fun m => n ≤ m ∧ threadStep i { τ with pos := m }) m ⟨hm, hsm⟩
   have hAk : ∀ k, n ≤ k → k ≤ m' → a.enabled (τ.seq k) := by
     intro k hnk hkm
     induction k with
@@ -191,7 +191,7 @@ theorem sf_of_attemptGrant :
 
 /-- Under own grant, persistence and fair scheduling, the trusted form and the attempt–grant form
 coincide. -/
-theorem sf_iff_attemptGrant (hown : OwnGrant i a) (hsched : StepsInfOften i τ)
+theorem sf_iff_attemptGrant (hown : OwnGrant i a) (hsched : ThreadStepInfOften i τ)
     (hper : Persists i a τ) : a.SF τ ↔ AttemptGrant i a τ :=
   ⟨attemptGrant_of_sf hown τ, fun hag => sf_of_attemptGrant τ ⟨hsched, hper, hag⟩⟩
 
@@ -208,7 +208,7 @@ theorem counter_zero_of_certain (hc : Certain i a τ) : IsCounter i a (fun _ => 
 
 /-- With a grant certain at the thread's attempts, weak fairness follows from fair scheduling
 alone. -/
-theorem wf_of_certain : (StepsInfOften i ∧ₜ Certain i a) ⊆ a.WF := by
+theorem wf_of_certain : (ThreadStepInfOften i ∧ₜ Certain i a) ⊆ a.WF := by
   rintro τ ⟨hsched, hc⟩ hwf
   obtain ⟨N, -, hNA⟩ := TrProp.eventually_always_iff.mp hwf
   refine TrProp.always_eventually_iff.mpr fun n hn => ?_
@@ -220,7 +220,7 @@ theorem wf_of_certain : (StepsInfOften i ∧ₜ Certain i a) ⊆ a.WF := by
 
 /-- With a grant certain at the thread's attempts, `SF` follows from fair scheduling and
 persistence. -/
-theorem sf_of_certain : (StepsInfOften i ∧ₜ Persists i a ∧ₜ Certain i a) ⊆ a.SF :=
+theorem sf_of_certain : (ThreadStepInfOften i ∧ₜ Persists i a ∧ₜ Certain i a) ⊆ a.SF :=
   fun τ ⟨hsched, hper, hc⟩ => sf_of_attemptGrant τ ⟨hsched, hper, attemptGrant_of_certain τ hc⟩
 
 end Thread

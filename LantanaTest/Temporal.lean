@@ -20,8 +20,8 @@ section Generic
 variable {C : Type}
 
 /-- The notations parse at any configuration type, with negation and the two-position atom. -/
-example (R : C → C → Prop) (φ : TsProp C) :
-    (□ₜ ◇ₜ TrProp.step R ∧ₜ ¬ₜ TrProp.now φ) ⊆ (□ₜ ◇ₜ TrProp.step R) :=
+example (R : C → C → Prop) (φ : AProp C) :
+    (□ₜ ◇ₜ TrProp.step R ∧ₜ ¬ₜ TrProp.atomic φ) ⊆ (□ₜ ◇ₜ TrProp.step R) :=
   TrProp.and_elim_l
 
 /-- Infinitely often is the same at every position of a run. -/
@@ -42,7 +42,7 @@ variable {C : Type} [ThreadSystem C]
 /-- A behavior is a run of the thread system from the current position on. -/
 example (τ : Trace C) :
     IsBehavior τ ↔
-      ∀ m, τ.pos ≤ m → ∃ i, ThreadSystem.Step i (τ.seq m) (τ.seq (m + 1)) :=
+      ∀ m, τ.pos ≤ m → ∃ i, ThreadSystem.step i (τ.seq m) (τ.seq (m + 1)) :=
   isBehavior_iff
 
 example (τ : Trace C) (h : IsBehavior τ) : IsBehavior τ.next.next := h.next.next

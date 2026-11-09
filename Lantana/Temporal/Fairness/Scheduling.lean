@@ -17,7 +17,7 @@ rule that names a thread.
 Fair scheduling is an action of the attempt–grant model (`Sched.action`): enabled where the thread
 is active, the predicate the thread system supplies, and granted at the thread's trace step
 (`Sched.SF`).  It gives a thread active infinitely often infinitely many steps
-(`Sched.stepsInfOften_of_sf`).  The thread's own view of its scheduling has no misses
+(`Sched.threadStepInfOften_of_sf`).  The thread's own view of its scheduling has no misses
 (`Sched.certain`), so scheduling has no cheap path.  A schedule names the stepping thread at each
 position, a proof instrument of adequacy (`Schedule`, in `Lantana.Temporal.ThreadSystem`); under
 any schedule, an action whose hit only its thread can take (`SoleOwner`) gives that thread its
@@ -39,12 +39,12 @@ namespace AttemptGrant
 variable {i : ThreadId} {attempt grant : TrProp C} {δ : Nat → Nat} {τ : Trace C}
 
 /-- The attempts are steps of the thread at `i`: the pair is the thread's. -/
-def OwnStep (i : ThreadId) (attempt : TrProp C) : Prop := attempt ⊆ Steps i
+def OwnStep (i : ThreadId) (attempt : TrProp C) : Prop := attempt ⊆ threadStep i
 
 /-- A thread's pair has a counter that never moves at another thread's step.  The one rule that
 names a thread. -/
 theorem counter_stay_of_other (hos : OwnStep i attempt) (hδ : IsCounter attempt grant δ τ)
-    (hs : ¬ Steps i τ) : δ τ.pos = δ (τ.pos + 1) :=
+    (hs : ¬ threadStep i τ) : δ τ.pos = δ (τ.pos + 1) :=
   counter_stay hδ fun ha => hs (hos τ ha)
 
 end AttemptGrant
@@ -54,7 +54,7 @@ end AttemptGrant
 namespace Sched
 
 /-- The grant of the scheduling action of the thread at `i`: its trace step. -/
-abbrev grant (i : ThreadId) : C → C → Prop := ThreadSystem.Step i
+abbrev grant (i : ThreadId) : C → C → Prop := ThreadSystem.step i
 
 /-- The scheduling action of the thread at `i`: enabled where the thread is active, the predicate
 the thread system supplies, and granted at its trace step. -/
@@ -66,7 +66,7 @@ abbrev SF (i : ThreadId) : TrProp C := Action.SF (action i)
 
 /-- The thread at `i` attempts, in its view of its scheduling: it steps while active.
 `Thread.attempt i (action i)`, restated because layer 2 comes later. -/
-abbrev attempt (i : ThreadId) : TrProp C := Steps i ∧ₜ (action i).enabledNow
+abbrev attempt (i : ThreadId) : TrProp C := threadStep i ∧ₜ (action i).enabledNow
 
 /-- The thread's own view of its scheduling: `Thread.AttemptGrant i (action i)`. -/
 abbrev AG (i : ThreadId) : TrProp C := AttemptGrant.Fair (attempt i) (action i).granted
@@ -74,11 +74,11 @@ abbrev AG (i : ThreadId) : TrProp C := AttemptGrant.Fair (attempt i) (action i).
 variable {i : ThreadId} {τ : Trace C}
 
 /-- Own grant: the grant is the thread's step.  `Thread.OwnGrant i (action i)`. -/
-theorem ownGrant : ∀ {c c' : C}, (action i).grant c c' → ThreadSystem.Step i c c' := fun hg => hg
+theorem ownGrant : ∀ {c c' : C}, (action i).grant c c' → ThreadSystem.step i c c' := fun hg => hg
 
 /-- What every completeness theorem needs: a thread active infinitely often and fairly scheduled
 steps infinitely often. -/
-theorem stepsInfOften_of_sf : (SF i ∧ₜ □ₜ ◇ₜ active i : TrProp C) ⊆ StepsInfOften i :=
+theorem threadStepInfOften_of_sf : (SF i ∧ₜ □ₜ ◇ₜ active i : TrProp C) ⊆ ThreadStepInfOften i :=
   fun τ ⟨hsf, hinf⟩ => TrProp.always_eventually_mono (fun _ h => h.2) τ (hsf hinf)
 
 /-- The thread's view of its own scheduling has no misses: every attempt is a step, so every
@@ -101,7 +101,7 @@ end Sched
 trace step accepts the transition is `i`.  Stated for the hit `a.enabled c ∧ a.grant c c'` of an
 action, since a stuttering thread's step may satisfy a grant vacuously. -/
 def SoleOwner (i : ThreadId) (G : C → C → Prop) : Prop :=
-  ∀ c c', G c c' → ∀ j, ThreadSystem.Step j c c' → j = i
+  ∀ c c', G c c' → ∀ j, ThreadSystem.step j c c' → j = i
 
 /-- The thread's view under a schedule: attempts are the positions where the schedule names the
 thread and the action is enabled. -/

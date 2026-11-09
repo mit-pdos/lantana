@@ -194,7 +194,7 @@ def weak (a : Action C) : Assumption C :=
 /-- The thread's own view of the action: attempts are its steps from an enabled configuration (the
 cheap path). -/
 def own [ThreadSystem C] (i : ThreadId) (a : Action C) : Assumption C :=
-  ⟨fun c c' => ThreadSystem.Step i c c' ∧ a.enabled c, a.grant⟩
+  ⟨fun c c' => ThreadSystem.step i c c' ∧ a.enabled c, a.grant⟩
 
 variable {a : Action C} {δ : Nat → Nat} {τ : Trace C}
 

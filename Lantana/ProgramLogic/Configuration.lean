@@ -119,16 +119,13 @@ instance : ThreadSystem (Cfg Expr State) := ⟨TraceStep, Cfg.active⟩
 
 /-- The thread system's step on Lantana's configurations is the trace step. -/
 @[simp] theorem ThreadSystem.step_def {i : ThreadId} {ρ₁ ρ₂ : Cfg Expr State} :
-    ThreadSystem.Step i ρ₁ ρ₂ = TraceStep i ρ₁ ρ₂ := rfl
+    ThreadSystem.step i ρ₁ ρ₂ = TraceStep i ρ₁ ρ₂ := rfl
 
 /-- The thread system's activity on Lantana's configurations is `Cfg.active`. -/
 @[simp] theorem ThreadSystem.active_def {i : ThreadId} {ρ : Cfg Expr State} :
     ThreadSystem.active i ρ = ρ.active i := rfl
 
-/-- The behaviors starting from the thread pool `tp` (in any state). -/
-@[lantana_alias behavior_tp]
-def IsBehaviorOfPool (tp : ThreadPool Expr) (τ : Trace (Cfg Expr State)) : Prop :=
-  ∃ σ, IsBehaviorOf (tp, σ) τ
+#lantana_ignore behavior_tp "adequacy fixes the initial configuration by `τ.seq 0 = ρ`"
 
 /-! ## Facts about trace steps -/
 

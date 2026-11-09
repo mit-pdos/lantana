@@ -46,13 +46,13 @@ def Cfg.ifTermVal (j : ThreadId) (Φ : ThreadId → Val → Prop) (ρ : Cfg Expr
 /-- The safety facts at the current position: no thread of the pool is stuck and a terminated
 thread `j` satisfies `Φ j`. -/
 def safeNow (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
-  TrProp.now Cfg.notStuck ∧ₜ TrProp.now (Cfg.ifTermVal (Val := Val) j Φ)
+  TrProp.atomic Cfg.notStuck ∧ₜ TrProp.atomic (Cfg.ifTermVal (Val := Val) j Φ)
 
 /-- Iris-style safety: always, no thread of the pool is stuck and a terminated thread `j`
 satisfies `Φ j` (Rocq `safety_iris`). -/
 @[lantana_alias safety_iris]
 def safetyIris (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
-  □ₜ (TrProp.now Cfg.notStuck ∧ₜ TrProp.now (Cfg.ifTermVal (Val := Val) j Φ))
+  □ₜ (TrProp.atomic Cfg.notStuck ∧ₜ TrProp.atomic (Cfg.ifTermVal (Val := Val) j Φ))
 
 section SafetyTrI
 
@@ -115,7 +115,7 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
   imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W',
     %⟨hLb', hh', -, hns, hle, hΨ'⟩, -, HH, HM, HT⟩
   have hsafe : safeNow (Expr := Expr) (State := State) j Φ ⟨n, τf⟩ := by
-    unfold safeNow TrProp.and TrProp.now
+    unfold safeNow TrProp.and TrProp.atomic
     refine ⟨hns, ?_⟩
     simp only [Trace.now, hnow]
     exact hval

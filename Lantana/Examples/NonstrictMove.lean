@@ -191,7 +191,7 @@ theorem loopRun_fair : fairScheduling loopRun := by
   intro i hinf
   rcases Nat.eq_zero_or_pos i with rfl | hi
   · exact TrProp.always_eventually_iff.mpr fun n _ =>
-      ⟨n, Nat.le_refl n, active_iff.mpr ⟨_, rfl, rfl⟩, steps_iff.mpr (loopRun_traceStep n)⟩
+      ⟨n, Nat.le_refl n, active_iff.mpr ⟨_, rfl, rfl⟩, threadStep_iff.mpr (loopRun_traceStep n)⟩
   · obtain ⟨m, -, hm⟩ := TrProp.always_eventually_iff.mp hinf 0 (Nat.le_refl _)
     obtain ⟨e, he, -⟩ := active_iff.mp hm
     simp only [loopRun] at he

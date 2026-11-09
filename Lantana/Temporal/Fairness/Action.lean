@@ -11,7 +11,7 @@ public import Lantana.Temporal.Fairness.AttemptGrant
 An action `a : Action C` is an enabling condition `a.enabled` on configurations and a grant
 relation `a.grant` on steps.  Its strong fairness `a.SF := □ₜ ◇ₜ a.enabledNow →ₜ □ₜ ◇ₜ a.hit` is
 the trusted form of every fairness assumption; it names no thread.  The action is layer 0 with the
-positions where it is enabled as the attempts (`enabledNow`, the atom `now a.enabled`) and the
+positions where it is enabled as the attempts (`enabledNow`, the atom `atomic a.enabled`) and the
 steps in its grant as the grants (`granted`, the two-position atom `step a.grant`), so layer 0's
 theorems apply to it as they stand and the layer copies none of them.  Weak fairness `WF` has
 `◇ₜ □ₜ a.enabledNow` as its premise; for a convex condition (`Convex`, true in between two
@@ -40,7 +40,7 @@ variable {C : Type}
 /-! ### Definitions -/
 
 /-- The positions where the action is enabled: its attempts. -/
-abbrev enabledNow (a : Action C) : TrProp C := TrProp.now a.enabled
+abbrev enabledNow (a : Action C) : TrProp C := TrProp.atomic a.enabled
 
 /-- The step at the current position is a grant: the action's grant relates the configuration to
 the next one, whoever takes the step. -/
