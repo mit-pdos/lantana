@@ -110,9 +110,8 @@ theorem exists_fair_schedule_behFscnt (hrun : IsBehavior τ) (hsf : fairScheduli
 /-- Where a thread's activity is convex, its fair scheduling is weak fairness, the usual justice
 requirement. -/
 theorem fairScheduling_sf_iff_wf {i : ThreadId}
-    (hconv : Fairness.Action.Convex (ThreadSystem.active i) τ) :
-    Fairness.Sched.SF i τ ↔
-      Fairness.Action.WF (ThreadSystem.active i) (ThreadSystem.Step i) τ :=
+    (hconv : Fairness.Action.Convex (Fairness.Sched.action i) τ) :
+    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
   Fairness.Action.sf_iff_wf_of_convex hconv
 
 end Lantana
