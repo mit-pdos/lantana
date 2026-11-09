@@ -8,7 +8,7 @@ public import Lantana.Temporal.Fairness.MissHit
 public import Lantana.Temporal.Fairness.AttemptGrant
 public import Lantana.Temporal.Fairness.Action
 public import Lantana.Temporal.Fairness.Scheduling
-public import Lantana.Temporal.Fairness.Thread
+public import Lantana.Temporal.Fairness.OwnView
 public import Lantana.Temporal.Fairness.FairLabel
 public import Lantana.Temporal.Fairness.Assumption
 
@@ -73,7 +73,7 @@ the thread's own view of an action and fair scheduling are the four ways to buil
    (`action`, `SF`, `attempt`, `AG`, `ownGrant`, `threadStepInfOften_of_sf`, `certain`, `ag`,
    `counter_zero`); the schedule as a proof instrument (`SoleOwner`, `labelledView`,
    `labelledView_of_sf`).
-4. `Lantana.Temporal.Fairness.Thread`, section 5: `Thread`, layer 2, the thread's view (`attempt`,
+4. `Lantana.Temporal.Fairness.OwnView`, section 5: `Thread`, layer 2, the thread's view (`attempt`,
    `hit`, `miss`, `AttemptGrant`, `IsCounter`, `Certain`, `OwnGrant`, `Stable`, `Persists`);
    soundness (`attemptGrant_of_sf`, `counter_of_sf`), completeness (`persists_of_stable`,
    `attempt_pending`, `sf_of_attemptGrant`, `sf_iff_attemptGrant`), a certain grant
