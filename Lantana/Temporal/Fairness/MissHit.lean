@@ -6,15 +6,14 @@ module
 
 public import Lantana.Temporal.TracePropRules
 
-/-! # Miss–hit fairness on positions: the engine of the attempt–grant model
+/-! # The engine: miss–hit fairness on positions
 
-The arithmetic of budgets on positions (`MissHit`), copied from Lantana's ghost toy: miss–hit
-fairness over two position predicates is the existence of a counter, and the oracle budget, the
-number of misses before the next hit, is one (`MissHit.fair_iff_counter`, `MissHit.budget`).  It
-is not part of the theory's interface: the theory's statements are trace properties
-(`Lantana.Temporal.Fairness.AttemptGrant`), proved from the engine through the bridge from trace
-properties to position predicates, `□ₜ ◇ₜ P` at a trace being `P` infinitely often along its run
-(`TrProp.along`; `always_eventually_iff_infOften`, `always_eventually_iff_infOften_from`).
+Miss–hit fairness over two position predicates, the hits and the misses: infinitely many misses
+force infinitely many hits.  With hits and misses exclusive it is the existence of a counter, and
+the budget, the number of misses before the next hit, is one (`MissHit.fair_iff_counter`).  The
+engine is not part of the theory's interface: the core reads trace properties along a run through
+the bridge `always_eventually_iff_infOften`.
+See `docs/temporal.md`.
 -/
 
 @[expose] public section
@@ -23,21 +22,7 @@ namespace Lantana.Fairness
 
 open scoped Lantana.TrProp
 
-/-! ## 0. The engine: miss–hit fairness over two position predicates (`MissHit`)
-
-Two position predicates, the hits and the misses.  Miss–hit fairness says that infinitely many
-misses force infinitely many hits.  With hits and misses exclusive, it is the existence of a
-counter that is zero at a hit, goes down by one at a miss and is unchanged otherwise
-(`MissHit.fair_iff_counter`).  Arithmetic on `Nat`; the theory's statements are trace properties,
-in `Lantana.Temporal.Fairness.AttemptGrant`.  Copied from Lantana's ghost toy
-(`LantanaTest/GhostToy/Count.lean`, `MissHit.lean`), as in the ported theory. -/
-
 namespace MissHit
-
-/-! ### Least witnesses
-
-The least witnesses `Nat.exists_min`, `Nat.minWitness`, `Nat.minWitness_spec` and
-`Nat.minWitness_min` are in `Lantana.Prelude.Nat`. -/
 
 /-! ### Miss–hit fairness and counters -/
 
@@ -63,7 +48,7 @@ theorem infOften_of_not_eventually {P : Nat → Prop} (h : ¬ ∃ N, ∀ m ≥ N
     InfOften P :=
   fun n => Classical.byContradiction fun hn => h ⟨n, fun m hm hP => hn ⟨m, hm, hP⟩⟩
 
-/-! ### The oracle budget (`Count`) -/
+/-! ### The budget -/
 
 section Defs
 
@@ -92,7 +77,7 @@ noncomputable def horizon (n : Nat) : Nat :=
   | some H => H
   | none => max n (missBound miss)
 
-/-- The oracle budget at `n`: the number of misses in `[n, horizon hit miss n)`. -/
+/-- The budget at `n`: the number of misses in `[n, horizon hit miss n)`. -/
 noncomputable def budget (n : Nat) : Nat := countMiss miss n (horizon hit miss n - n)
 
 end Defs
@@ -304,16 +289,24 @@ theorem fair_iff_counter (hex : ∀ n, ¬ (hit n ∧ miss n)) :
 
 end Budget
 
-/-! ### Holding infinitely often is monotone -/
+/-! ### Holding infinitely often -/
 
 /-- Holding infinitely often is monotone in the predicate. -/
 theorem infOften_mono {P Q : Nat → Prop} (h : ∀ n, P n → Q n) (hP : InfOften P) : InfOften Q :=
   fun n => let ⟨m, hm, hPm⟩ := hP n; ⟨m, hm, h m hPm⟩
 
+/-- Holding infinitely often does not depend on where the positions are counted from. -/
+theorem infOften_shift {P : Nat → Prop} {k : Nat} : InfOften (fun n => P (k + n)) ↔ InfOften P :=
+  ⟨fun h n => let ⟨m, hm, hP⟩ := h n; ⟨k + m, Nat.le_trans hm (Nat.le_add_left m k), hP⟩,
+    fun h n =>
+      let ⟨m, hm, hP⟩ := h (k + n)
+      ⟨m - k, by omega, by
+        change P (k + (m - k))
+        rwa [Nat.add_sub_cancel' (Nat.le_trans (Nat.le_add_right k n) hm)]⟩⟩
+
 end MissHit
 
 /-! ## The bridge: a trace property along a run is a position predicate -/
-
 
 /-- `□ₜ ◇ₜ P` at `τ` is `P` infinitely often along its run (positions before `τ.pos` do not
 matter). -/
@@ -326,20 +319,5 @@ theorem always_eventually_iff_infOften {C : Type} {P : TrProp C} {τ : Trace C} 
     exact ⟨m, Nat.le_trans (Nat.le_max_left _ _) hm, hP⟩
   · intro h n _
     exact h n
-
-/-- `□ₜ ◇ₜ P` at `τ` is `P` infinitely often along its run counted from the current position:
-the positions are shifted by `τ.pos`. -/
-theorem always_eventually_iff_infOften_from {C : Type} {P : TrProp C} {τ : Trace C} :
-    (□ₜ ◇ₜ P) τ ↔ MissHit.InfOften fun n => TrProp.along P τ (τ.pos + n) := by
-  rw [TrProp.always_eventually_iff]
-  constructor
-  · intro h n
-    obtain ⟨m, hm, hP⟩ := h (τ.pos + n) (Nat.le_add_right _ _)
-    refine ⟨m - τ.pos, by omega, ?_⟩
-    change TrProp.along P τ (τ.pos + (m - τ.pos))
-    rwa [Nat.add_sub_cancel' (Nat.le_trans (Nat.le_add_right _ _) hm)]
-  · intro h n hn
-    obtain ⟨m, hm, hP⟩ := h (n - τ.pos)
-    exact ⟨τ.pos + m, by omega, hP⟩
 
 end Lantana.Fairness

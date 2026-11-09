@@ -25,9 +25,10 @@ configuration (`Cfg.active`, `Cfg.inactive`), convex along a run (`Cfg.active_co
 
 Traces carry no thread label: nothing observable names the thread that steps. The adequacy
 proof chooses a schedule, the stepping thread at each position, as its internal instrument
-(`Schedule`, `Lantana.Temporal.FairScheduling`). The last section holds the facts of this
-instance that fair scheduling needs: activity is convex along a behavior, so fair scheduling of
-Lantana's threads is weak fairness (`fairScheduling_sf_iff_wf'`).
+(`Schedule`, `Lantana.Temporal.ThreadSystem`). The last section holds the facts of this
+instance that fair scheduling needs: activity is convex along a behavior
+(`Cfg.convex_of_isBehavior`), so fair scheduling of Lantana's threads is weak fairness
+(`Cfg.sched_sf_iff_wf`).
 -/
 
 @[expose] public section
@@ -84,7 +85,7 @@ def Cfg.inactive (i : ThreadId) (ρ : Cfg Expr State) : Prop :=
   ρ.1[i]? = none ∨ ∃ e, ρ.1[i]? = some e ∧ (toVal e).isSome
 
 #lantana_ignore thread_turn
-  "no thread label on traces: the schedule is the adequacy proof's instrument (lane fairness-sched, 2026-11-08)"
+  "traces carry no thread label; the schedule is a proof instrument"
 
 @[lantana_alias thread_active_or_not]
 theorem Cfg.active_or_inactive (i : ThreadId) (ρ : Cfg Expr State) :
@@ -241,25 +242,21 @@ end Run
 
 /-! ## Fair scheduling of Lantana's threads
 
-Fair scheduling (`fairScheduling`, Rocq `fair_scheduling.v`) is the generic trace property of
-`Lantana.Temporal.FairScheduling` at Lantana's thread system (`ThreadSystem (Cfg Expr State)`):
-the strong fairness of every thread's scheduling action, enabled where the thread is active
-(`Cfg.active`) and granted at its trace step (`TraceStep`). The schedule and the fairness
-counters under it, which the adequacy proof threads along the run (`Schedule`, `BehFscnt`,
-`exists_fair_schedule_behFscnt`), are generic too.
-
-The facts of Lantana's instance: activity is convex along a behavior, a thread is active from its
-fork until it becomes a value, and never again (`Cfg.active_convex'`). So fair scheduling of
-Lantana's threads is the usual justice requirement, weak fairness (`fairScheduling_sf_iff_wf'`).
+Fair scheduling (`fairScheduling`, `Lantana.Temporal.Fairness.Scheduling`) at Lantana's thread
+system: the strong fairness of every thread's scheduling action, enabled where the thread is
+active (`Cfg.active`) and granted at its trace step (`TraceStep`). Activity is convex along a
+behavior, a thread being active from its fork until it becomes a value
+(`Cfg.convex_of_isBehavior`), so fair scheduling of Lantana's threads is weak fairness
+(`Cfg.sched_sf_iff_wf`).
 -/
 
-section FairScheduling
+section Scheduling
 
 open scoped TrProp
 
 /-- Activity is convex along a behavior: a thread is active from its fork until it becomes a
 value, and never again. -/
-theorem Cfg.active_convex' {i : ThreadId} :
+theorem Cfg.convex_of_isBehavior {i : ThreadId} :
     (IsBehavior : TrProp (Cfg Expr State)) ⊆
       Fairness.Action.Convex (Fairness.Sched.action i) := by
   intro τ hbeh m hm hA k hmk hev
@@ -272,14 +269,14 @@ theorem Cfg.active_convex' {i : ThreadId} :
   simp only [Nat.add_sub_cancel' hmk] at h
   exact h
 
-/-- Fair scheduling of Lantana's threads is the usual justice requirement, weak fairness, since
-activity is convex (a thread is active from its fork until it becomes a value). -/
-theorem fairScheduling_sf_iff_wf' {τ : Trace (Cfg Expr State)} (hrun : IsBehavior τ)
+/-- Fair scheduling of a thread of Lantana is weak fairness along a behavior, since activity is
+convex. -/
+theorem Cfg.sched_sf_iff_wf {τ : Trace (Cfg Expr State)} (hrun : IsBehavior τ)
     (i : ThreadId) :
     Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
-  fairScheduling_sf_iff_wf (Cfg.active_convex' τ hrun)
+  Fairness.Action.sf_iff_wf_of_convex (Cfg.convex_of_isBehavior τ hrun)
 
-end FairScheduling
+end Scheduling
 
 end
 

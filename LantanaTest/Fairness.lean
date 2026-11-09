@@ -6,10 +6,9 @@ module
 
 public import Lantana
 
-/-! Tests for the attempt–grant model of fairness over trace properties
-(`Lantana.Temporal.Fairness`) and fair scheduling (`Lantana.Temporal.FairScheduling`): the main
-theorems depend only on the standard axioms, some on fewer (`labelledView_of_sf` on none, the
-convex case on `propext`); fairness assumptions (`Lantana.Temporal.Fairness.Assumption`). -/
+/-! Tests for the attempt–grant theory of fairness (`Lantana.Temporal.Fairness`): the main
+theorems depend only on the standard axioms, the convex case on `propext` alone; the recipes and
+fair scheduling as assumptions. -/
 
 namespace LantanaTest.Fairness
 
@@ -20,24 +19,32 @@ info: 'Lantana.Fairness.AttemptGrant.fair_iff_counter' depends on axioms: [prope
 #print axioms Lantana.Fairness.AttemptGrant.fair_iff_counter
 
 /--
+info: 'Lantana.Fairness.Assumption.counter_of_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms Lantana.Fairness.Assumption.counter_of_holds
+
+/--
 info: 'Lantana.Fairness.Action.sf_iff_counter' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 #print axioms Lantana.Fairness.Action.sf_iff_counter
 
 /--
-info: 'Lantana.Fairness.Thread.sf_iff_attemptGrant' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'Lantana.Fairness.Action.holds_weak' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms Lantana.Fairness.Thread.sf_iff_attemptGrant
+#print axioms Lantana.Fairness.Action.holds_weak
 
 /-- info: 'Lantana.Fairness.Action.sf_iff_wf_of_convex' depends on axioms: [propext] -/
 #guard_msgs in
 #print axioms Lantana.Fairness.Action.sf_iff_wf_of_convex
 
-/-- info: 'Lantana.Fairness.labelledView_of_sf' does not depend on any axioms -/
+/--
+info: 'Lantana.Fairness.Action.sf_iff_own_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
 #guard_msgs in
-#print axioms Lantana.Fairness.labelledView_of_sf
+#print axioms Lantana.Fairness.Action.sf_iff_own_holds
 
 /--
 info: 'Lantana.Fairness.exists_fair_schedule' depends on axioms: [propext, Classical.choice, Quot.sound]
@@ -57,25 +64,9 @@ info: 'Lantana.exists_fair_schedule_behFscnt' depends on axioms: [propext, Class
 #guard_msgs in
 #print axioms Lantana.exists_fair_schedule_behFscnt
 
-/-- info: 'Lantana.fairScheduling_sf_iff_wf' depends on axioms: [propext] -/
+/-- info: 'Lantana.Cfg.sched_sf_iff_wf' depends on axioms: [propext] -/
 #guard_msgs in
-#print axioms Lantana.fairScheduling_sf_iff_wf
-
-/-- info: 'Lantana.fairScheduling_sf_iff_wf'' depends on axioms: [propext] -/
-#guard_msgs in
-#print axioms Lantana.fairScheduling_sf_iff_wf'
-
-/--
-info: 'Lantana.Fairness.Action.holds_weak' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms Lantana.Fairness.Action.holds_weak
-
-/--
-info: 'Lantana.Fairness.Assumption.counter_of_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms Lantana.Fairness.Assumption.counter_of_holds
+#print axioms Lantana.Cfg.sched_sf_iff_wf
 
 open Lantana
 
@@ -85,11 +76,16 @@ example {C : Type} [ThreadSystem C] (τ : Trace C) :
     fairScheduling τ ↔ ∀ i, Fairness.Sched.SF i τ :=
   Iff.rfl
 
-/-- Fair scheduling of a thread is a fairness assumption, the strong one of its scheduling
+/-- Fair scheduling of a thread is a fairness assumption, the strong recipe of its scheduling
 action. -/
 example {C : Type} [ThreadSystem C] (τ : Trace C) (i : ThreadId) :
     (Fairness.Sched.assumption i).holds τ ↔ Fairness.Sched.SF i τ :=
   Fairness.Sched.holds_assumption
+
+/-- The thread's own view of an action is an assumption, read by dot notation. -/
+example {C : Type} [ThreadSystem C] (a : Fairness.Action C) (i : ThreadId) (τ : Trace C)
+    (hown : a.OwnGrant i) (hsf : a.SF τ) : (a.own i).holds τ :=
+  Fairness.Action.own_holds_of_sf hown τ hsf
 
 /-! Lantana's configurations are a thread system, and fair scheduling of its threads is weak
 fairness along a behavior. -/
@@ -102,7 +98,7 @@ example : ThreadSystem (Cfg Expr State) := inferInstance
 
 example (τ : Trace (Cfg Expr State)) (h : IsBehavior τ) (i : ThreadId) :
     Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
-  fairScheduling_sf_iff_wf' h i
+  Cfg.sched_sf_iff_wf h i
 
 end ThreadSystem
 
