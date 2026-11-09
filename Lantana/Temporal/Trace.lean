@@ -8,30 +8,18 @@ public import Lantana.Prelude
 
 /-! # Traces and trace properties
 
-The trace part of Rocq `lantana/program_logic/language.v` and `trace/trace_prop.v`, over an
-arbitrary type `C` of configurations. A trace is a position in an infinite sequence of
-configurations (no coinduction, D18); a trace property (`TrProp C`, Rocq `trProp`) is a predicate
-on traces, read at the current position: the external reading of temporal properties, where LTL
-is reasoned about classically.
-
-The connectives carry a subscript `ₜ` (`∧ₜ`, `□ₜ`, `◇ₜ`, `○ₜ`, `Uₜ`, `¬ₜ`, …) so that they never
-clash with the `iProp` connectives (D28); the notations are scoped in `Lantana.TrProp`. Entailment
-`R ⊆ S` is validity of `R →ₜ S`. Besides LTL, three atoms: a predicate on the current
-configuration (`TrProp.now`), a relation between the current configuration and the next one
-(`TrProp.step`), and a fact about the current position (`TrProp.atPos`); a trace property read
-along the run of a trace is a predicate on positions (`TrProp.along`). Rules are in
-`Lantana.Temporal.TracePropRules`, thread systems and their behaviors in
-`Lantana.Temporal.ThreadSystem`. This layer is independent of the language and of Iris: Lantana's
-language is an instance (`Lantana.ProgramLogic.Configuration`), whose traces are
-`Trace (Cfg Expr State)`.
+Traces `Trace C` over an arbitrary type `C` of configurations, the atomic propositions `AProp C`
+and the trace properties `TrProp C`, predicates on traces read at the current position (Rocq
+`trace/trace_prop.v`): the atoms `TrProp.atomic`, `TrProp.step` and `TrProp.atPos`, the
+connectives of linear temporal logic with their notations, entailment `R ⊆ S`, and the fixpoints.
+See `docs/temporal.md`.
 -/
 
 @[expose] public section
 
 namespace Lantana
 
-#lantana_ignore trace_state
-  "no thread label on traces: the schedule is the adequacy proof's instrument (lane fairness-sched, 2026-11-08)"
+#lantana_ignore trace_state "traces carry no thread label; the schedule is a proof instrument"
 
 /-- A trace: a position in an infinite sequence of configurations. -/
 @[lantana_alias trace]
@@ -51,11 +39,7 @@ def next (τ : Trace C) : Trace C := { τ with pos := τ.pos + 1 }
 @[lantana_alias trace_now]
 def now (τ : Trace C) : C := τ.seq τ.pos
 
-#lantana_ignore trace_thread
-  "no thread label on traces: the schedule is the adequacy proof's instrument (lane fairness-sched, 2026-11-08)"
-
-/-- The current configuration (`Trace.now`). -/
-def cfg (τ : Trace C) : C := τ.now
+#lantana_ignore trace_thread "traces carry no thread label; the schedule is a proof instrument"
 
 @[simp] theorem next_pos (τ : Trace C) : τ.next.pos = τ.pos + 1 := rfl
 @[simp] theorem next_seq (τ : Trace C) : τ.next.seq = τ.seq := rfl
@@ -63,11 +47,11 @@ def cfg (τ : Trace C) : C := τ.now
 
 end Trace
 
-/-- A predicate on configurations. -/
+/-- An atomic proposition: a predicate on one configuration. -/
 @[lantana_alias tsProp]
-abbrev TsProp (C : Type) := C → Prop
+abbrev AProp (C : Type) := C → Prop
 
-/-- A predicate on traces: the external reading of a temporal property. -/
+/-- A trace property: a predicate on traces, read at the current position. -/
 @[lantana_alias trProp]
 abbrev TrProp (C : Type) := Trace C → Prop
 
@@ -75,9 +59,9 @@ namespace TrProp
 
 variable {C : Type}
 
-/-- A predicate on the current configuration. -/
+/-- The atomic proposition `P` at the current configuration. -/
 @[lantana_alias ts_emb]
-def now (P : TsProp C) : TrProp C := fun τ => P τ.now
+def atomic (P : AProp C) : TrProp C := fun τ => P τ.now
 
 @[lantana_alias tr_pure]
 def pure (p : Prop) : TrProp C := fun _ => p
@@ -116,7 +100,7 @@ def eventually (Q : TrProp C) : TrProp C := strongUntil (pure True) Q
 @[lantana_alias tr_next]
 def next (P : TrProp C) : TrProp C := fun τ => P τ.next
 
-/-- A relation between the current configuration and the next one: the two-position atom. -/
+/-- The relation `R` between the current configuration and the next one. -/
 def step (R : C → C → Prop) : TrProp C := fun τ => R τ.now τ.next.now
 
 /-- A fact about the current position. -/

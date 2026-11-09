@@ -126,7 +126,7 @@ def eventually (G : TrSpec Expr State GF) : TrSpec Expr State GF := strongUntil 
 /-- A state atom: a predicate on the current state and thread pool. -/
 @[lantana_alias trSpec_state]
 def state (φ : State → ThreadPool Expr → Prop) : TrSpec Expr State GF where
-  internal := fun τ => iprop(⌜φ τ.cfg.2 τ.cfg.1⌝)
+  internal := fun τ => iprop(⌜φ τ.now.2 τ.now.1⌝)
   external := TrProp.state φ
   adeq _ _ h := (iPropSatLcAtFrame _ ⊤).elim h
 

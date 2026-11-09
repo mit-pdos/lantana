@@ -76,7 +76,7 @@ variable {C : Type} [ThreadSystem C] (τ : Trace C)
 active at `n`, and the step taken at `n` is one of its steps. -/
 def claim (i n : Nat) : Prop :=
   τ.pos ≤ n ∧ ThreadSystem.active i (τ.seq n) ∧
-    ThreadSystem.Step i (τ.seq n) (τ.seq (n + 1))
+    ThreadSystem.step i (τ.seq n) (τ.seq (n + 1))
 
 open Classical in
 /-- The frontier before visit `k`.  The thread visited at `k` takes its least claim at or beyond
@@ -155,7 +155,7 @@ noncomputable def sched (hrun : IsBehavior τ) (n : Nat) : ThreadId :=
 
 /-- The schedule names a stepping thread at every position from the current one on. -/
 theorem sched_step (hrun : IsBehavior τ) {n : Nat} (hn : τ.pos ≤ n) :
-    ThreadSystem.Step (sched hrun n) (τ.seq n) (τ.seq (n + 1)) := by
+    ThreadSystem.step (sched hrun n) (τ.seq n) (τ.seq (n + 1)) := by
   rw [sched]
   split
   · next h => exact h.choose_spec.2.1.2.2
@@ -177,8 +177,7 @@ infinitely often is named infinitely often while active.  The adequacy proof use
 for its per-thread bookkeeping; no assumption mentions it. -/
 theorem exists_fair_schedule (hrun : IsBehavior τ) (hsf : ∀ i, Sched.SF i τ) :
     ∃ sched : Nat → ThreadId, Schedule sched τ ∧
-      ∀ i, (□ₜ ◇ₜ active i) τ →
-        (□ₜ ◇ₜ (active i ∧ₜ TrProp.atPos fun n => sched n = i)) τ := by
+      ∀ i, (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ := by
   refine ⟨FairLabel.sched hrun, schedule_iff.mpr fun _ hn => FairLabel.sched_step hrun hn, ?_⟩
   intro i hA
   have hcl : MissHit.InfOften (FairLabel.claim τ i) := by
@@ -195,8 +194,8 @@ theorem exists_fair_schedule (hrun : IsBehavior τ) (hsf : ∀ i, Sched.SF i τ)
 names the thread, drops where the thread is active and not named, and stays where it is inactive.
 Normalised, this is `BehFscnt` (`Lantana.Temporal.FairScheduling`). -/
 theorem Sched.exists_counter_of_fair_schedule {sched : Nat → ThreadId} {i : ThreadId}
-    (hfair : (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ TrProp.atPos fun n => sched n = i)) τ) :
-    ∃ δ, AttemptGrant.IsCounter (active i) (TrProp.atPos fun n => sched n = i) δ τ :=
+    (hfair : (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ) :
+    ∃ δ, AttemptGrant.IsCounter (active i) (scheduled sched i) δ τ :=
   AttemptGrant.fair_iff_counter.1 (AttemptGrant.fair_iff_attempt.2 hfair)
 
 end Lantana.Fairness

@@ -51,7 +51,7 @@ decreasing counter. -/
 @[lantana_alias beh_fscnt]
 def BehFscnt (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat) : TrProp C :=
   □ₜ ∀ₜ i : ThreadId, inactive i ∨ₜ
-    (active i ∧ₜ (TrProp.atPos (fun n => sched n = i) ∨ₜ TrProp.atPos fun n => γ (n + 1) i < γ n i))
+    (active i ∧ₜ (scheduled sched i ∨ₜ TrProp.atPos fun n => γ (n + 1) i < γ n i))
 
 #lantana_ignore fscnt_next_rel_th
   "the counters are global along the run under the schedule; the next-position relation is `BehFscnt` at one position"
@@ -71,8 +71,7 @@ theorem behFscnt_iff : BehFscnt sched γ τ ↔
 /-- Layer 0's counters of the threads' scheduling pairs under a schedule are fairness counters:
 at a position where the thread is active and not named the counter drops by one. -/
 theorem behFscnt_of_counters {δ : ThreadId → Nat → Nat}
-    (hδ : ∀ i, Fairness.AttemptGrant.IsCounter (active i) (TrProp.atPos fun n => sched n = i)
-      (δ i) τ) :
+    (hδ : ∀ i, Fairness.AttemptGrant.IsCounter (active i) (scheduled sched i) (δ i) τ) :
     BehFscnt sched (fun m i => δ i m) τ := by
   refine behFscnt_iff.mpr fun m hm i => ?_
   by_cases hA : ThreadSystem.active i (τ.seq m)
@@ -89,8 +88,7 @@ theorem behFscnt_of_counters {δ : ThreadId → Nat → Nat}
 /-- Under a schedule that names every thread active infinitely often infinitely often while it is
 active, the run has fairness counters: for each thread, the counter of its scheduling pair. -/
 theorem exists_behFscnt_of_fair_schedule
-    (hfair : ∀ i, (□ₜ ◇ₜ active i) τ →
-      (□ₜ ◇ₜ (active i ∧ₜ TrProp.atPos fun n => sched n = i)) τ) :
+    (hfair : ∀ i, (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ) :
     ∃ γ, BehFscnt sched γ τ :=
   ⟨fun m i => Classical.choose (Fairness.Sched.exists_counter_of_fair_schedule (hfair i)) m,
     behFscnt_of_counters fun i =>

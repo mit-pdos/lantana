@@ -29,7 +29,7 @@ open scoped Lantana.TrProp
 /-- A predicate on the current state and thread pool: the state atoms. -/
 @[lantana_alias tr_state]
 def state (φ : State → ThreadPool Expr → Prop) : TrProp (Cfg Expr State) :=
-  fun τ => φ τ.cfg.2 τ.cfg.1
+  fun τ => φ τ.now.2 τ.now.1
 
 /-! ## Rules -/
 

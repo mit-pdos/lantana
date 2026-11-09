@@ -32,7 +32,7 @@ where there is no attempt.  That is layer 0, and the two layers above are instan
 
 Layer 1's object is an *action*, a structure `Action` with an *enabling condition* `enabled` on
 configurations and a *grant* relation `grant` on steps, read on a trace through the atoms
-`enabledNow` (`now a.enabled`) and `granted` (`step a.grant`).  Its trusted form is the textbook
+`enabledNow` (`atomic a.enabled`) and `granted` (`step a.grant`).  Its trusted form is the textbook
 strong fairness `a.SF := □ₜ ◇ₜ a.enabledNow →ₜ □ₜ ◇ₜ (a.enabledNow ∧ₜ a.granted)`, a statement
 about the run that names no thread.  `SF` is layer 0 with the positions where the action is
 enabled as the attempts and the steps in its grant as the grants.  Its counter moves at any step,
@@ -65,12 +65,12 @@ the thread's own view of an action and fair scheduling are the four ways to buil
    (`fair_iff_attempt`), its counter (`fair_iff_counter`) and the counter's rules, stated once for
    every layer; restriction (`fair_mono`, `fair_mono_of_le`); a certain grant (`fair_of_certain`).
 2. `Lantana.Temporal.Fairness.Action`, section 2: `Action`, layer 1, the state form of an action,
-   a structure with the fields `enabled` and `grant`: `enabledNow a := now a.enabled`,
+   a structure with the fields `enabled` and `grant`: `enabledNow a := atomic a.enabled`,
    `granted a := step a.grant`, `SF`, `Response`, `WF`, `Convex`; `sf_iff_fair`, `sf_iff_counter`,
    `sf_of_response`, `wf_of_sf`, `sf_of_certain`, `sf_iff_wf_of_convex`.
 3. `Lantana.Temporal.Fairness.Scheduling`, sections 3 and 4: a pair that is one thread's
    (`AttemptGrant.OwnStep`, `AttemptGrant.counter_stay_of_other`); the scheduling action `Sched`
-   (`action`, `SF`, `attempt`, `AG`, `ownGrant`, `stepsInfOften_of_sf`, `certain`, `ag`,
+   (`action`, `SF`, `attempt`, `AG`, `ownGrant`, `threadStepInfOften_of_sf`, `certain`, `ag`,
    `counter_zero`); the schedule as a proof instrument (`SoleOwner`, `labelledView`,
    `labelledView_of_sf`).
 4. `Lantana.Temporal.Fairness.Thread`, section 5: `Thread`, layer 2, the thread's view (`attempt`,

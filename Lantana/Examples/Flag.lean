@@ -497,7 +497,7 @@ def flagRun (l : Loc) (n : Nat) : Cfg Exp State :=
 @[lantana_alias flag_run_at]
 theorem flagRun_at (l : Loc) (m : Nat) (v : Val) :
     pointsToTr l v ⟨m, flagRun l⟩ ↔ v = if m = 0 ∨ m = 2 then v0 else v1 := by
-  simp only [TrProp.state, Trace.cfg, Trace.now, flagRun, pointstoSat]
+  simp only [TrProp.state, Trace.now, flagRun, pointstoSat]
   rw [Std.ExtTreeMap.getElem?_insert_self]
   simp [eq_comm]
 
