@@ -425,7 +425,8 @@ trace step of the thread the schedule names. -/
 theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hsch : Schedule sched ⟨0, τf⟩) (hcnt : SchedCounters sched γ ⟨0, τf⟩)
+    {γ : Nat → ThreadId → Nat} (hsch : Schedule sched ⟨0, τf⟩)
+    (hcnt : SchedCounters sched γ ⟨0, τf⟩)
     (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ threadsRun tp Ψ ⊢
       |={⊤,∅}=> ALC iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by

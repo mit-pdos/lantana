@@ -12,8 +12,8 @@ public import Lantana.Temporal.Fairness.Action
 Fair scheduling is one more action, `Sched.action i`, enabled where the thread is active and
 granted at its trace step; `Sched.SF i` is its strong fairness and `Sched.assumption i` its
 strong recipe.  `fairScheduling := ∀ₜ i, Sched.SF i` is the hypothesis of the adequacy theorems
-and names no scheduled thread.  Under a schedule, the fairness counters of the run are `SchedCounters`.
-The Rocq counterpart is `fair_scheduling.v`.
+and names no scheduled thread.  Under a schedule, the fairness counters of the run are
+`SchedCounters`.  The Rocq counterpart is `fair_scheduling.v`.
 See `docs/temporal.md`.
 -/
 

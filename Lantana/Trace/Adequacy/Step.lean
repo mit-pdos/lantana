@@ -15,8 +15,8 @@ strictly decrease and keep both witness invariants exist (`mprog_exists_step`). 
 assigned obligation with fuel `a` and owner `o` is the fair-scheduler measure
 `fairMeasure (γ (n + 1)) o a` of the next position: the fuel of the named thread's obligations
 dropped, the fairness counter of every other active owner dropped (the counters are an
-explicit sequence `γ` along the run under the schedule, the trace property `SchedCounters` of the run
-from position `0`, so no choice is needed for them).
+explicit sequence `γ` along the run under the schedule, the trace property `SchedCounters` of the
+run from position `0`, so no choice is needed for them).
 
 The ghost-state part: from the model interpretation and the `Th.done` tokens of the finished
 threads, every assigned obligation's owner is active (`getOblsThreadActive`); a stutter of a
