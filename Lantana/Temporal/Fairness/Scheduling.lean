@@ -12,7 +12,7 @@ public import Lantana.Temporal.Fairness.Action
 Fair scheduling is one more action, `Sched.action i`, enabled where the thread is active and
 granted at its trace step; `Sched.SF i` is its strong fairness and `Sched.assumption i` its
 strong recipe.  `fairScheduling := ∀ₜ i, Sched.SF i` is the hypothesis of the adequacy theorems
-and names no scheduled thread.  Under a schedule, the fairness counters of the run are `BehFscnt`.
+and names no scheduled thread.  Under a schedule, the fairness counters of the run are `SchedCounters`.
 The Rocq counterpart is `fair_scheduling.v`.
 See `docs/temporal.md`.
 -/
@@ -44,7 +44,7 @@ variable {i : ThreadId} {τ : Trace C}
 theorem holds_assumption : (assumption i).holds τ ↔ SF i τ := Action.holds_strong
 
 /-- A thread active infinitely often and fairly scheduled steps infinitely often. -/
-theorem threadStepInfOften_of_sf : (SF i ∧ₜ □ₜ ◇ₜ active i : TrProp C) ⊆ ThreadStepInfOften i :=
+theorem stepOfInfOften_of_sf : (SF i ∧ₜ □ₜ ◇ₜ active i : TrProp C) ⊆ StepOfInfOften i :=
   fun τ ⟨hsf, hinf⟩ => TrProp.always_eventually_mono (fun _ h => h.2) τ (hsf hinf)
 
 end Fairness.Sched
@@ -69,7 +69,7 @@ theorem fairScheduling_next {τ : Trace C} (h : fairScheduling τ) : fairSchedul
 /-- Fairness counters of a run under a schedule: from the current position on, every thread is
 inactive, or active and either named by the schedule or with a strictly decreasing counter. -/
 @[lantana_alias beh_fscnt]
-def BehFscnt (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat) : TrProp C :=
+def SchedCounters (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat) : TrProp C :=
   □ₜ ∀ₜ i : ThreadId, inactive i ∨ₜ
     (active i ∧ₜ (scheduled sched i ∨ₜ TrProp.atPos fun n => γ (n + 1) i < γ n i))
 
@@ -83,17 +83,17 @@ def BehFscnt (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat) : TrProp
 variable {τ : Trace C} {sched : Nat → ThreadId} {γ : Nat → ThreadId → Nat}
 
 /-- The counters, unfolded at a position: the form the adequacy proof reads. -/
-theorem behFscnt_iff : BehFscnt sched γ τ ↔
+theorem schedCounters_iff : SchedCounters sched γ τ ↔
     ∀ m, τ.pos ≤ m → ∀ i, ¬ ThreadSystem.active i (τ.seq m) ∨
       (ThreadSystem.active i (τ.seq m) ∧ (sched m = i ∨ γ (m + 1) i < γ m i)) :=
   Iff.rfl
 
 /-- The core's counters of the pairs (active, scheduled) of the threads are fairness counters: where
 a thread is active and not named, its counter drops by one. -/
-theorem behFscnt_of_counters {δ : ThreadId → Nat → Nat}
+theorem schedCounters_of_counters {δ : ThreadId → Nat → Nat}
     (hδ : ∀ i, Fairness.AttemptGrant.IsCounter (active i) (scheduled sched i) (δ i) τ) :
-    BehFscnt sched (fun m i => δ i m) τ := by
-  refine behFscnt_iff.mpr fun m hm i => ?_
+    SchedCounters sched (fun m i => δ i m) τ := by
+  refine schedCounters_iff.mpr fun m hm i => ?_
   by_cases hA : ThreadSystem.active i (τ.seq m)
   · refine .inr ⟨hA, ?_⟩
     by_cases hs : sched m = i

@@ -12,7 +12,7 @@ A behavior on which every thread is fairly scheduled has a schedule that names e
 infinitely often infinitely often while active (`exists_fair_schedule`), by a diagonal
 construction in `FairLabel`: stage `s` visits the threads `0, …, s`, and a visited thread takes
 its least claim beyond a frontier that only moves forward.  Under such a schedule the fairness
-counters exist (`exists_fair_schedule_behFscnt`).
+counters exist (`exists_fair_schedule_schedCounters`).
 See `docs/temporal.md`.
 -/
 
@@ -193,21 +193,21 @@ variable {C : Type} [ThreadSystem C] {τ : Trace C}
 
 /-- Under a schedule that names every thread active infinitely often infinitely often while it is
 active, the run has fairness counters. -/
-theorem exists_behFscnt_of_fair_schedule {sched : Nat → ThreadId}
+theorem exists_schedCounters_of_fair_schedule {sched : Nat → ThreadId}
     (hfair : ∀ i, (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ) :
-    ∃ γ, BehFscnt sched γ τ :=
+    ∃ γ, SchedCounters sched γ τ :=
   ⟨fun m i => Classical.choose (Fairness.Sched.exists_counter_of_fair_schedule (hfair i)) m,
-    behFscnt_of_counters fun i =>
+    schedCounters_of_counters fun i =>
       Classical.choose_spec (Fairness.Sched.exists_counter_of_fair_schedule (hfair i))⟩
 
 /-- A behavior on which every thread is fairly scheduled admits a schedule and fairness counters
 under it. -/
 @[lantana_alias fair_scheduling_fscnt]
-theorem exists_fair_schedule_behFscnt (hrun : IsBehavior τ) (hsf : fairScheduling τ) :
+theorem exists_fair_schedule_schedCounters (hrun : IsBehavior τ) (hsf : fairScheduling τ) :
     ∃ (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
-      Schedule sched τ ∧ BehFscnt sched γ τ := by
+      Schedule sched τ ∧ SchedCounters sched γ τ := by
   obtain ⟨sched, hsch, hfair⟩ := Fairness.exists_fair_schedule hrun hsf
-  obtain ⟨γ, hγ⟩ := exists_behFscnt_of_fair_schedule hfair
+  obtain ⟨γ, hγ⟩ := exists_schedCounters_of_fair_schedule hfair
   exact ⟨sched, γ, hsch, hγ⟩
 
 end Lantana

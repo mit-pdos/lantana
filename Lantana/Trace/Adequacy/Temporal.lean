@@ -23,7 +23,7 @@ and the `lWP`s of the threads. The theorem allocates the ghost state at its name
 `adequacy_alloc_names`), and reads the internal reading off by satisfiability (`TrSpec.adeq`).
 
 The behavior carries no thread label. The proof chooses a fair schedule of it and fairness
-counters under that schedule (`exists_fair_schedule_behFscnt`), the instruments that the run is
+counters under that schedule (`exists_fair_schedule_schedCounters`), the instruments that the run is
 threaded with.
 
 The ghost state is allocated inside the proof, so the premise quantifies over its instances; the
@@ -116,7 +116,7 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
     {tp : ThreadPool Expr} (Ψ : ThreadId → Val → IProp GF) {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} (G : TrSpec Expr State GF) (hsch : Schedule sched ⟨0, τf⟩)
-    (hcnt : BehFscnt sched γ ⟨0, τf⟩) (hLb : owitInvLb (fairMeasure (γ n)) Ω W)
+    (hcnt : SchedCounters sched γ ⟨0, τf⟩) (hLb : owitInvLb (fairMeasure (γ n)) Ω W)
     (hh : histTrace h τf) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗
       (|={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ G) ∗ P ∗
@@ -156,7 +156,7 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
   imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W', %⟨h₃, h₄, -⟩, -, HH, MI, HT⟩
   icases (historyTInterp_reg _ _ _ _).mp $$ HH with ⟨HI, HR⟩
   imodintro
-  have hf : Schedule sched ⟨0, τf⟩ ∧ BehFscnt sched γ ⟨0, τf⟩ ∧
+  have hf : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf :=
     ⟨hsch, hcnt, h₃, h₄⟩
   iapply record_elim G (Sys := sysLwp (Expr := Expr) (State := State) (Val := Val) (GF := GF))
@@ -175,7 +175,7 @@ produce (under a fancy update, from some amount `c` of later credits and the ini
 empty sets of children) a resource `P` that guarantees `G` together with `lWP`s for the
 initial threads, then every fair behavior from the initial configuration satisfies `R`.
 Fairness is the strong fairness of every thread's scheduling action (`fairScheduling`, a trace
-property); the proof chooses a schedule as its instrument (`exists_fair_schedule_behFscnt`). -/
+property); the proof chooses a schedule as its instrument (`exists_fair_schedule_schedCounters`). -/
 @[lantana_alias lwp_adequacy_temporal]
 theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
     {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
@@ -198,7 +198,7 @@ theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
   obtain ⟨n, τf⟩ := τ
   simp only at hpos hinit
   subst hpos
-  obtain ⟨sched, γc, hsch, hγc⟩ := exists_fair_schedule_behFscnt hbeh hfair
+  obtain ⟨sched, γc, hsch, hγc⟩ := exists_fair_schedule_schedCounters hbeh hfair
   obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp)
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2

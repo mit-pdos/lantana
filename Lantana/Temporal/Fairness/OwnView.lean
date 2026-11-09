@@ -45,7 +45,7 @@ def Stable (a : Action C) (i : ThreadId) : Prop :=
 /-- The enabling condition persists along the run: where it holds, the thread at `i` steps now,
 or it still holds at the next position, or it never holds again. -/
 def Persists (a : Action C) (i : ThreadId) : TrProp C :=
-  □ₜ (a.enabledNow →ₜ threadStep i ∨ₜ ○ₜ a.enabledNow ∨ₜ ○ₜ □ₜ ¬ₜ a.enabledNow)
+  □ₜ (a.enabledNow →ₜ stepOf i ∨ₜ ○ₜ a.enabledNow ∨ₜ ○ₜ □ₜ ¬ₜ a.enabledNow)
 
 variable {i : ThreadId} {a : Action C} {c c' : C} {τ : Trace C}
 
@@ -53,8 +53,8 @@ variable {i : ThreadId} {a : Action C} {c c' : C} {τ : Trace C}
 
 /-- The meaning: a thread that attempts infinitely often is granted infinitely often. -/
 theorem own_holds_iff : (a.own i).holds τ ↔
-    ((□ₜ ◇ₜ (threadStep i ∧ₜ a.enabledNow)) τ →
-      (□ₜ ◇ₜ ((threadStep i ∧ₜ a.enabledNow) ∧ₜ a.granted)) τ) :=
+    ((□ₜ ◇ₜ (stepOf i ∧ₜ a.enabledNow)) τ →
+      (□ₜ ◇ₜ ((stepOf i ∧ₜ a.enabledNow) ∧ₜ a.granted)) τ) :=
   Assumption.holds_iff_attempted
 
 /-- The counter of the view stays at every transition that is not a step of the thread. -/
@@ -83,7 +83,7 @@ theorem persists_of_stable (hstab : a.Stable i) : IsBehavior ⊆ a.Persists i :=
 /-- Where the thread steps infinitely often and the enabling condition persists, the view gives
 `SF`. -/
 theorem sf_of_own_holds :
-    (ThreadStepInfOften i ∧ₜ a.Persists i ∧ₜ (a.own i).holds) ⊆ a.SF := by
+    (StepOfInfOften i ∧ₜ a.Persists i ∧ₜ (a.own i).holds) ⊆ a.SF := by
   rintro τ ⟨hsched, hper, hag⟩ hA
   refine Classical.byContradiction fun hno => hno ?_
   obtain ⟨N, -, hN⟩ := TrProp.eventually_always_iff.mp (TrProp.not_always_eventually_le τ hno)
@@ -94,7 +94,7 @@ theorem sf_of_own_holds :
   have hτn : τ.pos ≤ n := Nat.le_trans hn₀ (Nat.le_trans (Nat.le_max_left _ _) hn)
   obtain ⟨m, hm, hsm⟩ := TrProp.always_eventually_iff.mp hsched n hτn
   obtain ⟨m', ⟨hnm', hsm'⟩, hmin⟩ :=
-    Nat.exists_min (p := fun m => n ≤ m ∧ threadStep i { τ with pos := m }) m ⟨hm, hsm⟩
+    Nat.exists_min (p := fun m => n ≤ m ∧ stepOf i { τ with pos := m }) m ⟨hm, hsm⟩
   have hAk : ∀ k, n ≤ k → k ≤ m' → a.enabled (τ.seq k) := by
     intro k hnk hkm
     induction k with
@@ -119,7 +119,7 @@ theorem sf_of_own_holds :
 
 /-- Under own grant, where the thread steps infinitely often and the enabling condition persists,
 `SF` and the view coincide. -/
-theorem sf_iff_own_holds (hown : a.OwnGrant i) (hsched : ThreadStepInfOften i τ)
+theorem sf_iff_own_holds (hown : a.OwnGrant i) (hsched : StepOfInfOften i τ)
     (hper : a.Persists i τ) : a.SF τ ↔ (a.own i).holds τ :=
   ⟨own_holds_of_sf hown τ, fun hag => sf_of_own_holds τ ⟨hsched, hper, hag⟩⟩
 

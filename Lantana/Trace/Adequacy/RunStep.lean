@@ -328,7 +328,7 @@ theorem run_step_stuck {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
 theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : BehFscnt sched γ ⟨0, τf⟩)
+    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : SchedCounters sched γ ⟨0, τf⟩)
     (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) (hlen : h.length = n + 1)
     (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).notStuck)
     (hd : ThreadDone i (tp, σ) (τf (n + 1))) :
@@ -364,7 +364,7 @@ theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
 theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : BehFscnt sched γ ⟨0, τf⟩)
+    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : SchedCounters sched γ ⟨0, τf⟩)
     (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) (hlen : h.length = n + 1)
     (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).notStuck)
     (hstep : ThreadStep i (tp, σ) (τf (n + 1))) :
@@ -425,7 +425,7 @@ trace step of the thread the schedule names. -/
 theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hsch : Schedule sched ⟨0, τf⟩) (hcnt : BehFscnt sched γ ⟨0, τf⟩)
+    {γ : Nat → ThreadId → Nat} (hsch : Schedule sched ⟨0, τf⟩) (hcnt : SchedCounters sched γ ⟨0, τf⟩)
     (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ threadsRun tp Ψ ⊢
       |={⊤,∅}=> ALC iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by

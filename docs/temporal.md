@@ -56,13 +56,13 @@ class ThreadSystem (C : Type) where
 ```
 
 The class has no laws; whatever a proof needs of an instance is a hypothesis.  Over it:
-`threadStep i` (the thread at `i` takes a trace step at the current position), `active i`,
-`inactive i`, and `IsBehavior := □ₜ ∃ₜ i, threadStep i` (some thread steps at every position from
-the current one on).  `ThreadStepInfOften i := □ₜ ◇ₜ threadStep i`.
+`stepOf i` (the thread at `i` takes a trace step at the current position), `active i`,
+`inactive i`, and `IsBehavior := □ₜ ∃ₜ i, stepOf i` (some thread steps at every position from
+the current one on).  `StepOfInfOften i := □ₜ ◇ₜ stepOf i`.
 
 Traces carry no thread label.  A *schedule* `sched : Nat → ThreadId` names a thread at each
 position; `scheduled sched i` says the schedule names `i` at the current position, and
-`Schedule sched := □ₜ ∃ₜ i, scheduled sched i ∧ₜ threadStep i` says the named thread steps at
+`Schedule sched := □ₜ ∃ₜ i, scheduled sched i ∧ₜ stepOf i` says the named thread steps at
 every position.  Schedules are proof instruments: no behavior and no assumption mentions one,
 and the adequacy proof chooses one (section 3.6).
 
@@ -163,11 +163,11 @@ Adequacy needs one owner per step and a decreasing measure for every waiting thr
 labelling (`Fairness/FairLabel.lean`, `exists_fair_schedule`) shows that a behavior on which
 every thread is fairly scheduled has a schedule that names every thread active infinitely often
 infinitely often while active, by a diagonal construction.  Under such a schedule the
-*fairness counters* exist: `BehFscnt sched γ` says that at every position each thread is
+*fairness counters* exist: `SchedCounters sched γ` says that at every position each thread is
 inactive, or active and either named by the schedule or with a strictly decreasing counter
-`γ n i`, and `exists_fair_schedule_behFscnt` produces both the schedule and the counters from
+`γ n i`, and `exists_fair_schedule_schedCounters` produces both the schedule and the counters from
 `IsBehavior τ` and `fairScheduling τ`.  The adequacy proofs thread `Schedule sched ⟨0, τf⟩` and
-`BehFscnt sched γ ⟨0, τf⟩` along the run and bound the fair-scheduler witnesses by
+`SchedCounters sched γ ⟨0, τf⟩` along the run and bound the fair-scheduler witnesses by
 `fairMeasure (γ n)`.
 
 ## 4. Naming
@@ -177,7 +177,7 @@ systems, behaviors and fair scheduling, `Lantana.Fairness` for the theory with t
 `MissHit`, `AttemptGrant`, `Assumption`, `Action` and `Sched`.  Upper-case names are
 propositions about a run or about a relation (`Fair`, `IsCounter`, `Certain`, `SF`, `WF`,
 `Convex`, `OwnGrant`, `Stable`, `Persists`); lower-case names are trace properties at one
-position (`hit`, `miss`, `attempted`, `granted`, `enabledNow`, `threadStep`, `active`) and the
+position (`hit`, `miss`, `attempted`, `granted`, `enabledNow`, `stepOf`, `active`) and the
 fields of structures.  A theorem over an action or an assumption takes it as its argument `a`.
 Theorems read `conclusion_of_hypothesis` (`own_holds_of_sf`) or `subject_property`
 (`counter_reset`), equivalences `x_iff_y` (`sf_iff_wf_of_convex`).  A statement whose hypotheses

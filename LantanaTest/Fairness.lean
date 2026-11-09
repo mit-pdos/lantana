@@ -59,10 +59,10 @@ info: 'Lantana.Fairness.Sched.exists_counter_of_fair_schedule' depends on axioms
 #print axioms Lantana.Fairness.Sched.exists_counter_of_fair_schedule
 
 /--
-info: 'Lantana.exists_fair_schedule_behFscnt' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'Lantana.exists_fair_schedule_schedCounters' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms Lantana.exists_fair_schedule_behFscnt
+#print axioms Lantana.exists_fair_schedule_schedCounters
 
 /-- info: 'Lantana.Cfg.sched_sf_iff_wf' depends on axioms: [propext] -/
 #guard_msgs in
