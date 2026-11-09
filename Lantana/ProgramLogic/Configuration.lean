@@ -263,7 +263,8 @@ open scoped TrProp
 /-- Activity is convex along a behavior: a thread is active from its fork until it becomes a
 value, and never again. -/
 theorem Cfg.active_convex' {i : ThreadId} :
-    (IsBehavior : TrProp (Cfg Expr State)) ⊆ Fairness.Action.Convex (Cfg.active i) := by
+    (IsBehavior : TrProp (Cfg Expr State)) ⊆
+      Fairness.Action.Convex (Fairness.Sched.action i) := by
   intro τ hbeh m hm hA k hmk hev
   obtain ⟨k', hkk', hA'⟩ := TrProp.eventually_iff.mp hev
   have hrun : ∀ n, ∃ j, TraceStep j (τ.seq (m + n)) (τ.seq (m + n + 1)) :=
@@ -278,7 +279,7 @@ theorem Cfg.active_convex' {i : ThreadId} :
 activity is convex (a thread is active from its fork until it becomes a value). -/
 theorem fairScheduling_sf_iff_wf' {τ : Trace (Cfg Expr State)} (hrun : IsBehavior τ)
     (i : ThreadId) :
-    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Cfg.active i) (TraceStep i) τ :=
+    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
   fairScheduling_sf_iff_wf (Cfg.active_convex' τ hrun)
 
 end FairScheduling
