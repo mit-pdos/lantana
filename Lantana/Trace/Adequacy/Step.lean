@@ -14,7 +14,7 @@ schedule names at position `n` (`sched n`, the adequacy proof's instrument), wit
 strictly decrease and keep both witness invariants exist (`mprog_exists_step`). The witness of an
 assigned obligation with fuel `a` and owner `o` is the fair-scheduler measure
 `fairMeasure (γ (n + 1)) o a` of the next position: the fuel of the named thread's obligations
-dropped, the fairness counter of every other active owner dropped (D18: the counters are an
+dropped, the fairness counter of every other active owner dropped (the counters are an
 explicit sequence `γ` along the run under the schedule, the trace property `BehFscnt` of the run
 from position `0`, so no choice is needed for them).
 

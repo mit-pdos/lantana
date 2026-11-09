@@ -20,7 +20,7 @@ Lantana's language is an instance of the thread systems of `Lantana.Temporal`
 (`ThreadSystem (Cfg Expr State)`): the trace step of the thread at `i` is `TraceStep i` and its
 activity `Cfg.active i`. Its traces are `Trace (Cfg Expr State)`, and a behavior is `IsBehavior`
 at that instance: from the current position on, some thread takes a trace step at every position
-(a plain `∀`-statement over positions: no coinduction, D18). Activity is a property of the
+(a plain `∀`-statement over positions, no coinduction). Activity is a property of the
 configuration (`Cfg.active`, `Cfg.inactive`), convex along a run (`Cfg.active_convex`).
 
 Traces carry no thread label: nothing observable names the thread that steps. The adequacy

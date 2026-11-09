@@ -22,7 +22,7 @@ certificates for `n`: each registered structure (`TemporalRegistry`) has its con
 at every position (`certPre`, a later-guarded record). A record holds for any running system
 with the **one-step property** `sysStep` (`lWP` is one, `Adequacy/Temporal`).
 
-The pure facts about the run `τf : Nat → Cfg Expr State` (D18): the schedule
+The pure facts about the run `τf : Nat → Cfg Expr State`: the schedule
 `sched : Nat → ThreadId`, the adequacy proof's internal instrument (traces carry no thread
 label), names a thread whose trace step each position is (`Schedule sched ⟨0, τf⟩`); the
 fairness counters are an explicit sequence `γ : Nat → ThreadId → Nat` along the run under the
