@@ -10,8 +10,9 @@ public import Lantana.Init
 
 The least witness of a satisfiable predicate on `Nat` (classical), used by the fairness
 theory: the next hit and the budget of refusals before the next grant
-(`Lantana.Temporal.Fairness.AttemptGrant`), and a thread's next step
-(`Lantana.Temporal.Fairness.OwnView`).
+(`Lantana.Temporal.Fairness.MissHit`), a thread's next step
+(`Lantana.Temporal.Fairness.OwnView`), and the least claim of fair labelling
+(`Lantana.Temporal.Fairness.FairLabel`).
 -/
 
 @[expose] public section

@@ -4,24 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.Temporal.Fairness.OwnView
+public import Lantana.Temporal.Fairness.AttemptGrant
 
 /-! # Fairness assumptions
 
-A fairness assumption (`Assumption`) is an attempt–grant pair whose attempts and grants are decided
-by the transition at each position: two relations on steps, read on a trace through the step
-atoms `attempted` and `granted`.  It is the step-local instance of layer 0, so layer 0's theorems
-apply to it as they stand; the module restates by the assumption's name the ones a language
-instance reads (`holds_iff_counter`, the counter's rules).  It is the notion a language instance
-declares: what the instance's trace side updates is the counter of each declared assumption, and
-what a transition does to that counter is decided by the transition alone (`move`: a granted
-attempt resets it, a refused attempt drops it, no attempt leaves it; `counter_reset`,
-`counter_drop`, `counter_stay`, `isCounter_iff_move`).
-
-Every fairness notion of the theory is one: strong fairness of an action (`Action.strong`, the
-general path, `Action.holds_strong`), weak fairness of an action (`Action.weak`,
-`Action.holds_weak`), a thread's own view of an action (`Action.own`, the cheap path,
-`Action.holds_own`), and fair scheduling (`Sched.assumption`, `Sched.holds_assumption`).
+An `Assumption` is an attempt–grant pair whose attempts and grants are decided by the transition
+at each position: the notion a language instance declares.  `a.holds` is the core's fairness of
+the pair, read through `attempted` and `granted`; because the pair is step-local, what a
+transition does to the counter is a function of the transition alone (`move`), and the counter's
+rules read by the move (`counter_reset`, `counter_drop`, `counter_stay`, `isCounter_iff_move`).
+See `docs/temporal.md`.
 -/
 
 @[expose] public section
@@ -30,13 +22,8 @@ namespace Lantana.Fairness
 
 open scoped Lantana.TrProp
 
-/-! ## 7. Fairness assumptions (`Assumption`) -/
-
-/-- A fairness assumption on a thread system: an attempt–grant pair whose attempts and grants are
-decided by the transition at each position.  The step-local instance of layer 0, and the notion a
-language instance declares.  Strong fairness, weak fairness, fair scheduling and a thread's own
-view of an action are the four ways to build one (`Action.strong`, `Action.weak`, `Action.own`,
-`Sched.assumption`). -/
+/-- A fairness assumption: an attempt–grant pair of relations on the step, the notion a language
+instance declares. -/
 structure Assumption (C : Type) where
   /-- The transitions that are attempts. -/
   attempt : C → C → Prop
@@ -61,7 +48,7 @@ abbrev hit (a : Assumption C) : TrProp C := AttemptGrant.hit a.attempted a.grant
 /-- The transition at the current position is a refused attempt. -/
 abbrev miss (a : Assumption C) : TrProp C := AttemptGrant.miss a.attempted a.granted
 
-/-- The assumption holds of the run: layer 0's fairness of its pair. -/
+/-- The assumption holds of the run: the core's fairness of its pair. -/
 def holds (a : Assumption C) : TrProp C := AttemptGrant.Fair a.attempted a.granted
 
 /-- The counter of the assumption: zero at a granted attempt, one more at a refused attempt than
@@ -175,89 +162,5 @@ theorem counter_zero_of_certain (hc : a.Certain τ) : a.IsCounter (fun _ => 0) �
   AttemptGrant.counter_zero_of_certain hc
 
 end Assumption
-
-/-! ### The four ways to build an assumption -/
-
-namespace Action
-
-variable {C : Type}
-
-/-- Strong fairness of the action: attempts are the positions where it is enabled, whoever steps
-(the general path). -/
-def strong (a : Action C) : Assumption C := ⟨fun c _ => a.enabled c, a.grant⟩
-
-/-- Weak fairness of the action: every position attempts, and a position is granted when the
-action is disabled or its step is a grant. -/
-def weak (a : Action C) : Assumption C :=
-  ⟨fun _ _ => True, fun c c' => ¬ a.enabled c ∨ a.grant c c'⟩
-
-/-- The thread's own view of the action: attempts are its steps from an enabled configuration (the
-cheap path). -/
-def own [ThreadSystem C] (i : ThreadId) (a : Action C) : Assumption C :=
-  ⟨fun c c' => ThreadSystem.step i c c' ∧ a.enabled c, a.grant⟩
-
-variable {a : Action C} {δ : Nat → Nat} {τ : Trace C}
-
-/-- The strong assumption of an action holds exactly when the action is strongly fair. -/
-theorem holds_strong : a.strong.holds τ ↔ a.SF τ := sf_iff_fair.symm
-
-/-- The counters of the strong assumption of an action are the action's counters. -/
-theorem isCounter_strong : a.strong.IsCounter δ τ ↔ a.IsCounter δ τ := Iff.rfl
-
-/-- The weak assumption of an action holds exactly when the action is weakly fair.  Its misses
-are the positions where the action is enabled and the step is not a grant, its hits the positions
-where the action is disabled or the step is a grant. -/
-theorem holds_weak : a.weak.holds τ ↔ a.WF τ := by
-  constructor
-  · intro hag hev
-    refine Classical.byContradiction fun hno => ?_
-    obtain ⟨N, hN, hen⟩ := TrProp.eventually_always_iff.mp hev
-    obtain ⟨N', -, hnh⟩ :=
-      TrProp.eventually_always_iff.mp (TrProp.not_always_eventually_le τ hno)
-    have hle : ∀ m, max N N' ≤ m → N ≤ m ∧ N' ≤ m := fun m hm =>
-      ⟨Nat.le_trans (Nat.le_max_left _ _) hm, Nat.le_trans (Nat.le_max_right _ _) hm⟩
-    have hmiss : (□ₜ ◇ₜ a.weak.miss) τ := TrProp.always_eventually_iff.mpr fun n _ =>
-      ⟨max n (max N N'), Nat.le_max_left _ _, trivial, fun hg =>
-        have h := hle _ (Nat.le_max_right _ _)
-        hg.elim (fun hA => hA (hen _ h.1)) fun hg => hnh _ h.2 ⟨hen _ h.1, hg⟩⟩
-    obtain ⟨m, hm, -, hg⟩ := TrProp.always_eventually_iff.mp (hag hmiss) (max N N')
-      (Nat.le_trans hN (Nat.le_max_left _ _))
-    have hAm := hen m (hle m hm).1
-    exact hnh m (hle m hm).2 ⟨hAm, hg.resolve_left (absurd hAm)⟩
-  · intro hwf _
-    refine TrProp.always_eventually_iff.mpr fun n hn => Classical.byContradiction fun hno => ?_
-    have hen : ∀ m, n ≤ m → a.enabledNow { τ with pos := m } := fun m hm =>
-      Classical.byContradiction fun hA => hno ⟨m, hm, trivial, Or.inl hA⟩
-    obtain ⟨m, hm, -, hg⟩ :=
-      TrProp.always_eventually_iff.mp (hwf (TrProp.eventually_always_iff.mpr ⟨n, hn, hen⟩)) n hn
-    exact hno ⟨m, hm, trivial, Or.inr hg⟩
-
-/-- The thread's own assumption of an action holds exactly when the thread's view of the action
-does. -/
-theorem holds_own [ThreadSystem C] {i : ThreadId} :
-    (a.own i).holds τ ↔ Thread.AttemptGrant i a τ :=
-  Iff.rfl
-
-/-- The counters of the thread's own assumption of an action are the counters of the thread's
-view. -/
-theorem isCounter_own [ThreadSystem C] {i : ThreadId} :
-    (a.own i).IsCounter δ τ ↔ Thread.IsCounter i a δ τ :=
-  Iff.rfl
-
-end Action
-
-namespace Sched
-
-variable {C : Type} [ThreadSystem C]
-
-/-- Fair scheduling of the thread at `i` as an assumption. -/
-def assumption (i : ThreadId) : Assumption C := (action i).strong
-
-/-- The scheduling assumption of a thread holds exactly when the thread is fairly scheduled. -/
-theorem holds_assumption {i : ThreadId} {τ : Trace C} :
-    (assumption i).holds τ ↔ SF i τ :=
-  Action.holds_strong
-
-end Sched
 
 end Lantana.Fairness

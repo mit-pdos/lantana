@@ -45,7 +45,7 @@ discharged. Lean names are in the namespace `Lantana`, and files in `Lantana/`.
 | The obligation predicates and their rules, as a sealed interface that the program logic uses | obligations `Obl.*`, witnesses `Wit.*`, threads `Th.*`, the children `Par.kids p K` of a parent `p` (`thKids i K`, `oblKids k K`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | The model update, which changes obligations and witnesses | `\|={E₁,E₂}=>m P` (`mupd`) | `ProgramLogic/OblForest.lean` |
 | The model of the interface | `Model.OPreds`, over the obligation model (`ModelGS`) | `BaseLogic/Model/OPreds.lean` |
-| Trace properties, with LTL on traces; the attempt–grant theory of fairness over them, and fair scheduling as the strong fairness of each thread's scheduling action | `TrProp`, `□ₜ` `◇ₜ` `○ₜ` `Uₜ`, entailment `R ⊆ S`; `Fairness.Action.SF`, `Fairness.Sched.SF`, `fairScheduling` | `Temporal/Trace.lean`, `Temporal/TracePropRules.lean`, `Temporal/Fairness/`, `Temporal/FairScheduling.lean` |
+| Trace properties, with LTL on traces; the attempt–grant theory of fairness over them, and fair scheduling as the strong fairness of each thread's scheduling action | `TrProp`, `□ₜ` `◇ₜ` `○ₜ` `Uₜ`, entailment `R ⊆ S`; `Fairness.Action.SF`, `Fairness.Sched.SF`, `fairScheduling` | `Temporal/Trace.lean`, `Temporal/TracePropRules.lean`, `Temporal/Fairness/` (fair scheduling in `Fairness/Scheduling.lean`) |
 | Trace specifications: a trace property with an internal, step-indexed reading adequate for it | `TrSpec` (`TrSpec.external`, `TrSpec.internal`), entailment `G ⊑ₛ H` | `Trace/TrSpec.lean` |
 | Guarantees: whenever `P` holds, the rest of the execution satisfies `G` | `P ⊨ₜ G` (`Guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
 | Temporal formulas, which are `iProp`s with guarantees | `alwaysI N P`, `untilI N k q P Q`, `finallyI N k q Q` | `Trace/TemporalFormula.lean`, `Trace/TemporalFormulaRules.lean` |
@@ -85,7 +85,7 @@ forks a thread that sets a flag and waits for the flag.
 | Directory | Contents | Rocq |
 |---|---|---|
 | `Lantana/Prelude` | thread and obligation ids, `Parent`; layers and fuel (ordinals) | `prelude/` |
-| `Lantana/Temporal` | traces of a configuration type, trace properties with LTL and their rules, thread systems (`ThreadSystem.lean`) and their behaviors, the attempt–grant theory of fairness (`Fairness/`; `Fairness.Assumption` is the notion a language instance declares), fair scheduling as the strong fairness of each thread's scheduling action with the fair-labelling theorem and the fairness counters (`FairScheduling.lean`); language-independent, Iris-free | the trace part of `program_logic/language.v`, `trace/trace_prop*.v` and `trace/fair_scheduling.v` |
+| `Lantana/Temporal` | traces of a configuration type, trace properties with LTL and their rules, thread systems (`ThreadSystem.lean`) and their behaviors, the attempt–grant theory of fairness (`Fairness/`; `Fairness.Assumption` is the notion a language instance declares), fair scheduling as the strong fairness of each thread's scheduling action with the fairness counters (`Fairness/Scheduling.lean`) and the fair-labelling theorem (`Fairness/FairLabel.lean`); see `docs/temporal.md`; language-independent, Iris-free | the trace part of `program_logic/language.v`, `trace/trace_prop*.v` and `trace/fair_scheduling.v` |
 | `Lantana/Algebra` | measures `Measure.rep`, ordered commutative monoids, the bank and bounded-credit cameras, `AuthMra` | `algebra/` |
 | `Lantana/BaseLogic` | relational update `|==>r`, ordinal later credits `£ₒ α`, the fancy update, satisfiability, invariants; the obligation model (`Model/`: `osat`, `owit`, `oforest`, the model history, `modelInterp`, the model update `mupd` as a least fixpoint, `mprog`/`mphys`, the user predicates) | `base_logic/` |
 | `Lantana/ProgramLogic` | languages with thread pools, configurations and thread steps, Lantana's language as a thread system (`ThreadSystem`) and fair scheduling of Lantana's threads (`Configuration.lean`), the history, the temporal registry, the sealed obligation-forest interface (`OblForest.lean`) and its derived rules, `lWP` (a least fixpoint) with its rules and lifting lemmas | `program_logic/` |
@@ -156,7 +156,7 @@ no coverage report).
 - **Fixed concrete choices**: the fair-scheduler bound `η a := ω ×ⱼ a +ₕ ω` and fuel `Ordinal.{1}`
   instead of classes; fairness counters are an explicit sequence instead of a coinductive
   predicate, read under a schedule the adequacy proof chooses by the fair-labelling theorem of
-  `Lantana/Temporal/Fairness`; `always` reads a single formula and safety is derived from the
+  `Lantana/Temporal/Fairness/FairLabel.lean`; `always` reads a single formula and safety is derived from the
   generalised single step `run_step`.
 - **Allocation exposes ghost names**: the ghost-state classes are too large for the existential
   property of the step index, so allocation lemmas return records of names from which the
