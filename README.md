@@ -121,13 +121,15 @@ declarations deliberately not ported are recorded with `#lantana_ignore rocqName
 (`Lantana/Std/Porting.lean`). Example files prefix their aliases with the Rocq file name when
 Rocq reuses short names across files.
 
-The generated table [`docs/rocq-correspondence.md`](docs/rocq-correspondence.md) lists every
-alias (Rocq name, Lean declaration, Lean file) and every ignored Rocq name with its reason,
-grouped by Rocq file, with summary counts and a coverage report: the Rocq declarations of
-`lantana/` and `lantana_heap_lang/` that are neither aliased nor ignored. Regenerate it with
-`scripts/rocq-table.sh [rocq-checkout]` (`scripts/RocqTable.lean` walks the environment of
-`import Lantana`; without a Rocq checkout the tables are grouped by Lean module and there is
-no coverage report).
+The correspondence refers to the Rocq development at commit `08838e2`. Lantana-Lean diverges
+from it from the temporal layer (`Lantana/Temporal`) on: material with no Rocq counterpart
+carries no alias, and only ported declarations are annotated. The generated table
+[`docs/rocq-correspondence.md`](docs/rocq-correspondence.md) lists every alias (Rocq name, Lean
+declaration, Lean file) and every ignored Rocq name with its reason, grouped by Lean module, with
+summary counts. Regenerate it with `scripts/rocq-table.sh ""` (`scripts/RocqTable.lean` walks the
+environment of `import Lantana`); given a checkout of the Rocq development as its argument, the
+script instead groups the tables by Rocq file and adds a coverage report, the Rocq declarations
+that are neither aliased nor ignored, which is no longer maintained.
 
 ## Naming
 
@@ -172,6 +174,8 @@ All documents live in `docs/`:
   the paper, after the Rocq development's `PAPER.md`.
 - [`docs/rocq-correspondence.md`](docs/rocq-correspondence.md): the generated Rocq↔Lean table
   (above).
+- [`docs/temporal.md`](docs/temporal.md): the temporal layer, traces and trace properties,
+  thread systems, and the structure of the attempt–grant theory of fairness.
 - [`docs/performance.md`](docs/performance.md): where the build time goes, by layer, module and
   declaration, and how to measure it (`scripts/profile.py`).
 - [`docs/iris-lean-proposal.md`](docs/iris-lean-proposal.md): changes to Iris-Lean that would
