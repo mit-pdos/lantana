@@ -25,7 +25,7 @@ namespace Lantana
 open Iris Iris.BI Iris.ProofMode
 
 
-/-- A history entry: a state and a thread pool (observations are dropped, D15). -/
+/-- A history entry: a state and a thread pool (observations are not recorded). -/
 abbrev HistEntry (Expr : Type) (State : Type) := State × ThreadPool Expr
 
 /-- The ghost state of the history: a monotone list of history entries. -/
@@ -45,7 +45,8 @@ abbrev histName (Expr : Type) (State : Type) (GF : BundledGFunctors)
 /-- The state interpretation of a language: a predicate on the state and the thread pool
 held between steps. Facts about the state that assertions determine through it are the
 atoms of trace properties (`StateFact`). (Rocq `state_interp_class`, without
-`state_interp_aux`, which is `True` in HeapLang — D17.) -/
+`state_interp_aux`: HeapLang's state interpretation holds a ghost map of the threads' expressions
+instead.) -/
 @[lantana_alias state_interp_class]
 class StateInterp (Expr : Type) (State : Type) (GF : BundledGFunctors) where
   /-- The interpretation of the state `σ` with thread pool `tp`. -/

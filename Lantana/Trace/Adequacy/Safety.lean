@@ -32,11 +32,11 @@ hypothesis (a thread forked later gets `forkPost`, about which nothing is assume
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Ordinals
-open Iris.ProgramLogic (toVal)
+open Iris.ProgramLogic (toVal Language EvContext)
 open Lantana.Model
 open scoped Lantana.TrProp
 
-variable {Expr State Val : Type} [Language Expr State Val]
+variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvContext Expr Ectx]
 
 /-- If thread `j` has terminated with the value `v`, then `Φ j v` (Rocq `if_term_val`). -/
 @[lantana_alias if_term_val]
@@ -75,7 +75,7 @@ end SafetyTrI
 
 section SafetyRun
 
-variable {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Val GF]
+variable {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Obs Val GF]
   [TemporalInterp Expr State GF]
 
 /-- The running threads are safe (Rocq `lwp_fix_safety_iris_trI`): by Löb induction, each
@@ -146,7 +146,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
       ∃ c : Fuel, ⊢@{IProp GF} |={⊤}=>
         ∃ (SI : StateInterp Expr State GF) (forkPost : ThreadId → Val → IProp GF)
           (Ψ : ThreadId → Val → IProp GF),
-          let _ : LantanaGS Expr State Val GF :=
+          let _ : LantanaGS Expr State Obs Val GF :=
             { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := forkPost }
           iprop(⌜∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ ∧ stateInterp σ tp ∗
             (£ₒ c -∗ ([∗list] j ∈ List.range tp.length, thKids j ∅) -∗
@@ -183,7 +183,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
   · itrivial
   ihave H := hc
   imod H with ⟨%SI, %fp, %Ψ, H⟩
-  letI : LantanaGS Expr State Val GF :=
+  letI : LantanaGS Expr State Obs Val GF :=
     { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := fp }
   icases H with ⟨%hΨ, Hs, Hwp⟩
   imod Hhist $$ %SI Hs with HH

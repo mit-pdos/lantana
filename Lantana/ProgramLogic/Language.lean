@@ -1,296 +1,221 @@
 /-
 Copyright (c) The Lantana-Lean Contributors
 Released under Apache 2.0 license as described in the file LICENSE.
-
-Based on Iris-Lean's `Iris.ProgramLogic.Language`, whose header reads:
-  Copyright (c) The Iris-Lean Contributors
-  Released under Apache 2.0 license as described in the file LICENSE.
-  Authors: Fernando Leal
-Modified by the Lantana-Lean Contributors; the module documentation describes the changes.
 -/
 module
 
-public import Iris.ProgramLogic.Language
-public import Iris.BI.WeakestPre
-public import Iris.Std.Relation
+public import Iris.ProgramLogic.EctxiLanguage
 public import Lantana.Init
 
-/-! # Languages
+/-! # Lantana's additions to Iris-Lean's language interface
 
-The language interface of Lantana (Rocq `lantana/program_logic/language.v`, without the
-trace part, which is `Lantana.ProgramLogic.Configuration`). A step knows nothing about threads:
-the thread pool is a list and a thread id is a position in it, so forked threads get fresh ids by
-being appended (design decision D14), and there are no observations (D15). Hence a Lantana
-language is Iris-Lean's `ToVal` plus a primitive step relation `primStep e σ e' σ' efs`.
-
-As in Rocq (and unlike Iris-Lean), a language also carries a *type* of contexts `Ctx`, with
-`ctxApply`, the identity `ctxId` and the composition `ctxComp` (design decision D31): `lWP`
-quantifies over these contexts, so that a language whose contexts are syntactic (HeapLang:
-lists of items, `ctxApply := fill`) can recover the context of a thread from its expression.
-`Context K` says that the context `K` is an evaluation context (Rocq `LanguageCtx`).
+Lantana's languages are Iris-Lean's (`Iris.ProgramLogic.Language`, `EctxLanguage`,
+`EctxItemLanguage`), used as they are.  This module adds what the program logic needs on top:
+the reducibility a stuckness requires (`Stuckness.maybeReducible`), the evaluation-context
+instances for composed functions and for the empty and composed contexts of an `EvContext`
+(candidates for upstream, `docs/iris-lean-proposal.md`), and the uniqueness of the context around
+a reducible expression of an `EctxItemLanguage`.
 -/
 
 @[expose] public section
 
 namespace Lantana
 
-open Iris.ProgramLogic (ToVal toVal)
-open Iris.ProgramLogic.Language (Atomicity)
+open Iris.ProgramLogic Iris.ProgramLogic.Language.Notation
 
+/-! ## The Rocq declarations that Iris-Lean provides -/
 
-/-- A language: expressions `Expr`, states `State`, values `Val` (with `toVal`/`ofVal`), and
-the primitive step `primStep e σ e' σ' efs` of one thread, forking the threads `efs`. -/
-@[lantana_alias language]
-class Language (Expr : Type) (State : outParam (Type)) (Val : outParam (Type))
-    extends ToVal Expr Val where
-  /-- One step of the expression `e` in state `σ`: result `e'`, new state `σ'`, forked
-  threads `efs` (appended to the pool). -/
-  primStep : Expr → State → Expr → State → List Expr → Prop
-  /-- Values do not step. -/
-  val_stuck {e : Expr} {σ : State} {e' σ' efs} : primStep e σ e' σ' efs → toVal e = none
-  /-- The contexts of the language: the language chooses their representation; only the
-  identity and the composition are prescribed, and contexts need not be injective. -/
-  Ctx : Type
-  /-- Plug an expression into a context. -/
-  ctxApply : Ctx → Expr → Expr
-  /-- The empty context. -/
-  ctxId : Ctx
-  /-- `ctxComp K₁ K₂` is `K₂` plugged into `K₁` (`ctxApply_comp`). -/
-  ctxComp : Ctx → Ctx → Ctx
-  ctxApply_id (e : Expr) : ctxApply ctxId e = e
-  ctxApply_comp (K₁ K₂ : Ctx) (e : Expr) :
-    ctxApply (ctxComp K₁ K₂) e = ctxApply K₁ (ctxApply K₂ e)
+#lantana_ignore language "Iris-Lean's `Language`"
+#lantana_ignore LanguageCtxMixin "contexts are Iris-Lean's `EvContext`, outside the language"
+#lantana_ignore ctx "Iris-Lean's `EvContext` (its type of contexts)"
+#lantana_ignore ctx_apply "Iris-Lean's `EvContext.fill`"
+#lantana_ignore ctx_id "Iris-Lean's `EvContextOps.empty`"
+#lantana_ignore ctx_comp "Iris-Lean's `EvContextOps.comp`"
+#lantana_ignore ctx_id_apply "Iris-Lean's `EvContext.fill_empty`"
+#lantana_ignore ctx_comp_apply "Iris-Lean's `EvContext.fill_comp`"
+#lantana_ignore reducible "Iris-Lean's `PrimStep.Reducible`"
+#lantana_ignore irreducible "Iris-Lean's `PrimStep.Irreducible`"
+#lantana_ignore stuck "Iris-Lean's `PrimStep.Stuck`"
+#lantana_ignore not_stuck "Iris-Lean's `PrimStep.NotStuck`"
+#lantana_ignore not_reducible "Iris-Lean's `Language.not_reducible_iff_irreducible`"
+#lantana_ignore reducible_not_val "Iris-Lean's `Language.toVal_none_of_reducible`"
+#lantana_ignore val_irreducible "Iris-Lean's `Language.val_irreducible`"
+#lantana_ignore not_not_stuck "Iris-Lean's `Language.not_not_suck`"
+#lantana_ignore prim_step_not_stuck "Iris-Lean's `Language.notStuck_of_primStep`"
+#lantana_ignore Atomic "Iris-Lean's `Language.Atomic`"
+#lantana_ignore stuckness_to_atomicity "Iris-Lean's `Language.Atomicity.ofStuckness`"
+#lantana_ignore strongly_atomic_atomic "Iris-Lean's `Language.stronglyAtomic_atomic`"
+#lantana_ignore LanguageCtx "Iris-Lean's `Language.Context`"
+#lantana_ignore language_ctx_id "Iris-Lean's `Language.instContext_id`"
+#lantana_ignore reducible_fill "Iris-Lean's `Language.Context.reducible_fill`"
+#lantana_ignore reducible_fill_inv "Iris-Lean's `Language.Context.reducible_fill_inv`"
+#lantana_ignore irreducible_fill "Iris-Lean's `Language.Context.irreducible_fill`"
+#lantana_ignore irreducible_fill_inv "Iris-Lean's `Language.Context.irreducible_fill_inv`"
+#lantana_ignore not_stuck_fill_inv "Iris-Lean's `Language.Context.notStuck_fill_inv`"
+#lantana_ignore stuck_fill "Iris-Lean's `Language.Context.stuck_fill`"
+#lantana_ignore pure_step "Iris-Lean's `Language.PurePrimStep`"
+#lantana_ignore PureExec "Iris-Lean's `Language.PureExec`"
+#lantana_ignore pure_step_ctx "Iris-Lean's `Language.purePrimStep_fill`"
+#lantana_ignore pure_step_nsteps_ctx "Iris-Lean's `Language.iterate_purePrimStep_fill`"
+#lantana_ignore pure_exec_ctx "Iris-Lean's `Language.pureExec_fill`"
+#lantana_ignore rtc_pure_step_val "Iris-Lean's `Language.ReflTransGen_purePrimStep_val`"
+#lantana_ignore IntoVal "Iris-Lean's `Language.IntoVal`"
+#lantana_ignore AsVal "Iris-Lean's `Language.AsVal`"
+#lantana_ignore as_val_is_Some "Iris-Lean's `Language.as_val_isSome`"
 
-export Language (primStep val_stuck ctxApply ctxId ctxComp)
+#lantana_ignore fork_thread_ids
+  "thread ids are positions in the pool and forked threads are appended, so there are no fresh ids"
+#lantana_ignore empty_ectx "Iris-Lean's `EvContextOps.empty`"
+#lantana_ignore comp_ectx "Iris-Lean's `EvContextOps.comp`"
+#lantana_ignore fill "Iris-Lean's `EvContext.fill`"
+#lantana_ignore fill_empty "Iris-Lean's `EvContext.fill_empty`"
+#lantana_ignore fill_comp "Iris-Lean's `EvContext.fill_comp`"
+#lantana_ignore fill_inj "Iris-Lean's `EvContext.fill_inj`"
+#lantana_ignore ectxLanguage "Iris-Lean's `EctxLanguage`"
+#lantana_ignore EctxLanguageMixin "Iris-Lean's `EctxLanguage`"
+#lantana_ignore base_step "Iris-Lean's `BaseStep.baseStep`"
+#lantana_ignore val_base_stuck "Iris-Lean's `EctxLanguage.val_stuck`"
+#lantana_ignore fill_val "Iris-Lean's `EctxLanguage.fill_val`"
+#lantana_ignore step_by_val "Iris-Lean's `EctxLanguage.step_by_val`"
+#lantana_ignore ectx_language.base_ctx_step_val "Iris-Lean's `EctxLanguage.base_ctx_step_val`"
+#lantana_ignore fill_not_val "Iris-Lean's `EctxLanguage.fill_not_val`"
+#lantana_ignore ectx_lang "Iris-Lean's `EctxLanguage.instLanguage`"
+#lantana_ignore ectx_lang_mixin "Iris-Lean's `EctxLanguage.instLanguage`"
+#lantana_ignore LanguageOfEctx "Iris-Lean's `EctxLanguage.instLanguage`"
+#lantana_ignore ectx_lang_ctx_mixin "Iris-Lean's `EctxLanguage.toEvContext`"
+#lantana_ignore prim_step "Iris-Lean's `BaseStep.ContextStep`"
+#lantana_ignore Ectx_step "Iris-Lean's `BaseStep.ContextStep.ofBaseStep'`"
+#lantana_ignore Ectx_step' "Iris-Lean's `BaseStep.ContextStep.ofBaseStep`"
+#lantana_ignore base_reducible "Iris-Lean's `BaseStep.Reducible`"
+#lantana_ignore base_irreducible "Iris-Lean's `BaseStep.Irreducible`"
+#lantana_ignore base_stuck "Iris-Lean's `BaseStep.Stuck`"
+#lantana_ignore base_reducible_no_obs "Iris-Lean's `BaseStep.ReducibleNoObs`"
+#lantana_ignore base_reducible_no_obs_reducible "Iris-Lean's `BaseStep.reducible_of_reducibleNoObs`"
+#lantana_ignore not_base_reducible "Iris-Lean's `BaseStep.not_reducible_iff_irreducible`"
+#lantana_ignore sub_redexes_are_values "Iris-Lean's `EctxLanguage.SubredexesAreValues`"
+#lantana_ignore base_atomic "Iris-Lean's `EctxLanguage.BaseAtomic`"
+#lantana_ignore base_redex_unique "Iris-Lean's `EctxLanguage.base_redex_unique`"
+#lantana_ignore base_prim_step "Iris-Lean's `EctxLanguage.primStep_of_baseStep`"
+#lantana_ignore base_step_not_stuck "Iris-Lean's `EctxLanguage.base_step_not_stuck`"
+#lantana_ignore fill_prim_step "Iris-Lean's `EctxLanguage.fill_primStep`"
+#lantana_ignore fill_reducible "Iris-Lean's `EctxLanguage.fill_reducible`"
+#lantana_ignore fill_reducible_no_obs "Iris-Lean's `EctxLanguage.reducibleNoObs_fill`"
+#lantana_ignore base_prim_reducible
+  "Iris-Lean's `EctxLanguage.primStep_reducible_of_baseStep_reducible`"
+#lantana_ignore base_prim_fill_reducible
+  "Iris-Lean's `EctxLanguage.primStep_reducible_fill_of_baseStep_reducible`"
+#lantana_ignore base_prim_reducible_no_obs
+  "Iris-Lean's `EctxLanguage.primStep_reducibleNoObs_of_baseStep_reducibleNoObs`"
+#lantana_ignore base_prim_fill_reducible_no_obs
+  "Iris-Lean's `EctxLanguage.primStep_reducibleNoObs_fill_of_baseStep_reducibleNoObs`"
+#lantana_ignore base_prim_irreducible
+  "Iris-Lean's `EctxLanguage.baseStep_irreducible_of_primStep_irreducible`"
+#lantana_ignore prim_base_reducible
+  "Iris-Lean's `EctxLanguage.baseStep_reducible_of_primStep_reducible`"
+#lantana_ignore prim_base_irreducible
+  "Iris-Lean's `EctxLanguage.primStep_irreducible_of_baseStep_irreducible`"
+#lantana_ignore base_stuck_stuck "Iris-Lean's `EctxLanguage.primStep_stuck_of_baseStep_stuck`"
+#lantana_ignore ectx_language_atomic "Iris-Lean's `EctxLanguage.Atomic.ofBaseAtomic`"
+#lantana_ignore base_reducible_prim_step_ctx
+  "Iris-Lean's `EctxLanguage.exists_baseStep_of_primStep_fill_of_redex_baseStep_reducible`"
+#lantana_ignore base_reducible_prim_step
+  "Iris-Lean's `EctxLanguage.baseStep_of_primStep_of_baseStep_reducible`"
+#lantana_ignore ectx_lang_ctx "Iris-Lean's `EctxLanguage.instContextFill`"
+#lantana_ignore pure_base_step "Iris-Lean's `EctxLanguage.PureBaseStep`"
+#lantana_ignore pure_base_step_pure_step "Iris-Lean's `EctxLanguage.purePrimStep_of_pureBaseStep`"
+#lantana_ignore pure_exec_fill "Iris-Lean's `EctxLanguage.pureExec_fill`"
 
-attribute [lantana_alias ctx] Language.Ctx
-attribute [lantana_alias ctx_apply] Language.ctxApply
-attribute [lantana_alias ctx_id] Language.ctxId
-attribute [lantana_alias ctx_comp] Language.ctxComp
-attribute [lantana_alias ctx_id_apply, simp] Language.ctxApply_id
-attribute [lantana_alias ctx_comp_apply, simp] Language.ctxApply_comp
+#lantana_ignore ectxiLanguage "Iris-Lean's `EctxItemLanguage`"
+#lantana_ignore EctxiLanguageMixin "Iris-Lean's `EctxItemLanguage`"
+#lantana_ignore fill_item "Iris-Lean's `EctxItemLanguage.fillItem`"
+#lantana_ignore ectxi_language.base_step "Iris-Lean's `BaseStep.baseStep`"
+#lantana_ignore fill_item_val "Iris-Lean's `EctxItemLanguage.fillItem_val`"
+#lantana_ignore fill_item_inj "Iris-Lean's `EctxItemLanguage.fillItem_inj`"
+#lantana_ignore fill_item_no_val_inj "Iris-Lean's `EctxItemLanguage.fillItem_no_val_inj`"
+#lantana_ignore ectxi_language.base_ctx_step_val "Iris-Lean's `EctxItemLanguage.base_ctx_step_val`"
+#lantana_ignore ectxi_language.fill "Iris-Lean's `EctxItemLanguage.instEvContext`"
+#lantana_ignore fill_app "Iris-Lean's `EctxItemLanguage.fill_append`"
+#lantana_ignore ectxi_language.fill_not_val "Iris-Lean's `EctxItemLanguage.fill_not_val`"
+#lantana_ignore ectxi_lang_ectx "Iris-Lean's `EctxItemLanguage.instEctxLanguage`"
+#lantana_ignore ectxi_lang_ectx_mixin "Iris-Lean's `EctxItemLanguage.instEctxLanguage`"
+#lantana_ignore EctxLanguageOfEctxi "Iris-Lean's `EctxItemLanguage.instEctxLanguage`"
+#lantana_ignore ectxi_lang "Iris-Lean's `EctxLanguage.instLanguage`"
+#lantana_ignore ectxi_language_sub_redexes_are_values
+  "Iris-Lean's `EctxItemLanguage.subredexes_are_values`"
+#lantana_ignore ectxi_lang_ctx_item "Iris-Lean's `EctxLanguage.instContextFill [Ki]`"
 
-#lantana_ignore LanguageCtxMixin "the context fields `Ctx`, …, `ctxApply_comp` of `Language`"
+variable {Expr State Obs Val Ectx : Type}
 
-namespace Language
+/-! ## Reducibility required by a stuckness -/
 
-variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
-
-/-! ## Reducibility -/
-
-@[lantana_alias reducible]
-def Reducible (e : Expr) (σ : State) : Prop := ∃ e' σ' efs, primStep e σ e' σ' efs
-
-@[lantana_alias irreducible]
-def Irreducible (e : Expr) (σ : State) : Prop := ∀ e' σ' efs, ¬ primStep e σ e' σ' efs
-
-@[lantana_alias stuck]
-def Stuck (e : Expr) (σ : State) : Prop := toVal e = none ∧ Irreducible e σ
-
-@[lantana_alias not_stuck]
-def NotStuck (e : Expr) (σ : State) : Prop := (toVal e).isSome ∨ Reducible e σ
+section Stuckness
+variable [Language Expr State Obs Val]
 
 /-- Reducibility required by the stuckness `s`: `NotStuck` requires a step, `MaybeStuck`
 nothing. -/
 def _root_.Iris.Stuckness.maybeReducible : Iris.Stuckness → Expr → State → Prop
-  | .NotStuck, e, σ => Reducible e σ
+  | .NotStuck, e, σ => PrimStep.Reducible (e, σ)
   | .MaybeStuck, _, _ => True
 
-@[lantana_alias not_reducible]
-theorem not_reducible_iff {e : Expr} {σ : State} : ¬ Reducible e σ ↔ Irreducible e σ := by
-  simp [Reducible, Irreducible]
+theorem _root_.Iris.Stuckness.maybeReducible_mono {s₁ s₂ : Iris.Stuckness} (hs : s₁ ≤ s₂)
+    {e : Expr} {σ : State} (h : s₁.maybeReducible e σ) : s₂.maybeReducible e σ := by
+  cases s₁ <;> cases s₂ <;> simp_all [Iris.Stuckness.maybeReducible, LE.le]
 
-@[lantana_alias reducible_not_val]
-theorem Reducible.toVal_eq_none {e : Expr} {σ : State} (h : Reducible e σ) : toVal e = none :=
-  let ⟨_, _, _, h⟩ := h; val_stuck h
-
-@[lantana_alias val_irreducible]
-theorem irreducible_of_isSome {e : Expr} {σ : State} (h : (toVal e).isSome) :
-    Irreducible e σ := fun _ _ _ hs => by simp [val_stuck hs] at h
-
-@[lantana_alias not_not_stuck]
-theorem not_notStuck_iff {e : Expr} {σ : State} : ¬ NotStuck e σ ↔ Stuck e σ := by
-  simp only [NotStuck, Stuck, not_or, ← not_reducible_iff, Option.isSome_iff_ne_none,
-    Decidable.not_not]
-
-@[lantana_alias prim_step_not_stuck]
-theorem notStuck_of_primStep {e : Expr} {σ : State} {e' σ' efs} (h : primStep e σ e' σ' efs) :
-    NotStuck e σ := .inr ⟨_, _, _, h⟩
-
-/-! ## Atomicity -/
-
-/-- `Atomic a e`: every step of `e` ends in an irreducible (`WeaklyAtomic`) or a value
-(`StronglyAtomic`) expression. `WeaklyAtomic` suffices to open invariants when the weakest
-precondition ensures safety. -/
-@[lantana_alias Atomic]
-class Atomic (a : Atomicity) (e : Expr) : Prop where
-  atomic {σ : State} {e' σ' efs} : primStep e σ e' σ' efs →
-    match a with
-    | .WeaklyAtomic => Irreducible e' σ'
-    | .StronglyAtomic => (toVal e').isSome
-
-@[lantana_alias stuckness_to_atomicity]
-def _root_.Iris.Stuckness.toAtomicity : Iris.Stuckness → Atomicity
-  | .MaybeStuck => .StronglyAtomic
-  | .NotStuck => .WeaklyAtomic
-
-@[lantana_alias strongly_atomic_atomic]
-theorem Atomic.of_stronglyAtomic {e : Expr} (h : Atomic .StronglyAtomic e) (a : Atomicity) :
-    Atomic a e where
-  atomic hs := by
-    cases a
-    · exact irreducible_of_isSome (h.atomic hs)
-    · exact h.atomic hs
+end Stuckness
 
 /-! ## Evaluation contexts -/
 
-/-- `Context K`: the context `K` is an evaluation context. -/
-@[lantana_alias LanguageCtx]
-class Context (K : Λ.Ctx) : Prop where
-  toVal_eq_none_fill {e : Expr} : toVal e = none → toVal (ctxApply K e) = none
-  primStep_fill {e : Expr} {σ : State} {e' σ' efs} :
-    primStep e σ e' σ' efs → primStep (ctxApply K e) σ (ctxApply K e') σ' efs
-  primStep_fill_inv {e : Expr} {σ : State} {Ke' σ' efs} :
-    toVal e = none → primStep (ctxApply K e) σ Ke' σ' efs →
-    ∃ e', Ke' = ctxApply K e' ∧ primStep e σ e' σ' efs
+namespace Language.Context
 
-namespace Context
+variable [Language Expr State Obs Val]
 
-@[lantana_alias language_ctx_id]
-instance instId : Context (ctxId : Λ.Ctx) where
-  toVal_eq_none_fill h := by rwa [ctxApply_id]
-  primStep_fill h := by rwa [ctxApply_id, ctxApply_id]
-  primStep_fill_inv _ h := ⟨_, (ctxApply_id _).symm, by rwa [ctxApply_id] at h⟩
-
+/-- Evaluation contexts compose (Iris-Lean has only the identity, `instContext_id`). -/
 @[lantana_alias language_ctx_compose]
-instance instComp (K₁ K₂ : Λ.Ctx) [Context K₁] [Context K₂] : Context (ctxComp K₁ K₂) where
-  toVal_eq_none_fill h := by
-    rw [ctxApply_comp]
-    exact toVal_eq_none_fill (K := K₁) (toVal_eq_none_fill (K := K₂) h)
-  primStep_fill h := by
-    rw [ctxApply_comp, ctxApply_comp]
-    exact primStep_fill (K := K₁) (primStep_fill (K := K₂) h)
+instance comp (K₁ K₂ : Expr → Expr) [Language.Context K₁] [Language.Context K₂] :
+    Language.Context (K₁ ∘ K₂) where
+  toVal_eq_none_fill h := Language.Context.toVal_eq_none_fill (K := K₁)
+    (Language.Context.toVal_eq_none_fill (K := K₂) h)
+  primStep_fill h :=
+    Language.Context.primStep_fill (K := K₁) (Language.Context.primStep_fill (K := K₂) h)
   primStep_fill_inv hv h := by
-    rw [ctxApply_comp] at h
-    obtain ⟨e₁, rfl, h₁⟩ := primStep_fill_inv (K := K₁) (toVal_eq_none_fill (K := K₂) hv) h
-    obtain ⟨e₂, rfl, h₂⟩ := primStep_fill_inv (K := K₂) hv h₁
-    exact ⟨e₂, (ctxApply_comp ..).symm, h₂⟩
+    obtain ⟨e₁, rfl, h₁⟩ := Language.Context.primStep_fill_inv (K := K₁)
+      (Language.Context.toVal_eq_none_fill (K := K₂) hv) h
+    obtain ⟨e₂, rfl, h₂⟩ := Language.Context.primStep_fill_inv (K := K₂) hv h₁
+    exact ⟨e₂, rfl, h₂⟩
 
-variable (K : Λ.Ctx) [Context K]
+variable [EvContext Expr Ectx]
 
-@[lantana_alias reducible_fill]
-theorem reducible_fill {e : Expr} {σ : State} (h : Reducible e σ) :
-    Reducible (ctxApply K e) σ :=
-  let ⟨_, _, _, h⟩ := h; ⟨_, _, _, primStep_fill (K := K) h⟩
+/-- The empty context is an evaluation context. -/
+instance fillEmpty : Language.Context (fill (Expr := Expr) (empty : Ectx)) :=
+  (funext (EvContext.fill_empty (Ectx := Ectx)) : fill (Expr := Expr) (empty : Ectx) = id) ▸
+    Language.instContext_id
 
-@[lantana_alias reducible_fill_inv]
-theorem reducible_fill_inv {e : Expr} {σ : State} (hv : toVal e = none)
-    (h : Reducible (ctxApply K e) σ) : Reducible e σ :=
-  let ⟨_, _, _, h⟩ := h
-  let ⟨_, _, h⟩ := primStep_fill_inv (K := K) hv h; ⟨_, _, _, h⟩
+/-- The composition of two evaluation contexts is an evaluation context. -/
+instance fillComp (K₁ K₂ : Ectx) [Language.Context (fill (Expr := Expr) K₁)]
+    [Language.Context (fill (Expr := Expr) K₂)] :
+    Language.Context (fill (Expr := Expr) (EvContextOps.comp K₁ K₂)) :=
+  (funext fun e => (EvContext.fill_comp K₁ K₂ e).symm :
+      fill (Expr := Expr) (EvContextOps.comp K₁ K₂) = fill K₁ ∘ fill K₂) ▸ comp _ _
 
-@[lantana_alias irreducible_fill]
-theorem irreducible_fill {e : Expr} {σ : State} (hv : toVal e = none) (h : Irreducible e σ) :
-    Irreducible (ctxApply K e) σ :=
-  not_reducible_iff.mp fun hr => not_reducible_iff.mpr h (reducible_fill_inv K hv hr)
+end Language.Context
 
-@[lantana_alias irreducible_fill_inv]
-theorem irreducible_fill_inv {e : Expr} {σ : State} (h : Irreducible (ctxApply K e) σ) :
-    Irreducible e σ :=
-  not_reducible_iff.mp fun hr => not_reducible_iff.mpr h (reducible_fill K hr)
+/-! ## Contexts of a reducible expression -/
 
-@[lantana_alias not_stuck_fill_inv]
-theorem notStuck_fill_inv {e : Expr} {σ : State} (h : NotStuck (ctxApply K e) σ) :
-    NotStuck e σ := by
-  rcases h with h | h
-  · by_cases hv : toVal e = none
-    · simp [toVal_eq_none_fill (K := K) hv] at h
-    · exact .inl (Option.isSome_iff_ne_none.mpr hv)
-  · by_cases hv : toVal e = none
-    · exact .inr (reducible_fill_inv K hv h)
-    · exact .inl (Option.isSome_iff_ne_none.mpr hv)
+namespace EctxItemLanguage
 
-@[lantana_alias stuck_fill]
-theorem stuck_fill {e : Expr} {σ : State} (h : Stuck e σ) : Stuck (ctxApply K e) σ :=
-  not_notStuck_iff.mp fun hn => not_notStuck_iff.mpr h (notStuck_fill_inv K hn)
+variable {EctxItem : Type} [Iris.ProgramLogic.EctxItemLanguage Expr EctxItem State Obs Val]
 
-end Context
+/-- A reducible expression determines its context. -/
+@[lantana_alias fill_ctx_step_inj]
+theorem fill_ctx_step_inj {K₁ K₂ : List EctxItem} {e : Expr} {σ : State} {obs : List Obs}
+    {e' : Expr} {σ' : State} {efs : List Expr} (h : (e, σ) -<obs>-> (e', σ', efs))
+    (heq : fill K₁ e = fill K₂ e) : K₁ = K₂ := by
+  obtain ⟨hs⟩ := h
+  rw [← Iris.ProgramLogic.EctxItemLanguage.fill_append,
+    ← Iris.ProgramLogic.EctxItemLanguage.fill_append] at heq
+  have hK := (EctxLanguage.base_redex_unique heq ⟨_, _, _, _, hs⟩ ⟨_, _, _, _, hs⟩).1
+  exact List.append_cancel_left (hK.trans (List.nil_append _))
 
-/-! ## Pure steps -/
+end EctxItemLanguage
 
-/-- A pure step: always possible, deterministic, changes neither the state nor the pool. -/
-@[lantana_alias pure_step]
-structure PureStep (e₁ e₂ : Expr) : Prop where
-  safe (σ : State) : Reducible e₁ σ
-  det {σ : State} {e₂' σ' efs} : primStep e₁ σ e₂' σ' efs → σ' = σ ∧ e₂' = e₂ ∧ efs = []
-
-/-- `PureExec φ n e₁ e₂`: under `φ`, `e₁` reaches `e₂` in `n` pure steps. Unlike Rocq, `n > 0` is
-not required; the lifting lemmas take it as a hypothesis where they need it. -/
-@[lantana_alias PureExec]
-class PureExec (φ : outParam Prop) (n : outParam Nat) (e₁ : Expr) (e₂ : outParam Expr) :
-    Prop where
-  pureExec : φ → Relation.Iterate PureStep n e₁ e₂
-
-@[lantana_alias pure_step_ctx]
-theorem PureStep.fill (K : Λ.Ctx) [Context K] {e₁ e₂ : Expr} (h : PureStep e₁ e₂) :
-    PureStep (ctxApply K e₁) (ctxApply K e₂) where
-  safe σ := Context.reducible_fill K (h.safe σ)
-  det {σ _ _ _} hs := by
-    obtain ⟨e', rfl, hs'⟩ :=
-      Context.primStep_fill_inv (K := K) (h.safe σ).toVal_eq_none hs
-    obtain ⟨rfl, rfl, rfl⟩ := h.det hs'
-    exact ⟨rfl, rfl, rfl⟩
-
-@[lantana_alias pure_step_nsteps_ctx]
-theorem PureStep.iterate_fill (K : Λ.Ctx) [Context K] {n : Nat} {e₁ e₂ : Expr}
-    (h : Relation.Iterate PureStep n e₁ e₂) :
-    Relation.Iterate PureStep n (ctxApply K e₁) (ctxApply K e₂) := by
-  induction h with
-  | rfl => exact .rfl _
-  | tail _ _ hs ih => exact .tail _ ih (hs.fill K)
-
-/-- Not an instance: too general. -/
-@[lantana_alias pure_exec_ctx]
-theorem PureExec.fill (K : Λ.Ctx) [Context K] {φ n} {e₁ e₂ : Expr}
-    (h : PureExec φ n e₁ e₂) : PureExec φ n (ctxApply K e₁) (ctxApply K e₂) :=
-  ⟨fun hφ => PureStep.iterate_fill K (h.pureExec hφ)⟩
-
-/-- No chain of pure steps of positive length starts from a value. -/
-theorem PureStep.not_iterate_succ_val [Inhabited State] {m : Nat} {v : Val} {e : Expr}
-    (h : Relation.Iterate PureStep (m + 1) (v : Expr) e) : False := by
-  induction m generalizing e with
-  | zero =>
-    cases h with
-    | tail _ h hs =>
-      cases h
-      obtain ⟨_, _, _, hs'⟩ := hs.safe default
-      exact absurd (val_stuck hs') (by simp)
-  | succ m ih =>
-    cases h with
-    | tail _ h _ => exact ih h
-
-/-- Values take no pure steps. -/
-@[lantana_alias rtc_pure_step_val]
-theorem PureStep.iterate_val [Inhabited State] {n : Nat} {v : Val} {e : Expr}
-    (h : Relation.Iterate PureStep n (v : Expr) e) : n = 0 ∧ e = v := by
-  cases h with
-  | rfl => exact ⟨rfl, rfl⟩
-  | tail _ h hs => exact (PureStep.not_iterate_succ_val (.tail _ h hs)).elim
-
-/-! ## Values -/
-
-@[lantana_alias IntoVal]
-class IntoVal (e : Expr) (v : Val) : Prop where
-  into_val : (v : Expr) = e
-
-@[lantana_alias AsVal]
-class AsVal (e : Expr) : Prop where
-  as_val : ∃ v : Val, (v : Expr) = e
-
-@[lantana_alias as_val_is_Some]
-theorem AsVal.isSome {e : Expr} [h : AsVal e] : (toVal e).isSome := by
-  obtain ⟨v, rfl⟩ := h.as_val
-  simp
-
-end Language
 end Lantana

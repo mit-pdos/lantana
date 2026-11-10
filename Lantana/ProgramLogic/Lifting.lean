@@ -15,19 +15,12 @@ public import Lantana.ProgramLogic.WeakestPre
 /-! # Lifting lemmas
 
 Rocq `lantana/program_logic/lifting.v`, after Iris-Lean's `Iris.ProgramLogic.Lifting`: the rules
-of the operational semantics as rules of `lWP`. Only `lwp_lift_step` sees the history and the
-model updates around a step; the others are stated with the state interpretation and the
-obligation interface. The shape a user of a step sees after the pre-step model update is
-
-`∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗ ∀ e₂ σ₂ efs, ⌜primStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
-  thKids i G -∗ witCreds R -∗ ([∗list] j ∈ List.range efs.length, thKids (len + j) ∅) -∗ ALC …`:
-
-the step burns one unit of fuel of each child `G` of the thread, gives a credit to each witness
-of `R` (`step_progress`), and gives every forked thread `len + j` an empty set of children
-(`step_fork`).
-
-There is no `state_interp_aux` (D17): `PureExecSI ς i` says that the token `ς` of thread `i`
-and the state interpretation can be updated together along a pure step of `i`.
+of the operational semantics as rules of `lWP`.  Only `lwp_lift_step` sees the history and the
+model updates around a step; the others use the state interpretation and the obligation
+interface: a step burns one unit of fuel of each child `G` of the thread (`thKids i G`,
+`oblFuels G 1`), gives a credit to each witness of `R` (`witLayers R`, `witCreds R`) and gives
+every forked thread an empty set of children.  `PureExecSI ς i` updates the token `ς` of thread
+`i` (HeapLang's thread-expression token) and the state interpretation along a pure step.
 -/
 
 @[expose] public noncomputable section
@@ -35,22 +28,25 @@ and the state interpretation can be updated together along a pure step of `i`.
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Ordinals Ordinal
-open Iris.ProgramLogic (toVal)
+open Iris.ProgramLogic (toVal Language PrimStep EvContext)
+open Iris.ProgramLogic.PrimStep (primStep)
+open Iris.ProgramLogic.EvContext (fill)
 
 section Lifting
 
-variable {Expr : Type} {State : Type} {Val : Type} {GF : BundledGFunctors}
-variable [Λ : Language Expr State Val] [ModelGS GF]
-variable [L : LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
+variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
+variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [ModelGS GF]
+variable [L : LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 
-/-- A pure step of thread `i` from `ctxApply K e₁` to `ctxApply K e₂` updates the token `ς i e₁`
-and the state interpretation together (Rocq `PureExecSI`; `ς i e` is the thread-expression token
-of HeapLang, which the state interpretation also knows). -/
+/-- A pure step of thread `i` from `fill K e₁` to `fill K e₂` updates the token `ς i e₁` and the
+state interpretation together (Rocq `PureExecSI`; `ς i e` is the thread-expression token of
+HeapLang, which the state interpretation also knows). -/
 @[lantana_alias PureExecSI]
 class PureExecSI (ς : ThreadId → Expr → IProp GF) (i : ThreadId) : Prop where
-  pureExecSI {K : Λ.Ctx} {e₁ e₂ : Expr} {σ : State} {tp : ThreadPool Expr} :
-    Language.Context K → tp[i]? = some (ctxApply K e₁) → primStep e₁ σ e₂ σ [] →
-      ς i e₁ ∗ stateInterp σ tp ⊢ |==> (ς i e₂ ∗ stateInterp σ (tp.set i (ctxApply K e₂)))
+  pureExecSI {K : Ectx} {e₁ e₂ : Expr} {σ : State} {obs : List Obs} {tp : ThreadPool Expr} :
+    Language.Context (fill (Expr := Expr) K) → tp[i]? = some (fill K e₁) →
+      primStep (e₁, σ) obs (e₂, σ, []) →
+      ς i e₁ ∗ stateInterp σ tp ⊢ |==> (ς i e₂ ∗ stateInterp σ (tp.set i (fill K e₂)))
 
 attribute [lantana_alias pure_exec_si] PureExecSI.pureExecSI
 
@@ -59,13 +55,13 @@ variable {s : Stuckness} {i : ThreadId} {E E₁ E₂ : CoPset} {e e₁ : Expr} {
 /-- The safety condition of the pure lifting lemmas (Rocq `if s is NotStuck then reducible e σ
 else to_val e = None`): `e` is reducible for `NotStuck`, not a value for `MaybeStuck`. -/
 def _root_.Iris.Stuckness.pureSafe : Stuckness → Expr → State → Prop
-  | .NotStuck, e, σ => Language.Reducible e σ
+  | .NotStuck, e, σ => PrimStep.Reducible (e, σ)
   | .MaybeStuck, e, _ => toVal e = none
 
 theorem _root_.Iris.Stuckness.pureSafe.toVal_eq_none {s : Stuckness} {e : Expr} {σ : State}
     (h : s.pureSafe e σ) : toVal e = none := by
   cases s
-  · exact Language.Reducible.toVal_eq_none h
+  · exact Language.toVal_none_of_reducible h
   · exact h
 
 theorem _root_.Iris.Stuckness.pureSafe.maybeReducible {s : Stuckness} {e : Expr} {σ : State}
@@ -75,10 +71,10 @@ theorem _root_.Iris.Stuckness.pureSafe.maybeReducible {s : Stuckness} {e : Expr}
   · trivial
 
 theorem _root_.Iris.Stuckness.pureSafe_of_pureStep [Inhabited State] {s : Stuckness}
-    {e₁ e₂ : Expr} (h : Language.PureStep e₁ e₂) (σ : State) : s.pureSafe e₁ σ := by
+    {e₁ e₂ : Expr} (h : Language.PurePrimStep e₁ e₂) (σ : State) : s.pureSafe e₁ σ := by
   cases s
-  · exact h.safe σ
-  · exact (h.safe default).toVal_eq_none
+  · exact Language.reducible_of_reducibleNoObs (h.safe σ)
+  · exact Language.toVal_none_of_reducible (Language.reducible_of_reducibleNoObs (h.safe default))
 
 omit [ModelGS GF] in
 /-- The forked threads `tc, …, tc + n - 1` of `step_fork`, from `0`. -/
@@ -96,18 +92,19 @@ theorem length_set_append {tp efs : List Expr} {j : ThreadId} {e' : Expr} :
 `lwp_lift_step`). -/
 @[lantana_alias lwp_lift_step, lantana_alias lwp_step_step]
 theorem lwp_lift_step (he : toVal e₁ = none) :
-    (∀ (K : Λ.Ctx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+    (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e₁)⌝ →
+      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n, tp.length]=>m
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-          ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜primStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
+          ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+            ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
             ALC (mupdFancy ∅ E (n + 1) (tp.length + efs.length)
-              iprop(historyTInterp (h ++ [(σ₂, tp.set i (ctxApply K e₂) ++ efs)]) (n + 1) σ₂
-                  (tp.set i (ctxApply K e₂) ++ efs) ∗
+              iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
+                  (tp.set i (fill K e₂) ++ efs) ∗
                 |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                   [∗list] j ↦ ef ∈ efs,
                     lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }}))))
@@ -124,10 +121,10 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
   isplitr
   · ipureintro
     exact hred
-  iintro %e₂ %σ₂ %efs %hstep
+  iintro %obs %e₂ %σ₂ %efs %hstep
   iapply step_progress n tp.length i G R $$ HG HF HR
   iintro HG HW
-  imod H $$ %e₂ %σ₂ %efs %hstep with H
+  imod H $$ %obs %e₂ %σ₂ %efs %hstep with H
   imodintro
   iapply step_fork n (n + 1) tp.length (tp.length + efs.length) _ (Nat.le_succ n)
     (Nat.le_add_right _ _)
@@ -149,15 +146,16 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
 temporal layer are threaded, and no model update is taken around the step. -/
 @[lantana_alias lwp_lift_step_si]
 theorem lwp_lift_step_si (he : toVal e₁ = none) :
-    (∀ (K : Λ.Ctx) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e₁)⌝ →
+    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-          ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜primStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
+          ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+            ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
-            ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (ctxApply K e₂) ++ efs) ∗
+            ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
               |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                 [∗list] j ↦ ef ∈ efs,
                   lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))
@@ -177,8 +175,8 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) :
   iframe HG HF
   iexists R
   iframe HR
-  iintro %e₂ %σ₂ %efs %hstep
-  imod H $$ %e₂ %σ₂ %efs %hstep with H
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  imod H $$ %obs %e₂ %σ₂ %efs %hstep with H
   imodintro
   iintro HG HW Hforks
   ispecialize H $$ HG HW Hforks
@@ -188,7 +186,7 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) :
   imodintro
   imodintro
   imod H with ⟨Hs, H⟩
-  imod histAuth_append h [(σ₂, tp.set i (ctxApply K e₂) ++ efs)] $$ Ha with Ha
+  imod histAuth_append h [(σ₂, tp.set i (fill K e₂) ++ efs)] $$ Ha with Ha
   imodintro
   iunfold historyTInterp, historyInterp
   iframe Hs Ha HT H
@@ -197,9 +195,9 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) :
 
 @[lantana_alias lwp_lift_stuck]
 theorem lwp_lift_stuck (he : toVal e = none) :
-    (∀ (K : Λ.Ctx) (σ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e)⌝ →
-      stateInterp σ tp ={E,∅}=∗ ⌜Language.Stuck e σ⌝)
+    (∀ (K : Ectx) (σ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e)⌝ →
+      stateInterp σ tp ={E,∅}=∗ ⌜PrimStep.Stuck (e, σ)⌝)
       ⊢ lWP e @ i; E ?{{ Φ }} := by
   iintro H
   rw [lwp_unfold.to_eq]
@@ -214,8 +212,8 @@ theorem lwp_lift_stuck (he : toVal e = none) :
   isplitr
   · ipureintro
     trivial
-  iintro %e₂ %σ₂ %efs %hstep
-  exact (hstuck.2 _ _ _ hstep).elim
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  exact (hstuck.2 _ _ _ _ hstep).elim
 
 /-! ## Derived lifting lemmas -/
 
@@ -224,9 +222,10 @@ theorem lwp_lift_stuck (he : toVal e = none) :
 theorem lwp_lift_pure_step_no_fork [Inhabited State] {ς : ThreadId → Expr → IProp GF}
     [hς : PureExecSI ς i] (E' : CoPset)
     (hsafe : ∀ σ₁, s.pureSafe e₁ σ₁)
-    (hstep : ∀ σ₁ e₂ σ₂ efs, primStep e₁ σ₁ e₂ σ₂ efs → σ₂ = σ₁ ∧ efs = []) :
+    (hstep : ∀ σ₁ obs e₂ σ₂ efs, primStep (e₁, σ₁) obs (e₂, σ₂, efs) → σ₂ = σ₁ ∧ efs = []) :
     (|={E,E'}=> ς i e₁ ∗ ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-      ∀ (σ : State) (e₂ : Expr), ⌜primStep e₁ σ e₂ σ []⌝ -∗ ς i e₂ -∗ thKids i G -∗ witCreds R -∗
+      ∀ (σ : State) (obs : List Obs) (e₂ : Expr), ⌜primStep (e₁, σ) obs (e₂, σ, [])⌝ -∗
+        ς i e₂ -∗ thKids i G -∗ witCreds R -∗
         ALC iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }}))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   have hnv : toVal e₁ = none := Stuckness.pureSafe.toVal_eq_none (hsafe default)
@@ -243,13 +242,13 @@ theorem lwp_lift_pure_step_no_fork [Inhabited State] {ς : ThreadId → Expr →
   iframe HG HF
   iexists R
   iframe HR
-  iintro %e₂ %σ₂ %efs %hst
-  obtain ⟨rfl, rfl⟩ := hstep _ _ _ _ hst
+  iintro %obs %e₂ %σ₂ %efs %hst
+  obtain ⟨rfl, rfl⟩ := hstep _ _ _ _ _ hst
   imod hς.pureExecSI hK hi hst $$ [Hc Hs] with ⟨Hc, Hs⟩
   · iframe
   imodintro
   iintro HG HW -
-  ispecialize H $$ %_ %e₂ %hst Hc HG HW
+  ispecialize H $$ %_ %obs %e₂ %hst Hc HG HW
   iapply ALC_wand $$ [Hclose Hs] H
   iintro H
   imod Hclose
@@ -263,7 +262,7 @@ theorem lwp_lift_pure_step_no_fork [Inhabited State] {ς : ThreadId → Expr →
   iempintro
 
 @[lantana_alias lwp_lift_pure_stuck]
-theorem lwp_lift_pure_stuck [Inhabited State] (hstuck : ∀ σ, Language.Stuck e σ) :
+theorem lwp_lift_pure_stuck [Inhabited State] (hstuck : ∀ σ, PrimStep.Stuck (e, σ)) :
     iprop(True) ⊢ lWP e @ i; E ?{{ Φ }} := by
   iintro -
   iapply lwp_lift_stuck (hstuck default).1
@@ -276,15 +275,16 @@ theorem lwp_lift_pure_stuck [Inhabited State] (hstuck : ∀ σ, Language.Stuck e
 /-- An atomic step: the thread reaches a value. -/
 @[lantana_alias lwp_lift_atomic_step]
 theorem lwp_lift_atomic_step (he : toVal e₁ = none) :
-    (∀ (K : Λ.Ctx) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e₁)⌝ →
+    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-          ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜primStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
+          ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+            ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
-            ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (ctxApply K e₂) ++ efs) ∗
+            ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
               |={E₁}=>m ((∃ v, ⌜toVal e₂ = some v⌝ ∗ Φ v) ∗
                 [∗list] j ↦ ef ∈ efs,
                   lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))
@@ -302,8 +302,8 @@ theorem lwp_lift_atomic_step (he : toVal e₁ = none) :
   iframe HG HF
   iexists R
   iframe HR
-  iintro %e₂ %σ₂ %efs %hstep
-  imod H $$ %e₂ %σ₂ %efs %hstep with H
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  imod H $$ %obs %e₂ %σ₂ %efs %hstep with H
   imodintro
   iintro HG HW Hforks
   ispecialize H $$ HG HW Hforks
@@ -324,14 +324,15 @@ theorem lwp_lift_atomic_step (he : toVal e₁ = none) :
 theorem lwp_lift_pure_det_step_no_fork [Inhabited State] {ς : ThreadId → Expr → IProp GF}
     [PureExecSI ς i] (E' : CoPset) {e₂ : Expr}
     (hsafe : ∀ σ₁, s.pureSafe e₁ σ₁)
-    (hdet : ∀ σ₁ e₂' σ₂ efs, primStep e₁ σ₁ e₂' σ₂ efs → σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) :
+    (hdet : ∀ σ₁ obs e₂' σ₂ efs, primStep (e₁, σ₁) obs (e₂', σ₂, efs) →
+      σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) :
     (|={E,E'}=> ς i e₁ ∗ ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
       (ς i e₂ -∗ thKids i G -∗ witCreds R -∗
         ALC iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_lift_pure_step_no_fork (ς := ς) E' hsafe
-    (fun _ _ _ _ h => ⟨(hdet _ _ _ _ h).1, (hdet _ _ _ _ h).2.2⟩)
+    (fun _ _ _ _ _ h => ⟨(hdet _ _ _ _ _ h).1, (hdet _ _ _ _ _ h).2.2⟩)
   imod H with ⟨Hc, %G, HG, HF, %R, HR, H⟩
   imodintro
   iframe Hc
@@ -339,8 +340,8 @@ theorem lwp_lift_pure_det_step_no_fork [Inhabited State] {ς : ThreadId → Expr
   iframe HG HF
   iexists R
   iframe HR
-  iintro %σ %e₂' %hst Hc HG HW
-  obtain ⟨-, rfl, -⟩ := hdet _ _ _ _ hst
+  iintro %σ %obs %e₂' %hst Hc HG HW
+  obtain ⟨-, rfl, -⟩ := hdet _ _ _ _ _ hst
   iapply H $$ Hc HG HW
 
 /-- `n` pure steps, each of which takes one unit of fuel of the children `G` of the thread and
@@ -365,7 +366,8 @@ theorem lwp_pure_step [Inhabited State] {ς : ThreadId → Expr → IProp GF} [P
     simp only [Nat.repeat]
     iintro ⟨Hc, H⟩
     iapply lwp_lift_pure_det_step_no_fork (ς := ς) E' (e₂ := c)
-      (Stuckness.pureSafe_of_pureStep hpure) (fun _ _ _ _ h => hpure.det h)
+      (Stuckness.pureSafe_of_pureStep hpure)
+      (fun _ _ _ _ _ h => let ⟨_, h₁, h₂, h₃⟩ := hpure.deterministic h; ⟨h₁.symm, h₂.symm, h₃⟩)
     imod H with ⟨%G, HG, HF, %R, HR, H⟩
     imodintro
     iframe Hc

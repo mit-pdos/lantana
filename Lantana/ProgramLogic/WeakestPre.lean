@@ -19,21 +19,12 @@ public import Lantana.ProgramLogic.Notation
 /-! # The liveness weakest precondition `lWP`
 
 Rocq `lantana/program_logic/weakestpre.v`: `lWP e @ s; i; E {{ Φ }}` is the least fixpoint of
-one step of the program logic (`lwpStep`): a model update before the step, the progress and
-physical rounds of the step, the allocation of later credits, a model update after it. The
-structure follows Iris-Lean's total weakest precondition (`Iris.ProgramLogic.TotalWeakestPre`),
-which is also a `bi_least_fixpoint`.
-
-Thread ids are positions in the pool (D14): a step of thread `i` running `ctxApply K e₁` in the
-pool `tp` leads to the pool `tp.set i (ctxApply K e₂) ++ efs`, and the forked threads get the ids
-`tp.length, tp.length + 1, …`. The context `K` ranges over the contexts `Language.Ctx` of the
-language (D31), which for HeapLang are syntactic: the thread-expression token then determines
-`K`.
-
-Induction (`lwp_ind_strong`, `lwp_ind`) needs no non-expansiveness of the predicate: it is
-done on the predicate's closure under internal equality. The file also derives the rules of the
-model updates `|=[n,tc]=>m P` and `|={E₁,E₂}=>m P` that the program logic uses (Rocq
-`mupd.v`, `obl_forest_rules.v`), with their proof-mode instances.
+one step of the program logic (`lwpStep`, structured as Iris-Lean's `TotalWeakestPre`): a model
+update, the progress and physical rounds of the step, later credits, a model update.  Thread `i`
+runs `fill K e₁` for every evaluation context `K : Ectx` (so that HeapLang recovers a thread's
+context from its expression); its step forks threads appended to the pool, with the ids
+`tp.length, tp.length + 1, …`, and its observation is ignored.  Induction (`lwp_ind_strong`) is
+on the predicate's closure under internal equality, so it needs no non-expansiveness.
 -/
 
 @[expose] public noncomputable section
@@ -41,43 +32,46 @@ model updates `|=[n,tc]=>m P` and `|={E₁,E₂}=>m P` that the program logic us
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode
-open Iris.ProgramLogic (toVal)
+open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
+open Iris.ProgramLogic.PrimStep (primStep)
+open Iris.ProgramLogic.EvContext (fill)
 
 
 /-- The ghost state of the program logic: the temporal layer, the state interpretation, and
 the postcondition of forked threads (`True` for HeapLang). -/
 @[lantana_alias lantanaGS]
-class LantanaGS (Expr : Type) (State : Type) (Val : outParam Type) (GF : BundledGFunctors)
-    [Language Expr State Val] extends TemporalGS Expr State GF, StateInterp Expr State GF where
+class LantanaGS (Expr : Type) (State : Type) (Obs Val : outParam Type) (GF : BundledGFunctors)
+    [Language Expr State Obs Val] extends TemporalGS Expr State GF, StateInterp Expr State GF where
   /-- The postcondition of a forked thread. -/
   forkPost : ThreadId → Val → IProp GF
 
 section Lwp
 
-variable {Expr : Type} {State : Type} {Val : Type} {GF : BundledGFunctors}
-variable [Λ : Language Expr State Val] [ModelGS GF]
-variable [L : LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
+variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
+variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [ModelGS GF]
+variable [L : LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 
-/-- One step of `lWP` for thread `i` running `ctxApply K e₁`, for every evaluation context `K` of
-the language: a model update before the step (it may
-discharge an until), the progress round `mprog` of `i` and the physical round `mphys` of the
-step, the allocation of later credits `ALC`, and a model update after it; `ν e₂ len efs`
-holds after a step to `e₂` that forks `efs` with ids from `len` (the old pool length). -/
+/-- One step of `lWP` for thread `i` running `fill K e₁`, for every evaluation context `K`: a
+model update before the step (it may discharge an until), the progress round `mprog` of `i` and
+the physical round `mphys` of the step, the allocation of later credits `ALC`, and a model update
+after it; `ν e₂ len efs` holds after a step to `e₂` (with any observation) that forks `efs` with
+ids from `len` (the old pool length). -/
 @[lantana_alias lwp_step]
 def lwpStep (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
     (ν : Expr → Nat → List Expr → IProp GF) : IProp GF :=
-  iprop(∀ (K : Λ.Ctx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+  iprop(∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
     (tp : ThreadPool Expr),
-    ⌜Language.Context K⌝ → ⌜tp[i]? = some (ctxApply K e₁)⌝ →
+    ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
     historyTInterp h n σ₁ tp ={E,∅}=∗
     |=[n, tp.length]=>m
     ⌜s.maybeReducible e₁ σ₁⌝ ∗
-    ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜primStep e₁ σ₁ e₂ σ₂ efs⌝ -∗
+    ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+      ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ -∗
       mprog n tp.length i
         (mphys n (n + 1) tp.length (tp.length + efs.length)
           (ALC (|=[n + 1, tp.length + efs.length]=>m |={∅,E}=>
-            historyTInterp (h ++ [(σ₂, tp.set i (ctxApply K e₂) ++ efs)]) (n + 1) σ₂
-              (tp.set i (ctxApply K e₂) ++ efs) ∗
+            historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
+              (tp.set i (fill K e₂) ++ efs) ∗
             ν e₂ tp.length efs))))
 
 @[lantana_alias lwp_step_mono]
@@ -94,8 +88,8 @@ theorem lwpStep_mono {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr}
   isplitr
   · ipureintro
     exact hred
-  iintro %e₂ %σ₂ %efs %hstep
-  ispecialize H $$ %e₂ %σ₂ %efs %hstep
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  ispecialize H $$ %obs %e₂ %σ₂ %efs %hstep
   iapply mprog_wand $$ [Hν] H
   iintro H
   iapply mphys_wand $$ [Hν] H
@@ -114,11 +108,12 @@ theorem lwpStep_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr} {n 
     (h : ∀ e₂ len efs, ν₁ e₂ len efs ≡{n}≡ ν₂ e₂ len efs) :
     lwpStep s i E e₁ ν₁ ≡{n}≡ lwpStep s i E e₁ ν₂ := by
   unfold lwpStep
-  refine forall_ne fun K => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ =>
+  refine forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ =>
     forall_ne fun tp => imp_ne.ne .rfl <| imp_ne.ne .rfl <| wand_ne.ne .rfl <| fupd_ne.ne <|
-    (mupdBase_ne _ _).ne <| sep_ne.ne .rfl <| forall_ne fun e₂ => forall_ne fun _ =>
-    forall_ne fun efs => wand_ne.ne .rfl <| (mprog_ne _ _ _).ne <| (mphys_ne _ _ _ _).ne <|
-    ALC_ne.ne <| (mupdBase_ne _ _).ne <| fupd_ne.ne <| sep_ne.ne .rfl (h e₂ tp.length efs)
+    (mupdBase_ne _ _).ne <| sep_ne.ne .rfl <| forall_ne fun _ => forall_ne fun e₂ =>
+    forall_ne fun _ => forall_ne fun efs => wand_ne.ne .rfl <| (mprog_ne _ _ _).ne <|
+    (mphys_ne _ _ _ _).ne <| ALC_ne.ne <| (mupdBase_ne _ _).ne <| fupd_ne.ne <|
+    sep_ne.ne .rfl (h e₂ tp.length efs)
 
 /-- The postcondition of a forked thread `j` with postcondition `Φ`: it has terminated. -/
 @[lantana_alias lift_term]
@@ -345,10 +340,6 @@ theorem mupd_lwp : (|={E}=>m lWP e @ s; i; E {{ Φ }}) ⊢ lWP e @ s; i; E {{ Φ
 theorem lwp_value_mupd' {v : Val} : lWP (v : Expr) @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := by
   simp [(lwp_unfold (e := (v : Expr))).to_eq, lwpPre]
 
-theorem _root_.Iris.Stuckness.maybeReducible_mono {s₁ s₂ : Stuckness} (hs : s₁ ≤ s₂) {e : Expr}
-    {σ : State} (h : s₁.maybeReducible e σ) : s₂.maybeReducible e σ := by
-  cases s₁ <;> cases s₂ <;> simp_all [Stuckness.maybeReducible, LE.le]
-
 @[lantana_alias lwp_strong_mono_sfmupd]
 theorem lwp_strong_mono_mupd (hs : s₁ ≤ s₂) (hE : E₁ ⊆ E₂) :
     lWP e @ s₁; i; E₁ {{ Φ }} ⊢ (∀ v, Φ v ={E₂}=∗m Ψ v) -∗ lWP e @ s₂; i; E₂ {{ Ψ }} := by
@@ -373,8 +364,8 @@ theorem lwp_strong_mono_mupd (hs : s₁ ≤ s₂) (hE : E₁ ⊆ E₂) :
     isplitr
     · ipureintro
       exact Stuckness.maybeReducible_mono hs hred
-    iintro %e₂ %σ₂ %efs %hstep
-    ispecialize IH $$ %e₂ %σ₂ %efs %hstep
+    iintro %obs %e₂ %σ₂ %efs %hstep
+    ispecialize IH $$ %obs %e₂ %σ₂ %efs %hstep
     iapply mprog_wand $$ [Hclose HΦ] IH
     iintro IH
     iapply mphys_wand $$ [Hclose HΦ] IH
@@ -457,7 +448,7 @@ private theorem lwp_atomic_value {e₂ : Expr} {v₂ : Val} (he₂ : toVal e₂ 
   iapply mupd_intro $$ HΦ
 
 @[lantana_alias lwp_atomic_sfmupd]
-theorem lwp_atomic_mupd [hatom : Language.Atomic s.toAtomicity e] :
+theorem lwp_atomic_mupd [hatom : Language.Atomic ↑s e] :
     (|={E₁,E₂}=>m lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }}) ⊢ lWP e @ s; i; E₁ {{ Φ }} := by
   simp only [(lwp_unfold (e := e)).to_eq, lwpPre]
   iintro H
@@ -481,8 +472,8 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic s.toAtomicity e] :
     isplitr
     · ipureintro
       exact hred
-    iintro %e₂ %σ₂ %efs %hstep
-    ispecialize H $$ %e₂ %σ₂ %efs %hstep
+    iintro %obs %e₂ %σ₂ %efs %hstep
+    ispecialize H $$ %obs %e₂ %σ₂ %efs %hstep
     iapply mprog_wand $$ [] H
     iintro H
     iapply mphys_wand $$ [] H
@@ -492,7 +483,7 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic s.toAtomicity e] :
     imod H with H
     iapply fupd_mupdBase_elim
     imod H with ⟨Hσ, H, Hefs⟩
-    have hlen : (tp.set i (ctxApply K e₂) ++ efs).length = tp.length + efs.length := by simp
+    have hlen : (tp.set i (fill K e₂) ++ efs).length = tp.length + efs.length := by simp
     have hat := hatom.atomic hstep
     cases s with
     | NotStuck =>
@@ -504,19 +495,19 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic s.toAtomicity e] :
         imod H $$ %K %_ %_ %_ %_ %hK %(getElem?_set_append hi) Hσ with H
         imodintro
         imod H with ⟨%hred₂, -⟩
-        exact (Language.not_reducible_iff.mpr hat hred₂).elim
+        exact (Language.not_reducible_iff_irreducible.mpr hat hred₂).elim
     | MaybeStuck =>
       obtain ⟨v₂, he₂⟩ := Option.isSome_iff_exists.mp hat
       iapply lwp_atomic_value he₂ hlen $$ H Hσ Hefs
 
 @[lantana_alias lwp_bind]
-theorem lwp_bind (K : Λ.Ctx) [hK : Language.Context K] :
-    lWP e @ s; i; E {{ v, lWP (ctxApply K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢
-      lWP (ctxApply K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind (K : Ectx) [hK : Language.Context (fill (Expr := Expr) K)] :
+    lWP e @ s; i; E {{ v, lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (fill K e) @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_ind_strong s (fun i E e Ψ => iprop(∀ Φ,
-      (∀ v, Ψ v -∗ lWP (ctxApply K (↑v : Val)) @ s; i; E {{ Φ }}) -∗
-        lWP (ctxApply K e) @ s; i; E {{ Φ }}))
+      (∀ v, Ψ v -∗ lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }}) -∗
+        lWP (fill K e) @ s; i; E {{ Φ }}))
     $$ [] %i %e %E %_ H %Φ []
   · iintro !> %i %e %E %Ψ IH %Φ HΦ
     unfold lwpPre
@@ -528,25 +519,25 @@ theorem lwp_bind (K : Λ.Ctx) [hK : Language.Context K] :
       imodintro
       iapply HΦ $$ IH
     | none =>
-      rw [(lwp_unfold (e := ctxApply K e)).to_eq]
+      rw [(lwp_unfold (e := fill K e)).to_eq]
       simp only [lwpPre, hK.toVal_eq_none_fill he]
       unfold lwpStep
       iintro %K₁ %h %n %σ₁ %tp %hK₁ %hi Hσ
-      rw [← Language.ctxApply_comp] at hi
-      imod IH $$ %(ctxComp K₁ K) %h %n %σ₁ %tp %(Language.Context.instComp K₁ K) %hi Hσ
+      rw [EvContext.fill_comp] at hi
+      imod IH $$ %(EvContextOps.comp K₁ K) %h %n %σ₁ %tp %(Language.Context.fillComp K₁ K) %hi Hσ
         with IH
-      isimp only [Language.ctxApply_comp] at IH
+      isimp only [← EvContext.fill_comp] at IH
       imodintro
       imod IH with ⟨%hred, IH⟩
       imodintro
       isplitr
       · ipureintro
         cases s
-        · exact Language.Context.reducible_fill K hred
+        · exact Language.Context.reducible_fill (fill K) hred
         · trivial
-      iintro %e₂ %σ₂ %efs %hstep
+      iintro %obs %e₂ %σ₂ %efs %hstep
       obtain ⟨e₂', rfl, hstep'⟩ := hK.primStep_fill_inv he hstep
-      ispecialize IH $$ %e₂' %σ₂ %efs %hstep'
+      ispecialize IH $$ %obs %e₂' %σ₂ %efs %hstep'
       iapply mprog_wand $$ [HΦ] IH
       iintro IH
       iapply mphys_wand $$ [HΦ] IH
@@ -565,9 +556,9 @@ theorem lwp_bind (K : Λ.Ctx) [hK : Language.Context K] :
     iexact Hv
 
 @[lantana_alias lwp_bind_step]
-theorem lwp_bind_step (K : Λ.Ctx) [Language.Context K] :
-    lWP e @ s; i; E {{ v, |={E}=>m lWP (ctxApply K (↑v : Val)) @ s; i; E {{ Φ }} }} ⊢
-      lWP (ctxApply K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind_step (K : Ectx) [Language.Context (fill (Expr := Expr) K)] :
+    lWP e @ s; i; E {{ v, |={E}=>m lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (fill K e) @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_bind K
   iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
@@ -576,9 +567,9 @@ theorem lwp_bind_step (K : Λ.Ctx) [Language.Context K] :
   iapply mupd_lwp $$ Hv
 
 @[lantana_alias lwp_bind_sfmupd]
-theorem lwp_bind_mupd (K : Λ.Ctx) [Language.Context K] :
-    (|={E}=>m lWP e @ s; i; E {{ v, |={E}=>m lWP (ctxApply K (↑v : Val)) @ s; i; E {{ Φ }} }}) ⊢
-      |={E}=>m lWP (ctxApply K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind_mupd (K : Ectx) [Language.Context (fill (Expr := Expr) K)] :
+    (|={E}=>m lWP e @ s; i; E {{ v, |={E}=>m lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }}) ⊢
+      |={E}=>m lWP (fill K e) @ s; i; E {{ Φ }} := by
   iintro H
   imod H
   imodintro
@@ -602,7 +593,7 @@ theorem lwp_fupd : lWP e @ s; i; E {{ v, |={E}=> Φ v }} ⊢ lWP e @ s; i; E {{ 
   iexact Hv
 
 @[lantana_alias lwp_atomic]
-theorem lwp_atomic [Language.Atomic s.toAtomicity e] :
+theorem lwp_atomic [Language.Atomic ↑s e] :
     (|={E₁,E₂}=> lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=> Φ v }}) ⊢ lWP e @ s; i; E₁ {{ Φ }} := by
   iintro H
   iapply lwp_atomic_mupd
@@ -816,14 +807,14 @@ Use `iapply fupd_lwp; imod (fupd_mask_subseteq E₂)` to adjust the mask of your
 
 @[lantana_alias elim_modal_fupd_lwp_atomic]
 instance elimModal_fupd_lwp_atomic {p io} :
-    ElimModal (Language.Atomic s.toAtomicity e) p io false iprop(|={E₁,E₂}=> P) P
+    ElimModal (Language.Atomic ↑s e) p io false iprop(|={E₁,E₂}=> P) P
       (lWP e @ s; i; E₁ {{ Φ }}) (lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=> Φ v }}) where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans
     (fupd_wand_right.trans lwp_atomic)
 
 @[lantana_alias elim_modal_sfmupd_lwp_atomic]
 instance elimModal_mupd_lwp_atomic {p io} :
-    ElimModal (Language.Atomic s.toAtomicity e) p io false (|={E₁,E₂}=>m P) P
+    ElimModal (Language.Atomic ↑s e) p io false (|={E₁,E₂}=>m P) P
       (lWP e @ s; i; E₁ {{ Φ }}) (lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }}) where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
     mupd_frame_right.trans <| (mupd_mono wand_elim_right).trans lwp_atomic_mupd
@@ -847,7 +838,7 @@ instance addModal_mupd_lwp : AddModal (|={E}=>m P) P (lWP e @ s; i; E {{ Φ }}) 
 @[lantana_alias elim_acc_lwp_atomic]
 instance (priority := low) elimAcc_lwp_atomic {X : Type} (α β : X → IProp GF)
     (γ : X → Option (IProp GF)) :
-    ElimAcc (Language.Atomic s.toAtomicity e) (fupd E₁ E₂) (fupd E₂ E₁) α β γ
+    ElimAcc (Language.Atomic ↑s e) (fupd E₁ E₂) (fupd E₂ E₁) α β γ
       (lWP e @ s; i; E₁ {{ Φ }})
       (fun x => lWP e @ s; i; E₂ {{ v, |={E₂}=> β x ∗ (γ x -∗? Φ v) }}) where
   elim_acc := by
@@ -866,7 +857,7 @@ instance (priority := low) elimAcc_lwp_atomic {X : Type} (α β : X → IProp GF
 @[lantana_alias elim_acc_lwp_atomic_sfmupd]
 instance (priority := low) elimAcc_lwp_atomic_mupd {X : Type} (α β : X → IProp GF)
     (γ : X → Option (IProp GF)) :
-    ElimAcc (Language.Atomic s.toAtomicity e) (mupd (Expr := Expr) (State := State) E₁ E₂)
+    ElimAcc (Language.Atomic ↑s e) (mupd (Expr := Expr) (State := State) E₁ E₂)
       (mupd (Expr := Expr) (State := State) E₂ E₁) α β γ
       (lWP e @ s; i; E₁ {{ Φ }})
       (fun x => lWP e @ s; i; E₂ {{ v, |={E₂}=>m β x ∗ (γ x -∗? Φ v) }}) where

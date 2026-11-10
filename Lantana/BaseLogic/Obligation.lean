@@ -233,7 +233,7 @@ attribute [lantana_alias obl_assigned] Obl.assigned
 attribute [lantana_alias obl_discharged] Obl.discharged
 
 #lantana_ignore obl_class "D6/D10: fuel is fixed to `Fuel`"
-#lantana_ignore obl_owner "D14: owners are thread ids, `ThreadId`"
+#lantana_ignore obl_owner "owners are thread ids, `ThreadId` (positions in the pool)"
 #lantana_ignore obl_cond "the type `Oid → Obl → Prop` is written out"
 
 namespace Obl

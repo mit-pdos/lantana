@@ -102,3 +102,17 @@ ten-line change that made Lantana's build a quarter faster.
   Iris-Lean has about 6 000 `rocq_alias` uses, so its own build should gain in the same way
   (not measured here).
 - **Removes:** nothing; it is a build-time fix.
+
+## 7. Evaluation contexts: composition instances
+
+- **Now:** Lantana uses Iris-Lean's language interface directly (since 2026-11-10) and quantifies
+  `lWP` over the contexts `K : Ectx` of an `EvContext Expr Ectx` with `Language.Context (fill K)`.
+  Iris-Lean has `Language.instContext_id` and, for an `EctxLanguage`, `instContextFill`, but no
+  composition, so `Lantana/ProgramLogic/Language.lean` adds three instances:
+  `Language.Context.comp : Context K₁ → Context K₂ → Context (K₁ ∘ K₂)` (Rocq
+  `language_ctx_compose`), and, for any `EvContext`, `Context (fill empty)` (from `fill_empty`
+  and `instContext_id`) and `Context (fill K₁) → Context (fill K₂) → Context (fill (comp K₁ K₂))`
+  (from `fill_comp` and the first).
+- **Proposal:** add the three next to `instContext_id` in `Iris/ProgramLogic/Language.lean` and
+  `EctxLanguage.lean`.
+- **Removes:** the three instances (about 25 lines).

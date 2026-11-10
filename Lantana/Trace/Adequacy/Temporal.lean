@@ -36,6 +36,7 @@ fork postcondition and the per-thread postconditions.
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Ordinals
+open Iris.ProgramLogic (Language EvContext)
 open Lantana.Model
 open scoped Lantana.TrSpec Lantana.TrProp
 
@@ -50,8 +51,8 @@ attribute [reducible, instance] TemporalGpreS.modelG TemporalGpreS.histG Tempora
 
 section Lwp
 
-variable {Expr State Val : Type} [Language Expr State Val] {GF : BundledGFunctors}
-  [ModelGS GF] [L : LantanaGS Expr State Val GF]
+variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvContext Expr Ectx]
+  {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Obs Val GF]
 
 /-- The running system of `lWP` (Rocq `sys_lwp`): the registry state and the running threads
 of the pool, for some postconditions. -/
@@ -71,7 +72,7 @@ theorem historyTInterp_reg (h : List (HistEntry Expr State)) (n : Nat) (σ : Sta
 the bundle, then one step of the run. -/
 @[lantana_alias sys_step_lwp]
 theorem sysStep_lwp :
-    ⊢ sysStep (sysLwp (Expr := Expr) (State := State) (Val := Val) (GF := GF)) := by
+    ⊢ sysStep (sysLwp (Expr := Expr) (State := State) (Obs := Obs) (Val := Val) (GF := GF)) := by
   rw [sysStep_eq]
   unfold sysStepPre
   iintro !> %c %h %n %σ %tp %g %v %Ω %W %τf %sched %γ %⟨hsch, hcnt, hLb, hh⟩ ⟨HI, MI, HS⟩
@@ -126,7 +127,7 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
   have hrun : (|={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }}) ⊢
       |={⊤}=>m threadsRun (GF := GF) tp Ψ :=
     (mupd_mono (lwps_threadsRun tp Ψ)).trans mupd_trans
-  ihave #ST := sysStep_lwp (Expr := Expr) (State := State) (Val := Val) (GF := GF)
+  ihave #ST := sysStep_lwp (Expr := Expr) (State := State) (Obs := Obs) (Val := Val) (GF := GF)
   iintro ⟨HH, MI, HW⟩
   imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp g v Ω W _ hLb $$ HW HH MI
     with ⟨⟨%P, #HG, HP, HW⟩, HH, %g₁, %v₁, %Ω₁, %W₁, %⟨-, hLb₁⟩, MI⟩
@@ -159,7 +160,8 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
   have hf : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf :=
     ⟨hsch, hcnt, h₃, h₄⟩
-  iapply record_elim G (Sys := sysLwp (Expr := Expr) (State := State) (Val := Val) (GF := GF))
+  iapply record_elim G
+    (Sys := sysLwp (Expr := Expr) (State := State) (Obs := Obs) (Val := Val) (GF := GF))
     $$ TF ST %hf B
   iframe HI MI
   unfold sysLwp
@@ -177,8 +179,8 @@ initial threads, then every fair behavior from the initial configuration satisfi
 Fairness is the strong fairness of every thread's scheduling action (`fairScheduling`, a trace
 property); the proof chooses a schedule as its instrument (`exists_fair_schedule_schedCounters`). -/
 @[lantana_alias lwp_adequacy_temporal]
-theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
-    {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
+theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val]
+    [EvContext Expr Ectx] {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
     (σ : State) (tp : ThreadPool Expr) (G : TrSpec Expr State GF)
     (R : TrProp (Cfg Expr State)) (hGR : G.external ⊆ R) (τ : Trace (Cfg Expr State))
     (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
@@ -187,7 +189,7 @@ theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
       ∃ c : Fuel, ⊢@{IProp GF} |={⊤}=>
         ∃ (SI : StateInterp Expr State GF) (forkPost : ThreadId → Val → IProp GF)
           (Ψ : ThreadId → Val → IProp GF),
-          let _ : LantanaGS Expr State Val GF :=
+          let _ : LantanaGS Expr State Obs Val GF :=
             { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := forkPost }
           iprop(stateInterp σ tp ∗
             (£ₒ c -∗ ([∗list] j ∈ List.range tp.length, thKids j ∅) -∗
@@ -228,7 +230,7 @@ theorem lwp_adequacy_temporal {Expr State Val : Type} [Language Expr State Val]
   · itrivial
   ihave H := hc
   imod H with ⟨%SI, %fp, %Ψ, H⟩
-  letI : LantanaGS Expr State Val GF :=
+  letI : LantanaGS Expr State Obs Val GF :=
     { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := fp }
   icases H with ⟨Hs, Hwp⟩
   imod Hhist $$ %SI Hs with HH

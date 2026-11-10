@@ -26,11 +26,12 @@ allocated by the step (`ALC_credits`), has a fuel `fu' ≤ fu`, whose measure is
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode
+open Iris.ProgramLogic (Language)
 open Lantana.Model
 open Iris.Std LawfulPartialMap
 open scoped Lantana.TrSpec Lantana.TrProp
 
-variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 -- Named, to be passed explicitly to `TrSpec.canon_le` (see "Always" below).
 variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
 
@@ -39,7 +40,7 @@ variable {E : CoPset} {N : Namespace} {k : Oid} {q : Qp} {P Q : IProp GF}
 
 /-! ## Always
 
-A `⊑ₛ` premise is given as `@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG`, with the ambient
+A `⊑ₛ` premise is given as `@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG`, with the ambient
 instances explicit: elaborated against the expected `⊑ₛ`, the application would get the
 instances bound by `⊑ₛ` for its own instance arguments (as noted in `LantanaTest.Guarantee`;
 holes do not suffice under a `⊑ₛ` rule such as `TrSpec.always_mono`). -/
@@ -247,13 +248,13 @@ theorem guar_alwaysI : ⊢@{IProp GF} alwaysI N P ⊨ₜ □ₛ TrSpec.canon P :
 theorem guar_alwaysIAs_valid {V : IProp GF} {G : TrSpec Expr State GF} (hG : ⊢ V ⊨ₜ G) :
     ⊢@{IProp GF} alwaysIAs (Expr := Expr) (State := State) N P V ⊨ₜ □ₛ G :=
   guar_alwaysIAs.trans (guar_weaken (TrSpec.always_mono
-    (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG)))
+    (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG)))
 
 @[lantana_alias guar_alwaysI_valid]
 theorem guar_alwaysI_valid {G : TrSpec Expr State GF} (hG : ⊢ P ⊨ₜ G) :
     ⊢@{IProp GF} alwaysI N P ⊨ₜ □ₛ G :=
   guar_alwaysI.trans (guar_weaken (TrSpec.always_mono
-    (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG)))
+    (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG)))
 
 /-! ## Until -/
 
@@ -451,7 +452,7 @@ theorem guar_untilIDone_valid (G₁ : TrSpec Expr State GF) {G₂ : TrSpec Expr 
     (hG₂ : ⊢ Q ⊨ₜ G₂) : ⊢@{IProp GF} untilIDone k Q ⊨ₜ (G₁ Uₛ G₂) :=
   (guar_untilIDone G₁).trans
     (guar_weaken (TrSpec.strongUntil_mono (TrSpec.le_refl G₁)
-      (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG₂)))
+      (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG₂)))
 
 /-! ### Discharge -/
 
@@ -767,8 +768,8 @@ theorem guar_untilI : ⊢@{IProp GF} untilI N k q P Q ⊨ₜ (TrSpec.canon P U�
 theorem guar_untilI_valid {G₁ G₂ : TrSpec Expr State GF} (hG₁ : ⊢ P ⊨ₜ G₁) (hG₂ : ⊢ Q ⊨ₜ G₂) :
     ⊢@{IProp GF} untilI N k q P Q ⊨ₜ (G₁ Uₛ G₂) :=
   guar_untilI.trans
-    (guar_weaken (TrSpec.strongUntil_mono (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG₁)
-      (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hG₂)))
+    (guar_weaken (TrSpec.strongUntil_mono (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG₁)
+      (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG₂)))
 
 /-! ## Inference -/
 

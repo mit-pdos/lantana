@@ -19,7 +19,7 @@ map `Kids` is *defined* from it as the finite set `Forest.kids Par p` of the nod
 is `p` (`mem_kids : x ∈ kids Par p ↔ get? Par x = some p`), so Rocq's `fwf_kids_dom` and
 `fwf_par_kids` hold by definition and disappear from `ForestWf`, and the shape-change lemmas
 no longer carry `Kids` side conditions. Thread pools are a count `tc` of threads
-`0, …, tc - 1` (D14).
+`0, …, tc - 1` (thread ids are positions in the pool).
 
 The subtree of a node `k` is `Forest.subtree Par k`, the finite set of `k` and of the nodes
 related to `k` by the transitive closure of the child relation (classical membership test).
