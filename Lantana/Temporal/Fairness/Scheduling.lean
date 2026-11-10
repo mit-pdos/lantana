@@ -36,7 +36,7 @@ abbrev SF (i : ThreadId) : TrProp C := (action i).SF
 
 /-- Fair scheduling of the thread at `i` as an assumption: the strong recipe of its scheduling
 action. -/
-def assumption (i : ThreadId) : Assumption C := (action i).strong
+def assumption (i : ThreadId) : FairnessAssumption C := (action i).strong
 
 variable {i : ThreadId} {τ : Trace C}
 

@@ -19,10 +19,10 @@ info: 'Lantana.Fairness.AttemptGrant.fair_iff_counter' depends on axioms: [prope
 #print axioms Lantana.Fairness.AttemptGrant.fair_iff_counter
 
 /--
-info: 'Lantana.Fairness.Assumption.counter_of_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'Lantana.Fairness.FairnessAssumption.counter_of_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms Lantana.Fairness.Assumption.counter_of_holds
+#print axioms Lantana.Fairness.FairnessAssumption.counter_of_holds
 
 /--
 info: 'Lantana.Fairness.Action.sf_iff_counter' depends on axioms: [propext, Classical.choice, Quot.sound]

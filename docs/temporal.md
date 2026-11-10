@@ -14,7 +14,7 @@ layering is `Prelude < Temporal < Algebra < BaseLogic < ProgramLogic < Trace`.
 | `Temporal/ThreadSystem.lean` | the class `ThreadSystem C`, behaviors, schedules |
 | `Temporal/Fairness/MissHit.lean` | the engine: counters on positions (not an interface) |
 | `Temporal/Fairness/AttemptGrant.lean` | the core: attempt–grant fairness over trace properties and its counter |
-| `Temporal/Fairness/Assumption.lean` | `Assumption`, the step-local pair a language instance declares, and its counter's moves |
+| `Temporal/Fairness/FairnessAssumption.lean` | `FairnessAssumption`, the step-local pair a language instance declares, and its counter's moves |
 | `Temporal/Fairness/Action.lean` | `Action`, strong and weak fairness, the recipes `strong` and `weak` |
 | `Temporal/Fairness/OwnView.lean` | the recipe `own`: a thread's view of an action, its soundness and completeness |
 | `Temporal/Fairness/Scheduling.lean` | fair scheduling as an action; `fairScheduling`; the counters under a schedule |
@@ -97,12 +97,12 @@ rules (`counter_reset`, `counter_drop`, `counter_stay`), what the counter bounds
 (`counter_bounds_misses`), restriction to fewer attempts (`fair_mono`, `fair_mono_of_le`) and a
 certain grant (`fair_of_certain`, `counter_zero_of_certain`).
 
-### 3.3 The declared notion: `Assumption`
+### 3.3 The declared notion: `FairnessAssumption`
 
 A language instance declares its fairness assumptions as values of
 
 ```lean
-structure Assumption (C : Type) where
+structure FairnessAssumption (C : Type) where
   attempt : C → C → Prop
   grant   : C → C → Prop
 ```
@@ -110,9 +110,9 @@ structure Assumption (C : Type) where
 an attempt–grant pair whose attempts and grants are decided by the transition at each position.
 `a.attempted := step a.attempt`, `a.granted := step a.grant`, and `a.holds` is the core's
 fairness of that pair.  Because the pair is step-local, what a transition does to the counter is
-a function of the transition alone, `a.move c c' : Move` (`reset` at a granted attempt, `drop`
+a function of the transition alone, `a.counterMove c c' : CounterMove` (`reset` at a granted attempt, `drop`
 at a refused one, `stay` where there is no attempt), and the counter's rules read by the move
-(`counter_reset`, `counter_drop`, `counter_stay`, `isCounter_iff_move`).  This is the interface
+(`counter_reset`, `counter_drop`, `counter_stay`, `isCounter_iff_counterMove`).  This is the interface
 the program logic will consume: one counter per declared assumption, updated at every step by
 the move of that step.
 
@@ -137,7 +137,7 @@ between any two positions where it is true, `a.Convex`) the two coincide (`sf_if
 The third recipe is a thread's *own view* of an action, `a.own i := ⟨fun c c' => step i c c' ∧
 a.enabled c, a.grant⟩`: the attempts are the thread's own steps from a configuration where the
 action is enabled (`Fairness/OwnView.lean`).  Its counter moves only at the thread's own steps
-(`own_move_stay_of_other`), which makes it the cheap path for the program logic.  The view is
+(`own_counterMove_stay_of_other`), which makes it the cheap path for the program logic.  The view is
 sound when every grant is one of the thread's transitions (`a.OwnGrant i`;
 `own_holds_of_sf : a.SF ⊆ (a.own i).holds`), and it loses nothing when the thread is scheduled
 infinitely often and the enabling condition persists (`a.Persists i`, which follows from
@@ -174,7 +174,7 @@ inactive, or active and either named by the schedule or with a strictly decreasi
 
 Namespaces follow the structure: `Lantana.TrProp` for trace properties, `Lantana` for thread
 systems, behaviors and fair scheduling, `Lantana.Fairness` for the theory with the namespaces
-`MissHit`, `AttemptGrant`, `Assumption`, `Action` and `Sched`.  Upper-case names are
+`MissHit`, `AttemptGrant`, `FairnessAssumption`, `Action` and `Sched`.  Upper-case names are
 propositions about a run or about a relation (`Fair`, `IsCounter`, `Certain`, `SF`, `WF`,
 `Convex`, `OwnGrant`, `Stable`, `Persists`); lower-case names are trace properties at one
 position (`hit`, `miss`, `attempted`, `granted`, `enabledNow`, `stepOf`, `active`) and the
