@@ -9,11 +9,12 @@ public import Lantana.Temporal.Fairness.Action
 
 /-! # The recipe `own`: a thread's view of an action
 
-`a.own i` is the assumption whose attempts are the steps of the thread at `i` from a
+`a.own i` is the fairness assumption whose attempts are the steps of the thread at `i` from a
 configuration where the action `a` is enabled.  Its counter moves only at the thread's own steps
-(`own_move_stay_of_other`).  The view is sound when every grant is one of the thread's transitions
-(`OwnGrant`, `own_holds_of_sf`), and it loses nothing when the thread steps infinitely often and
-the enabling condition persists (`Persists`, from `Stable`; `sf_of_own_holds`, `sf_iff_own_holds`).
+(`own_counterMove_stay_of_other`).  The view is sound when every grant is one of the thread's
+transitions (`OwnGrant`, `own_holds_of_sf`), and it loses nothing when the thread steps infinitely
+often and the enabling condition persists (`Persists`, from `Stable`; `sf_of_own_holds`,
+`sf_iff_own_holds`).
 See `docs/temporal.md`.
 -/
 
@@ -31,7 +32,7 @@ variable {C : Type} [ThreadSystem C]
 
 /-- The thread's own view of the action: the attempts are the steps of the thread at `i` from a
 configuration where the action is enabled. -/
-def own (i : ThreadId) (a : Action C) : Assumption C :=
+def own (i : ThreadId) (a : Action C) : FairnessAssumption C :=
   ⟨fun c c' => ThreadSystem.step i c c' ∧ a.enabled c, a.grant⟩
 
 /-- Own grant: every grant of the action is a step of the thread at `i`. -/
@@ -55,11 +56,12 @@ variable {i : ThreadId} {a : Action C} {c c' : C} {τ : Trace C}
 theorem own_holds_iff : (a.own i).holds τ ↔
     ((□ₜ ◇ₜ (stepOf i ∧ₜ a.enabledNow)) τ →
       (□ₜ ◇ₜ ((stepOf i ∧ₜ a.enabledNow) ∧ₜ a.granted)) τ) :=
-  Assumption.holds_iff_attempted
+  FairnessAssumption.holds_iff_attempted
 
 /-- The counter of the view stays at every transition that is not a step of the thread. -/
-theorem own_move_stay_of_other (hs : ¬ ThreadSystem.step i c c') : (a.own i).move c c' = .stay :=
-  Assumption.move_eq_stay_iff.2 fun h => hs h.1
+theorem own_counterMove_stay_of_other (hs : ¬ ThreadSystem.step i c c') :
+    (a.own i).counterMove c c' = .stay :=
+  FairnessAssumption.counterMove_eq_stay_iff.2 fun h => hs h.1
 
 /-! ### Soundness: under own grant, `SF` gives the view -/
 

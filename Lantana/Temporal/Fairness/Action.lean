@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Lantana.Temporal.Fairness.Assumption
+public import Lantana.Temporal.Fairness.FairnessAssumption
 
 /-! # Actions: strong and weak fairness, the recipes `strong` and `weak`
 
@@ -56,11 +56,11 @@ def Convex (a : Action C) : TrProp C :=
 
 /-- The strong recipe: the attempts are the positions where the action is enabled, whoever
 steps. -/
-def strong (a : Action C) : Assumption C := ⟨fun c _ => a.enabled c, a.grant⟩
+def strong (a : Action C) : FairnessAssumption C := ⟨fun c _ => a.enabled c, a.grant⟩
 
 /-- The weak recipe: every position is an attempt, granted when the action is disabled or the
 step is a grant. -/
-def weak (a : Action C) : Assumption C :=
+def weak (a : Action C) : FairnessAssumption C :=
   ⟨fun _ _ => True, fun c c' => ¬ a.enabled c ∨ a.grant c c'⟩
 
 variable {a : Action C} {τ : Trace C}
@@ -76,7 +76,7 @@ theorem holds_strong : a.strong.holds τ ↔ a.SF τ := AttemptGrant.fair_iff_at
 
 /-- `SF` is the existence of a counter of the strong recipe. -/
 theorem sf_iff_counter : a.SF τ ↔ ∃ δ, a.strong.IsCounter δ τ :=
-  holds_strong.symm.trans Assumption.holds_iff_counter
+  holds_strong.symm.trans FairnessAssumption.holds_iff_counter
 
 /-! ### Weak fairness -/
 
