@@ -13,6 +13,7 @@ language as an instance. -/
 namespace LantanaTest.Temporal
 
 open Lantana
+open Iris.ProgramLogic (Language)
 open scoped Lantana.TrProp
 
 section Generic
@@ -51,7 +52,7 @@ end ThreadSystem
 
 section Lantana
 
-variable {Expr State Val : Type} [Language Expr State Val]
+variable {Expr State Obs Val : Type} [Language Expr State Obs Val]
 
 example : ThreadSystem (Cfg Expr State) := inferInstance
 

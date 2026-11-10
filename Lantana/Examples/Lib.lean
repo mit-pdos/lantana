@@ -168,7 +168,7 @@ theorem heapState_init (σ : State) (tp : ThreadPool Exp) :
   ihave Hfr := (BigSepM.bigSepM_map_seq (PROP := IProp GF) (M' := ThreadMapF) (start := 0)
     (l := tp)).mp $$ Hfr
   unfold threadExpr
-  simp only [Nat.zero_add, EctxItemLanguage.fill_nil]
+  simp only [Nat.zero_add, ProgramLogic.EctxItemLanguage.fill_nil]
   iexact Hfr
 
 end Alloc

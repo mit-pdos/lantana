@@ -69,6 +69,7 @@ info: 'Lantana.exists_fair_schedule_schedCounters' depends on axioms: [propext, 
 #print axioms Lantana.Cfg.sched_sf_iff_wf
 
 open Lantana
+open Iris.ProgramLogic (Language)
 
 /-- Fair scheduling is the strong fairness of every thread's scheduling action; it names no
 scheduled thread. -/
@@ -92,7 +93,7 @@ fairness along a behavior. -/
 
 section ThreadSystem
 
-variable {Expr State Val : Type} [Language Expr State Val]
+variable {Expr State Obs Val : Type} [Language Expr State Obs Val]
 
 example : ThreadSystem (Cfg Expr State) := inferInstance
 

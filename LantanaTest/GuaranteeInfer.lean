@@ -13,9 +13,10 @@ the axioms of the guarantees of the recursive structures. -/
 namespace LantanaTest.GuaranteeInfer
 
 open Iris Iris.BI Lantana
+open Iris.ProgramLogic (Language)
 open scoped Lantana.TrProp Lantana.TrSpec
 
-variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
   [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- An existential over `Fuel : Type 2` whose body depends on the witness is trace-visible. -/

@@ -12,7 +12,10 @@ language instance is found, redexes are atomic and pure steps are found by insta
 
 namespace LantanaTest.HeapLang
 
-open Lantana Lantana.HeapLang Lantana.Language
+open Lantana Lantana.HeapLang
+open Iris.ProgramLogic (Language EctxLanguage EctxItemLanguage EvContext EvContextOps fill)
+open Iris.ProgramLogic.Language (Context Atomic PureExec PurePrimStep)
+open Iris.ProgramLogic.PrimStep (primStep)
 
 /-- Rocq `Flag.init`. -/
 def flagInit : Val := hl_val(λ _, ref(#0))
@@ -26,19 +29,20 @@ def flagWait : Val := hl_val(rec wait x := if ~(!x = #1) then wait x else #1)
 /-- A labelled program. -/
 def labelled : Exp := hl(label("start", v(&flagInit) #()))
 
-example : Lantana.Language Exp State Val := inferInstance
+example : Language Exp State Empty Val := inferInstance
 
-example : EctxLanguage Exp State Val (List ECtxItem) := inferInstance
+example : EctxLanguage Exp (List ECtxItem) State Empty Val := inferInstance
 
-example (K : List ECtxItem) : Context (Expr := Exp) K := inferInstance
+example : (inferInstance : EvContext Exp (List ECtxItem)) = EctxItemLanguage.instEvContext :=
+  rfl
 
-example : (Language.Ctx (Expr := Exp)) = List ECtxItem := rfl
+example (K : List ECtxItem) : Context (fill (Expr := Exp) K) := inferInstance
 
-example (K : List ECtxItem) (e : Exp) : ctxApply K e = fill K e := rfl
+example (K : List ECtxItem) (e : Exp) : fill K e = K.foldl (fun e Ki => Ki.fill e) e := rfl
 
-example : (emptyEctx : List ECtxItem) = [] := rfl
+example : (EvContextOps.empty : List ECtxItem) = [] := rfl
 
-example (K₁ K₂ : List ECtxItem) : compEctx K₁ K₂ = K₂ ++ K₁ := rfl
+example (K₁ K₂ : List ECtxItem) : EvContextOps.comp K₁ K₂ = K₂ ++ K₁ := rfl
 
 example : hl(chooseNat()) = Exp.chooseNat := rfl
 
@@ -51,7 +55,7 @@ example : PureExec True 1 hl(label("t", #1)) hl(#1) := inferInstance
 example : PureExec True 1 hl(if #true then #1 else #2) hl(#1) := inferInstance
 
 example (v1 v2 : Val) (h : v1.compareSafe v2) :
-    Relation.Iterate PureStep 1 hl(&v1 = &v2) (Exp.ofVal (.lit (.bool (v1 == v2)))) :=
+    Relation.Iterate PurePrimStep 1 hl(&v1 = &v2) (Exp.ofVal (.lit (.bool (v1 == v2)))) :=
   PureExec.pureExec h
 
 example : Atomic .StronglyAtomic hl(chooseNat()) := inferInstance
@@ -63,11 +67,11 @@ example (l : Loc) : Atomic .StronglyAtomic hl(!#l) := inferInstance
 example (σ : State) : BaseStep hl(chooseNat()) σ hl(#(5 : Nat)) σ [] := .chooseNatS 5 σ
 
 example (σ : State) :
-    primStep hl(label("t", chooseNat())) σ hl(label("t", #(3 : Nat))) σ [] :=
-  EctxLanguage.primStep_fill_of_baseStep [ECtxItem.label "t"] (.chooseNatS 3 σ)
+    primStep (hl(label("t", chooseNat())), σ) [] (hl(label("t", #(3 : Nat))), σ, []) :=
+  Iris.ProgramLogic.BaseStep.ContextStep.ofBaseStep [ECtxItem.label "t"] (.chooseNatS 3 σ)
 
 example (σ : State) (e : Exp) :
-    primStep hl(fork(&e)) σ hl(#()) σ [e] :=
+    primStep (hl(fork(&e)), σ) [] (hl(#()), σ, [e]) :=
   EctxLanguage.primStep_of_baseStep (.forkS e σ)
 
 example (σ : State) (e : Exp) :

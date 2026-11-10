@@ -8,7 +8,7 @@ public import Lantana.HeapLang.PrimitiveLaws
 
 /-! # Proof-mode support for HeapLang: paid pure steps
 
-Rocq `lantana_heap_lang/proofmode.v` (`tac_lwp_pure_simple`, `lwp_pure`), D27. A pure step of
+Rocq `lantana_heap_lang/proofmode.v` (`tac_lwp_pure_simple`, `lwp_pure`). A pure step of
 thread `i` needs its token `threadExpr i C e`, one unit of fuel of each child of the thread per
 step, and the witness layers; it gives back the witnesses' credits and later credits.
 
@@ -34,7 +34,8 @@ step, and the witness layers; it gives back the witnesses' credits and later cre
 
 namespace Lantana.HeapLang
 
-open Iris Iris.BI Iris.ProofMode Lantana Lantana.Language
+open Iris Iris.BI Iris.ProofMode Lantana Iris.ProgramLogic
+open Iris.ProgramLogic.Language (PureExec)
 
 /-- `e` reaches `e'` by `n` pure steps of its redex, under `φ`: the redex is found in the
 evaluation context of `e` by instance search. -/
@@ -55,7 +56,7 @@ instance (priority := low) ofPureExec {φ : Prop} {n : Nat} {e e' : Exp} [h : Pu
 /-- The redex is inside the item `Ki`. -/
 theorem fillItem {φ : Prop} {n : Nat} {e e' : Exp} (Ki : ECtxItem) (h : PureExecCtx φ n e e') :
     PureExecCtx φ n (Ki.fill e) (Ki.fill e') :=
-  ⟨EctxLanguage.pureExec_fill [Ki] h.pureExecCtx⟩
+  ⟨Language.pureExec_fill (fill [Ki]) h.pureExecCtx⟩
 
 variable {φ : Prop} {n : Nat} {e e' e₀ e₁ e₂ : Exp} {v v₁ v₂ : Val}
 
@@ -425,7 +426,7 @@ macro "lwp_expr_simp" : tactic =>
         EctxItemLanguage.fill_cons, fillItem_eq, ECtxItem.fill, Bool.not_true, Bool.not_false]
     try simp only [val_to_ofVal]))
 
-/-! ## Finding the hypotheses of a step (D27, M10)
+/-! ## Finding the hypotheses of a step (M10)
 
 The tactics above take the token, the children and the fuel by name. The variants below find
 them in the proof-mode context by their shape, for the thread `i` and the expression `e` of the

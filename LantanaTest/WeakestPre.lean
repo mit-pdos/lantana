@@ -12,13 +12,14 @@ structural rules and the pure-step lifting lemmas, over an arbitrary language. -
 namespace LantanaTest.WeakestPre
 
 open Iris Iris.BI Iris.ProofMode Lantana Ordinals Ordinal
-open Iris.ProgramLogic (toVal)
+open Iris.ProgramLogic (toVal Language EvContext EvContextOps)
+open Iris.ProgramLogic.EvContext (fill)
 
 section
 
-variable {Expr State Val : Type} {GF : BundledGFunctors}
-variable [Λ : Language Expr State Val] [ModelGS GF]
-variable [LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
+variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
+variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [ModelGS GF]
+variable [LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 variable {s : Stuckness} {i : ThreadId} {E E₂ : CoPset} {e : Expr} {Φ : Val → IProp GF}
   {P Q : IProp GF}
 
@@ -46,14 +47,14 @@ example : ◇ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ Φ }} := by
 
 /-! Mask-changing updates in front of an atomic expression. -/
 
-example [Language.Atomic s.toAtomicity e] :
+example [Language.Atomic ↑s e] :
     (|={E,E₂}=> P) ∗ (P -∗ lWP e @ s; i; E₂ {{ v, |={E₂,E}=> Φ v }}) ⊢
       lWP e @ s; i; E {{ Φ }} := by
   iintro ⟨HP, H⟩
   imod HP
   iapply H $$ HP
 
-example [Language.Atomic s.toAtomicity e] :
+example [Language.Atomic ↑s e] :
     (|={E,E₂}=>m P) ∗ (P -∗ lWP e @ s; i; E₂ {{ v, |={E₂,E}=>m Φ v }}) ⊢
       lWP e @ s; i; E {{ Φ }} := by
   iintro ⟨HP, H⟩
@@ -62,7 +63,7 @@ example [Language.Atomic s.toAtomicity e] :
 
 /-! Opening an invariant around an atomic expression. -/
 
-example (N : Namespace) [Language.Atomic s.toAtomicity e] (hN : ↑N ⊆ E) :
+example (N : Namespace) [Language.Atomic ↑s e] (hN : ↑N ⊆ E) :
     inv N P ∗ (▷ P -∗ lWP e @ s; i; (E \ ↑N) {{ v, |={E \ ↑N}=> ▷ P ∗ Φ v }}) ⊢
       lWP e @ s; i; E {{ Φ }} := by
   iintro ⟨#Hinv, H⟩
@@ -84,20 +85,21 @@ example (h : E ⊆ E₂) : lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E₂ {{ Φ
 
 /-! Bind: a context around an expression. -/
 
-example (K₁ K₂ : Λ.Ctx) [Language.Context K₁] [Language.Context K₂] :
+example (K₁ K₂ : Ectx) [Language.Context (fill (Expr := Expr) K₁)]
+    [Language.Context (fill (Expr := Expr) K₂)] :
     lWP e @ s; i; E {{ fun v : Val =>
-        lWP (ctxApply K₁ (ctxApply K₂ (v : Expr))) @ s; i; E {{ Φ }} }} ⊢
-      lWP (ctxApply K₁ (ctxApply K₂ e)) @ s; i; E {{ Φ }} := by
+        lWP (fill K₁ (fill K₂ (v : Expr))) @ s; i; E {{ Φ }} }} ⊢
+      lWP (fill K₁ (fill K₂ e)) @ s; i; E {{ Φ }} := by
   iintro H
-  rw [← Language.ctxApply_comp]
-  iapply lwp_bind (ctxComp K₁ K₂)
-  isimp only [Language.ctxApply_comp]
+  rw [EvContext.fill_comp]
+  iapply lwp_bind (EvContextOps.comp K₁ K₂)
+  isimp only [← EvContext.fill_comp]
   iexact H
 
 /-! The empty context. -/
 
-example : lWP e @ s; i; E {{ Φ }} ⊢ lWP (ctxApply ctxId e) @ s; i; E {{ Φ }} := by
-  rw [Language.ctxApply_id]
+example : lWP e @ s; i; E {{ Φ }} ⊢ lWP (fill (EvContextOps.empty : Ectx) e) @ s; i; E {{ Φ }} := by
+  rw [EvContext.fill_empty]
 
 /-! Two pure steps paid at once. -/
 

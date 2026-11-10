@@ -21,11 +21,13 @@ import Iris.Std.List
 /-! # HeapLang: semantics
 
 Evaluation contexts, the state, and the base step of Lantana's HeapLang (Rocq
-`lantana_heap_lang/lang.v`), a fork of Iris-Lean's `Iris.HeapLang.Semantics` (D22). Compared
-with Iris-Lean's: the context item `label t` and the base steps `labelS`/`chooseNatS` are new,
-and there are no prophecies (no `resolve` items, no `usedProphId` in the state, no
-observations, D15). As in Iris-Lean, the base step knows nothing about thread ids: `fork e`
-returns `e` as the one forked thread, which the pool appends (D14).
+`lantana_heap_lang/lang.v`), a fork of Iris-Lean's `Iris.HeapLang.Semantics` for the syntax of
+`Lantana.HeapLang.Syntax`. Compared with Iris-Lean's: the context item `label t` and the base
+steps `labelS`/`chooseNatS` are new, there are no prophecies (no `resolve` items, no
+`usedProphId` in the state), and the base step has no observations (the language instance of
+`Lantana.HeapLang.Instances` has `Obs := Empty`). As in Iris-Lean, the base step knows nothing
+about thread ids: `fork e` returns `e` as the one forked thread, which the pool appends (a
+thread id is a position in the pool).
 
 It also defines the state predicates that the atoms of temporal properties observe
 (Rocq `lang.v:411-418` and `temporal_laws.v:16`), over a state and the thread pool.
@@ -70,9 +72,9 @@ inductive ECtxItem where
 
 attribute [lantana_alias heap_lang.LabelCtx] ECtxItem.label
 
-#lantana_ignore heap_lang.ResolveLCtx "prophecies dropped (D15)"
-#lantana_ignore heap_lang.ResolveMCtx "prophecies dropped (D15)"
-#lantana_ignore heap_lang.ResolveRCtx "prophecies dropped (D15)"
+#lantana_ignore heap_lang.ResolveLCtx "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.ResolveMCtx "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.ResolveRCtx "Lantana's HeapLang has no prophecies."
 
 @[lantana_alias heap_lang.fill_item]
 def ECtxItem.fill (Ki : ECtxItem) (e : Exp) : Exp :=
@@ -118,7 +120,7 @@ attribute [lantana_alias heap_lang.state_inhabited] instInhabitedState
 -- record-update syntax, as in `State.initHeap` below.
 #lantana_ignore heap_lang.state_upd_heap
   "Lean updates the `State` record directly: `{ σ with heap := f σ.heap }`."
-#lantana_ignore heap_lang.state_upd_used_proph_id "prophecies dropped (D15)"
+#lantana_ignore heap_lang.state_upd_used_proph_id "Lantana's HeapLang has no prophecies."
 #lantana_ignore heap_lang.stateO
   "Canonical Leibniz OFE on `state`; Lean uses `DiscreteO State`."
 
@@ -482,13 +484,13 @@ inductive BaseStep : Exp → State → Exp → State → List Exp → Prop where
 attribute [lantana_alias heap_lang.LabelS] BaseStep.labelS
 attribute [lantana_alias heap_lang.ChooseNatS] BaseStep.chooseNatS
 
-#lantana_ignore heap_lang.NewProphS "prophecies dropped (D15)"
-#lantana_ignore heap_lang.ResolveS "prophecies dropped (D15)"
-#lantana_ignore heap_lang.new_proph_id_fresh "prophecies dropped (D15)"
+#lantana_ignore heap_lang.NewProphS "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.ResolveS "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.new_proph_id_fresh "Lantana's HeapLang has no prophecies."
 #lantana_ignore heap_lang.new_thread_id_fresh
-  "positional thread ids (D14): `forkS` needs no fresh id, the pool appends the forked thread"
+  "thread ids are positions in the pool: `forkS` needs no fresh id, the pool appends the thread"
 #lantana_ignore heap_lang.fork_thread_ids_disjoint
-  "positional thread ids (D14): forked threads are appended to the pool, so there are no fresh ids"
+  "thread ids are positions in the pool: forked threads are appended, so there are no fresh ids"
 
 /-- Allocation always has a step available: `Loc.fresh` picks a block that the heap does not
 use. -/
