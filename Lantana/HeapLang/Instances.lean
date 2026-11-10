@@ -13,37 +13,47 @@ module
 public import Lantana.HeapLang.Syntax
 public import Lantana.HeapLang.Notation
 public import Lantana.HeapLang.Semantics
-public import Lantana.ProgramLogic.EctxiLanguage
+public import Lantana.ProgramLogic.Language
 
 /-! # HeapLang: the language instance and its class instances
 
-HeapLang as a `Lantana.EctxItemLanguage` (Rocq `lantana_heap_lang/lang.v:676-780`), whence an
-`EctxLanguage` and a `Language`, and the `IntoVal`, `AsVal`, `Atomic` and `PureExec` instances
-(Rocq `class_instances.v`). A fork of Iris-Lean's `Iris.HeapLang.Instances` (D22), without the
-prophecy lemmas (D15).
+HeapLang as an Iris-Lean `EctxItemLanguage` (Rocq `lantana_heap_lang/lang.v:676-780`), from
+which Iris-Lean derives the evaluation contexts `EvContext Exp (List ECtxItem)` (lists of items,
+innermost first), the `EctxLanguage` and the `Language`; and the `IntoVal`, `AsVal`, `Atomic`
+and `PureExec` instances (Rocq `class_instances.v`).  HeapLang has no observations
+(`Obs := Empty`): the base step ignores its observation argument, which can only be `[]`
+(`obs_eq_nil`).  Adapted from Iris-Lean's `Iris.HeapLang.Instances`, for the labels and
+`chooseNat` of Lantana's HeapLang and without the lemmas about prophecies, which it lacks.
 -/
 
 @[expose] public section
 namespace Lantana.HeapLang
 
-open Iris.ProgramLogic (toVal coe_of_toVal_eq_some)
-open Iris.ProgramLogic.Language (Atomicity)
-open Language EctxItemLanguage EctxLanguage
+open Iris.ProgramLogic Iris.ProgramLogic.Language
+open Iris.ProgramLogic.PrimStep (primStep)
 
+/-- A list of observations of HeapLang is empty. -/
+theorem obs_eq_nil : ∀ obs : List Empty, obs = []
+  | [] => rfl
+  | o :: _ => o.elim
+
+/-- HeapLang as a language with evaluation context items: the base step is `BaseStep`, with no
+observation. -/
 @[lantana_alias heap_lang.heap_lang_mixin]
-instance instEctxItemLanguageExp : EctxItemLanguage Exp ECtxItem State Val where
+instance instEctxItemLanguageExp : EctxItemLanguage Exp ECtxItem State Empty Val where
+  baseStep | (e, σ), _, (e', σ', efs) => BaseStep e σ e' σ' efs
   fillItem := ECtxItem.fill
-  baseStep := BaseStep
-  val_base_stuck h := by cases h <;> rfl
-  fillItem_val Ki e h := by
-    cases Ki <;> simp_all [ECtxItem.fill, toVal]
   fillItem_inj {Ki} e₁ e₂ h := by
     cases Ki <;> simp_all [ECtxItem.fill]
+  fillItem_val e Ki h := by
+    cases Ki <;> simp_all [ECtxItem.fill, toVal]
   -- `cases heq` tells the constructors apart and unifies the arguments: the same item, or a
   -- value on the other side (`cases hv₁`/`cases hv₂`); `simp_all` on the 729 pairs costs 6.5 s.
-  fillItem_no_val_inj {Ki₁ Ki₂ _ _} hv₁ hv₂ heq := by
+  fillItem_no_val_inj Ki₁ Ki₂ hv₁ hv₂ heq := by
     cases Ki₁ <;> cases Ki₂ <;> cases heq <;> first | rfl | cases hv₁ | cases hv₂
-  base_ctx_step_val {Ki} _ _ _ _ _ h := by
+  val_stuck h := by
+    cases h <;> rfl
+  base_ctx_step_val {Ki} _ _ _ _ _ _ h := by
     cases Ki <;> cases h <;> rfl
 
 -- The `EctxItemLanguage` instance above bundles what Rocq states as separate HeapLang lemmas and
@@ -53,18 +63,18 @@ instance instEctxItemLanguageExp : EctxItemLanguage Exp ECtxItem State Val where
 #lantana_ignore heap_lang.fill_item_no_val_inj
   "The `fillItem_no_val_inj` field of `instEctxItemLanguageExp`."
 #lantana_ignore heap_lang.val_base_stuck
-  "The `val_base_stuck` field of `instEctxItemLanguageExp`."
+  "The `val_stuck` field of `instEctxItemLanguageExp`."
 #lantana_ignore heap_lang.base_ctx_step_val
   "The `base_ctx_step_val` field of `instEctxItemLanguageExp`."
 #lantana_ignore heap_ectxi_lang
   "`instEctxItemLanguageExp` is at once the mixin and the canonical structure it builds."
 #lantana_ignore heap_ectx_lang
-  "The generic `EctxItemLanguage.instEctxLanguage` (`EctxLanguageOfEctxi`) at `Exp`."
+  "Iris-Lean's generic `EctxItemLanguage.instEctxLanguage` (`EctxLanguageOfEctxi`) at `Exp`."
 #lantana_ignore heap_lang.heap_lang
-  "The generic `EctxLanguage.instLanguage` (`LanguageOfEctx`) at `Exp`."
-#lantana_ignore heap_lang.irreducible_resolve "prophecies dropped (D15)"
-#lantana_ignore heap_lang.new_proph_atomic "prophecies dropped (D15)"
-#lantana_ignore heap_lang.resolve_atomic "prophecies dropped (D15)"
+  "Iris-Lean's generic `EctxLanguage.instLanguage` (`LanguageOfEctx`) at `Exp`."
+#lantana_ignore heap_lang.irreducible_resolve "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.new_proph_atomic "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.resolve_atomic "Lantana's HeapLang has no prophecies."
 #lantana_ignore heap_lang.AsRecV
   "As in Iris-Lean, `instPureExecBeta` matches a `rec` value syntactically."
 #lantana_ignore heap_lang.AsRecV_recv
@@ -79,7 +89,7 @@ theorem fill_isSome_empty {K : List ECtxItem} {e : Exp}
   cases K with
   | nil => rfl
   | cons Ki K' =>
-    rw [fill_cons] at h
+    rw [EctxItemLanguage.fill_cons] at h
     simpa using EctxItemLanguage.fill_val h
 
 /-- Specific to HeapLang: `fillItem Ki e` is never a value. -/
@@ -103,11 +113,23 @@ instance instAsValVal (v : Val) : AsVal (Exp.ofVal v : Exp) := ⟨⟨v, rfl⟩�
 
 /-! ## Steps to values -/
 
+/-- A base redex has no subredex: its context items hold values. -/
+theorem subredexesAreValues_of_baseStep {e : Exp} {σ : State} {e' : Exp} {σ' : State}
+    {efs : List Exp} (h : BaseStep e σ e' σ' efs) : EctxLanguage.SubredexesAreValues e := by
+  rintro K e₁ rfl hv
+  rcases EctxLanguage.base_ctx_step_val (obs := []) (e₂ := e') (σ₂ := σ') (eₜ := efs) h with
+    h | h
+  · simp [hv] at h
+  · exact h
+
 @[lantana_alias heap_lang.prim_step_to_val_is_base_step]
-theorem primStep_val_baseStep {e : Exp} {σ : State} {v : Val} {σ' : State} {efs : List Exp}
-    (h : primStep e σ (Exp.ofVal v) σ' efs) : BaseStep e σ (Exp.ofVal v) σ' efs := by
-  obtain ⟨K, e₁, e₂, rfl, hv, hs⟩ := h
-  obtain ⟨rfl, rfl⟩ := toVal_fill_some (K := K) (e := e₂) (v := v) (by rw [← hv]; simp)
+theorem primStep_val_baseStep {e : Exp} {σ : State} {obs : List Empty} {v : Val} {σ' : State}
+    {efs : List Exp} (h : primStep (e, σ) obs (Exp.ofVal v, σ', efs)) :
+    BaseStep e σ (Exp.ofVal v) σ' efs := by
+  generalize hg : (Exp.ofVal v : Exp) = g at h
+  obtain ⟨hs⟩ := h
+  rename_i e₁ e₂ K
+  obtain ⟨rfl, rfl⟩ := toVal_fill_some (K := K) (e := e₂) (v := v) (by rw [← hg]; simp)
   exact hs
 
 /-- If one base step of `e₁` returns a value, every base step of `e₁` does. -/
@@ -118,19 +140,20 @@ theorem base_step_to_val {e₁ : Exp} {σ₁ : State} {e₂ : Exp} {σ₂ : Stat
     (hv : (toVal e₂).isSome) : (toVal e₂').isSome := by
   cases h <;> cases h' <;> simp_all
 
-theorem prim_step_to_val_always_to_val {e₁ : Exp} {σ₁ : State} {v₂ : Val} {σ₂ : State}
-    {efs : List Exp} {σ₁' : State} {e₂' : Exp} {σ₂' : State} {efs' : List Exp}
-    (h : primStep e₁ σ₁ (Exp.ofVal v₂) σ₂ efs) (h' : primStep e₁ σ₁' e₂' σ₂' efs') :
-    (toVal e₂').isSome :=
+theorem prim_step_to_val_always_to_val {e₁ : Exp} {σ₁ : State} {obs : List Empty} {v₂ : Val}
+    {σ₂ : State} {efs : List Exp} {σ₁' : State} {obs' : List Empty} {e₂' : Exp} {σ₂' : State}
+    {efs' : List Exp} (h : primStep (e₁, σ₁) obs (Exp.ofVal v₂, σ₂, efs))
+    (h' : primStep (e₁, σ₁') obs' (e₂', σ₂', efs')) : (toVal e₂').isSome :=
   have hb := primStep_val_baseStep h
-  base_step_to_val hb (baseStep_of_primStep h' (subredexesAreValues_of_baseStep hb)) (by simp)
+  base_step_to_val hb
+    (EctxLanguage.baseStep_of_primStep h' (subredexesAreValues_of_baseStep hb)) (by simp)
 
 /-- Not an instance: `BaseStep` is not a class (Rocq has a `Hint Extern`). -/
 theorem base_step_to_val_atomic {e₁ : Exp} {σ₁ : State} {v₂ : Val} {σ₂ : State}
     {efs : List Exp} (a : Atomicity) (h : BaseStep e₁ σ₁ (Exp.ofVal v₂) σ₂ efs) :
     Atomic a e₁ :=
-  Atomic.of_stronglyAtomic
-    ⟨fun h' => prim_step_to_val_always_to_val (primStep_of_baseStep h) h'⟩ a
+  stronglyAtomic_atomic ⟨fun h' =>
+    prim_step_to_val_always_to_val (EctxLanguage.primStep_of_baseStep (obs := []) h) h'⟩
 
 /-! ## Atomicity -/
 
@@ -139,8 +162,8 @@ values, is atomic. -/
 theorem atomic_of_subredexes {e : Exp} (a : Atomicity)
     (hsub : ∀ Ki e', e = fillItem Ki e' → (toVal e').isSome)
     (hval : ∀ σ e' σ' efs, BaseStep e σ e' σ' efs → (toVal e').isSome) : Atomic a e :=
-  Atomic.of_stronglyAtomic (atomic_of_baseAtomic (a := .StronglyAtomic) hval
-    (subredexesAreValues hsub)) a
+  stronglyAtomic_atomic <| EctxLanguage.Atomic.ofBaseAtomic .StronglyAtomic
+    (fun σ _ e' σ' efs h => hval σ e' σ' efs h) (EctxItemLanguage.subredexes_are_values hsub)
 
 /-- Proves `Atomic a e` with `atomic_of_subredexes`, by case analysis on the context item and
 on the base step. -/
@@ -237,8 +260,9 @@ instance instAtomicChooseNat {a : Atomicity} : Atomic a hl(chooseNat()) := by
 /-- A base step that is always possible and deterministic is a pure step. -/
 theorem pureStep_of_baseStep {e₁ e₂ : Exp} (hstep : ∀ σ, BaseStep e₁ σ e₂ σ [])
     (hdet : ∀ {σ e₂' σ' efs}, BaseStep e₁ σ e₂' σ' efs → σ' = σ ∧ e₂' = e₂ ∧ efs = []) :
-    PureStep e₁ e₂ :=
-  PureBaseStep.pureStep ⟨fun σ => ⟨_, _, _, hstep σ⟩, hdet⟩
+    PurePrimStep e₁ e₂ :=
+  EctxLanguage.purePrimStep_of_pureBaseStep ⟨fun σ => ⟨_, _, _, hstep σ⟩,
+    fun {_ _ obs _ _} h => let ⟨h₁, h₂, h₃⟩ := hdet h; ⟨obs_eq_nil obs, h₁.symm, h₂.symm, h₃⟩⟩
 
 /-- Proves `PureExec φ 1 e₁ e₂` from the base step `step` of `e₁`, given `φ`. -/
 local macro "solve_pure_exec" step:term : tactic =>

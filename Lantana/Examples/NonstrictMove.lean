@@ -29,7 +29,9 @@ over `ExGF` only (Rocq: over every `Σ` with `heapGS Σ`), which makes the theor
 
 namespace Lantana.Examples.NonstrictMove
 
-open Iris Iris.BI Lantana Lantana.HeapLang Lantana.Language
+open Iris Iris.BI Lantana Lantana.HeapLang
+open Iris.ProgramLogic (EctxLanguage)
+open Iris.ProgramLogic.PrimStep (primStep)
 open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 
 /-! ## The assumed rule -/
@@ -167,7 +169,7 @@ theorem nonstrictMove_unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNo
 /-- `loop ()` steps to itself. -/
 @[lantana_alias nonstrict_move.loop_prim_step]
 theorem loop_primStep (σ : State) :
-    primStep (hl(v(&loop) #()) : Exp) σ hl(v(&loop) #()) σ [] :=
+    primStep ((hl(v(&loop) #()) : Exp), σ) [] (hl(v(&loop) #()), σ, []) :=
   EctxLanguage.primStep_of_baseStep (.betaS _ _ _ _ _ σ rfl)
 
 /-- The run of the loop: thread `0` steps from `loop ()` to `loop ()` forever. -/

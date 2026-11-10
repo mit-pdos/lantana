@@ -16,11 +16,11 @@ public import Lean.PrettyPrinter.Parenthesizer
 /-! # HeapLang: program notation
 
 The `hl(...)`/`hl_val(...)` notation for HeapLang programs, a fork of Iris-Lean's
-`Iris.HeapLang.Notation` (D22), extended with `chooseNat()` and `label("t", e)` and without the
-prophecy forms (D15). The two are alternatives: they declare the same syntax categories, so a
-module cannot import both. Like Iris-Lean's built-in operations (`fork(e)`, `ref(e)`), the new
-forms end their keyword with a parenthesis, so that `label` and `chooseNat` stay identifiers
-outside the notation.
+`Iris.HeapLang.Notation` for the syntax of `Lantana.HeapLang.Syntax`, extended with
+`chooseNat()` and `label("t", e)` and without the prophecy forms. The two are alternatives:
+they declare the same syntax categories, so a module cannot import both. Like Iris-Lean's
+built-in operations (`fork(e)`, `ref(e)`), the new forms end their keyword with a parenthesis,
+so that `label` and `chooseNat` stay identifiers outside the notation.
 -/
 
 public meta section
