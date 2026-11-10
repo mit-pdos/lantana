@@ -5,8 +5,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import Lantana.ProgramLogic.Language
-public import Lantana.ProgramLogic.EctxLanguage
-public import Lantana.ProgramLogic.EctxiLanguage
 public import Lantana.ProgramLogic.Configuration
 public import Lantana.ProgramLogic.HistoryInterp
 public import Lantana.ProgramLogic.TemporalRegistry

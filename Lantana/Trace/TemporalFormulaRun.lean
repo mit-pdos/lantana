@@ -30,11 +30,12 @@ to decide the continuation.
 namespace Lantana
 
 open Iris Iris.BI
+open Iris.ProgramLogic (Language)
 open Lantana.Model
 open Iris.Std LawfulPartialMap
 open scoped Lantana.TrSpec Lantana.TrProp
 
-variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- An obligation discharged at an event is discharged after any event at which it is

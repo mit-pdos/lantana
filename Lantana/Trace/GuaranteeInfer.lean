@@ -38,13 +38,14 @@ iProp implications (`naiveImpRule_unsound`).
 namespace Lantana
 
 open Iris Iris.BI
+open Iris.ProgramLogic (Language)
 open Lantana.Model
 open Iris.Std LawfulPartialMap
 open scoped Lantana.TrSpec Lantana.TrProp
 
 universe u
 
-variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 #lantana_ignore trSpec_inferred "`trSpecOf`."

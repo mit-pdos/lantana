@@ -10,7 +10,7 @@ public import Lantana.Init
 
 /-! # Identifiers: threads, obligations, parents
 
-Shared by the language layer (thread ids are positions in the pool, D14), the obligation
+Shared by the language layer (thread ids are positions in the pool), the obligation
 model and the obligation-forest interface (Rocq `obligation.v`'s `oid`, `parent.v`).
 -/
 

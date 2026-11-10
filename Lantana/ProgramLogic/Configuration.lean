@@ -10,32 +10,21 @@ public import Lantana.ProgramLogic.Language
 
 /-! # Configurations, thread steps, and Lantana's language as a thread system
 
-The trace part of Rocq `lantana/program_logic/language.v`. A configuration is a thread pool and
-a state; a thread pool is a list of expressions and a thread id is a position in it (D14); a step
-of thread `i` replaces its expression and appends the forked threads, so forked threads get fresh
-ids. A trace step of thread `i` (`TraceStep i`) is its primitive step, or its stutter when it is
-a value or stuck.
-
-Lantana's language is an instance of the thread systems of `Lantana.Temporal`
-(`ThreadSystem (Cfg Expr State)`): the trace step of the thread at `i` is `TraceStep i` and its
-activity `Cfg.active i`. Its traces are `Trace (Cfg Expr State)`, and a behavior is `IsBehavior`
-at that instance: from the current position on, some thread takes a trace step at every position
-(a plain `∀`-statement over positions, no coinduction). Activity is a property of the
-configuration (`Cfg.active`, `Cfg.inactive`), convex along a run (`Cfg.active_convex`).
-
-Traces carry no thread label: nothing observable names the thread that steps. The adequacy
-proof chooses a schedule, the stepping thread at each position, as its internal instrument
-(`Schedule`, `Lantana.Temporal.ThreadSystem`). The last section holds the facts of this
-instance that fair scheduling needs: activity is convex along a behavior
-(`Cfg.convex_of_isBehavior`), so fair scheduling of Lantana's threads is weak fairness
-(`Cfg.sched_sf_iff_wf`).
+The trace part of Rocq `lantana/program_logic/language.v`.  A configuration is a thread pool
+and a state; a thread id is a position in the pool, and a step of thread `i` (`ThreadStep i`,
+Iris-Lean's `primStep` with its observation existential) replaces its expression and appends
+the forked threads, which so get fresh ids.  A trace step (`TraceStep i`) is a step, or a
+stutter when the thread is a value or stuck.  The configurations are a thread system: the step
+of the thread at `i` is `TraceStep i`, its activity `Cfg.active i` (in the pool and not a value),
+which is convex along a behavior, so fair scheduling is weak fairness (`Cfg.sched_sf_iff_wf`).
 -/
 
 @[expose] public section
 
 namespace Lantana
 
-open Iris.ProgramLogic (toVal)
+open Iris.ProgramLogic (toVal Language PrimStep)
+open Iris.ProgramLogic.PrimStep (primStep)
 
 
 /-- The thread pool: the expression of every thread, by id. -/
@@ -47,14 +36,15 @@ abbrev ThreadPool (Expr : Type) := List Expr
 abbrev Cfg (Expr : Type) (State : Type) := ThreadPool Expr × State
 
 section
-variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
+variable {Expr State Obs Val : Type} [Λ : Language Expr State Obs Val]
 
 /-- A step of thread `i`: its expression steps, the forked threads are appended to the pool
 (and are never removed). -/
 @[lantana_alias thread_step]
 inductive ThreadStep (i : ThreadId) : Cfg Expr State → Cfg Expr State → Prop where
-  | step {tp : ThreadPool Expr} {σ : State} {e₁ e₂ : Expr} {σ₂ : State} {efs : List Expr} :
-    tp[i]? = some e₁ → primStep e₁ σ e₂ σ₂ efs →
+  | step {tp : ThreadPool Expr} {σ : State} {e₁ : Expr} {obs : List Obs} {e₂ : Expr}
+      {σ₂ : State} {efs : List Expr} :
+    tp[i]? = some e₁ → primStep (e₁, σ) obs (e₂, σ₂, efs) →
     ThreadStep i (tp, σ) (tp.set i e₂ ++ efs, σ₂)
 
 /-- Thread `i` is a value: the configuration stutters. -/
@@ -66,7 +56,7 @@ def ThreadDone (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Prop :=
 adequacy shows that verified programs never take a stuck step. -/
 @[lantana_alias thread_stuck]
 def ThreadStuck (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Prop :=
-  ∃ e, ρ₁.1[i]? = some e ∧ Language.Stuck e ρ₁.2 ∧ ρ₂ = ρ₁
+  ∃ e, ρ₁.1[i]? = some e ∧ PrimStep.Stuck (e, ρ₁.2) ∧ ρ₂ = ρ₁
 
 /-- A trace step of thread `i`: its primitive step, or its stutter as a value or when stuck. -/
 def TraceStep (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Prop :=
@@ -173,7 +163,7 @@ theorem TraceStep.get?_of_val (hs : TraceStep j ρ₁ ρ₂) (he : ρ₁.1[i]? =
         dsimp only at he
         rw [hj] at he
         cases he
-        simp [val_stuck hprim] at hv
+        simp [Language.val_stuck hprim] at hv
     · exact he
     · exact he
   · exact hs.get?_ne hji he

@@ -44,10 +44,11 @@ here, so that a language can provide its instances without the rules.
 namespace Lantana
 
 open Iris Iris.BI
+open Iris.ProgramLogic (Language)
 open Lantana.Model
 open scoped Lantana.TrSpec Lantana.TrProp
 
-variable {Expr State Val : Type} {GF : BundledGFunctors}
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors}
 
 /-! ## Records, certificates and the one-step property -/
 
@@ -87,7 +88,7 @@ certificates of its entries. -/
 def bundlePre (tg : RecT Expr State GF) (l : List (Nat × RegEntry)) (n : Nat) : IProp GF :=
   iprop(regLb l ∗ ⌜l.getLast? = some (n, .mark)⌝ ∗ [∗list] pe ∈ l, certPre tg n pe.2)
 
-variable [Language Expr State Val] [StateInterp Expr State GF]
+variable [Language Expr State Obs Val] [StateInterp Expr State GF]
 
 /-- The one-step property of `Sys`: from a consistent system at `n`, the bundle for `n` (the
 check), then after the step the system at `n + 1`, the facts about the step and `c` later
@@ -152,7 +153,7 @@ theorem bundlePre_contractive {k : SI} {tg₁ tg₂ : RecT Expr State GF}
   sep_ne.ne .rfl <| sep_ne.ne .rfl <|
     BigSepL.bigSepL_dist fun _ => certPre_contractive h n _
 
-variable [Language Expr State Val] [StateInterp Expr State GF]
+variable [Language Expr State Obs Val] [StateInterp Expr State GF]
 
 @[lantana_alias sys_step_pre_contractive]
 theorem sysStepPre_contractive {k : SI} {tg₁ tg₂ : RecT Expr State GF}
@@ -179,7 +180,7 @@ end Contractive
 /-! ### Records, bundles, certificates and the one-step property -/
 
 section Records
-variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Val]
+variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Obs Val]
   [StateInterp Expr State GF]
 
 /-- Records of step-indexed readings: the guarded fixpoint of `recordPre`. -/
@@ -423,7 +424,7 @@ end Records
 /-! ## The canonical specification -/
 
 section Canon
-variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Val]
+variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Obs Val]
   [StateInterp Expr State GF]
 
 /-- The canonical specification guaranteed by `Q`: the meet of all specifications validly
