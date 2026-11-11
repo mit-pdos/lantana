@@ -465,7 +465,7 @@ theorem guar_bigSepS {S A : Type _} [LawfulFiniteSet S A] (X : S) (Φ : A → IP
 
 end BigOps
 
-/-! ## Inference (D21): `GuarOf` infers from the shape, `IntoGuar` checks against a target -/
+/-! ## Inference: `GuarOf` infers from the shape, `IntoGuar` checks against a target -/
 
 /-- The specification inferred from the shape of `P`. -/
 class GuarOf (P : IProp GF) (G : outParam (TrSpec Expr State GF)) : Prop where

@@ -21,8 +21,8 @@ bound `e`, together with cash `s`. Debts compose by taking the minimum of the bo
 the cash and the fractions; a debt is valid when its cash is below its bound and its fraction is
 at most `1`. The core is constant (`cash 0`): nothing is persistent.
 
-Following decision D6, the carrier is defined directly on the `OCM` (Rocq: on its quotient), and
-Rocq's `quotient.meet` is `min`. The camera is discrete and Leibniz.
+As the order is Leibniz (`Lantana.Algebra.OCM`), the carrier is defined directly on the `OCM`
+(Rocq: on its quotient), and Rocq's `quotient.meet` is `min`. The camera is discrete and Leibniz.
 
 Naming: the constructors `cash` and `debt` are Rocq's `BankCash` and `BankDebt`, and `debtOf a q`
 is Rocq's `debt a q` (Rocq's `cash a` is the constructor `cash a`). Lemmas about the constructor

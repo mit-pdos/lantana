@@ -19,9 +19,9 @@ to its witness: same status, and the bound of an assigned witness is at most `η
 After any `Obls.lef` round, witnesses that keep the invariants exist
 (`owitInv_exists_witnesses`).
 
-Decision D5: Rocq's class-bound inflationary function `η` is the explicit parameter `η` of the
-generic definitions; the model uses `η := fairMeasureUb` (`owitInvFair`,
-`owitInvLbMonoFair`). No lemma of this file needs a property of `η`.
+Rocq's class-bound inflationary function `η` is the explicit parameter `η` of the generic
+definitions; the model uses `η := fairMeasureUb` (`owitInvFair`, `owitInvLbMonoFair`). No lemma
+of this file needs a property of `η`.
 -/
 
 @[expose] public section
@@ -391,7 +391,7 @@ theorem owitInv_exists_witnesses {η : Fuel → Fuel} {γ : ThreadId → Fuel �
 
 end WitnessChoice
 
-/-! ## The model's instance `η := fairMeasureUb` (decision D5) -/
+/-! ## The model's instance `η := fairMeasureUb` -/
 
 /-- The witness invariant of the model, with `η := fairMeasureUb`. -/
 abbrev owitInvFair (Ω : Obls) (W : Witnesses) : Prop :=

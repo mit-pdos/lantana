@@ -21,9 +21,9 @@ public import Iris.BI.Lib.GenHeap
 Heap locations whose values satisfy an invariant, over Lantana's invariants (Rocq:
 `lantana/base_logic/gen_inv_heap.v`, itself Transfinite Iris's `gen_inv_heap.v` over Lantana's
 `invGS`). This file is Iris-Lean's `Iris.BI.Lib.InvHeap` re-instantiated over `Lantana.InvGS` and
-`Lantana.inv` (decision D8 (i)): the same declarations, names and statements, in namespace
-`Lantana`. All accessors use `inv_acc_timeless` (the invariant body is timeless), so none needs
-finite step indices.
+`Lantana.inv`: the same declarations, names and statements, in namespace `Lantana`. All
+accessors use `inv_acc_timeless` (the invariant body is timeless), so none needs finite step
+indices.
 -/
 
 @[expose] public noncomputable section

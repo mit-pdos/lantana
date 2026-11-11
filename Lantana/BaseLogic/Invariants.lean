@@ -18,9 +18,9 @@ public import Iris.Std.CoPset
 
 Invariants over Lantana's fancy update (Rocq: `lantana/base_logic/invariants.v`, itself Transfinite
 Iris's `base_logic/lib/invariants.v` over Lantana's `invGS`). This file is Iris-Lean's
-`Iris.Instances.Lib.Invariants` re-instantiated over `Lantana.InvGS` and `Lantana.uPred_fupd`
-(decision D8 (i)): the same declarations, names and statements, in namespace `Lantana`. The proofs
-differ only by the explicit `◇` of Lantana's fancy update.
+`Iris.Instances.Lib.Invariants` re-instantiated over `Lantana.InvGS` and `Lantana.uPred_fupd`:
+the same declarations, names and statements, in namespace `Lantana`. The proofs differ only by
+the explicit `◇` of Lantana's fancy update.
 
 The rules that take `∗` apart under `▷` (`inv_alter`, `inv_combine`, `inv_combine_dup_l`,
 `inv_split_l/r`, `inv_split`) need finite step indices (`[SIdxFinite SI]`): they are kept with

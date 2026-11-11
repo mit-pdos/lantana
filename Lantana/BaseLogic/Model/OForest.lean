@@ -1711,8 +1711,8 @@ end Oforest
 
 /-! ## Allocation -/
 
-/-- The ghost names of the forest (D32: small enough for the existential property of
-satisfiability, unlike `OForestGS GF`). -/
+/-- The ghost names of the forest (small enough for the existential property of satisfiability,
+unlike `OForestGS GF`). -/
 structure OForestNames where
   /-- The ghost name of the children map. -/
   kids : GName
@@ -1726,7 +1726,7 @@ structure OForestNames where
   statusName := γ.status
 
 /-- Allocation of the ghost state of the forest, with no thread and no obligation, at names `γ`
-(D32). -/
+(small enough for the existential property of satisfiability). -/
 theorem oforest_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF] :
     ⊢@{IProp GF} |==> ∃ γ : OForestNames, letI := OForestGS.ofNames (GF := GF) γ;
       oforest ∅ 0 := by

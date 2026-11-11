@@ -19,10 +19,10 @@ Satisfiability predicates on `IProp GF`, used to eliminate updates in the adequa
 Iris-Lean's `Satisfiable PROP` (`Iris.BI.Transfinite`) is one canonical predicate per `PROP`,
 whereas adequacy needs a family of predicates with the same laws: the model's satisfiability
 framed with a credit supply, with world satisfaction and an enabled mask, and with a user frame.
-Following Rocq (decision D9), a satisfiability predicate is a structure `SatPred GF` (monotone,
-and sound for pure propositions), with one mixin class per law (`SatLater`, `SatBUpd`,
-`SatExists`, `SatRUpd`, `SatRUpdUpdate`, and `SatFUpd` for mask-indexed families `SatAt GF`).
-The base predicate `iPropSat` is Iris-Lean's `UPred.satisfiable`.
+Following Rocq, a satisfiability predicate is a structure `SatPred GF` (monotone, and sound for
+pure propositions), with one mixin class per law (`SatLater`, `SatBUpd`, `SatExists`, `SatRUpd`,
+`SatRUpdUpdate`, and `SatFUpd` for mask-indexed families `SatAt GF`). The base predicate
+`iPropSat` is Iris-Lean's `UPred.satisfiable`.
 
 The predicate adequacy uses is `iPropSatLcAtFrame F E`:
 `(iPropSatLcAtFrame F E).sat P ↔ iPropSat.sat ((∃ x, ●£ₒ x) ∗ ((wsat ∗ ownE E) ∗ (F ∗ P)))`.

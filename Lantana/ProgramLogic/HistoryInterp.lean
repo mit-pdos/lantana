@@ -168,14 +168,15 @@ theorem historyInterp_histEvent_lookup (h : List (HistEntry Expr State)) (n : Na
 
 end
 
-/-- The ghost state of the history at the name `γ`, over the world's camera (D32: the name is
-small enough for the existential property of satisfiability, unlike `HistGS Expr State GF`). -/
+/-- The ghost state of the history at the name `γ`, over the world's camera (the name is small
+enough for the existential property of satisfiability, unlike `HistGS Expr State GF`). -/
 @[reducible] def HistGS.ofName {Expr State : Type} {GF : BundledGFunctors}
     [MonoListG GF (HistEntry Expr State)] (γ : GName) : HistGS Expr State GF where
   name := γ
 
-/-- Allocating the history with its first entry, at the name `γ` (D32), for every state
-interpretation (chosen after the allocation, as in Rocq `history_interp_init`). -/
+/-- Allocating the history with its first entry, at the name `γ` (small enough for the
+existential property of satisfiability), for every state interpretation (chosen after the
+allocation, as in Rocq `history_interp_init`). -/
 theorem historyInterp_init_names {Expr State : Type} {GF : BundledGFunctors}
     [MonoListG GF (HistEntry Expr State)] (σ : State) (tp : ThreadPool Expr) :
     ⊢@{IProp GF} |==> ∃ γ : GName,
