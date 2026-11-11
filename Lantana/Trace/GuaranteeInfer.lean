@@ -8,7 +8,7 @@ public import Lantana.Trace.TemporalFormulaRules
 
 /-! # Inferring guarantees
 
-Rocq `lantana/trace/guarantee_infer.v` (D21). The guarantee of a formula is computed from its
+Rocq `lantana/trace/guarantee_infer.v`. The guarantee of a formula is computed from its
 shape by instance resolution, with the two classes of `Lantana.Trace.GuaranteeRules`:
 `GuarOf P G` infers the specification `G` (an `outParam`) of `P`, and `IntoGuar P G` checks `P`
 against a given `G`; both fall back to `TrSpec.true`. This file completes the inference

@@ -13,9 +13,9 @@ Rocq `lantana/trace/adequacy_safety.v`: Iris-style safety on fair behaviors, rea
 directly (no guarantees): no thread of the pool is ever stuck, and a terminated thread `j` of
 the initial pool satisfies its postcondition. (Rocq asks it of the scheduled thread; traces here
 carry no thread label, and the statement for every thread is the stronger one.) Lantana-Lean
-derives it from the generalized single-step simulation `run_step` (D20) instead of duplicating
-that proof: the step-indexed
-reading `safetyIrisTrI` (an `always` of a pure predicate) is a Löb induction whose body is one
+derives it from the single-step simulation `run_step`, which also exposes the pure facts of the
+step that safety needs, instead of duplicating that proof: the step-indexed reading
+`safetyIrisTrI` (an `always` of a pure predicate) is a Löb induction whose body is one
 `run_step` (`threadsRun_safety`), and satisfiability reads it off (`safetyIrisTrI_trProp`).
 
 The temporal layer is interpreted by the registry state (`regTemporalInterp`), initialised from
@@ -59,7 +59,7 @@ section SafetyTrI
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 /-- The step-indexed reading of safety (Rocq `safety_iris_trI`, with the one-formula
-`TrIProp.always` of D20). -/
+`TrIProp.always`: Rocq's second formula is only used with `True`). -/
 @[lantana_alias safety_iris_trI]
 def safetyIrisTrI (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrIProp Expr State GF :=
   TrIProp.always fun τ => iprop(⌜safeNow (Expr := Expr) (State := State) j Φ τ⌝)

@@ -19,8 +19,9 @@ one-step property (`sysStep_lwp`) is the check of the registry (`regCheck`) foll
 of the run (`run_step`, in `Lantana.Trace.Adequacy.RunStep`). From a position `n`
 (`lwp_adequacy_internal`), the user's model update gives a resource `P` that guarantees `G`
 (whose record at `n` is eliminated after the first step against the bundle of the check at `n`)
-and the `lWP`s of the threads. The theorem allocates the ghost state at its names (D32,
-`adequacy_alloc_names`), and reads the internal reading off by satisfiability (`TrSpec.adeq`).
+and the `lWP`s of the threads. The theorem allocates the ghost state at its names, small enough
+for the existential property of satisfiability (`adequacy_alloc_names`), and reads the internal
+reading off by satisfiability (`TrSpec.adeq`).
 
 The behavior carries no thread label. The proof chooses a fair schedule of it and fairness
 counters under that schedule (`exists_fair_schedule_schedCounters`), the instruments that the run is

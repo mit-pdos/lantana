@@ -344,13 +344,14 @@ theorem eventObl_compare {i j : Nat} (e₁ e₂ : MEvent) (k : Oid) (o₁ o₂ :
 
 end Interp
 
-/-- The ghost state of the model history at the name `γ`, over the world's camera (D32: the
-name is small enough for the existential property of satisfiability, unlike `MHistGS GF`). -/
+/-- The ghost state of the model history at the name `γ`, over the world's camera (the name is
+small enough for the existential property of satisfiability, unlike `MHistGS GF`). -/
 @[reducible] def MHistGS.ofName {GF : BundledGFunctors} [MHistGpreS GF] (γ : GName) :
     MHistGS GF where
   name := γ
 
-/-- Allocating the model history with its first event, at the name `γ` (D32). -/
+/-- Allocating the model history with its first event, at the name `γ` (small enough for the
+existential property of satisfiability). -/
 theorem modelHistoryInterp_init_names {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat)
     (Ω : Obls) :
     ⊢@{IProp GF} |==> ∃ γ : GName, letI := MHistGS.ofName (GF := GF) γ;

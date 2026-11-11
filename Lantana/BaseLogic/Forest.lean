@@ -14,7 +14,7 @@ a thread of the pool or another live obligation. A node below an obligation `c` 
 `c` and strictly more fuel, so fuel decreases strictly towards the roots and the forest is
 acyclic for free.
 
-Redesign (D10 item 5): the parent map `Par : OidMap Parent` is the only data; Rocq's children
+Redesign: the parent map `Par : OidMap Parent` is the only data; Rocq's children
 map `Kids` is *defined* from it as the finite set `Forest.kids Par p` of the nodes whose parent
 is `p` (`mem_kids : x ∈ kids Par p ↔ get? Par x = some p`), so Rocq's `fwf_kids_dom` and
 `fwf_par_kids` hold by definition and disappear from `ForestWf`, and the shape-change lemmas
@@ -241,7 +241,8 @@ noncomputable def subtree (Par : OidMap Parent) (k : Oid) : Oids :=
 #lantana_ignore iter_kids_step_fix_stable "`Forest.subtree` is defined by `Relation.TransGen`"
 #lantana_ignore subtree_fix "`Forest.subtree_closed` and `Forest.subtree_inv`"
 #lantana_ignore parent_eq_dec "`Parent` derives `DecidableEq` (`Lantana.Prelude.Ids`)"
-#lantana_ignore parent_countable "unused: no map is keyed by `Parent` (D10: `Par` is primary)"
+#lantana_ignore parent_countable
+  "unused: no map is keyed by `Parent` (the parent map `Par` is primary)"
 
 @[simp] theorem mem_kids {Par : OidMap Parent} {p : Parent} {x : Oid} :
     x ∈ kids Par p ↔ get? Par x = some p := by

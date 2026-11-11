@@ -18,9 +18,9 @@ The camera of bounded credits over an ordered commutative monoid (Rocq `bcred.v`
 An element is a pair of a bound and credits. The bound is `none` (no bound) or `some a`: Rocq's
 bound is a down-closed set (`partition.t`), of which only the principal ones `[!a]` and `top` are
 ever constructed, and `Option α` with `none` as the top is a faithful representation of them
-(decision D6). Elements compose by taking the minimum of the bounds (`boundMin`) and adding the
-credits; an element is valid when its credits are below its bound. The core keeps the bound and
-drops the credits, so bounds are persistent.
+(the order is Leibniz, see `Lantana.Algebra.OCM`). Elements compose by taking the minimum of the
+bounds (`boundMin`) and adding the credits; an element is valid when its credits are below its
+bound. The core keeps the bound and drops the credits, so bounds are persistent.
 -/
 
 @[expose] public noncomputable section

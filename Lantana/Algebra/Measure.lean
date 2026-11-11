@@ -13,7 +13,7 @@ A `Measure` is a syntax for a subset of the ordinals, interpreted *at a layer* b
 layer; `▽` at layer `ℓ` is `fairMeasureUb` of the supremum of all measures at all layers below
 `ℓ`, so that a measure at a higher layer dominates every measure at a lower layer.
 
-## Universes (decision D4)
+## Universes
 
 * `embed` takes a well-founded relation on a type in `Type 0`, so `Measure : Type 1`, and its
   rank `ofWf hwf a : Ordinal.{0}` is lifted to `Fuel = Ordinal.{1}` with `lift.{0, 1}`. This is
@@ -27,8 +27,8 @@ layer; `▽` at layer `ℓ` is `fairMeasureUb` of the supremum of all measures a
 
 `rep` is defined by well-founded recursion on the layer (`WellFounded.fix`) with an inner
 structural recursion on the measure (`repAt`); `rep_unfold` is `WellFounded.fix_eq`, so Rocq's
-`measure_rep_rec_proof_irrelevance` is not needed. `rep` is irreducible (decision D25): use the
-reduction lemmas.
+`measure_rep_rec_proof_irrelevance` is not needed. `rep` is irreducible: use the reduction
+lemmas.
 -/
 
 @[expose] public section

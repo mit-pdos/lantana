@@ -27,7 +27,7 @@ open Iris
 
 
 /-- The language-dependent ghost state of the temporal layer: the history and the registry.
-The language is an output parameter: a world `GF` carries one language (D30), so that
+The language is an output parameter: a world `GF` carries one language, so that
 formulas such as `alwaysI N P : IProp GF` need no language annotations. The ghost state of the
 obligation model (`ModelGS GF`) is independent of the language and stays a separate instance
 argument. -/
@@ -35,8 +35,8 @@ argument. -/
 class TemporalGS (Expr : outParam Type) (State : outParam Type) (GF : BundledGFunctors)
     extends HistGS Expr State GF, RegGS Expr State GF
 
-/-- The ghost names of the temporal layer: of the history and of the registry list (D32: small
-enough for the existential property of satisfiability, unlike `TemporalGS Expr State GF`). -/
+/-- The ghost names of the temporal layer: of the history and of the registry list (small enough
+for the existential property of satisfiability, unlike `TemporalGS Expr State GF`). -/
 structure TemporalNames where
   /-- The ghost name of the history. -/
   hist : GName

@@ -13,7 +13,7 @@ Rocq `lantana/base_logic/oinv.v`: an Iris invariant whose content depends on the
 obligation `k`: `P` while `k` is assigned, `R` once it is discharged. The invariant holds a
 fraction `q` of the assignment, so that opening it with any other fraction pins the assigned
 state, and opening it with `OSat.discharged k` pins the discharged one. (Rocq's boolean flag
-and its third branch `Q` are dropped, D10: `opreds.v` instantiates `Q := False`.)
+and its third branch `Q` are dropped: `opreds.v` instantiates `Q := False`.)
 -/
 
 @[expose] public noncomputable section
@@ -64,7 +64,8 @@ instance oinv_contractive_right (N : Namespace) (k : Oid) (q : Qp) (P : IProp GF
     OFE.Contractive.distLater_dist (f := Lantana.inv N) fun m hm =>
       or_ne.ne .rfl (sep_ne.ne .rfl (h m hm))
 
-#lantana_ignore oblG_inv_contractive_2 "no boolean flag: the branch `Q` is dropped (D10)"
+#lantana_ignore oblG_inv_contractive_2
+  "no boolean flag: the branch `Q` is dropped (`opreds.v` instantiates `Q := False`)"
 
 section Rules
 
@@ -152,7 +153,8 @@ theorem oinv_alloc_discharged :
   iright
   iexact H
 
-#lantana_ignore oblG_inv_alloc_assigned_true "no boolean flag: the branch `Q` is dropped (D10)"
+#lantana_ignore oblG_inv_alloc_assigned_true
+  "no boolean flag: the branch `Q` is dropped (`opreds.v` instantiates `Q := False`)"
 
 end Rules
 

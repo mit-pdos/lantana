@@ -555,13 +555,14 @@ theorem owit_get_credit_zero (W : Witnesses) :
 end Owit
 
 /-- The ghost state of witnesses at the name `γ` of the name map, over the world's cameras
-(D32: the name is small enough for the existential property of satisfiability, unlike
+(the name is small enough for the existential property of satisfiability, unlike
 `OWitGS GF`). -/
 @[reducible] def OWitGS.ofName {GF : BundledGFunctors} [OWitGpreS GF] (γ : GName) :
     OWitGS GF where
   namesName := γ
 
-/-- Allocation of the ghost state of witnesses, with no witness, at the name `γ` (D32). -/
+/-- Allocation of the ghost state of witnesses, with no witness, at the name `γ` (small enough
+for the existential property of satisfiability). -/
 theorem owit_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OWitGpreS GF] :
     ⊢@{IProp GF} |==> ∃ γ : GName, letI := OWitGS.ofName (GF := GF) γ; owit ∅ := by
   imod ghost_map_alloc_empty (GF := GF) (K := Oid) (V := GName) with ⟨%γ, HN⟩

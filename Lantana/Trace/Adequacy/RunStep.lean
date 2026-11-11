@@ -24,7 +24,7 @@ step of the thread the schedule names:
 * it is a value: the configuration stutters, the counters drop (`owitInvLb_step_na_turn`);
 * it is stuck: impossible, as above.
 
-Following D20, `run_step` also exposes the pure facts of the step that Iris-style safety needs
+Unlike Rocq's, `run_step` also exposes the pure facts of the step that Iris-style safety needs
 (no thread of the pool is stuck at the current position, the postconditions of the old threads
 do not change), so that `Lantana.Trace.Adequacy.Safety` is a Löb induction over it.
 
@@ -419,7 +419,7 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     oblsDrop_step hi hcnt hle₀ hprog (Obls.le_trans hle₃ hle₄) hact₂, hns, by omega,
     fun _ hj => postFork_lt hj⟩
 
-/-- **One step of the run** (Rocq `run_step`, generalized per D20): from the system at `n` on a
+/-- **One step of the run** (Rocq `run_step`, generalized for safety): from the system at `n` on a
 run under a schedule with fairness counters (the history and temporal interpretation, the model,
 the running threads), the system at `n + 1` with the facts about the step (`runStepPost`) and
 `c` later credits, in the deferred shape. No thread of the pool is stuck at `n`; the step is the

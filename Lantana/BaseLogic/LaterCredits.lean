@@ -27,10 +27,10 @@ in an authoritative camera `Auth A` in a ghost slot (`CreditGpreS`, `CreditGS`):
 total supply and `£ₒ a` are credits. Spending credits along `rel` eliminates a later in front of a
 relational update (`auth_rupd_step`).
 
-The notations are `£ₒ α` and `£ₙ n` (decision D29): Iris-Lean's global `£ n` is reserved for its
-`Nat` credits. The credit type is an `outParam` of `CreditGS`, so that `ALC P` finds it from the
-ghost state in scope; `credit`, `supply` and `ALC` take their camera instance as an implicit
-argument (`{_ : UCMRA A}`), determined by the `CreditGS` instance.
+The notations are `£ₒ α` and `£ₙ n`: Iris-Lean's global `£ n` is reserved for its `Nat` credits.
+The credit type is an `outParam` of `CreditGS`, so that `ALC P` finds it from the ghost state in
+scope; `credit`, `supply` and `ALC` take their camera instance as an implicit argument
+(`{_ : UCMRA A}`), determined by the `CreditGS` instance.
 
 Transfinite later credits (`TlcGS`) are over `Ordinal.{1}` itself, with the camera of
 `NatOrdinal` (operation `+ₕ`) as a scoped instance, as Iris-Lean's `Credit` camera on `Nat` is

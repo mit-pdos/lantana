@@ -19,7 +19,7 @@ fixpoint body has no fold (`TrSpec.mu_unfold_r_guarded`).
 extracts the instances with the existential property. Here the instance records
 (`ModelGS GF`, `TemporalGS Expr State GF`) live in `Type 4` (their `ElemG` fields hold maps
 on `IProp GF`), while the existential property `SIdxLarge SI X` holds for `X : Type ≤ 3` only
-(`SI = Ordinal.{3} : Type 4`). So, as in adequacy (D32), the allocation exposes the ghost
+(`SI = Ordinal.{3} : Type 4`). So, as in adequacy, the allocation exposes the ghost
 *names* (`adequacy_alloc_names`), the names are extracted (`iPropSat.sat_alloc`), and the
 instances are rebuilt from the world's cameras and the names (`ModelGS.ofNames`,
 `TemporalGS.ofNames`). Only world satisfaction and the credit supply are used.

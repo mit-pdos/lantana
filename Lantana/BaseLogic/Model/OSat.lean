@@ -103,7 +103,7 @@ attribute [lantana_alias state_name] OSatGS.stateName
 #lantana_ignore «subG_osatΣ» "Subsumed by BundledGFunctors typeclass synthesis"
 #lantana_ignore reservation_map_token_alloc_singleton
   "no reservation maps: per-obligation ghost names (`OSat.names_alloc`)"
-#lantana_ignore ord_obl_class "D6/D10: fuel is fixed to `Fuel`"
+#lantana_ignore ord_obl_class "fuel is fixed to `Fuel`"
 
 /-! ## Per-obligation predicates -/
 
@@ -1171,8 +1171,8 @@ theorem osat_progress_owner {Ω : Obls} (i : ThreadId) (G : Oids)
 
 end Osat
 
-/-- The ghost names of the ghost state of obligations (D32: small enough for the existential
-property of satisfiability, unlike `OSatGS GF`). -/
+/-- The ghost names of the ghost state of obligations (small enough for the existential property
+of satisfiability, unlike `OSatGS GF`). -/
 structure OSatNames where
   /-- The ghost name of the state map. -/
   state : GName
@@ -1185,7 +1185,8 @@ structure OSatNames where
   stateName := γ.state
   namesName := γ.names
 
-/-- Allocation of the ghost state of obligations, with no obligation, at names `γ` (D32). -/
+/-- Allocation of the ghost state of obligations, with no obligation, at names `γ` (small enough
+for the existential property of satisfiability). -/
 theorem osat_alloc_names {GF : BundledGFunctors} [OSatGpreS GF] :
     ⊢@{IProp GF} |==> ∃ γ : OSatNames, letI := OSatGS.ofNames (GF := GF) γ; osat ∅ := by
   imod ghost_map_alloc_empty (GF := GF) (K := Oid) (V := Bool) with ⟨%γs, HS⟩

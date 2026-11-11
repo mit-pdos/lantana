@@ -12,7 +12,7 @@ public import Ordinals.Ordinal.WellFounded
 
 Lantana-Rocq uses two copies of the snu-sf ordinal library to avoid a universe inconsistency
 (`lantana/algebra/layer.v`): the layers live one universe below the fuel ordinals. The ordinals
-of the `Ordinals` package are universe-polymorphic, so one library serves both (decision D4):
+of the `Ordinals` package are universe-polymorphic, so one library serves both:
 
 * `Layer := Ordinal.{0}` (`: Type 1`), the layers of obligations;
 * `Fuel := Ordinal.{1}` (`: Type 2`), fuel, witness credits, later credits and ranks;
@@ -21,7 +21,7 @@ of the `Ordinals` package are universe-polymorphic, so one library serves both (
 This file also proves the small ordinal facts of `ordinal_facts.v` and `ordinal_copy_facts.v`
 used by measures and the model (for every universe, so for both copies at once), and defines
 `fairMeasureUb` (Rocq `fair_measure_ub`), the inflationary function `η` used by `▽`
-(decision D5: a concrete function, no class).
+(a concrete function, no class).
 
 Lemmas stated in both Rocq files carry two aliases, the second one prefixed by
 `ordinal_copy_facts`.
@@ -161,11 +161,11 @@ theorem fairMeasure_le_ub (γ : Nat → Nat) (i : Nat) (a : Fuel) :
   nadd_le_nadd Ordinal.le_rfl (Ordinal.le_of_lt (ofNat_lt_omega (γ i)))
 
 #lantana_ignore fair_measure_mon "special case of `fairMeasure_lt_mono`"
-#lantana_ignore ord_mono_fun_class "decision D5: `fairMeasureUb` is used directly, no class"
+#lantana_ignore ord_mono_fun_class "`fairMeasureUb` is used directly, no class"
 #lantana_ignore ordinal_copy_facts.ord_mono_fun_class
-  "decision D5: `fairMeasureUb` is used directly, no class"
+  "`fairMeasureUb` is used directly, no class"
 #lantana_ignore fair_measure_ub_ord_mono_fun_class
-  "decision D5: `fairMeasureUb` is used directly, no class"
+  "`fairMeasureUb` is used directly, no class"
 #lantana_ignore ordinal_copy_facts.limit_fun "`Ordinal.sup`"
 #lantana_ignore ordinal_copy_facts.limit_fun_upperbound "`Ordinal.le_sup`"
 #lantana_ignore ordinal_copy_facts.limit_fun_supremum "`Ordinal.sup_le`"

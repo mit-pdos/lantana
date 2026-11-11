@@ -23,13 +23,13 @@ the model update `|={E₁,E₂}=>m P`, the physical-step modalities, and their r
 obligation is a child of one parent, a thread or an obligation (`Par.kids p K`: the children of
 `p` are exactly `K`).
 
-Design (D13): this is a *sealed API module*, not a class. The predicates are defined by the
+Design: this is a *sealed API module*, not a class. The predicates are defined by the
 model (`Lantana.BaseLogic`) and re-exported here as irreducible definitions; the rules are
 theorems; nothing outside the model and this module unfolds the predicates.
 
 The predicates are `@[irreducible]` definitions over the model of `Lantana.BaseLogic.Model`
 (`Model.OPreds.parKids`, `Model.OPreds.oblAssigned`, …, `Model.mupd`, `Model.mprog`,
-`Model.mphys`), each with a private unfolding lemma used only in this file (D25), and every rule
+`Model.mphys`), each with a private unfolding lemma used only in this file, and every rule
 is the corresponding model lemma (`Lantana.BaseLogic.Model.OPreds`, `OPredsBase`, `MUpd`) seen
 through these unfoldings; the model updates of the forest operations are lifted from the base
 model update `|=[n,tc]=>m` to `|={E}=>m` by `mupd_of_base`. The predicates take the ghost state
@@ -113,7 +113,7 @@ threads (Rocq `mphys`, `@={n1,n2,Θ1,Θ2}=> P`). -/
 @[lantana_alias mphys, irreducible]
 def mphys (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) : IProp GF := Model.mphys n₁ n₂ tc₁ tc₂ P
 
-/-! ### Unfolding (private: D25) -/
+/-! ### Unfolding (private: only this module unfolds the predicates) -/
 
 private theorem Par.kids_unfold : Par.kids (GF := GF) = Model.OPreds.parKids := by
   funext p K; exact Par.kids.eq_1 p K

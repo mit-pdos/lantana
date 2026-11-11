@@ -90,8 +90,7 @@ theorem regWf_lookup_pos {l : List (Nat × RegEntry)} {i j : Nat} {pi pj : Nat �
 /-! ## Ghost state -/
 
 /-- The ghost state of the registry that a world provides: a monotone list of entries and
-saved trace predicates. The language is an output parameter (D30): a world carries one
-language. -/
+saved trace predicates. The language is an output parameter: a world carries one language. -/
 @[lantana_alias tregGpreS] -- Rocq `tregGS.tregGpreS`
 class RegGpreS (Expr : outParam Type) (State : outParam Type) (GF : BundledGFunctors) where
   [listG : MonoListG GF (Nat × RegEntry)]
@@ -273,13 +272,14 @@ theorem regAuth_append (l : List (Nat × RegEntry)) (p : Nat) (e : RegEntry)
 end
 
 /-- The ghost state of the registry at the name `γ` of the list, over the world's cameras
-(D32: the name is small enough for the existential property of satisfiability, unlike
+(the name is small enough for the existential property of satisfiability, unlike
 `RegGS Expr State GF`). -/
 @[reducible] def RegGS.ofName {Expr State : Type} {GF : BundledGFunctors}
     [RegGpreS Expr State GF] (γ : GName) : RegGS Expr State GF where
   regName := γ
 
-/-- Allocating the registry with an empty list, at the name `γ` (D32). -/
+/-- Allocating the registry with an empty list, at the name `γ` (small enough for the existential
+property of satisfiability). -/
 theorem regGS_alloc_names {Expr State : Type} {GF : BundledGFunctors} [RegGpreS Expr State GF] :
     ⊢@{IProp GF} |==> ∃ γ : GName,
       letI := RegGS.ofName (Expr := Expr) (State := State) (GF := GF) γ; regAuth [] := by
