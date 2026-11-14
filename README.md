@@ -58,7 +58,9 @@ The two adequacy theorems:
   trace specification `G` (`P ⊨ₜ G`), then every behavior with fair scheduling from the initial
   configuration (`fairScheduling`: the strong fairness of each thread's scheduling action,
   enabled where the thread is active and granted at its step; traces carry no scheduled-thread
-  label, the adequacy proof chooses the schedule) satisfies the trace reading of `G`.
+  label, the adequacy proof chooses the schedule) satisfies the trace reading of `G`.  A thread
+  is active when it is in the pool, not finished and not crashed; a language declares its
+  crashed threads (`Crash`, see `docs/activity.md`), and HeapLang has none.
 - `lwp_adequacy_safety`: on such behaviors no thread is ever stuck and a terminated initial
   thread satisfies its postcondition.
 
@@ -89,7 +91,7 @@ forks a thread that sets a flag and waits for the flag.
 | `Lantana/Temporal` | traces of a configuration type, trace properties with LTL and their rules, thread systems (`ThreadSystem.lean`) and their behaviors, the attempt–grant theory of fairness (`Fairness/`; `Fairness.FairnessAssumption` is the notion a language instance declares), fair scheduling as the strong fairness of each thread's scheduling action with the fairness counters (`Fairness/Scheduling.lean`) and the fair-labelling theorem (`Fairness/FairLabel.lean`); see `docs/temporal.md`; language-independent, Iris-free | the trace part of `program_logic/language.v`, `trace/trace_prop*.v` and `trace/fair_scheduling.v` |
 | `Lantana/Algebra` | measures `Measure.rep`, ordered commutative monoids, the bank and bounded-credit cameras, `AuthMra` | `algebra/` |
 | `Lantana/BaseLogic` | relational update `|==>r`, ordinal later credits `£ₒ α`, the fancy update, satisfiability, invariants; the obligation model (`Model/`: `osat`, `owit`, `oforest`, the model history, `modelInterp`, the model update `mupd` as a least fixpoint, `mprog`/`mphys`, the user predicates) | `base_logic/` |
-| `Lantana/ProgramLogic` | languages with thread pools, configurations and thread steps, Lantana's language as a thread system (`ThreadSystem`) and fair scheduling of Lantana's threads (`Configuration.lean`), the history, the temporal registry, the sealed obligation-forest interface (`OblForest.lean`) and its derived rules, `lWP` (a least fixpoint) with its rules and lifting lemmas | `program_logic/` |
+| `Lantana/ProgramLogic` | languages with thread pools, configurations and thread steps, the crashed threads a language declares (`Crash`), Lantana's language as a thread system (`ThreadSystem`) and fair scheduling of Lantana's threads (`Configuration.lean`), the history, the temporal registry, the sealed obligation-forest interface (`OblForest.lean`) and its derived rules, `lWP` (a least fixpoint) with its rules and lifting lemmas | `program_logic/` |
 | `Lantana/Trace` | the state atom of trace properties (`StateAtom.lean`), step-indexed trace predicates, trace specifications `TrSpec`, guarantees `⊨ₜ` and their inference, the temporal formulas `alwaysI`/`untilI`/`finallyI`, the adequacy theorems | `trace/` |
 | `Lantana/HeapLang` | HeapLang with labels and `chooseNat` (forked from Iris-Lean's), its laws, temporal laws and tactics (`lwp_pure`, `lwp_step`, `lwp_pures`, `lwp_bind`) | `lantana_heap_lang/` |
 | `Lantana/Examples` | the case studies (below), a closed world `ExGF` for end-to-end theorems | `lantana_heap_lang/examples/` |
@@ -178,6 +180,8 @@ All documents live in `docs/`:
   (above).
 - [`docs/temporal.md`](docs/temporal.md): the temporal layer, traces and trace properties,
   thread systems, and the structure of the attempt–grant theory of fairness.
+- [`docs/activity.md`](docs/activity.md): crashed threads, the node of a thread in three
+  pieces (children, bill, running handle), and the rounds of a step.
 - [`docs/performance.md`](docs/performance.md): where the build time goes, by layer, module and
   declaration, and how to measure it (`scripts/profile.py`).
 - [`docs/iris-lean-proposal.md`](docs/iris-lean-proposal.md): changes to Iris-Lean that would
