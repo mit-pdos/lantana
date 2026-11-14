@@ -9,13 +9,10 @@ public import Lantana.Init
 
 /-! # Lantana's additions to Iris-Lean's language interface
 
-Lantana's languages are Iris-Lean's (`Iris.ProgramLogic.Language`, `EctxLanguage`,
-`EctxItemLanguage`), used as they are.  This module adds what the program logic needs on top:
-the class `Crash` by which a language declares its crashed threads (a crashed thread is not
-finished, yet inactive), the reducibility a stuckness requires (`Stuckness.maybeReducible`), the
-evaluation-context instances for composed functions and for the empty and composed contexts of an
-`EvContext` (candidates for upstream, `docs/iris-lean-proposal.md`), and the uniqueness of the
-context around a reducible expression of an `EctxItemLanguage`.
+Lantana's languages are Iris-Lean's.  This module adds the class `Crash` of the crashed threads of
+a language, `Stuckness.maybeReducible`, the evaluation-context instances `Language.Context.comp`,
+`fillEmpty` and `fillComp`, and `EctxItemLanguage.fill_ctx_step_inj`.
+See `docs/program-logic.md`, §1.
 -/
 
 @[expose] public section
@@ -149,8 +146,7 @@ variable {Expr State Obs Val Ectx : Type}
 
 /-! ## Crashed threads -/
 
-/-- The crashed threads of a language: whether the thread running an expression is crashed in a
-state. -/
+/-- The crashed threads of a language. -/
 class Crash (Expr State : Type) (Obs Val : outParam Type) [Language Expr State Obs Val] where
   /-- The thread running `e` is crashed in the state `σ`. -/
   crashed : Expr → State → Prop
@@ -162,8 +158,7 @@ class Crash (Expr State : Type) (Obs Val : outParam Type) [Language Expr State O
 section Stuckness
 variable [Language Expr State Obs Val]
 
-/-- Reducibility required by the stuckness `s`: `NotStuck` requires a step, `MaybeStuck`
-nothing. -/
+/-- The reducibility that a stuckness requires. -/
 def _root_.Iris.Stuckness.maybeReducible : Iris.Stuckness → Expr → State → Prop
   | .NotStuck, e, σ => PrimStep.Reducible (e, σ)
   | .MaybeStuck, _, _ => True
@@ -180,7 +175,7 @@ namespace Language.Context
 
 variable [Language Expr State Obs Val]
 
-/-- Evaluation contexts compose (Iris-Lean has only the identity, `instContext_id`). -/
+/-- Evaluation contexts compose. -/
 @[lantana_alias language_ctx_compose]
 instance comp (K₁ K₂ : Expr → Expr) [Language.Context K₁] [Language.Context K₂] :
     Language.Context (K₁ ∘ K₂) where

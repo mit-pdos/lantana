@@ -8,11 +8,8 @@ public import LantanaTest.Crash.Lang
 
 /-! # A language whose threads crash: the step rule and the facts about the pool
 
-`lwp_step` is the library's `lwp_lift_step_gen_si` for this language: before the step the thread
-chooses, having seen the configuration, to pay its bill (running) or nothing (crashed); after it,
-under the step's later credits, a model update at the empty mask hands in the nodes of the
-threads the step crashes and receives those of the threads it recovers (`Th.nodes`). The facts
-about the pool say which threads a step crashes or recovers.
+`lwp_step`, the library's `lwp_lift_step_gen_si` for this language, and which threads a step
+crashes or recovers. See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section
@@ -135,10 +132,7 @@ section Lifting
 variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Exp} {Φ : Unit → IProp GF}
 
-/-- `lwp_lift_step_gen_si` for this language, which has no context, no fork and no witness: having
-seen the configuration, the thread pays its bill `G` (`G' = G`) or, crashed, nothing (`G' = ∅`);
-after the step, a model update at the empty mask hands in the nodes of the threads the step
-crashes and receives those of the threads it recovers. -/
+/-- `lwp_lift_step_gen_si` for this language, which has no context, no fork and no witness. -/
 theorem lwp_step (he : toVal e₁ = none) :
     (∀ (σ₁ : St) (tp : ThreadPool Exp), ⌜tp[i]? = some e₁⌝ →
       stateInterp σ₁ tp ={E,∅}=∗

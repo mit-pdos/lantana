@@ -9,21 +9,10 @@ public import Lantana.ProgramLogic.OblForest
 
 /-! # Adequacy: facts about one step
 
-Rocq `lantana/trace/adequacy_step.v`, the pure part: after the progress round of the thread the
-schedule names at position `n` (`sched n`, the adequacy proof's instrument), witnesses that
-strictly decrease and keep both witness invariants exist (`mprog_exists_step`). The witness of an
-assigned obligation with fuel `a` and owner `o` is the fair-scheduler measure
-`fairMeasure (γ (n + 1)) o a` of the next position: the fuel of the named thread's obligations
-dropped, the fairness counter of every other active owner dropped (the counters are an
-explicit sequence `γ` along the run under the schedule, the trace property `SchedCounters` of the
-run from position `0`, so no choice is needed for them).
-
-The ghost-state part: every assigned obligation's owner is active (`getOblsThreadActive`). It is
-a thread of the pool (the model interpretation); not a finished one, whose `Th.done` token
-contradicts the ownership; and not a crashed one, since the model at the configuration's crashed
-threads holds the node of a crashed thread, which so owns nothing. A stutter of a finished thread
-keeps the witnesses' lower bound with the next counters (`owitInvLb_step_na_turn`) and moves the
-model to the next step index (`modelInterp_step_idx`).
+The witnesses after the progress round of the thread the schedule names (`mprog_exists_step`),
+the drop of the fair-scheduler measures across a step (`oblsDrop_step`, `oblsDrop_na`), and the
+activity of the owners of obligations (`getOblsThreadActive`). See `docs/adequacy.md`, §5.4.
+Rocq: `lantana/trace/adequacy_step.v`.
 -/
 
 @[expose] public section
@@ -38,15 +27,13 @@ variable {Expr State Obs Val : Type} [Λ : Language Expr State Obs Val]
 section Active
 variable [Crash Expr State Obs Val]
 
-/-- Every assigned obligation is owned by a thread that is active at the configuration `ρ`
-(Rocq `obls_thread_active`). -/
+/-- Every assigned obligation is owned by a thread that is active at the configuration `ρ`. -/
 @[lantana_alias obls_thread_active]
 def oblsThreadActive (Ω : Obls) (ρ : Cfg Expr State) : Prop :=
   ∀ k a i, get? Ω k = some (.assigned a i) → ρ.active i
 
-/-- The fair-scheduler measures of the next position are strictly below those of the current
-one for the obligations of the thread the schedule names (whose fuel dropped) and for the other
-active owners (whose counter dropped). -/
+/-- The fair-scheduler measure drops from `n` to `n + 1` for an obligation of the thread the
+schedule names whose fuel dropped, and for an obligation of another active owner. -/
 theorem fairMeasure_next_lt {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat} {i o o' : ThreadId}
     {a a' : Fuel} (hi : sched n = i) (hact : (τf n).active o)
@@ -63,9 +50,8 @@ theorem fairMeasure_next_lt {τf : Nat → Cfg Expr State} {sched : Nat → Thre
     unfold fairMeasure
     exact Ordinals.Ordinal.nadd_lt_nadd_left (Ordinals.Ordinal.ofNat_lt_ofNat_iff.mpr hdec) _
 
-/-- After the progress round of the thread `i` the schedule names at `n` (Rocq
-`mprog_exists_step`): the witnesses `fairMeasure (γ (n + 1))` of the new obligations strictly
-decrease the assigned witnesses and keep the witness invariant and its lower bound. -/
+/-- After the progress round of the thread `i` the schedule names at `n`, the witnesses
+`fairMeasure (γ (n + 1))` decrease strictly and keep the witness invariant and its lower bound. -/
 @[lantana_alias mprog_exists_step]
 theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} {Ω₁ Ω₂ : Obls} {W₁ : Witnesses}
@@ -165,16 +151,14 @@ theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → Thread
 
 /-! ## The drop of the fair-scheduler measures across a step -/
 
-/-- The measures of all obligations drop from `Ω` to `Ω'` (Rocq `obls_drop`). -/
+/-- The measures of all obligations drop from `Ω` to `Ω'`. -/
 @[lantana_alias obls_drop]
 def oblsDrop (m m' : ThreadId → Fuel → Fuel) (Ω Ω' : Obls) : Prop :=
   ∀ k fu o fu' o', get? Ω k = some (.assigned fu o) → get? Ω' k = some (.assigned fu' o') →
     m' o' fu' < m o fu
 
-/-- A step of the thread `i` the schedule names at `n` drops every measure (Rocq
-`obls_drop_step`): through the pre-step model update `Ω ≤ Ω₀`, the progress round `Ω₀ → Ω₂` of
-`i` and the post-step update `Ω₂ ≤ Ω'`, the obligations of `i` lose fuel and the other active
-owners lose a counter. -/
+/-- A step of the thread `i` the schedule names at `n`, through the model updates and its
+progress round, drops every measure. -/
 @[lantana_alias obls_drop_step]
 theorem oblsDrop_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} (hi : sched n = i)
@@ -226,8 +210,8 @@ theorem oblsDrop_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
           subst ho'
           exact fairMeasure_next_lt hcnt hi (hact k fu₀ o hk₂) (.inr ⟨fun h => hno h, heq', rfl⟩)
 
-/-- A stutter of a finished thread, the one the schedule names, drops every measure through the
-fairness counters (Rocq `obls_drop_na`). -/
+/-- When the thread the schedule names is inactive, every measure drops through the fairness
+counters. -/
 @[lantana_alias obls_drop_na]
 theorem oblsDrop_na {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat}
@@ -242,9 +226,8 @@ theorem oblsDrop_na {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
 
 /-! ## A stutter of a finished thread -/
 
-/-- A stutter of a finished thread keeps the lower bound of the witnesses with the counters of
-the next position (Rocq `owit_inv_lb_step_na_turn`): the counter of every active owner
-dropped. -/
+/-- When the thread the schedule names is inactive, the lower bound of the witnesses holds with
+the counters of the next position. -/
 @[lantana_alias owit_inv_lb_step_na_turn]
 theorem owitInvLb_step_na_turn {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat}
@@ -294,8 +277,8 @@ instance doneTokens_persistent (tp : ThreadPool Expr) :
   unfold doneTokens
   infer_instance
 
-/-- The owners of the obligations are threads of the pool (Rocq
-`othread_assigned_thread_elem`, through the model interpretation). -/
+/-- The owners of the obligations are below the thread count of the model (Rocq
+`othread_assigned_thread_elem`). -/
 theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
     (n tc : Nat) (X : ThreadId → Prop) :
     modelInterp (GF := GF) h a Ω W n tc X ⊢
@@ -307,9 +290,8 @@ theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnes
   intro k fu o hk
   exact h k o (Obls.ownerOf_eq hk)
 
-/-- Every assigned obligation's owner is active at a configuration `ρ` whose pool is `tp`, from
-the `Th.done` tokens of the finished threads and the model at the crashed threads of `ρ` (Rocq
-`get_obls_thread_active_gen`): a finished thread owns no obligation, nor does a crashed one. -/
+/-- Every owner of an obligation is active at `ρ`, given the `Th.done` tokens of the finished
+threads and the model at the crashed threads of `ρ`. -/
 @[lantana_alias get_obls_thread_active_gen]
 theorem getOblsThreadActive [Crash Expr State Obs Val] {tp : ThreadPool Expr}
     {ρ : Cfg Expr State} (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)

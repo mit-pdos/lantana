@@ -14,25 +14,12 @@ public import Lantana.ProgramLogic.WeakestPre
 
 /-! # Lifting lemmas
 
-Rocq `lantana/program_logic/lifting.v`, after Iris-Lean's `Iris.ProgramLogic.Lifting`: the rules
-of the operational semantics as rules of `lWP`.  Only the lemmas of the first section see the
-history and the model updates around a step; the others use the state interpretation and the
-obligation interface: a step burns one unit of fuel of each obligation of the bill `G` of the
-thread (`thCarriers i G`, `oblFuels G 1`), gives a credit to each witness of `R` (`witLayers R`,
-`witCreds R`) and gives every forked thread its running handle, an empty set of children and an
-empty bill.  `PureExecSI ς i` updates the token `ς` of thread `i` (HeapLang's thread-expression
-token) and the state interpretation along a pure step.
-
-The lemmas of a step take the hypothesis that it keeps the statuses (`KeepsCrashed i e₁`: the
-same threads are crashed before and after; free in a language that never crashes,
-`KeepsCrashed.of_never`).  The most general one, `lwp_lift_step_gen`, covers the other steps: a
-thread crashed in the current configuration steps for free, and a step that crashes or recovers
-threads hands in the nodes of the newly crashed ones and receives those of the recovered ones
-(`Th.nodes`); `lwp_lift_step_gen_si` is its form over the state interpretation, with a model
-update at the empty mask inside the physical round.  `lwp_lift_step_or_crashed` is its form for
-a step that keeps the statuses, the thread choosing after seeing the configuration whether it
-pays or is crashed; `lwp_lift_step` (a running thread) and `lwp_lift_step_crashed` (a crashed
-one) commit to one case.
+The rules of the operational semantics as rules of `lWP`, with the obligation interface in each
+step: the general `lwp_lift_step_gen` and its forms `lwp_lift_step_or_crashed`, `lwp_lift_step`
+and `lwp_lift_step_crashed`; over the state interpretation, `lwp_lift_step_si`,
+`lwp_lift_step_gen_si` and the stuck, atomic and pure steps; `lwp_pure_step_simple`.  After
+Iris-Lean's `Iris.ProgramLogic.Lifting`; see `docs/program-logic.md`, §3.
+Rocq: `lantana/program_logic/lifting.v`.
 -/
 
 @[expose] public noncomputable section
@@ -52,8 +39,7 @@ variable [Crash Expr State Obs Val] [L : LantanaGS Expr State Obs Val GF]
   [TemporalInterp Expr State GF]
 
 /-- A pure step of thread `i` from `fill K e₁` to `fill K e₂` updates the token `ς i e₁` and the
-state interpretation together (Rocq `PureExecSI`; `ς i e` is the thread-expression token of
-HeapLang, which the state interpretation also knows). -/
+state interpretation together. -/
 @[lantana_alias PureExecSI]
 class PureExecSI (ς : ThreadId → Expr → IProp GF) (i : ThreadId) : Prop where
   pureExecSI {K : Ectx} {e₁ e₂ : Expr} {σ : State} {obs : List Obs} {tp : ThreadPool Expr} :
@@ -65,8 +51,7 @@ attribute [lantana_alias pure_exec_si] PureExecSI.pureExecSI
 
 variable {s : Stuckness} {i : ThreadId} {E E₁ E₂ : CoPset} {e e₁ : Expr} {Φ : Val → IProp GF}
 
-/-- The safety condition of the pure lifting lemmas (Rocq `if s is NotStuck then reducible e σ
-else to_val e = None`): `e` is reducible for `NotStuck`, not a value for `MaybeStuck`. -/
+/-- The safety condition of the pure lifting lemmas. -/
 def _root_.Iris.Stuckness.pureSafe : Stuckness → Expr → State → Prop
   | .NotStuck, e, σ => PrimStep.Reducible (e, σ)
   | .MaybeStuck, e, _ => toVal e = none
@@ -93,15 +78,14 @@ theorem _root_.Iris.Stuckness.pureSafe_of_pureStep [Inhabited State] {s : Stuckn
   · exact Language.toVal_none_of_reducible (Language.reducible_of_reducibleNoObs (h.safe default))
 
 omit [ModelGS GF] in
-/-- The forked threads `tc, …, tc + n - 1` of `step_physical` and `step_fork`, from `0`. -/
+/-- The forked threads `tc, …, tc + n - 1`, indexed from `0`. -/
 theorem bigSepL_range'_sub {Ψ : Nat → IProp GF} (tc n : Nat) :
     ([∗list] j ∈ List.range' tc (tc + n - tc), Ψ j) ⊣⊢ [∗list] j ∈ List.range n, Ψ (tc + j) := by
   rw [Nat.add_sub_cancel_left, List.range'_eq_map_range, BigSepL.bigSepL_map]
   exact .rfl
 
-/-- Every step of thread `i` from `e₁`, under any evaluation context and in any pool, keeps the
-statuses: the same threads are crashed before and after (the hypothesis of the lifting lemmas of
-a step that crashes or recovers no thread). -/
+/-- Every step of thread `i` from `e₁`, in any evaluation context and any pool, keeps the
+statuses: the same threads are crashed before and after. -/
 def KeepsCrashed (i : ThreadId) (e₁ : Expr) : Prop :=
   ∀ (K : Ectx) (tp : ThreadPool Expr) (σ₁ : State) (obs : List Obs) (e₂ : Expr) (σ₂ : State)
     (efs : List Expr), Language.Context (fill (Expr := Expr) K) → tp[i]? = some (fill K e₁) →
@@ -113,11 +97,8 @@ theorem KeepsCrashed.of_never (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crash
     (i : ThreadId) (e₁ : Expr) : KeepsCrashed (Ectx := Ectx) i e₁ :=
   fun _ _ _ _ _ _ _ _ _ _ => Cfg.crashed_eq_of_never hnc _ _
 
-/-- The most general lifting lemma, `lwpStep` with the progress and physical rounds applied: the
-thread pays its bill `G`, one unit of fuel of each of its obligations, and gets it back (`G' = G`),
-or, crashed in the current configuration, pays nothing and gets it back empty (`G' = ∅`); after the
-step and the forked threads' pieces, under the later credits and a base model update, it hands in
-the nodes of the threads the step crashes and receives those of the threads it recovers. -/
+/-- The most general lifting lemma: the thread pays its bill or, crashed, steps for free; after
+the step, it hands in the nodes of the threads the step crashes and receives those it recovers. -/
 theorem lwp_lift_step_gen (he : toVal e₁ = none) :
     (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
@@ -196,7 +177,7 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
     iapply step_progress_crashed n tp.length _ hc G R $$ HG HR H
 
 /-- `lwp_lift_step_gen` for a step that keeps the statuses: having seen the configuration, the
-thread pays its bill (`G' = G`) or, crashed, nothing (`G' = ∅`), and no node is handed. -/
+thread pays its bill or, crashed, nothing. -/
 theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
@@ -242,8 +223,7 @@ theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e
   iapply mupdBase_intro
   iapply Th.nodes_unchanged _ (hX K tp σ₁ obs e₂ σ₂ efs hK hi hstep) $$ H
 
-/-- `lwpStep` with the progress and fork rounds of the step applied, for a step that keeps the
-statuses (Rocq `lwp_step_step` and `lwp_lift_step`). -/
+/-- A step that keeps the statuses, for a thread that pays its bill. -/
 @[lantana_alias lwp_lift_step, lantana_alias lwp_step_step]
 theorem lwp_lift_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
@@ -326,8 +306,7 @@ theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁
   iframe HR
   iexact H
 
-/-- `lwp_lift_step` over the state interpretation: the history and the interpretation of the
-temporal layer are threaded, and no model update is taken around the step. -/
+/-- `lwp_lift_step` over the state interpretation, with no model update around the step. -/
 @[lantana_alias lwp_lift_step_si]
 theorem lwp_lift_step_si (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
@@ -378,10 +357,8 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
   ipureintro
   simp [hh.1]
 
-/-- `lwp_lift_step_gen` over the state interpretation, given back right after the step: inside
-the physical round, a model update at the empty mask, run against the history of the new
-configuration, hands in the nodes of the threads the step crashes and receives those of the
-threads it recovers. -/
+/-- `lwp_lift_step_gen` over the state interpretation; the update inside the physical round is a
+model update at the empty mask. -/
 theorem lwp_lift_step_gen_si (he : toVal e₁ = none) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
@@ -602,8 +579,8 @@ theorem lwp_lift_pure_det_step_no_fork [Inhabited State] {ς : ThreadId → Expr
   obtain ⟨-, rfl, -⟩ := hdet _ _ _ _ _ hst
   iapply H $$ Hc HG HW
 
-/-- `n` pure steps, each of which takes one unit of fuel of the bill `G` of the thread and
-the witness layers `R`, and gives back their credits and `£ₒ o`. -/
+/-- `n` pure steps, each paid with one unit of fuel of the bill and with witness layers, and
+each giving back the witnesses' credits and `£ₒ o`. -/
 @[lantana_alias lwp_pure_step]
 theorem lwp_pure_step [Inhabited State] {ς : ThreadId → Expr → IProp GF} [PureExecSI ς i]
     (n : Nat) (o : Fuel) (E' : CoPset) {φ : Prop} {e₂ : Expr}
@@ -743,9 +720,8 @@ private theorem pure_step_simple_aux (o : Fuel) (G R : Oids) (X : IProp GF) (m :
     · iapply credits_succ o (m + 1)
       iframe
 
-/-- `n > 0` pure steps paid at once: `n` units of fuel of each obligation of the bill `G` of the
-thread, the witness layers `R`; they give back `n` credits to each witness of `R` and
-`£ₒ (o ×ⱼ n)` (the rules STEP-PURE, STEP-PURE-LC and STEP-PURE-WIT of the paper in one). -/
+/-- `n > 0` pure steps paid at once with `n` units of fuel of the bill: the paper's STEP-PURE,
+STEP-PURE-LC and STEP-PURE-WIT in one. -/
 @[lantana_alias lwp_pure_step_simple]
 theorem lwp_pure_step_simple [Inhabited State] {ς : ThreadId → Expr → IProp GF} [PureExecSI ς i]
     (n : Nat) (hn : 0 < n) (G R : Oids) (o : Fuel) {φ : Prop} {e₂ : Expr}

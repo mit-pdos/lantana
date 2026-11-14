@@ -11,24 +11,11 @@ public import Lantana.ProgramLogic.EctxLifting
 
 /-! # The program logic of HeapLang: ghost state, assertions, primitive laws
 
-Rocq `lantana_heap_lang/primitive_laws.v`. The ghost state `HeapGS` is the temporal layer plus
-the heap (Iris-Lean's `genHeap`, locations to `Option Val`) and the *thread-expression map*
-(a ghost map from thread ids to their expressions, which the state interpretation keeps equal
-to the pool): `threadExpr i C e` is exact ownership of thread `i`'s whole expression `fill C e`,
-split into the caller context `C` and the current subexpression `e`. Every step law takes and
-returns the token, the bill `thCarriers i G` of the thread with one unit of fuel for each of its
-obligations, and a witness set `R`; it returns `£ₒ o` later credits and the witnesses' credits
-(the paper's STEP rules).
-
-Points-to is Iris-Lean's `l ↦{dq} v` at value type `Option Val`: `l ↦ v` with `v : Val` means
-`l ↦ some v` by coercion, and a freed location is `l ↦{q} none` (Rocq `freed l q`).
-
-**Contexts.** As in Rocq, the contexts of HeapLang are lists of items, Iris-Lean's
-`EvContext Exp (List ECtxItem)` of the `EctxItemLanguage` instance: `lWP` quantifies over the
-contexts `K` that put the thread's expression into the pool, `fill K e`. The token knows
-`fill C e`; as `e` can step, `K = C` (`threadExpr_ctx`, by `fill_ctx_step_inj`), so the pool
-after the step is `tp.set i (fill C e')`.  HeapLang has no observations: the steps of the
-lifting lemmas carry an observation list `obs : List Empty`, which is `[]`.
+The ghost state `HeapGS` (the temporal layer, the heap and the thread-expression map), the token
+`threadExpr i C e` of a thread's expression, the state interpretation `stateInterp`, and the
+primitive laws `lwp_pure_step`, `lwp_fork`, `lwp_alloc`, `lwp_load`, `lwp_store`, …, which take
+and give back the resources of a step (`stepPre`, `stepPost`).
+See `docs/program-logic.md`, §4.  Rocq: `lantana_heap_lang/primitive_laws.v`.
 -/
 
 @[expose] public noncomputable section
@@ -138,8 +125,7 @@ theorem threadMapAuth_lookup (tp : ThreadPool Exp) (i : ThreadId) (C : List ECtx
   ipureintro
   rwa [ThreadPool.get?_toMap] at h
 
-/-- The context of a thread is determined by its expression when that expression can step: the
-context `K` of the pool is the context `C` of the token (`fill_ctx_step_inj`). -/
+/-- Two contexts that put the same expression, which can step, at thread `i` are equal. -/
 theorem ctx_eq_of_primStep {tp : ThreadPool Exp} {i : ThreadId} {C K : List ECtxItem} {e : Exp}
     {σ : State} {obs : List Empty} {e' : Exp} {σ' : State} {efs : List Exp}
     (hs : primStep (e, σ) obs (e', σ', efs))
@@ -258,11 +244,11 @@ instance threadExpr_pureExecSI {GF : BundledGFunctors} [HeapGS GF] (C : List ECt
     iapply (stateInterp_unfold σ _).mpr
     iframe
 
-/-- Every step of HeapLang keeps the statuses: no thread is ever crashed. -/
+/-- Every step of HeapLang keeps the statuses. -/
 theorem keepsCrashed (i : ThreadId) (e : Exp) : KeepsCrashed (Ectx := List ECtxItem) i e :=
   KeepsCrashed.of_never not_crashed i e
 
-/-- Crashing is permanent in HeapLang: no thread is ever crashed. -/
+/-- Crashing is permanent in HeapLang. -/
 theorem staysCrashed (i : ThreadId) (ρ₁ ρ₂ : Cfg Exp State) : Cfg.staysCrashed i ρ₁ ρ₂ :=
   Cfg.staysCrashed_of_never not_crashed i ρ₁ ρ₂
 
@@ -285,9 +271,8 @@ abbrev stepPre (i : ThreadId) (G R : Oids) : IProp GF :=
 abbrev stepPost (i : ThreadId) (G R : Oids) (o : Fuel) : IProp GF :=
   iprop(£ₒ o ∗ thCarriers i G ∗ witCreds R)
 
-/-- A step of the redex `e₁` that forks no thread and ends in a value: the token, the bill and
-the witnesses are handled here, the heap by `hstep` (from the heap's interpretation and the
-resources `H`). -/
+/-- A step of the redex `e₁` that forks no thread and ends in a value, given its effect `hstep` on
+the heap and the resources `H`. -/
 theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ : Val → IProp GF)
     (Φ : Val → IProp GF)
     (hstep : ∀ σ₁ : State, genHeapInterp σ₁.heap ∗ H ⊢ ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
@@ -400,9 +385,8 @@ theorem Th.carriers_congr {j : ThreadId} {A B : Oids} (h : ∀ k, k ∈ A ↔ k 
 #lantana_ignore heap_lang.lwp_fork_step
   "`lwp_fork` is proved directly from `lwp_lift_atomic_base_step`, without a step lemma."
 
-/-- Fork: the children `K ⊆ G` move to the new thread, each paying one unit of fuel; the new
-thread starts with its running handle and `K` as its node and its bill, and the bill of the
-parent becomes its remaining children `G \ K`. -/
+/-- Fork: the children `K ⊆ G` move to the new thread with one unit of fuel each and become its
+children and its bill; the parent keeps `G \ K` as its children and its bill. -/
 @[lantana_alias heap_lang.lwp_fork]
 theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
     (∀ j : ThreadId, l{{{ threadExpr j [] e ∗ thActive j ∗ thKids j K ∗ thCarriers j K ∗ P }}}

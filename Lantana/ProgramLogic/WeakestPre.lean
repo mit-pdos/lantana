@@ -18,17 +18,11 @@ public import Lantana.ProgramLogic.Notation
 
 /-! # The liveness weakest precondition `lWP`
 
-Rocq `lantana/program_logic/weakestpre.v`: `lWP e @ s; i; E {{ Φ }}` is the least fixpoint of
-one step of the program logic (`lwpStep`, structured as Iris-Lean's `TotalWeakestPre`).  A step
-runs in phases: a model update before it; the progress round `mprog` of the thread at the view of
-the old configuration (its thread count and its crashed threads, `Cfg.crashed`); the physical
-round `mphys` from that view to the view of the new configuration (the forked threads' pieces and
-the later credits, a model update, the change of the crashed threads); a model update after it;
-the closing fancy update with the history and the continuation.  Thread `i` runs `fill K e₁` for
-every evaluation context `K : Ectx` (so that HeapLang recovers a thread's context from its
-expression); its step forks threads appended to the pool, with the ids `tp.length,
-tp.length + 1, …`, and its observation is ignored.  Induction (`lwp_ind_strong`) is on the
-predicate's closure under internal equality, so it needs no non-expansiveness.
+`lWP e @ s; i; E {{ Φ }}`, the least fixpoint of `lwpPre`, whose step is `lwpStep`: its unfolding
+`lwp_unfold`, induction `lwp_ind_strong`, the structural and derived rules, the later-credit rules
+and the proof-mode instances.  Structured as Iris-Lean's `TotalWeakestPre`, with a thread id and
+the rounds of the obligation model in each step; see `docs/program-logic.md`, §2.
+Rocq: `lantana/program_logic/weakestpre.v`.
 -/
 
 @[expose] public noncomputable section
@@ -41,8 +35,8 @@ open Iris.ProgramLogic.PrimStep (primStep)
 open Iris.ProgramLogic.EvContext (fill)
 
 
-/-- The ghost state of the program logic for a language with its crashed threads: the temporal
-layer, the state interpretation, and the postcondition of forked threads (`True` for HeapLang). -/
+/-- The ghost state of the program logic: the temporal layer, the state interpretation, and the
+postcondition of forked threads. -/
 @[lantana_alias lantanaGS]
 class LantanaGS (Expr : Type) (State : Type) (Obs Val : outParam Type) (GF : BundledGFunctors)
     [Language Expr State Obs Val] [Crash Expr State Obs Val]
@@ -57,11 +51,8 @@ variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [ModelGS GF]
 variable [Crash Expr State Obs Val] [L : LantanaGS Expr State Obs Val GF]
   [TemporalInterp Expr State GF]
 
-/-- One step of `lWP` for thread `i` running `fill K e₁`, for every evaluation context `K`: a
-model update before the step (it may discharge an until), the progress round `mprog` of `i` at the
-view of the old configuration, the physical round `mphys` from it to the view of the new one, and
-a model update after it; `ν e₂ len efs` holds after a step to `e₂` (with any observation) that
-forks `efs` with ids from `len` (the old pool length). -/
+/-- One step of `lWP` for thread `i` running `fill K e₁`, in phases (`docs/program-logic.md`, §2);
+`ν e₂ len efs` holds after a step to `e₂` that forks the threads `efs` from the id `len`. -/
 @[lantana_alias lwp_step]
 def lwpStep (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
     (ν : Expr → Nat → List Expr → IProp GF) : IProp GF :=
@@ -125,9 +116,8 @@ theorem lwpStep_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr} {n 
 def liftTerm (j : ThreadId) (Φ : ThreadId → Val → IProp GF) : Val → IProp GF :=
   fun v => iprop(Th.done j ∗ Φ j v)
 
-/-- One unfolding of `lWP`: a value yields its postcondition under a model update; otherwise
-one step, after which `lWP` continues and every forked thread `len + j` runs `ef` with the
-postcondition `liftTerm (len + j) forkPost`. -/
+/-- One unfolding of `lWP`: the postcondition of a value, or one step after which the thread and
+the forked threads continue. -/
 @[lantana_alias lwp_pre]
 def lwpPre (s : Stuckness)
     (lwp : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF)
@@ -159,7 +149,7 @@ theorem lwpPre_mono {s : Stuckness}
 
 namespace Internal
 
--- Catch-all discrete OFEs on the argument types, as in `Iris.ProgramLogic.TotalWeakestPre`.
+-- Discrete OFEs on the argument types, as in `Iris.ProgramLogic.TotalWeakestPre`.
 local instance (priority := low) : OFE CoPset := OFE.ofDiscrete _
 local instance (priority := low) : OFE Expr := OFE.ofDiscrete _
 local instance (priority := low) : OFE Val := OFE.ofDiscrete _
@@ -210,8 +200,7 @@ private theorem internalEq_rewrite_sep {A : Type _} [OFE A] {a b : A} (Ψ : A �
     [OFE.NonExpansive Ψ] : iprop(a ≡ b) ∗ Ψ a ⊢ Ψ b :=
   sep_and.trans (internalEq.rewrite' Ψ and_elim_l and_elim_r)
 
-/-- Induction on the least fixpoint for any `Ψ`: the induction is on its non-expansive
-closure `fun x => ∀ y, x ≡ y → Ψ y`. -/
+/-- Induction on the least fixpoint, for any `Ψ`, non-expansive or not. -/
 theorem get_ind_strong (s : Stuckness)
     (Ψ : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF) :
     □ (∀ i e E Φ, lwpPre s (fun i E e Φ => iprop(Ψ i E e Φ ∧ get s i E e Φ)) i E e Φ -∗
@@ -423,7 +412,6 @@ theorem lwp_value' {v : Val} : Φ v ⊢ lWP (v : Expr) @ s; i; E {{ Φ }} :=
 theorem lwp_value {v : Val} [Language.IntoVal e v] : Φ v ⊢ lWP e @ s; i; E {{ Φ }} :=
   mupd_intro.trans lwp_value_mupd.mpr
 
-/-- `(tp.set i e ++ efs)[i]? = some e` when `i` is a thread of `tp`. -/
 theorem getElem?_set_append {tp efs : List Expr} {i : ThreadId} {e e' : Expr}
     (hi : tp[i]? = some e) : (tp.set i e' ++ efs)[i]? = some e' := by
   have hlt : i < tp.length := (List.getElem?_eq_some_iff.mp hi).1
@@ -793,8 +781,7 @@ instance (priority := default + 10) elimModal_mupd_lwp {p io} :
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
     mupd_frame_right.trans <| (mupd_mono wand_elim_right).trans mupd_lwp
 
-/-- Error message for a non-mask-changing update at the wrong mask: for a non-atomic `e`,
-first add a leading fancy update, then change its mask. -/
+/-- The error message for a non-mask-changing update at a mask other than the goal's. -/
 @[lantana_alias elim_modal_fupd_lwp_wrong_mask]
 instance (priority := low) elimModal_fupd_lwp_wrongMask {p io} :
     ElimModal (PMError "Goal and eliminated modality must have the same mask.

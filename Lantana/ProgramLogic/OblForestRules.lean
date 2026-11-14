@@ -8,23 +8,11 @@ public import Lantana.ProgramLogic.OblForest
 
 /-! # Derived rules of the obligation-forest interface
 
-Rocq `lantana/program_logic/obl_forest_rules.v`: the usual rules of the model update
-`|={E₁,E₂}=>m P` and its proof-mode instances, derived from the three core rules of the
-interface (`mupd_ne`, `fupd_mupd`, `mupd_bind`); the rules of obligation invariants, witness
-induction, parents, fuel and credits; the model updates (with the bills of the parents), among
-them the discharge of a whole forest of obligations, and the physical steps in their usual
-shapes, with the nodes they hand in and out. Everything here is derived from the statements of
-`Lantana.ProgramLogic.OblForest`. This file also holds the rules of the base model update
-`|=[n]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
-
-Porting notes:
-* The union of `OidMap = Std.ExtTreeMap` takes the values of its *right* argument, so Rocq's
-  `G ∪ F` (left-biased `gmap` union) is `F ∪ G` here (`Wit.fuels_add_map_gen`,
-  `embedFuels_add_map`).
-* Rocq's `{[k]} ∪ K` and `K ∖ {[k]}` are `K.insert k` and `K.erase k` (as in the interface);
-  sets of children moved at once use `∪` and `\`.
-* The model update absorbs `◇` unconditionally (`isExcept0_mupd`), as the fancy update does.
--/
+The rules of `|=[n]=>m P` and `|={E₁,E₂}=>m P` with their proof-mode instances; the rules of
+obligation invariants, witness induction, parents, fuel and credits; the model updates in their
+usual shapes, among them `obl_discharge_forest`; the physical steps and the nodes `Th.nodes`
+they hand in and out. All are derived from the statements of `Lantana.ProgramLogic.OblForest`.
+See `docs/model.md`, §6 to §8. Rocq: `lantana/program_logic/obl_forest_rules.v`. -/
 
 @[expose] public noncomputable section
 
@@ -79,10 +67,7 @@ theorem Oids.exists_leaf {S : Oids} {kids : Oid → Oids} (r : Oid → Fuel)
   · refine ⟨m, hm, eq_empty_iff.2 fun x hx => ?_⟩
     exact Ordinals.Ordinal.not_le_of_lt (hr m hm x hx) (hmax x (hclosed m hm x hx))
 
-/-! ## The base model update
-
-The rules of `|=[n]=>m P` (Rocq `base_logic/mupd.v`) used by the program logic, derived from
-the structural rules of the interface. -/
+/-! ## The base model update -/
 
 section Base
 
@@ -189,7 +174,7 @@ theorem mupd_mask_mono (h : E₁ ⊆ E₂) : (|={E₁}=>m P) ⊢ |={E₂}=>m P :
   refine (sep_comm.1.trans (sep_mono_left (wand_intro ?_))).trans mupd_bind'
   exact fupd_frame_right.trans <| (fupd_mono emp_sep.1).trans (fupd_mupd E₁ E₂ P)
 
-/-- `mupd_wand` with the wand applied (Rocq `sfmupd_wand_l`). -/
+/-- `mupd_wand` with the wand applied. -/
 theorem mupd_wand_left : (P -∗ Q) ∗ (|={E₁,E₂}=>m P) ⊢ |={E₁,E₂}=>m Q :=
   mupd_frame_left.trans (mupd_mono wand_elim_left)
 
@@ -355,7 +340,7 @@ instance fromExists_mupd (E₁ E₂ : CoPset) {α : Sort _} (P : IProp GF) (Φ :
     [h : FromExists P Φ] : FromExists (|={E₁,E₂}=>m P) (fun a => |={E₁,E₂}=>m Φ a) where
   from_exists := exists_elim fun a => mupd_mono ((exists_intro a).trans h.from_exists)
 
-/-- The model update absorbs `◇` (as the fancy update does; Rocq requires `IsExcept0 P`). -/
+/-- The model update absorbs `◇`, as the fancy update does. -/
 @[lantana_alias is_except_0_sfmupd]
 instance isExcept0_mupd (E₁ E₂ : CoPset) (P : IProp GF) : IsExcept0 (|={E₁,E₂}=>m P) where
   is_except0 := or_elim ((or_intro_l (Q := iprop(|={E₁,E₂}=> P))).trans
@@ -585,8 +570,7 @@ private theorem bigSepL_eqv_of {A : Type _} {Φ Ψ : A → IProp GF} {l : List A
     (h : ∀ x, Φ x ⊣⊢ Ψ x) : ([∗list] x ∈ l, Φ x) ⊣⊢ [∗list] x ∈ l, Ψ x :=
   ⟨bigSepL_mono_of_forall fun {_ x} => (h x).1, bigSepL_mono_of_forall fun {_ x} => (h x).2⟩
 
-/-- Two big separating conjunctions of affine propositions over sets combine into one over the
-union (Rocq `big_sepS_union_2`). -/
+/-- Two big separating conjunctions over sets combine into one over the union. -/
 private theorem bigSepS_union_2 {Φ : Oid → IProp GF} {X Y : Oids} :
     ([∗set] x ∈ X, Φ x) ∗ ([∗set] x ∈ Y, Φ x) ⊢ [∗set] x ∈ X ∪ Y, Φ x := by
   have hXY : X ∪ Y = X ∪ (Y \ X) := LawfulSet.ext fun x => by
@@ -607,8 +591,7 @@ theorem Obl.fuel_layer_eq (k : Oid) {ℓ₁ ℓ₂ : Layer} (μ : Measure) (h : 
 #lantana_ignore oblP_fuel_layer_eq_list "Layer equality is Leibniz: rewrite."
 #lantana_ignore oblP_fuel_layer_eq_set "Layer equality is Leibniz: rewrite."
 
-/-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_eq`; the same as
-`Obl.fuel_eq`, with the layer explicit). -/
+/-- `Obl.fuel_eq` with the layer explicit. -/
 @[lantana_alias oblP_fuel_eq]
 theorem Obl.fuel_eq_of_rep (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
     (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) : Obl.fuel (GF := GF) k ℓ μ₁ ⊣⊢ Obl.fuel k ℓ μ₂ :=
@@ -928,9 +911,8 @@ theorem OidMap.empty_union {V : Type _} (F : OidMap V) : ∅ ∪ F = F :=
   Std.ExtTreeMap.ext_getElem? fun k => by
     rw [Std.ExtTreeMap.getElem?_union, Std.ExtTreeMap.getElem?_empty, Option.or_none]
 
-/-- Adding the fuels `G` (each `(l, m)` of `G` with `ℓ < l`, given as fuel `m * ▽` at `l`) to the
-witness induction (Rocq `wit_fuels_add_map_gen`; Rocq's `G ∪ F` is `F ∪ G` here, as the union of
-`Std.ExtTreeMap` takes the values of its right argument). -/
+/-- Adding the fuels `G` to the witness induction, each `(l, m)` given as fuel `m * ▽` at a
+layer `l` above `ℓ`. -/
 @[lantana_alias wit_fuels_add_map_gen]
 theorem Wit.fuels_add_map_gen (k : Oid) (ℓ : Layer) (α : Fuel) (F G : OidMap (Layer × Measure)) :
     Wit.fuels (GF := GF) k ℓ α F ⊢
@@ -986,9 +968,8 @@ theorem Wit.fuels_ind (k : Oid) (ℓ : Layer) (α : Fuel) (F : OidMap (Layer × 
     · iexact Fs
     · iexact HP
 
-/-- Witness-layer induction (WIT-IND): with a witness of `k` at layer `ℓ` and fuel `m * ▽` at
-a layer `l` above `ℓ` for each `g ∈ G`, every credit of `k` can be exchanged for fuel `m` of
-each `g ∈ G` until `P` holds. -/
+/-- Witness-layer induction (WIT-IND): every credit of `k` can be exchanged for fuel `m` of each
+`g ∈ G` until `P` holds. -/
 @[lantana_alias wit_layer_ind]
 theorem Wit.layer_ind (k : Oid) (ℓ : Layer) (G : Oids) (l : Layer) (m : Measure) (P : IProp GF)
     (hl : ℓ < l) :
@@ -1016,7 +997,7 @@ theorem Wit.layer_ind (k : Oid) (ℓ : Layer) (G : Oids) (l : Layer) (m : Measur
 
 /-! ### Fuels for an induction on an embedded well-founded order -/
 
-/-- Each fuel `(l, m)` of `F`, times the rank of `a` (Rocq `embed_fuels`). -/
+/-- Each fuel `(l, m)` of `F`, times the rank of `a`. -/
 @[lantana_alias embed_fuels]
 def embedFuels {A : Type} {r : A → A → Prop} (hwf : WellFounded r) (a : A)
     (F : OidMap (Layer × Measure)) : IProp GF :=
@@ -1028,8 +1009,7 @@ theorem embedFuels_init {A : Type} {r : A → A → Prop} (hwf : WellFounded r) 
   unfold embedFuels
   exact bigSepM_empty.2
 
-/-- Adding fuel `m * ℵ` at `l` for each `g ∈ G` (Rocq `embed_fuels_add_map`, with the union
-flipped as in `Wit.fuels_add_map_gen`). -/
+/-- Adding fuel `m * ℵ` at `l` for each `g ∈ G`. -/
 @[lantana_alias embed_fuels_add_map]
 theorem embedFuels_add_map {A : Type} {r : A → A → Prop} (hwf : WellFounded r) (a : A)
     (F : OidMap (Layer × Measure)) (G : Oids) (l : Layer) (m : Measure) :
@@ -1316,9 +1296,8 @@ theorem obl_discharge_inv (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF
 
 /-! ### Discharging a forest
 
-A forest of obligations hangs below the roots `ps`, the children of a root `p` being `K p`: a set
-`S` of obligations with their children `kids k`, closed under children, each obligation of `S` a
-child of a root or of an obligation of `S`. -/
+A forest: the roots `ps` with their children `K p`, and a set `S` closed under the children
+`kids k`, each obligation of `S` a child of a root or of an obligation of `S`. -/
 
 private theorem Par.kids_erase_diff (p : Parent) (K : Oids) (x : Oid) :
     Par.kids (GF := GF) p (K.erase x) ⊢ Par.kids p (K \ {x}) := by
@@ -1376,8 +1355,7 @@ private theorem obl_discharge_leaf_roots (E : CoPset) (ps : List Parent) (K : Pa
       rw [diff_subset_disj (disjoint_singleton_right.2 hq)]
       iframe Hq Hps
 
-/-- The forest rule with a rank of the forest given, by induction on `S`: a leaf is discharged
-first, and every other children set loses it. -/
+/-- `obl_discharge_forest` for a given rank of the forest. -/
 private theorem obl_discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r : Oid → Fuel)
     (S : Oids) :
     ∀ (K : Parent → Oids) (kids : Oid → Oids), (∀ k, k ∈ S → kids k ⊆ S) →
@@ -1445,8 +1423,7 @@ private theorem obl_discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r 
       iapply (bigSepS_delete hxS).2
       iframe D HD
 
-/-- Discharging a whole forest below the roots `ps` in one model update: every obligation of `S`,
-with its children and its whole assignment, is discharged, and the roots lose them. -/
+/-- Discharging a whole forest below the roots `ps` in one model update. -/
 theorem obl_discharge_forest (E : CoPset) (ps : List Parent) (K : Parent → Oids) (S : Oids)
     (kids : Oid → Oids) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :

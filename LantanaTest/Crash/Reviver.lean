@@ -8,10 +8,8 @@ public import LantanaTest.Crash.Kill
 
 /-! # A language whose threads crash: the reviver
 
-The reviver sets the state to `true`. Reviving a crashed worker recovers thread `0`, so the
-physical round hands the reviver the worker's node `thActive 0 ∗ thKids 0 ∅`, which it puts back
-in the shared invariant: the worker goes on with no obligation. Its other steps keep the
-statuses.
+`reviver_spec`: reviving a crashed worker receives its node from the physical round and puts it
+back in the shared invariant. See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section
@@ -25,8 +23,7 @@ open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 section Reviver
 variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 
-/-- The reviver: from any state of the protocol it revives; reviving a crashed worker receives
-its node from the model and puts it back in the shared invariant. -/
+/-- The reviver revives, from any state of the protocol. -/
 theorem reviver_spec (k : Oid) (S : Oids) (kids : Oid → Oids) :
     inv Ninv (crashInv (GF := GF) k S kids) ⊢ £ₙ 1 -∗ thActive 2 -∗ thKids 2 ∅ -∗ thCarriers 2 ∅ -∗
       lWP Exp.revive @ 2; ⊤ {{ fun _ => Th.done 2 }} := by
@@ -74,7 +71,7 @@ theorem reviver_spec (k : Oid) (S : Oids) (kids : Oid → Oids) :
     iapply ALC_intro
     imodintro
     cases f <;> cases σ₁
-    · -- crashed: the step recovers the worker, whose node comes out of the model
+    · -- crashed: the step recovers the worker
       obtain ⟨n, hn⟩ := hS.work_of_fin hf
       isplitl []
       · iapply Th.nodes_none _ fun j _ h => not_crashed_true _ j h.2
@@ -101,7 +98,7 @@ theorem reviver_spec (k : Oid) (S : Oids) (kids : Oid → Oids) :
         iframe Hv HC
       iapply ret_done ⊤ 2 $$ Ha2 Hk2
     all_goals
-      -- finished: no thread is crashed, before or after
+      -- finished
       iapply Th.nodes_unchanged _ (Cfg.crashed_eq_of_iff fun j =>
         ⟨fun h => (not_crashed_fin hS' hfin _ j h).elim,
           fun h => (not_crashed_fin hS hf _ j h).elim⟩)

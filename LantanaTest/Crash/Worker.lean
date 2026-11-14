@@ -8,14 +8,8 @@ public import LantanaTest.Crash.Kill
 
 /-! # A language whose threads crash: the worker
 
-The worker (thread `0`) keeps privately its bill (`{k}`, or `∅` once it has stepped crashed) and
-the fuel of `k`. Each step it sees the state: alive, it pays its bill and works; alive at `work 0`
-it opens the shared invariant (with a later credit of its own) and the obligation invariants of
-all of `S` and, in the physical round, at the new configuration where it has finished, discharges
-the whole forest with the first disjunct of their formulas and ends its thread; crashed, it takes
-its silent step for free (the crashed branch of `lwp_step`) and gets its bill back empty. The
-loop is a Löb induction, each step giving the later credit that strips the later of the induction
-hypothesis.
+`worker_spec`: the worker pays its bill while alive, discharges its obligations and ends its
+thread when it finishes, and steps for free while crashed. See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section
@@ -100,7 +94,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
     fun _ _ h => crashed_set_eq_worker hi h
   rw [fin_of_work hi]
   cases σ₁
-  · -- crashed: a free step, and the bill comes back empty
+  · -- crashed
     iapply fupd_mask_intro Std.LawfulSet.empty_subset
     iintro Hcl
     isplitr
@@ -135,7 +129,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       iapply IH $$ %m %∅ Hc HG %(.inl rfl) HF
   · cases m with
     | succ m =>
-      -- alive: it works, paying its bill
+      -- alive
       iapply fupd_mask_intro Std.LawfulSet.empty_subset
       iintro Hcl
       isplitr
@@ -166,7 +160,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
         inext
         iapply IH $$ %m %B Hc HG %hB HF
     | zero =>
-      -- alive at `work 0`: it finishes, discharging its obligations and ending its thread
+      -- alive at `work 0`
       imod inv_acc Ninv_subseteq $$ HI with ⟨HC, Hclose⟩
       imod Lantana.lc_fupd_elim_later $$ Hc HC with HC
       iunfold crashInv at HC
@@ -175,7 +169,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       obtain ⟨rfl, rfl⟩ : true = b ∧ false = f := Prod.mk.inj hbf
       simp only [crashProto]
       icases HC with (HW | ⟨Ha0, Hk0, -⟩)
-      · -- with its obligations: the invariants of all of `S` are opened before the step
+      · -- with its obligations
         iunfold workerObls at HW
         icases HW with ⟨Ha0, Hk0, HW⟩
         icases BigSepS.bigSepS_sep.1 $$ HW with ⟨HU, Hkk⟩
@@ -226,7 +220,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           iapply (lwp_value_mupd_of_toVal rfl).mpr
           imodintro
           iexact Hd
-      · -- revived: its empty node
+      · -- revived, without obligations
         iapply fupd_mask_intro Std.LawfulSet.empty_subset
         iintro Hcl
         isplitr

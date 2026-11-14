@@ -8,23 +8,9 @@ public import LantanaTest.Crash.Step
 
 /-! # A language whose threads crash: the shared invariant and the killer
 
-The worker (thread `0`) owes a forest of obligations `S` with their children `kids`: one
-obligation `k` under its thread and, below it, the others (a chain of any length, allocated in
-`Adequacy.lean`), each a `finallyI` of `doneOrCrashed` ("the worker has finished, or it is
-crashed") in the namespace `Nobl.@j` of its obligation `j`. The shared invariant `crashInv` holds
-half of the ghost variable of the state and, by its value: while the worker is alive and
-unfinished, its node and every finally with its children, or (after a revival) its empty node and
-the discharges; while it is crashed, the discharges (the model holds the node); once it has
-finished, nothing.
-
-The killer's step from an alive, unfinished worker with its obligations crashes it, so it must
-hand the worker's emptied node to the model. Before the step it opens the shared invariant (with a
-later credit of its own) and the obligation invariants of all of `S` at once
-(`finallyI_acc_assigned_set_ndot`; their contents are timeless), then goes to the empty mask.
-Inside the physical round, at the new configuration (the state already `false`), it discharges
-the whole forest with the crash disjunct (`finallyI_discharge_opened_forest_threads`), which
-empties the node, and hands it in; the invariants are closed after the round. When it gives up,
-the closing rebuilds every finally. The killer's other steps keep the statuses.
+The worker's forest of obligations (`HangsBelow`), the shared invariant `crashInv`, and
+`killer_spec`: the killer's step that crashes the worker discharges the whole forest inside the
+physical round and hands the worker's node in. See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section
@@ -52,8 +38,7 @@ theorem Nobl_subseteq : (↑Nobl : CoPset) ⊆ ⊤ \ ↑Ninv := by
 
 /-! ## The forest of the worker -/
 
-/-- The obligations `T`, with their children `kids`, hang below the children `c` of a parent:
-`c ⊆ T`, `T` is closed under children, and each of `T` is in `c` or a child of one of `T`. -/
+/-- The obligations `T`, with their children `kids`, hang below the children `c` of a parent. -/
 def HangsBelow (c T : Oids) (kids : Oid → Oids) : Prop :=
   c ⊆ T ∧ (∀ j, j ∈ T → kids j ⊆ T) ∧ ∀ x, x ∈ T → x ∈ c ∨ ∃ j, j ∈ T ∧ x ∈ kids j
 
@@ -171,8 +156,7 @@ theorem ret_done (E : CoPset) (i : ThreadId) :
   iapply (lwp_value_mupd_of_toVal rfl).mpr
   iapply Th.terminate E i $$ Ha Hk
 
-/-- The killer: from any state of the protocol it kills or gives up; killing an alive, unfinished
-worker discharges the worker's obligations inside the physical round and hands its node in. -/
+/-- The killer kills or gives up, from any state of the protocol. -/
 theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow {k} S kids) :
     inv Ninv (crashInv (GF := GF) k S kids) ⊢ £ₙ 1 -∗ thActive 1 -∗ thKids 1 ∅ -∗
       thCarriers 1 ∅ -∗ lWP Exp.kill @ 1; ⊤ {{ fun _ => Th.done 1 }} := by
@@ -200,7 +184,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
   rw [hf] at hfin
   rw [hf]
   cases f <;> cases σ₁
-  · -- crashed: the model holds the node, and the state stays `false`
+  · -- crashed
     iapply fupd_mask_intro Std.LawfulSet.empty_subset
     iintro Hcl
     isplitr
@@ -230,10 +214,10 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       iexists false, false
       iframe Hv HC
     iapply ret_done ⊤ 1 $$ Ha1 Hk1
-  · -- alive and unfinished: with its obligations, or revived without
+  · -- alive and unfinished
     simp only [crashProto]
     icases HC with (HW | ⟨Ha0, Hk0, #HD⟩)
-    · -- its obligations: the invariants of all of `S` are opened before the step
+    · -- with its obligations
       iunfold workerObls at HW
       icases HW with ⟨Ha0, Hk0, HW⟩
       icases BigSepS.bigSepS_sep.1 $$ HW with ⟨HU, Hkk⟩
@@ -250,7 +234,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       iintro %e₂ %σ₂ %hst
       cases hst with
       | kill =>
-        -- the step crashes the worker: discharge the forest, hand the node in
+        -- the step crashes the worker
         imod ghost_var_update_halves (false, false) _ _ _ $$ Hs Hv with ⟨Hs, Hv⟩
         imodintro
         isplitl [Hs]
@@ -286,7 +270,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           iexact HD
         iapply ret_done ⊤ 1 $$ Ha1 Hk1
       | giveUp =>
-        -- the statuses do not change: the closing rebuilds every finally
+        -- the statuses do not change
         imodintro
         isplitl [Hs]
         · rw [hfin]
@@ -315,7 +299,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           iapply BigSepS.bigSepS_sep.2
           iframe HU Hkk
         iapply ret_done ⊤ 1 $$ Ha1 Hk1
-    · -- revived: its empty node, no obligations
+    · -- revived, without obligations
       iapply fupd_mask_intro Std.LawfulSet.empty_subset
       iintro Hcl
       isplitr
@@ -373,7 +357,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           iframe Ha0 Hk0 HD
         iapply ret_done ⊤ 1 $$ Ha1 Hk1
   all_goals
-    -- finished: no thread is crashed, before or after
+    -- finished
     iapply fupd_mask_intro Std.LawfulSet.empty_subset
     iintro Hcl
     isplitr

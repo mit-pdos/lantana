@@ -18,42 +18,11 @@ public import Lantana.BaseLogic.Model.OPreds
 
 /-! # The obligation-forest interface
 
-The core of the logic (Rocq `lantana/program_logic/obl_forest.v`): the obligation predicates,
-the model update `|={E₁,E₂}=>m P`, the physical-step modalities, and their rules. Every live
-obligation is a child of one parent, a thread or an obligation (`Par.kids p K`: the children of
-`p` are exactly `K`). A thread also has its running handle `Th.active i`, by which it
-terminates, and its bill `Th.carriers i B`, an upper bound of its children: what a step of the
-thread pays for (`step_progress`). Adding a child under `p` adds it to the bill `Par.bill p B`
-(nothing for an obligation); removing one leaves the bill stale until `Th.carriers_resync` or
-`Th.carriers_erase_discharged`.
-
-The two rounds of a physical step see the pool through a *view*: the thread count `tc` and the
-crashed bits `X : ThreadId → Prop`; the model updates hold at any view. A crashed thread is
-inactive without having finished: the model holds its node `thActive i ∗ thKids i ∅`, so it owns
-no obligation (`Th.crashed_modelInterp_not_owner`) and steps for free
-(`step_progress_crashed`). The physical round `mphys` runs in three stages: the step index and
-the thread count change, the forked threads get their pieces and the step's later credits are
-granted; a base model update at the new index; the bits change, the nodes of the newly crashed
-threads going in and those of the recovered ones coming out (`Th.nodes`, `step_physical`;
-`step_fork` when the bits do not change).
-
-Design: this is a *sealed API module*, not a class. The predicates are defined by the
-model (`Lantana.BaseLogic`) and re-exported here as irreducible definitions; the rules are
-theorems; nothing outside the model and this module unfolds the predicates.
-
-The predicates are `@[irreducible]` definitions over the model of `Lantana.BaseLogic.Model`
-(`Model.OPreds.parKids`, `Model.OPreds.oblAssigned`, …, `Model.mupd`, `Model.mprog`,
-`Model.mphys`), each with a private unfolding lemma used only in this file, and every rule
-is the corresponding model lemma (`Lantana.BaseLogic.Model.OPreds`, `OPredsBase`, `MUpd`) seen
-through these unfoldings; the model updates of the forest operations are lifted from the base
-model update `|=[n]=>m` to `|={E}=>m` by `mupd_of_base`. The predicates take the ghost state
-of the model, `[ModelGS GF]`. The last section exposes what the adequacy proofs read of the
-model: the predicates of new threads and the runs of `|=[n]=>m`, `mprog`, `mphys`
-and `|={E₁,E₂}=>m` against the model interpretation `Model.modelInterp`.
-
-`Obl.fuel_eq` is unprovable as stated (it lacks the hypothesis `ℓ₁ = ℓ₂` of Rocq
-`oblP_fuel_proper`) and is left unproved; see its comment.
--/
+The sealed interface of the obligation model: the predicates (`Par.kids`, `Th.active`,
+`Th.carriers`, `Th.done`, `Obl.*`, `Wit.*`), the model updates `|=[n]=>m P` and
+`|={E₁,E₂}=>m P`, the rounds of a step `mprog` and `mphys`, and their rules, proved from the
+model's lemmas through private unfoldings; the last sections give what adequacy reads of it.
+See `docs/model.md`, §7. Rocq: `lantana/program_logic/obl_forest.v`. -/
 
 @[expose] public noncomputable section
 
@@ -72,8 +41,7 @@ variable {GF : BundledGFunctors} [ModelGS GF]
 
 Each predicate is an irreducible definition over the model, unfolded only in this file. -/
 
-/-- `Par.kids p K`: the children of `p` are exactly `K`. For an obligation, it exists exactly
-while the obligation is live and in the forest. -/
+/-- The children of `p` are exactly `K`. -/
 @[lantana_alias oblf.parP_kids, irreducible]
 def Par.kids (p : Parent) (K : Oids) : IProp GF := Model.OPreds.parKids p K
 
@@ -119,23 +87,19 @@ def Wit.cred (k : Oid) (a : Fuel) : IProp GF := Model.OPreds.witCred k a
 def Wit.fuels (k : Oid) (ℓ : Layer) (α : Fuel) (F : OidMap (Layer × Measure)) : IProp GF :=
   Model.OPreds.witFuels k ℓ α F
 
-/-- The base model update `|=[n]=>m P` at position `n`: a least fixpoint of rounds that may
-change obligations and witnesses while keeping the model interpretation, at any thread count
-(Rocq `mupd`). -/
+/-- The base model update `|=[n]=>m P` at position `n`: rounds that may change the obligations
+and the witnesses. -/
 @[lantana_alias mupd, irreducible]
 def mupdBase (n : Nat) (P : IProp GF) : IProp GF := Model.mupd n P
 
-/-- The progress round of a physical step of thread `i`, at step index `n` with the view `tc`,
-`X` (the thread count and the crashed bits): `i`'s obligations progress and the witnesses get
-credits (Rocq `mprog`, `@={n,Θ,i}=↓ P`). -/
+/-- The progress round of a step of thread `i`, at position `n` and view `tc`, `X`: the
+obligations of `i` progress and the witnesses get credits. -/
 @[lantana_alias mprog, irreducible]
 def mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) : IProp GF :=
   Model.mprog n tc X i P
 
-/-- The physical round of a step from index `n₁` with the view `tc₁`, `X₁` to `n₂` with the view
-`tc₂`, `X₂` (Rocq `mphys`, `@={n1,n2,Θ1,Θ2}=> P`), in three stages: the index and the thread
-count change and the step's later credits are granted; a base model update at `n₂`; the bits
-change. -/
+/-- The physical round of a step, from position `n₁` and view `tc₁`, `X₁` to position `n₂` and
+view `tc₂`, `X₂`. -/
 @[lantana_alias mphys, irreducible]
 def mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
   Model.mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P
@@ -176,8 +140,8 @@ end Predicates
 
 /-! ## Notations -/
 
-/-- `|=[n]=>m P`: the base model update. Like Iris-Lean's `|={E}=> P` (and unlike `|==> P`),
-the argument extends as far as possible: `|=[n]=>m A ∗ B` is `|=[n]=>m (A ∗ B)`. -/
+/-- `|=[n]=>m P`: the base model update; as for `|={E}=> P`, `|=[n]=>m A ∗ B` is
+`|=[n]=>m (A ∗ B)`. -/
 scoped syntax:max "|=[" term "]=>m " term : term
 scoped macro_rules
   | `(|=[$n]=>m $P) => `(mupdBase $n iprop($P))
@@ -185,8 +149,7 @@ scoped macro_rules
 section
 variable {Expr : Type} {State : Type} {GF : BundledGFunctors} [ModelGS GF]
 
-/-- The fancy model update `|={E₁,∅}=> |=[n]=>m |={∅,E₂}=> P` at position `n` (Rocq
-`fmupd`). -/
+/-- The fancy model update `|={E₁,∅}=> |=[n]=>m |={∅,E₂}=> P` at position `n`. -/
 @[lantana_alias fmupd]
 def mupdFancy (E₁ E₂ : CoPset) (n : Nat) (P : IProp GF) : IProp GF :=
   iprop(|={E₁,∅}=> |=[n]=>m |={∅,E₂}=> P)
@@ -194,7 +157,7 @@ def mupdFancy (E₁ E₂ : CoPset) (n : Nat) (P : IProp GF) : IProp GF :=
 variable [TemporalGS Expr State GF] [StateInterp Expr State GF] [TemporalInterp Expr State GF]
 
 /-- The model update `|={E₁,E₂}=>m P` of the interface: a fancy update that may also change
-the model, keeping the history and temporal interpretations (Rocq `sfmupd`). -/
+the model, keeping the history and temporal interpretations. -/
 @[lantana_alias oblf.sfmupd]
 def mupd (E₁ E₂ : CoPset) (P : IProp GF) : IProp GF :=
   iprop(∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr),
@@ -241,16 +204,14 @@ private theorem Par.bill_unfold : Par.bill (GF := GF) = Model.OForest.parBill :=
   | thread i => exact congrFun (congrFun Th.carriers_unfold i) B
   | obl q => rfl
 
-/-- One unit of fuel at layer `ℓ` is enough to hang below `p`: always below a thread; below
-an obligation `q`, `ℓ` must be above a witness layer of `q`. -/
+/-- One unit of fuel at layer `ℓ` is enough to hang below `p`. -/
 @[lantana_alias parent_below]
 def parBelow (p : Parent) (ℓ : Layer) : IProp GF :=
   match p with
   | .thread _ => iprop(True)
   | .obl q => iprop(∃ ℓq : Layer, ⌜ℓq < ℓ⌝ ∗ Wit.layer q ℓq)
 
-/-- A new obligation at layer `ℓ` may be created below `p`: below an obligation `q`, `ℓ` must be
-at least a witness layer of `q`. A move needs a strictly larger layer (`parBelow`). -/
+/-- A new obligation at layer `ℓ` may be created below `p`. -/
 @[lantana_alias parent_le]
 def parLe (p : Parent) (ℓ : Layer) : IProp GF :=
   match p with
@@ -335,8 +296,7 @@ instance Wit.fuels_empty_persistent (k : Oid) (ℓ : Layer) (α : Fuel) :
 
 /-! ## The base model update and the rounds of a step
 
-Their structural rules (Rocq `base_logic/mupd.v` and `model_physical_updates.v`), used by the
-program logic to prove the rules of `lWP`. -/
+Their structural rules, used by the program logic to prove the rules of `lWP`. -/
 
 @[lantana_alias mupd_ne]
 instance mupdBase_ne (n : Nat) : OFE.NonExpansive (mupdBase (GF := GF) n) := by
@@ -377,14 +337,12 @@ theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop)
     (P -∗ Q) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P -∗ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ Q := by
   rw [mphys_unfold]; exact Model.mphys_wand n₁ n₂ tc₁ tc₂ X₁ X₂ P Q
 
-/-- A fancy update at the empty mask before the progress round is absorbed (Rocq
-`fupd_mprog`). -/
+/-- A fancy update at the empty mask before the progress round is absorbed. -/
 theorem fupd_mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
     (|={∅}=> mprog n tc X i P) ⊢ mprog n tc X i P := by
   rw [mprog_unfold]; exact Model.fupd_mprog n tc X i P
 
-/-- A fancy update at the empty mask before the physical round is absorbed (Rocq
-`fupd_mphys`). -/
+/-- A fancy update at the empty mask before the physical round is absorbed. -/
 theorem fupd_mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) :
     (|={∅}=> mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
   rw [mphys_unfold]; exact Model.fupd_mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P
@@ -489,9 +447,7 @@ theorem Th.active_done_false (i : ThreadId) : Th.active (GF := GF) i ⊢ Th.done
   rw [Th.active_unfold, Th.done_unfold]
   exact Model.OPreds.thActive_done_false i
 
-/-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_proper`, whose
-hypothesis `ℓ1 == ℓ2` is the shared layer here). Across layers the statement would be unsound:
-`rep ℓ 1 = rep ℓ' 1`, and `Obl.fuel_extend` with `Obl.fuel_add` would duplicate fuel. -/
+/-- Fuels at one layer with equal interpretations are equal. -/
 @[lantana_alias oblf.oblP_fuel_proper]
 theorem Obl.fuel_eq (k : Oid) {ℓ : Layer} {μ₁ μ₂ : Measure}
     (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) :
@@ -709,8 +665,7 @@ theorem Obl.discharge_leaf (E : CoPset) (p : Parent) (K : Oids) (k : Oid) (hk : 
   iintro %n
   iapply Model.OPreds.obl_discharge_mupd n p K k hk $$ Hp Hk Ha
 
-/-- A rank of the obligations of `S` whose children predicates are at hand, growing from parent to
-child: in the model, a child has more fuel than its parent. -/
+/-- A rank of the obligations of `S` that grows from parent to child. -/
 theorem Obl.kids_rank (E : CoPset) (S : Oids) (kids : Oid → Oids) :
     ([∗set] k ∈ S, (oblKids k (kids k) : IProp GF)) ⊢ |={E}=>m
       ⌜∃ r : Oid → Fuel, ∀ k, k ∈ S → ∀ x, x ∈ kids k → r k < r x⌝ ∗
@@ -739,7 +694,7 @@ theorem step_progress (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R :
     Obl.discharged_unfold, mprog_unfold]
   exact Model.OPreds.mprog_step_kids n tc X i B R P
 
-/-- A step of a crashed thread burns nothing, whatever its bill: it owns no obligation. -/
+/-- A crashed thread steps for free. -/
 theorem step_progress_crashed (n tc : Nat) (X : ThreadId → Prop) {i : ThreadId} (hX : X i)
     (B R : Oids) (P : IProp GF) :
     thCarriers i B ⊢ witLayers R -∗ (thCarriers i ∅ -∗ witCreds R ={∅}=∗ P) -∗
@@ -750,9 +705,7 @@ theorem step_progress_crashed (n tc : Nat) (X : ThreadId → Prop) {i : ThreadId
   exact Model.OPreds.mprog_step_crashed n tc X hX B R P
 
 /-- A step that forks the threads `tc₁, …, tc₂ - 1` and changes the crashed bits from `X₁` to
-`X₂`: each forked thread, not crashed, is running and gets an empty set of children and an empty
-bill; the step's later credits are granted; after the base model update at `n₂`, the nodes of the
-newly crashed threads go in and the nodes of the recovered ones come out. -/
+`X₂`. -/
 theorem step_physical (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF)
     (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) ={∅}=∗
@@ -763,8 +716,7 @@ theorem step_physical (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Pr
   rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold, mupdBase_unfold, mphys_unfold]
   exact Model.OPreds.mphys_step_kids n₁ n₂ tc₁ tc₂ X₁ X₂ P hn htc hX₁
 
-/-- A step that forks the threads `tc₁, …, tc₂ - 1` and keeps the crashed bits: each forked
-thread, not crashed, is running and gets an empty set of children and an empty bill. -/
+/-- A step that forks the threads `tc₁, …, tc₂ - 1` and keeps the crashed bits. -/
 @[lantana_alias oblf.step_fork]
 theorem step_fork (n₁ n₂ tc₁ tc₂ : Nat) (X : ThreadId → Prop) (P : IProp GF) (hn : n₁ ≤ n₂)
     (htc : tc₁ ≤ tc₂) (hX : ∀ j, tc₁ ≤ j → ¬X j) :
@@ -777,14 +729,12 @@ end Physical
 
 /-! ## Running the model (for adequacy)
 
-What the adequacy proofs read of the model (Rocq `obl_forest_instance.v`, "Facts about the
-model at the instance"): the predicates of new threads, and the base model update and
-the two rounds of a step against the model interpretation `Model.modelInterp`. -/
+The predicates of new threads, and the model updates and rounds against `Model.modelInterp`. -/
 
 section Adequacy
 
 /-- New threads `tc, …, tc + m - 1`: each gets its bill, and its running handle and children
-predicate if its bit is not set (Rocq `thP_kids_alloc_threads`). -/
+predicate if its bit is not set. -/
 @[lantana_alias thP_kids_alloc_threads]
 theorem thKids_alloc_threads (Ω : Model.Obls) (tc m : Nat) (X : ThreadId → Prop) :
     Model.oforest Ω tc X ⊢@{IProp GF} |==> (Model.oforest Ω (tc + m) X ∗
@@ -792,9 +742,7 @@ theorem thKids_alloc_threads (Ω : Model.Obls) (tc m : Nat) (X : ThreadId → Pr
   rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold]
   exact Model.OPreds.thKids_alloc_threads Ω tc m X
 
-/-- Running a base model update against the model at any view, which it keeps: the rounds
-compose into `Obls.le` and keep a lower bound `γ` of the witnesses
-(`Model.modelInterp_mupd_steps`). -/
+/-- `Model.modelInterp_mupd_steps` through the interface. -/
 theorem mupdBase_modelInterp_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
     (hγ : Model.owitInvLbMonoFair γ) (P : IProp GF) :
     (|=[n]=>m P) ⊢ ∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obls)
@@ -805,8 +753,7 @@ theorem mupdBase_modelInterp_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
   rw [mupdBase_unfold]
   exact Model.modelInterp_mupd_steps n γ hγ P
 
-/-- A base model update that only reads the model at any view, which it returns unchanged (Rocq
-`mupd_read`, `temporal_formula.v`): how the temporal formulas record their contents. -/
+/-- A base model update that only reads the model, which it returns unchanged. -/
 @[lantana_alias mupd_read]
 theorem mupdBase_read (n : Nat) (P : IProp GF) :
     (∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obls) (W : Model.Witnesses) (tc : Nat)
@@ -817,8 +764,7 @@ theorem mupdBase_read (n : Nat) (P : IProp GF) :
   exact Model.mupd_read n P
 
 open Iris.Std LawfulPartialMap in
-/-- A live obligation is assigned in the model (Rocq `osat_lookup_assigned` read through
-the interface). -/
+/-- A live obligation is assigned in the model. -/
 theorem Obl.assigned_modelInterp_lookup (k : Oid) (q : Qp) (h : List Model.MEvent) (i : Nat)
     (Ω : Model.Obls) (W : Model.Witnesses) (n tc : Nat) (X : ThreadId → Prop) :
     Obl.assigned (GF := GF) k q ∗ Model.modelInterp h i Ω W n tc X ⊢
@@ -830,8 +776,7 @@ theorem Obl.assigned_modelInterp_lookup (k : Oid) (q : Qp) (h : List Model.MEven
   iframe Hs Ha
 
 open Iris.Std LawfulPartialMap in
-/-- A discharged obligation is discharged in the model (Rocq `osat_lookup_discharged` read
-through the interface). -/
+/-- A discharged obligation is discharged in the model. -/
 theorem Obl.discharged_modelInterp_lookup (k : Oid) (h : List Model.MEvent) (i : Nat)
     (Ω : Model.Obls) (W : Model.Witnesses) (n tc : Nat) (X : ThreadId → Prop) :
     Obl.discharged (GF := GF) k ∗ Model.modelInterp h i Ω W n tc X ⊢
@@ -842,7 +787,7 @@ theorem Obl.discharged_modelInterp_lookup (k : Oid) (h : List Model.MEvent) (i :
   iapply Model.osat_lookup_discharged Ω k
   iframe Hs Hd
 
-/-- The progress round of thread `i` against the model (the definition of Rocq `mprog`). -/
+/-- The progress round against the model: the definition of `mprog`. -/
 theorem mprog_modelInterp (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
     mprog n tc X i P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω₁ : Model.Obls)
       (W₁ : Model.Witnesses), Model.modelInterp h a Ω₁ W₁ n tc X ={∅}=∗
@@ -853,9 +798,7 @@ theorem mprog_modelInterp (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P
   rw [mprog_unfold]
   exact .rfl
 
-/-- The physical round against the model (the definition of Rocq `mphys`, in three stages): the
-model moves at the old bits, then under the later credits a base model update and the change of
-the bits (`Model.mbits`). -/
+/-- The physical round against the model: the definition of `mphys`. -/
 theorem mphys_modelInterp (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) :
     mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω : Model.Obls)
       (W : Model.Witnesses), Model.modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
@@ -864,9 +807,7 @@ theorem mphys_modelInterp (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId �
   rw [mphys_unfold, mupdBase_unfold]
   exact .rfl
 
-/-- Running the physical round against the model, in the shape of adequacy's step: under the
-step's later credits, the base model update runs keeping a lower bound `γ` of the witnesses, and
-the model comes back at the new view (`Model.mphys_run`). -/
+/-- `Model.mphys_run` through the interface. -/
 theorem mphys_modelInterp_run (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop)
     (γ : ThreadId → Fuel → Fuel) (hγ : Model.owitInvLbMonoFair γ) (P : IProp GF) :
     mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω : Model.Obls)
@@ -880,8 +821,7 @@ theorem mphys_modelInterp_run (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadI
 variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
   [TemporalInterp Expr State GF]
 
-/-- Running a model update against the model at any view, which it keeps (Rocq
-`all_interp_sfmupd_steps`). -/
+/-- Running a model update against the model at any view, which it keeps. -/
 @[lantana_alias all_interp_sfmupd_steps]
 theorem mupd_modelInterp_steps (γ : ThreadId → Fuel → Fuel) (hγ : Model.owitInvLbMonoFair γ)
     (E₁ E₂ : CoPset) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
@@ -913,9 +853,7 @@ end Rules
 
 /-! ## Adequacy bridges (run step)
 
-What the single-step simulation of adequacy (`Lantana.Trace.Adequacy.RunStep`) reads of the
-model through the sealed predicates: a terminated thread owns no obligation, nor does a crashed
-thread. -/
+A terminated thread owns no obligation, nor does a crashed thread. -/
 
 section AdequacyRunStep
 
@@ -923,8 +861,7 @@ open Iris.Std LawfulPartialMap
 
 variable {GF : BundledGFunctors} [ModelGS GF]
 
-/-- A terminated thread owns no obligation of the model (Rocq `othread_assigned_done_false`,
-through the model interpretation). -/
+/-- A terminated thread owns no obligation of the model. -/
 theorem Th.done_modelInterp_not_owner (i : ThreadId) (h : List Model.MEvent) (a : Nat)
     (Ω : Model.Obls) (W : Model.Witnesses) (n tc : Nat) (X : ThreadId → Prop) :
     Th.done i ∗ Model.modelInterp h a Ω W n tc X ⊢@{IProp GF}
@@ -937,8 +874,7 @@ theorem Th.done_modelInterp_not_owner (i : ThreadId) (h : List Model.MEvent) (a 
   intro k fu hk
   exact h k (Model.Obls.ownerOf_eq hk)
 
-/-- A crashed thread of the pool owns no obligation of the model (`Model.oforest_crashed_owned`,
-through the model interpretation). -/
+/-- A crashed thread of the pool owns no obligation of the model. -/
 theorem Th.crashed_modelInterp_not_owner {X : ThreadId → Prop} {i : ThreadId} (hX : X i)
     {tc : Nat} (hi : i < tc) (h : List Model.MEvent) (a : Nat) (Ω : Model.Obls)
     (W : Model.Witnesses) (n : Nat) :
