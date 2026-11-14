@@ -262,6 +262,10 @@ instance threadExpr_pureExecSI {GF : BundledGFunctors} [HeapGS GF] (C : List ECt
 theorem keepsCrashed (i : ThreadId) (e : Exp) : KeepsCrashed (Ectx := List ECtxItem) i e :=
   KeepsCrashed.of_never not_crashed i e
 
+/-- Crashing is permanent in HeapLang: no thread is ever crashed. -/
+theorem staysCrashed (i : ThreadId) (ρ₁ ρ₂ : Cfg Exp State) : Cfg.staysCrashed i ρ₁ ρ₂ :=
+  Cfg.staysCrashed_of_never not_crashed i ρ₁ ρ₂
+
 /-! ## The primitive laws -/
 
 section Laws

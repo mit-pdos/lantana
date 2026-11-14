@@ -663,7 +663,7 @@ theorem loopRun_fair : fairScheduling loopRun := by
   intro j hinf
   by_cases hj : j < 2
   · exact TrProp.always_eventually_iff.mpr fun n _ =>
-      ⟨n, Nat.le_refl n, active_iff.mpr ⟨_, tp0_getElem? hj, rfl⟩,
+      ⟨n, Nat.le_refl n, active_iff.mpr ⟨_, tp0_getElem? hj, rfl, not_crashed _ _⟩,
         stepOf_iff.mpr (loopRun_traceStep n hj)⟩
   · obtain ⟨m, -, hm⟩ := TrProp.always_eventually_iff.mp hinf 0 (Nat.le_refl _)
     obtain ⟨e, he, -⟩ := active_iff.mp hm

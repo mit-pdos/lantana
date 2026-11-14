@@ -18,10 +18,10 @@ internal instrument: at every position `n`, the thread `sched n` takes a trace s
 (`Schedule sched ⟨0, τf⟩`). No thread of the pool is stuck at `n`: a stuck thread's `lWP` (at
 `NotStuck`) proves its reducibility, whichever thread it is. `run_step` then inverts the trace
 step of the thread the schedule names:
-* it steps: its `lWP` takes the step (the pre-step model update, the progress round with the
-  witnesses of `mprog_exists_step`, the physical round with its later credits, the post-step
-  model update), the forked threads start running, and finished threads run their
-  postconditions' model updates;
+* it steps (a crashed thread too, as it is not a value): its `lWP` takes the step (the pre-step
+  model update, the progress round with the witnesses of `mprog_exists_step`, the physical round
+  with its later credits, the post-step model update), the forked threads start running, and
+  finished threads run their postconditions' model updates;
 * it is a value: the configuration stutters, the counters drop (`owitInvLb_step_na_turn`);
 * it is stuck: impossible, as above.
 
@@ -31,7 +31,8 @@ do not change), so that `Lantana.Trace.Adequacy.Safety` is a Löb induction over
 
 Between steps the model is at the view of the configuration: its thread count and its crashed
 threads (`Cfg.crashed`); the physical round moves it to the view of the next configuration, and a
-stutter keeps it.
+stutter keeps it.  At that view and with the `Th.done` tokens of the finished threads, it shows
+every owner of an obligation active (`oblsThreadActive_keep`), as the drop of the measures needs.
 
 The threads are a pool `tp` with a postcondition function `Ψ`: thread `j` runs with
 `liftTerm j Ψ`, which only reads `Ψ j`. After a step, the forked threads `tp.length + k` get the
@@ -278,14 +279,15 @@ theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → I
   iintro H %h %n %σ %tp %hi
   iapply H $$ %h %n %σ %tp %(Language.Context.fillEmpty (Ectx := Ectx)) %hi
 
-omit [Crash Expr State Obs Val] L [TemporalInterp Expr State GF] in
-/-- The owners of the obligations are active (`getOblsThreadActive`), keeping the model. -/
-theorem oblsThreadActive_keep {tp : ThreadPool Expr} {ρ : Cfg Expr State}
-    (hτ : ρ.1 = tp) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (n : Nat)
-    (X : ThreadId → Prop) :
-    doneTokens tp ∗ modelInterp (GF := GF) g v Ω W n tp.length X ⊢
-      modelInterp g v Ω W n tp.length X ∗ ⌜oblsThreadActive Ω ρ⌝ :=
-  (persistent_entails_left (getOblsThreadActive hτ g v Ω W n X)).trans
+omit L [TemporalInterp Expr State GF] in
+/-- The owners of the obligations are active at the configuration `ρ = (tp, σ)`
+(`getOblsThreadActive`, with the model at the crashed threads of `ρ`), keeping the model. -/
+theorem oblsThreadActive_keep {tp : ThreadPool Expr} {σ : State} {ρ : Cfg Expr State}
+    (hρ : ρ = (tp, σ)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (n : Nat) :
+    doneTokens tp ∗ modelInterp (GF := GF) g v Ω W n tp.length (Cfg.crashed (tp, σ)) ⊢
+      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗ ⌜oblsThreadActive Ω ρ⌝ := by
+  subst hρ
+  exact (persistent_entails_left (getOblsThreadActive (ρ := (tp, σ)) rfl g v Ω W n)).trans
     (sep_mono_left sep_elim_right)
 
 /-- The threads after a step of `i` to `e₂` forking `efs`, after the model updates of the
@@ -337,13 +339,12 @@ theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
       |={⊤,∅}=> ALC iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
   obtain ⟨e, he, hv, hcfg⟩ := hd
   simp only at he hcfg
-  have hτ : (τf n).1 = tp := by rw [hnow]
   have hna : (τf n).inactive (sched n) := by
     rw [hnow, hi]
-    exact .inr ⟨e, he, hv⟩
+    exact .inr (.inl ⟨e, he, hv⟩)
   iintro ⟨HH, HM, HT⟩
   icases persistent_entails_left (threadsRun_doneTokens tp Ψ) $$ HT with ⟨HT, #HD⟩
-  icases oblsThreadActive_keep hτ g v Ω W n _ $$ [$HD $HM] with ⟨HM, %hact⟩
+  icases oblsThreadActive_keep hnow g v Ω W n $$ [$HD $HM] with ⟨HM, %hact⟩
   have hLb' := owitInvLb_step_na_turn hcnt hna hact hLb
   have hdrop := oblsDrop_na hcnt hna hact
   imod historyTInterp_stutter h n σ tp $$ HH with HH
@@ -361,7 +362,7 @@ theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   ipureintro
   exact ⟨hLb', histTrace_snoc hh hlen hcfg, hdrop, hns, Nat.le_refl _, fun _ _ => rfl⟩
 
-/-- The thread the schedule names steps: its `lWP` takes the step. -/
+/-- The thread the schedule names steps, crashed or not: its `lWP` takes the step. -/
 theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
@@ -375,7 +376,6 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   obtain ⟨e₁, obs, e₂, σ₂, efs, he₁, hprim, hcfg⟩ := hstep.inv
   simp only at he₁ hprim
   have hv₁ : toVal e₁ = none := Language.val_stuck hprim
-  have hτ : (τf n).1 = tp := by rw [hnow]
   have hγn := owitInvLbMonoFair_fairMeasure (γ n)
   have hγn1 := owitInvLbMonoFair_fairMeasure (γ (n + 1))
   iintro ⟨HH, HM, HT⟩
@@ -388,13 +388,13 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     Hi %g %v %Ω %W %tp.length %(Cfg.crashed (tp, σ)) %hLb HM
     with ⟨⟨%_, Hi⟩, %g₀, %v₀, %Ω₀, %W₀, %⟨hle₀, hLb₀⟩, HM⟩
   icases Model.modelInterp_owitInv' _ _ _ _ _ _ _ $$ HM with ⟨HM, %hI₀⟩
-  icases oblsThreadActive_keep hτ _ _ Ω₀ W₀ n _ $$ [$HD $HM] with ⟨HM, %hact₀⟩
+  icases oblsThreadActive_keep hnow _ _ Ω₀ W₀ n $$ [$HD $HM] with ⟨HM, %hact₀⟩
   ispecialize Hi $$ %obs %e₂ %σ₂ %efs %hprim
   imod mprog_modelInterp n tp.length _ i _ $$ Hi %(g ++ g₀) %(v + v₀) %Ω₀ %W₀ HM
     with ⟨%Ω₂, %hprog, Hk⟩
   obtain ⟨W₂, hW₂, hI₂, hLb₂⟩ := mprog_exists_step hi hact₀ hI₀ hLb₀ hcnt hprog
   imod Hk $$ %W₂ %(⟨hW₂, hI₂⟩) with ⟨HM, Hi⟩
-  icases oblsThreadActive_keep hτ _ _ Ω₂ W₂ n _ $$ [$HD $HM] with ⟨HM, %hact₂⟩
+  icases oblsThreadActive_keep hnow _ _ Ω₂ W₂ n $$ [$HD $HM] with ⟨HM, %hact₂⟩
   imod mphys_modelInterp_run n (n + 1) tp.length (tp.length + efs.length) _ _
     (fairMeasure (γ (n + 1))) hγn1 _ $$ Hi %_ %_ %Ω₂ %W₂ %hLb₂ HM with Hi
   imodintro

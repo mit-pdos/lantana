@@ -67,8 +67,8 @@ every position.  Schedules are proof instruments: no behavior and no assumption 
 and the adequacy proof chooses one (section 3.6).
 
 Lantana's instance is `⟨TraceStep, Cfg.active⟩`: the trace step of a thread is its primitive
-step or its stutter as a value or when stuck, and a thread is active when it is in the pool and
-not a value.
+step or its stutter as a value or when stuck, and a thread is active when it is in the pool, not
+a value, and not crashed (`Cfg.crashed`, the threads the language declares crashed).
 
 ## 3. Fairness
 
@@ -150,8 +150,10 @@ ThreadSystem.step i⟩`, enabled where the thread is active and granted at its t
 `Sched.SF i` is its strong fairness, `Sched.assumption i := (Sched.action i).strong` the
 assumption, and `fairScheduling := ∀ₜ i, Sched.SF i` is the hypothesis of Lantana's adequacy
 theorems: a thread active infinitely often steps infinitely often.  It names no scheduled
-thread.  For a thread system whose activity is convex, as Lantana's is (a thread is active from
-its fork until it becomes a value), this is the usual weak fairness (`Cfg.sched_sf_iff_wf`).
+thread.  For a thread system whose activity is convex, this is the usual weak fairness.  Lantana's
+is convex for a thread that, once crashed, stays crashed (`Cfg.staysCrashed`, always so in a
+language that never crashes, such as HeapLang): the thread is active from its fork until it
+becomes a value or crashes (`Cfg.sched_sf_iff_wf`).  A crashed thread may recover in general.
 
 A thread's own view of its scheduling is trivial: its attempts are its own steps, so every
 attempt is a grant and the counter is zero.  The scheduling counter that adequacy uses is the
