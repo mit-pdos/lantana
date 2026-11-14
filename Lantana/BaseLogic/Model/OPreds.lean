@@ -18,11 +18,12 @@ child), the running handle `thActive i` (the user's half of the running status o
 the round templates `mupd_ghost_round` and `mupd_model_round` over `Model.mupd_nd_step`, at any
 view of the pool; the forest operations as model updates (thread termination, creation of an
 obligation, live or discharged, moves, checks of witnesses, discharge of a leaf, the only round
-with `Obls.lef`); the facts about the bill `OForest.bill i B` of a thread, an upper bound of its
-children; and the physical steps: `mprog_step_kids` (paid by the bill), `mprog_step_crashed` (a
-crashed thread pays for nothing), and `mphys_step_kids` (the forked threads get their pieces, the
-nodes of the newly crashed threads go in and those of the recovered ones come out), with its
-form for unchanged bits `mphys_step_fork`. Adding a child under `p` adds it to the bill of `p`
+with `Obls.lef`, and the read of the fuel as a rank of the forest, `kids_rank_mupd`); the facts
+about the bill `OForest.bill i B` of a thread, an upper bound of its children; and the physical
+steps: `mprog_step_kids` (paid by the bill), `mprog_step_crashed` (a crashed thread pays for
+nothing), and `mphys_step_kids` (the forked threads get their pieces, the nodes of the newly
+crashed threads go in and those of the recovered ones come out), with its form for unchanged
+bits `mphys_step_fork`. Adding a child under `p` adds it to the bill of `p`
 (`OForest.parBill`, nothing for an obligation). The statements are those of the sealed interface
 `Lantana.ProgramLogic.OblForest`, whose predicates are these definitions.
 
@@ -871,6 +872,39 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
     isplitl []
     · iexact He
     · iexact Hd
+
+/-- The fuel ranks the obligations of `S` whose children predicates are at hand: each child has
+more fuel than its parent (`oforest_kids_obl`). -/
+theorem oforest_kids_rank (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (S : Oids)
+    (kids : Oid → Oids) :
+    oforest Ω tc X ∗ ([∗set] k ∈ S, parKids (GF := GF) (.obl k) (kids k)) ⊢
+      ⌜∀ k, k ∈ S → ∀ x, x ∈ kids k → Ω.fuelOf k < Ω.fuelOf x⌝ := by
+  refine (BI.forall_intro fun k => ?_).trans BI.pure_forall.2
+  by_cases hk : k ∈ S
+  · refine (?_ : _ ⊢ ⌜∀ x, x ∈ kids k → Ω.fuelOf k < Ω.fuelOf x⌝).trans
+      (BI.pure_mono fun h _ => h)
+    unfold parKids
+    iintro ⟨Hf, HS⟩
+    icases BigSepS.bigSepS_elem_of_acc hk $$ HS with ⟨⟨-, Hk, -⟩, -⟩
+    icases oforest_kids_obl Ω tc k (kids k) $$ [$Hf $Hk] with %⟨-, h⟩
+    ipureintro
+    exact fun x hx => (h x hx).2
+  · exact BI.pure_intro fun h => (hk h).elim
+
+/-- A rank of the obligations of `S` whose children predicates are at hand, growing from parent
+to child, read from the model by a ghost round: the fuel. -/
+theorem kids_rank_mupd (n : Nat) (S : Oids) (kids : Oid → Oids) :
+    ([∗set] k ∈ S, parKids (GF := GF) (.obl k) (kids k)) ⊢
+      mupd n iprop(⌜∃ r : Oid → Fuel, ∀ k, k ∈ S → ∀ x, x ∈ kids k → r k < r x⌝ ∗
+        [∗set] k ∈ S, parKids (.obl k) (kids k)) := by
+  iintro HS
+  iapply mupd_ghost_round
+  iintro %Ω %tc %X ⟨Hos, Hf⟩
+  icases oforest_kids_rank Ω tc X S kids $$ [$Hf $HS] with %h
+  imodintro
+  iframe Hos Hf HS
+  ipureintro
+  exact ⟨Ω.fuelOf, h⟩
 
 /-- The node of a thread through the user's predicates: its running handle and its empty
 children predicate. -/
