@@ -9,8 +9,8 @@ public import Lantana.BaseLogic.Model.OSat
 
 /-! # The obligation forest and the threads
 
-The invariant `oforest Ω tc` (Rocq `lantana/base_logic/oforest.v`, merged with the thread part of
-`othread.v`): every live obligation of `Ω` is a node of a forest `Par : OidMap Parent` whose
+The invariant `oforest Ω tc X` (Rocq `lantana/base_logic/oforest.v`, merged with the thread part
+of `othread.v`): every live obligation of `Ω` is a node of a forest `Par : OidMap Parent` whose
 roots are the threads `0, …, tc - 1` (`ForestWf`, pure, `Lantana.BaseLogic.Forest`). The
 children of each thread of the pool and of each node are tabulated in a ghost map whose
 exclusive fragments `OForest.kids p K` are the backbone of the user's children predicates. Each
@@ -21,6 +21,13 @@ stores a piece of fuel strictly above the fuel of `c` (`forestNode`), so that wh
 pool is running (the invariant keeps half of `OForest.exec i`, the other half is the user's) or
 terminated (`OForest.done i`, persistent; the invariant keeps its empty children fragment, and it
 owns no node).
+
+The pool is seen through the thread count `tc` and the crashed bits `X : ThreadId → Prop`. A
+crashed thread `i < tc` (`X i`) is inactive without having finished: the invariant also holds its
+node, the user's half of its running status and its empty children fragment
+(`OForest.crashedInv`). Nobody can then add a child under it, and it owns no obligation
+(`oforest_crashed_owned`). The bits change by `oforest_bits`: the nodes of the newly crashed
+threads go in, the nodes of the recovered ones come out. The other lemmas keep the bits.
 
 Design (plan M4 §1, differences with Rocq):
 * No owner ghost state and no per-thread ghost maps of owned obligations: the owner of an
@@ -768,6 +775,85 @@ theorem threads_acc {Ω : Obls} {Par : OidMap Parent} {tc i : Nat} (hi : i < tc)
   obtain ⟨rfl, hk'⟩ := getElem?_range hky
   iapply threadInv_mono (h _ hk' hk) $$ Hy
 
+/-- The node of thread `i`: the user's half of its running status and its empty children
+fragment. -/
+@[reducible] def node (i : ThreadId) : IProp GF :=
+  iprop(exec i (Qp.half 1) ∗ kids (.thread i) ∅)
+
+/-- What the invariant holds for thread `i` besides its entry: its node if it is crashed. -/
+@[reducible] def crashedInv (X : ThreadId → Prop) (i : ThreadId) : IProp GF :=
+  iprop(⌜X i⌝ -∗ node i)
+
+instance node_timeless (i : ThreadId) : Timeless (node (GF := GF) i) := by
+  unfold node; infer_instance
+
+instance crashedInv_timeless (X : ThreadId → Prop) (i : ThreadId) :
+    Timeless (crashedInv (GF := GF) X i) := by
+  unfold crashedInv; infer_instance
+
+/-- The bits of thread `i` change from `X₁` to `X₂`: the node of a newly crashed thread goes in,
+the node of a recovered one comes out. -/
+theorem crashedInv_change (X₁ X₂ : ThreadId → Prop) (i : ThreadId) :
+    crashedInv X₁ i ∗ (⌜¬X₁ i ∧ X₂ i⌝ -∗ node i) ⊢@{IProp GF}
+      crashedInv X₂ i ∗ (⌜X₁ i ∧ ¬X₂ i⌝ -∗ node i) := by
+  unfold crashedInv
+  by_cases h₁ : X₁ i <;> by_cases h₂ : X₂ i
+  · iintro ⟨H, -⟩
+    isplitl [H]
+    · iintro -
+      iapply H
+      ipureintro
+      exact h₁
+    · iintro %h
+      exact (h.2 h₂).elim
+  · iintro ⟨H, -⟩
+    isplitr [H]
+    · iintro %h
+      exact (h₂ h).elim
+    · iintro -
+      iapply H
+      ipureintro
+      exact h₁
+  · iintro ⟨-, H⟩
+    isplitl [H]
+    · iintro -
+      iapply H
+      ipureintro
+      exact ⟨h₁, h₂⟩
+    · iintro %h
+      exact (h₁ h.1).elim
+  · iintro -
+    isplitl
+    · iintro %h
+      exact (h₂ h).elim
+    · iintro %h
+      exact (h₁ h.1).elim
+
+/-- A node goes to the invariant if the bit is set, and stays the user's otherwise. -/
+theorem node_split (X : ThreadId → Prop) (i : ThreadId) :
+    node i ⊢@{IProp GF} crashedInv X i ∗ (⌜¬X i⌝ -∗ node i) := by
+  unfold crashedInv
+  by_cases h : X i
+  · iintro H
+    isplitl [H]
+    · iintro -
+      iexact H
+    · iintro %h'
+      exact (h' h).elim
+  · iintro H
+    isplitr [H]
+    · iintro %h'
+      exact (h h').elim
+    · iintro -
+      iexact H
+
+theorem crashedInvs_change (X₁ X₂ : ThreadId → Prop) (l : List ThreadId) :
+    ([∗list] i ∈ l, crashedInv X₁ i) ∗ ([∗list] i ∈ l, ⌜¬X₁ i ∧ X₂ i⌝ -∗ node i) ⊢@{IProp GF}
+      ([∗list] i ∈ l, crashedInv X₂ i) ∗ [∗list] i ∈ l, ⌜X₁ i ∧ ¬X₂ i⌝ -∗ node i :=
+  BigSepL.bigSepL_sep_eqv.2.trans <|
+    (BigSepL.bigSepL_mono_of_forall fun {_ i} => crashedInv_change X₁ X₂ i).trans
+      BigSepL.bigSepL_sep_eqv.1
+
 end OForest
 
 /-! ### Nodes -/
@@ -1149,22 +1235,25 @@ end Nodes
 
 section Oforest
 
-variable {GF : BundledGFunctors} [OSatGS GF] [OForestGS GF]
+variable {GF : BundledGFunctors} [OSatGS GF] [OForestGS GF] {X : ThreadId → Prop}
 
-/-- The forest invariant (Rocq `oforest`, with the thread statuses of `othread`): a forest `Par`
-of the live obligations of `Ω` below the threads `< tc`, the authoritative children map `M`
-tabulating its children, the authoritative status map `T` of the pool, the authoritative bill
-map `C` above the children of the threads, the entries of the threads, and the nodes. -/
+/-- The forest invariant (Rocq `oforest`, with the thread statuses of `othread`) at the view
+`tc`, `X`: a forest `Par` of the live obligations of `Ω` below the threads `< tc`, the
+authoritative children map `M` tabulating its children, the authoritative status map `T` of the
+pool, the authoritative bill map `C` above the children of the threads, the entries of the
+threads, the nodes of the crashed threads, and the nodes of the forest. -/
 @[lantana_alias oforest]
-def oforest (Ω : Obls) (tc : Nat) : IProp GF :=
+def oforest (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) : IProp GF :=
   iprop(∃ (Par : OidMap Parent) (M : ParentMap Oids) (T : ThreadMap ThreadStatus)
       (C : ThreadMap Oids),
     ⌜ForestWf Ω tc Par ∧ KidsMap tc Par M ∧ StatusMap tc T ∧ BillMap tc Par C⌝ ∗
     OForest.kidsAuth M ∗ OForest.statusAuth T ∗ OForest.billAuth C ∗
     ([∗list] i ∈ List.range tc, OForest.threadInv Ω Par i) ∗
+    ([∗list] i ∈ List.range tc, OForest.crashedInv X i) ∗
     [∗map] x ↦ p ∈ Par, forestNode Ω x p)
 
-instance oforest_timeless (Ω : Obls) (tc : Nat) : Timeless (oforest (GF := GF) Ω tc) := by
+instance oforest_timeless (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) :
+    Timeless (oforest (GF := GF) Ω tc X) := by
   unfold oforest
   refine @exists_timeless _ _ _ _ fun Par => ?_
   refine @exists_timeless _ _ _ _ fun M => ?_
@@ -1181,7 +1270,7 @@ instance oforest_timeless (Ω : Obls) (tc : Nat) : Timeless (oforest (GF := GF) 
 
 /-- The forest invariant has a well-formed forest. -/
 theorem oforest_wf (Ω : Obls) (tc : Nat) :
-    oforest Ω tc ⊢@{IProp GF} ⌜∃ Par, ForestWf Ω tc Par⌝ := by
+    oforest Ω tc X ⊢@{IProp GF} ⌜∃ Par, ForestWf Ω tc Par⌝ := by
   unfold oforest
   iintro ⟨%Par, %M, %T, %C, %⟨wf, -, -, -⟩, -⟩
   ipureintro
@@ -1190,7 +1279,7 @@ theorem oforest_wf (Ω : Obls) (tc : Nat) :
 /-- The owners are threads of the pool (Rocq `othread_assigned_thread_elem`). -/
 @[lantana_alias othread_assigned_thread_elem]
 theorem oforest_owner_lt (Ω : Obls) (tc : Nat) :
-    oforest Ω tc ⊢@{IProp GF} ⌜∀ x i, Ω.ownerOf x = some i → i < tc⌝ := by
+    oforest Ω tc X ⊢@{IProp GF} ⌜∀ x i, Ω.ownerOf x = some i → i < tc⌝ := by
   iintro H
   icases oforest_wf Ω tc $$ H with %⟨Par, wf⟩
   ipureintro
@@ -1198,7 +1287,7 @@ theorem oforest_owner_lt (Ω : Obls) (tc : Nat) :
 
 /-- The children fragment of `p` holds its children in the forest. -/
 theorem oforest_kids_lookup (Ω : Obls) (tc : Nat) (p : Parent) (K : Oids) :
-    oforest Ω tc ∗ OForest.kids p K ⊢@{IProp GF}
+    oforest Ω tc X ∗ OForest.kids p K ⊢@{IProp GF}
       ⌜∃ Par, ForestWf Ω tc Par ∧ Forest.keyed tc Par p = true ∧ Forest.kids Par p = K⌝ := by
   unfold oforest
   iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, -, -⟩, HM, -⟩, Hk⟩
@@ -1208,7 +1297,7 @@ theorem oforest_kids_lookup (Ω : Obls) (tc : Nat) (p : Parent) (K : Oids) :
 
 @[lantana_alias oforest_kids_live]
 theorem oforest_kids_live (Ω : Obls) (tc : Nat) (p : Parent) (K : Oids) :
-    oforest Ω tc ∗ OForest.kids p K ⊢@{IProp GF}
+    oforest Ω tc X ∗ OForest.kids p K ⊢@{IProp GF}
       ⌜(∀ x, x ∈ K → Ω.live x) ∧ (∀ q, p = .obl q → Ω.live q)⌝ := by
   iintro H
   icases oforest_kids_lookup Ω tc p K $$ H with %⟨Par, wf, hkey, hkids⟩
@@ -1219,7 +1308,7 @@ theorem oforest_kids_live (Ω : Obls) (tc : Nat) (p : Parent) (K : Oids) :
 
 /-- The children of a thread are owned by it, and it is a thread of the pool. -/
 theorem oforest_kids_thread (Ω : Obls) (tc : Nat) (i : ThreadId) (K : Oids) :
-    oforest Ω tc ∗ OForest.kids (.thread i) K ⊢@{IProp GF}
+    oforest Ω tc X ∗ OForest.kids (.thread i) K ⊢@{IProp GF}
       ⌜i < tc ∧ ∀ x, x ∈ K → Ω.ownerOf x = some i⌝ := by
   iintro H
   icases oforest_kids_lookup Ω tc _ K $$ H with %⟨Par, wf, hkey, hkids⟩
@@ -1230,7 +1319,7 @@ theorem oforest_kids_thread (Ω : Obls) (tc : Nat) (i : ThreadId) (K : Oids) :
 
 /-- The children of an obligation have its owner and more fuel, and it is live. -/
 theorem oforest_kids_obl (Ω : Obls) (tc : Nat) (q : Oid) (K : Oids) :
-    oforest Ω tc ∗ OForest.kids (.obl q) K ⊢@{IProp GF}
+    oforest Ω tc X ∗ OForest.kids (.obl q) K ⊢@{IProp GF}
       ⌜Ω.live q ∧ ∀ x, x ∈ K → Ω.ownerOf x = Ω.ownerOf q ∧ Ω.fuelOf q < Ω.fuelOf x⌝ := by
   iintro H
   icases oforest_kids_lookup Ω tc _ K $$ H with %⟨Par, wf, hkey, hkids⟩
@@ -1242,10 +1331,10 @@ theorem oforest_kids_obl (Ω : Obls) (tc : Nat) (q : Oid) (K : Oids) :
 /-- The fuel of an obligation with a children fragment is below its bound. -/
 @[lantana_alias oforest_obl_fuel_bound]
 theorem oforest_obl_fuel_bound (Ω : Obls) (tc : Nat) (q : Oid) (K : Oids) (β : Fuel) :
-    oforest Ω tc ∗ OForest.kids (.obl q) K ∗ OSat.bound q β ⊢@{IProp GF}
+    oforest Ω tc X ∗ OForest.kids (.obl q) K ∗ OSat.bound q β ⊢@{IProp GF}
       ⌜Ω.fuelOf q ≤ β ∧ Ω.live q⌝ := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, -, -⟩, HM, -, -, -, Hn⟩, Hk, #Hb⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, -, -⟩, HM, -, -, -, -, Hn⟩, Hk, #Hb⟩
   icases OForest.kidsAuth_lookup M _ K $$ [$HM $Hk] with %h
   have hq := hM.obl_isSome h
   obtain ⟨pq, hpq⟩ := Option.isSome_iff_exists.mp hq
@@ -1258,7 +1347,7 @@ theorem oforest_obl_fuel_bound (Ω : Obls) (tc : Nat) (q : Oid) (K : Oids) (β :
 /-- The running threads are threads of the pool (Rocq `othread_elem`, for a running thread). -/
 @[lantana_alias othread_elem]
 theorem oforest_exec_lt (Ω : Obls) (tc : Nat) (i : ThreadId) (q : Qp) :
-    oforest Ω tc ∗ OForest.exec i q ⊢@{IProp GF} ⌜i < tc⌝ := by
+    oforest Ω tc X ∗ OForest.exec i q ⊢@{IProp GF} ⌜i < tc⌝ := by
   unfold oforest
   iintro ⟨⟨%Par, %M, %T, %C, %⟨-, -, hT, -⟩, -, HT, -⟩, He⟩
   icases OForest.statusAuth_lookup_exec T i q $$ [$HT $He] with %h
@@ -1267,7 +1356,7 @@ theorem oforest_exec_lt (Ω : Obls) (tc : Nat) (i : ThreadId) (q : Qp) :
 
 /-- The terminated threads are threads of the pool. -/
 theorem oforest_done_lt (Ω : Obls) (tc : Nat) (i : ThreadId) :
-    oforest Ω tc ∗ OForest.done i ⊢@{IProp GF} ⌜i < tc⌝ := by
+    oforest Ω tc X ∗ OForest.done i ⊢@{IProp GF} ⌜i < tc⌝ := by
   unfold oforest
   iintro ⟨⟨%Par, %M, %T, %C, %⟨-, -, hT, -⟩, -, HT, -⟩, Hd⟩
   icases OForest.statusAuth_lookup_done T i $$ [$HT $Hd] with %h
@@ -1278,7 +1367,7 @@ theorem oforest_done_lt (Ω : Obls) (tc : Nat) (i : ThreadId) :
 obligations of a terminated thread). -/
 @[lantana_alias othread_done_open]
 theorem oforest_done_owned (Ω : Obls) (tc : Nat) (i : ThreadId) :
-    oforest Ω tc ∗ OForest.done i ⊢@{IProp GF} ⌜∀ x, Ω.ownerOf x ≠ some i⌝ := by
+    oforest Ω tc X ∗ OForest.done i ⊢@{IProp GF} ⌜∀ x, Ω.ownerOf x ≠ some i⌝ := by
   unfold oforest
   iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, -, hT, -⟩, -, HT, -, Hth, -⟩, #Hd⟩
   icases OForest.statusAuth_lookup_done T i $$ [$HT $Hd] with %h
@@ -1296,14 +1385,14 @@ theorem oforest_done_owned (Ω : Obls) (tc : Nat) (i : ThreadId) :
 @[lantana_alias othread_assigned_done_false]
 theorem oforest_assigned_done_false {Ω : Obls} {tc : Nat} {k : Oid} {a : Fuel} {i : ThreadId}
     (hk : get? Ω k = some (.assigned a i)) :
-    oforest Ω tc ∗ OForest.done i ⊢@{IProp GF} False := by
+    oforest Ω tc X ∗ OForest.done i ⊢@{IProp GF} False := by
   iintro H
   icases oforest_done_owned Ω tc i $$ H with %h
   exact (h k (Obls.ownerOf_eq hk)).elim
 
 /-- The children fragment of a terminated thread is in the invariant. -/
 theorem oforest_done_kids_false (Ω : Obls) (tc : Nat) (i : ThreadId) (K : Oids) :
-    oforest Ω tc ∗ OForest.done i ∗ OForest.kids (.thread i) K ⊢@{IProp GF} False := by
+    oforest Ω tc X ∗ OForest.done i ∗ OForest.kids (.thread i) K ⊢@{IProp GF} False := by
   unfold oforest
   iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, -, hT, -⟩, -, HT, -, Hth, -⟩, #Hd, Hk⟩
   icases OForest.statusAuth_lookup_done T i $$ [$HT $Hd] with %h
@@ -1313,38 +1402,45 @@ theorem oforest_done_kids_false (Ω : Obls) (tc : Nat) (i : ThreadId) (K : Oids)
 
 /-! ### Threads: allocation and termination -/
 
-/-- A new thread `tc`, running, without children and with an empty bill (Rocq
-`oforest_alloc_thread` with `othread_alloc_thread`). -/
+/-- A new thread `tc`, running, without children and with an empty bill; its node is the user's
+if its bit is not set, and stays in the invariant otherwise (Rocq `oforest_alloc_thread` with
+`othread_alloc_thread`). -/
 @[lantana_alias oforest_alloc_thread, lantana_alias othread_alloc_thread]
 theorem oforest_alloc_thread (Ω : Obls) (tc : Nat) :
-    oforest Ω tc ⊢@{IProp GF} |==> (oforest Ω (tc + 1) ∗ OForest.kids (.thread tc) ∅ ∗
-      OForest.exec tc (Qp.half 1) ∗ OForest.bill tc ∅) := by
+    oforest Ω tc X ⊢@{IProp GF} |==> (oforest Ω (tc + 1) X ∗
+      (⌜¬X tc⌝ -∗ OForest.node tc) ∗ OForest.bill tc ∅) := by
   unfold oforest
-  iintro ⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩
+  iintro ⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩
   imod OForest.kidsAuth_insert hM.none_thread ∅ $$ HM with ⟨HM, Hk⟩
   imod OForest.statusAuth_insert hT.none $$ HT with ⟨HT, He⟩
   imod OForest.billAuth_insert hC.none ∅ $$ HC with ⟨HC, Hb⟩
   icases (OForest.exec_half tc).mp $$ He with ⟨He₁, He₂⟩
+  icases OForest.node_split X tc $$ [He₂ Hk] with ⟨Hc, Hu⟩
+  · isplitl [He₂]
+    · iexact He₂
+    · iexact Hk
   imodintro
-  iframe Hk He₂ Hb
+  iframe Hu Hb
   iexists Par, insert M (.thread tc) ∅, insert T tc .running, insert C tc ∅
   isplitr
   · ipureintro
     exact ⟨wf.alloc_thread, hM.alloc_thread wf, hT.alloc _, hC.alloc_thread wf⟩
   iframe HM HT HC Hn
   rw [List.range_succ]
-  iapply BigSepL.bigSepL_snoc.mpr
-  iframe Hth
-  ileft
-  iexact He₁
+  isplitl [Hth He₁]
+  · iapply BigSepL.bigSepL_snoc.mpr
+    iframe Hth
+    ileft
+    iexact He₁
+  · iapply BigSepL.bigSepL_snoc.mpr
+    iframe Hx Hc
 
-/-- New threads `tc, …, tc + n - 1` (Rocq `oforest_alloc_threads` with `othread_alloc_threads`;
-thread ids are positions in the pool). -/
+/-- New threads `tc, …, tc + n - 1`, with their nodes if their bits are not set (Rocq
+`oforest_alloc_threads` with `othread_alloc_threads`; thread ids are positions in the pool). -/
 @[lantana_alias oforest_alloc_threads, lantana_alias othread_alloc_threads]
 theorem oforest_alloc_threads (Ω : Obls) (tc n : Nat) :
-    oforest Ω tc ⊢@{IProp GF} |==> (oforest Ω (tc + n) ∗
-      [∗list] i ∈ List.range' tc n,
-        OForest.kids (.thread i) ∅ ∗ OForest.exec i (Qp.half 1) ∗ OForest.bill i ∅) := by
+    oforest Ω tc X ⊢@{IProp GF} |==> (oforest Ω (tc + n) X ∗
+      [∗list] i ∈ List.range' tc n, (⌜¬X i⌝ -∗ OForest.node i) ∗ OForest.bill i ∅) := by
   induction n generalizing tc with
   | zero =>
     simp only [Nat.add_zero, List.range'_zero]
@@ -1356,21 +1452,21 @@ theorem oforest_alloc_threads (Ω : Obls) (tc n : Nat) :
   | succ n ih =>
     rw [List.range'_succ, show tc + (n + 1) = tc + 1 + n by omega]
     iintro H
-    imod oforest_alloc_thread Ω tc $$ H with ⟨H, Hk, He, Hb⟩
+    imod oforest_alloc_thread Ω tc $$ H with ⟨H, Hu, Hb⟩
     imod ih (tc + 1) $$ H with ⟨H, Hs⟩
     imodintro
     iframe H
     iapply BigSepL.bigSepL_cons.mpr
-    iframe Hk He Hb Hs
+    iframe Hu Hb Hs
 
 /-- A running thread without children terminates (Rocq `oforest_exec_to_done` with
 `othread_exec_to_done`). -/
 @[lantana_alias oforest_exec_to_done, lantana_alias othread_exec_to_done]
 theorem oforest_exec_to_done (Ω : Obls) (tc : Nat) (i : ThreadId) :
-    oforest Ω tc ∗ OForest.exec i (Qp.half 1) ∗ OForest.kids (.thread i) ∅ ⊢@{IProp GF}
-      |==> (oforest Ω tc ∗ OForest.done i) := by
+    oforest Ω tc X ∗ OForest.exec i (Qp.half 1) ∗ OForest.kids (.thread i) ∅ ⊢@{IProp GF}
+      |==> (oforest Ω tc X ∗ OForest.done i) := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, He, Hk⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, He, Hk⟩
   icases OForest.kidsAuth_lookup M _ _ $$ [$HM $Hk] with %hk
   have hi := hM.thread_lt hk
   have hkids := (hM.lookup hk).2
@@ -1384,7 +1480,7 @@ theorem oforest_exec_to_done (Ω : Obls) (tc : Nat) (i : ThreadId) :
     isplitr
     · ipureintro
       exact ⟨wf, hM, hT.update _ hi, hC⟩
-    iframe HM HT HC Hn
+    iframe HM HT HC Hx Hn
     iapply Hclose
     iright
     iframe Hd Hk
@@ -1392,6 +1488,117 @@ theorem oforest_exec_to_done (Ω : Obls) (tc : Nat) (i : ThreadId) :
     exact wf.owned_empty hkids
   · iexfalso
     iapply OForest.kids_excl $$ [$Hk $Hk']
+
+/-! ### Crashed threads -/
+
+/-- The bits change from `X₁` to `X₂`: the nodes of the newly crashed threads go in, the nodes of
+the recovered ones come out. -/
+theorem oforest_bits (Ω : Obls) (tc : Nat) (X₁ X₂ : ThreadId → Prop) :
+    oforest Ω tc X₁ ∗ ([∗list] j ∈ List.range tc, ⌜¬X₁ j ∧ X₂ j⌝ -∗ OForest.node j)
+      ⊢@{IProp GF} oforest Ω tc X₂ ∗
+        [∗list] j ∈ List.range tc, ⌜X₁ j ∧ ¬X₂ j⌝ -∗ OForest.node j := by
+  unfold oforest
+  iintro ⟨⟨%Par, %M, %T, %C, %hwf, HM, HT, HC, Hth, Hx, Hn⟩, Hin⟩
+  icases OForest.crashedInvs_change X₁ X₂ _ $$ [$Hx $Hin] with ⟨Hx, Hout⟩
+  iframe Hout
+  iexists Par, M, T, C
+  isplitr
+  · ipureintro
+    exact hwf
+  iframe HM HT HC Hth Hx Hn
+
+/-- The node of thread `j` is handed in: `j` becomes crashed. -/
+theorem oforest_hand_in (Ω : Obls) (tc : Nat) (j : ThreadId) :
+    oforest Ω tc X ∗ OForest.node j ⊢@{IProp GF} oforest Ω tc (fun k => k = j ∨ X k) := by
+  unfold oforest
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, He, Hk⟩
+  icases OForest.kidsAuth_lookup M _ _ $$ [$HM $Hk] with %hk
+  icases BigSepL.bigSepL_lookup_acc_impl (List.getElem?_range (hM.thread_lt hk)) $$ Hx
+    with ⟨-, Hclose⟩
+  iexists Par, M, T, C
+  isplitr
+  · ipureintro
+    exact ⟨wf, hM, hT, hC⟩
+  iframe HM HT HC Hth Hn
+  iapply Hclose $$ %(fun _ k => OForest.crashedInv (fun k => k = j ∨ X k) k) [] [He Hk]
+  · imodintro
+    iintro %k %y %hky %hkj Hy %hy
+    obtain ⟨rfl, -⟩ := OForest.getElem?_range hky
+    iapply Hy
+    ipureintro
+    exact hy.resolve_left hkj
+  · iintro -
+    isplitl [He]
+    · iexact He
+    · iexact Hk
+
+/-- The node of the crashed thread `j` is handed out: `j` recovers. -/
+theorem oforest_hand_out (Ω : Obls) (tc : Nat) {j : ThreadId} (hX : X j) (hj : j < tc) :
+    oforest Ω tc X ⊢@{IProp GF} oforest Ω tc (fun k => k ≠ j ∧ X k) ∗ OForest.node j := by
+  unfold oforest
+  iintro ⟨%Par, %M, %T, %C, %hwf, HM, HT, HC, Hth, Hx, Hn⟩
+  icases BigSepL.bigSepL_lookup_acc_impl (List.getElem?_range hj) $$ Hx with ⟨Hj, Hclose⟩
+  isplitr [Hj]
+  · iexists Par, M, T, C
+    isplitr
+    · ipureintro
+      exact hwf
+    iframe HM HT HC Hth Hn
+    iapply Hclose $$ %(fun _ k => OForest.crashedInv (fun k => k ≠ j ∧ X k) k) [] []
+    · imodintro
+      iintro %k %y %hky %hkj Hy %hy
+      obtain ⟨rfl, -⟩ := OForest.getElem?_range hky
+      iapply Hy
+      ipureintro
+      exact hy.2
+    · iintro %h
+      exact (h.1 rfl).elim
+  · iapply Hj
+    ipureintro
+    exact hX
+
+/-- A crashed thread owns no obligation: its empty children fragment is in the invariant. -/
+theorem oforest_crashed_owned (Ω : Obls) (tc : Nat) :
+    oforest Ω tc X ⊢@{IProp GF} ⌜∀ i, X i → i < tc → ∀ x, Ω.ownerOf x ≠ some i⌝ := by
+  refine (BI.forall_intro fun i => ?_).trans BI.pure_forall.2
+  by_cases hi : X i ∧ i < tc
+  · refine (?_ : _ ⊢ ⌜∀ x, Ω.ownerOf x ≠ some i⌝).trans (BI.pure_mono fun h _ _ => h)
+    unfold oforest
+    iintro ⟨%Par, %M, %T, %C, %⟨wf, hM, -, -⟩, HM, -, -, -, Hx, -⟩
+    icases BigSepL.bigSepL_mem (List.mem_range.2 hi.2) $$ Hx with Hi
+    icases Hi $$ %hi.1 with ⟨-, Hk⟩
+    icases OForest.kidsAuth_lookup M _ _ $$ [$HM $Hk] with %hk
+    ipureintro
+    intro x hx
+    have hmem : x ∈ Forest.owned Ω Par i := wf.mem_owned_iff.2 hx
+    rw [wf.owned_empty (hM.lookup hk).2] at hmem
+    exact LawfulSet.mem_empty hmem
+  · exact BI.pure_intro fun h₁ h₂ => (hi ⟨h₁, h₂⟩).elim
+
+/-- The bill of a crashed thread becomes empty, against its children in the invariant. -/
+theorem oforest_bill_crashed (Ω : Obls) (tc : Nat) {i : ThreadId} (hX : X i) (B : Oids) :
+    oforest Ω tc X ∗ OForest.bill i B ⊢@{IProp GF} |==> (oforest Ω tc X ∗ OForest.bill i ∅) := by
+  unfold oforest
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, Hb⟩
+  icases OForest.billAuth_lookup C i B $$ [$HC $Hb] with %hi
+  have hit : i < tc := (hC.1 i).1 (by simp [hi])
+  icases BigSepL.bigSepL_mem_acc (List.mem_range.2 hit) $$ Hx with ⟨Hi, Hxc⟩
+  icases Hi $$ %hX with ⟨He, Hk⟩
+  icases OForest.kidsAuth_lookup M _ _ $$ [$HM $Hk] with %hk
+  imod OForest.billAuth_update C i B ∅ $$ [$HC $Hb] with ⟨HC, Hb⟩
+  imodintro
+  iframe Hb
+  iexists Par, M, T, insert C i ∅
+  isplitr
+  · ipureintro
+    refine ⟨wf, hM, hT, hC.update hi ?_⟩
+    rw [(hM.lookup hk).2]
+  iframe HM HT HC Hth Hn
+  iapply Hxc
+  iintro -
+  isplitl [He]
+  · iexact He
+  · iexact Hk
 
 #lantana_ignore othread_obls_owns_elem "no per-thread sets of obligations"
 #lantana_ignore othread_alloc_obl "no per-thread sets of obligations: `oforest_alloc_obl`"
@@ -1430,7 +1637,7 @@ theorem OForest.billAuth_insert_kid {tc : Nat} {Par : OidMap Parent} {C : Thread
 
 /-- The bill of `i` contains its children. -/
 theorem oforest_bill_kids (Ω : Obls) (tc : Nat) (i : ThreadId) (B K : Oids) :
-    oforest Ω tc ∗ OForest.bill i B ∗ OForest.kids (.thread i) K ⊢@{IProp GF} ⌜K ⊆ B⌝ := by
+    oforest Ω tc X ∗ OForest.bill i B ∗ OForest.kids (.thread i) K ⊢@{IProp GF} ⌜K ⊆ B⌝ := by
   unfold oforest
   iintro ⟨⟨%Par, %M, %T, %C, %⟨-, hM, -, hC⟩, HM, -, HC, -⟩, Hb, Hk⟩
   icases OForest.kidsAuth_lookup M _ K $$ [$HM $Hk] with %hk
@@ -1441,10 +1648,10 @@ theorem oforest_bill_kids (Ω : Obls) (tc : Nat) (i : ThreadId) (B K : Oids) :
 
 /-- The bill of `i` becomes its children. -/
 theorem oforest_bill_resync (Ω : Obls) (tc : Nat) (i : ThreadId) (B K : Oids) :
-    oforest Ω tc ∗ OForest.bill i B ∗ OForest.kids (.thread i) K ⊢@{IProp GF}
-      |==> (oforest Ω tc ∗ OForest.bill i K ∗ OForest.kids (.thread i) K) := by
+    oforest Ω tc X ∗ OForest.bill i B ∗ OForest.kids (.thread i) K ⊢@{IProp GF}
+      |==> (oforest Ω tc X ∗ OForest.bill i K ∗ OForest.kids (.thread i) K) := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, Hb, Hk⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, Hb, Hk⟩
   icases OForest.kidsAuth_lookup M _ K $$ [$HM $Hk] with %hk
   icases OForest.billAuth_lookup C i B $$ [$HC $Hb] with %hi
   imod OForest.billAuth_update C i B K $$ [$HC $Hb] with ⟨HC, Hb⟩
@@ -1455,15 +1662,15 @@ theorem oforest_bill_resync (Ω : Obls) (tc : Nat) (i : ThreadId) (B K : Oids) :
   · ipureintro
     refine ⟨wf, hM, hT, hC.update hi ?_⟩
     rw [(hM.lookup hk).2]
-  iframe HM HT HC Hth Hn
+  iframe HM HT HC Hth Hx Hn
 
 /-- An obligation that is not live is not a child: it leaves the bill of `i`. -/
 theorem oforest_bill_erase {Ω : Obls} {tc : Nat} {k : Oid} (hk : ¬Ω.live k) (i : ThreadId)
     (B : Oids) :
-    oforest Ω tc ∗ OForest.bill i B ⊢@{IProp GF}
-      |==> (oforest Ω tc ∗ OForest.bill i (B \ {k})) := by
+    oforest Ω tc X ∗ OForest.bill i B ⊢@{IProp GF}
+      |==> (oforest Ω tc X ∗ OForest.bill i (B \ {k})) := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, Hb⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, Hb⟩
   icases OForest.billAuth_lookup C i B $$ [$HC $Hb] with %hi
   imod OForest.billAuth_update C i B (B \ {k}) $$ [$HC $Hb] with ⟨HC, Hb⟩
   imodintro
@@ -1476,16 +1683,16 @@ theorem oforest_bill_erase {Ω : Obls} {tc : Nat} {k : Oid} (hk : ¬Ω.live k) (
     rw [LawfulSet.mem_singleton] at e
     subst e
     exact wf.kids_live hx
-  iframe HM HT HC Hth Hn
+  iframe HM HT HC Hth Hx Hn
 
 /-! ### Obligations: allocation and discharge -/
 
 /-- A discharged obligation is outside the forest (Rocq `oforest_alloc_discharged`). -/
 @[lantana_alias oforest_alloc_discharged]
 theorem oforest_alloc_discharged {Ω : Obls} {tc : Nat} {k : Oid} (hk : get? Ω k = none) :
-    oforest Ω tc ⊢@{IProp GF} oforest (insert Ω k .discharged) tc := by
+    oforest Ω tc X ⊢@{IProp GF} oforest (insert Ω k .discharged) tc X := by
   unfold oforest
-  iintro ⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩
+  iintro ⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩
   have hkPar := wf.none_of_none hk
   have hne : ∀ x, (get? Par x).isSome → k ≠ x := fun x hx e => by
     subst e
@@ -1498,7 +1705,7 @@ theorem oforest_alloc_discharged {Ω : Obls} {tc : Nat} {k : Oid} (hk : get? Ω 
   isplitr
   · ipureintro
     exact ⟨wf.alloc_discharged hk, hM, hT, hC⟩
-  iframe HM HT HC
+  iframe HM HT HC Hx
   isplitl [Hth]
   · iapply OForest.threads_mono hown $$ Hth
   · iapply nodes_congr wf (fun x hx => Obls.fuelOf_insert_ne (hne x hx)) $$ Hn
@@ -1513,11 +1720,11 @@ theorem oforest_alloc_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oi
       | .thread j => j = i
       | .obl q => Ω.ownerOf q = some i ∧ Ω.fuelOf q < a)
     (hab : a ≤ β) (B : Oids) :
-    oforest Ω tc ∗ OForest.kids p K ∗ OForest.parBill p B ∗ OSat.bound k β ∗ forestPiece Ω k p
-      ⊢@{IProp GF} |==> (oforest (insert Ω k (.assigned a i)) tc ∗ ⌜k ∉ K⌝ ∗
+    oforest Ω tc X ∗ OForest.kids p K ∗ OForest.parBill p B ∗ OSat.bound k β ∗ forestPiece Ω k p
+      ⊢@{IProp GF} |==> (oforest (insert Ω k (.assigned a i)) tc X ∗ ⌜k ∉ K⌝ ∗
         OForest.kids p ({k} ∪ K) ∗ OForest.parBill p ({k} ∪ B) ∗ OForest.kids (.obl k) ∅) := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, Hp, HB, #Hb, Hpc⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, Hp, HB, #Hb, Hpc⟩
   icases OForest.kidsAuth_lookup M p K $$ [$HM $Hp] with %hpK
   obtain ⟨hkey, hkids⟩ := hM.lookup hpK
   have hkPar : get? Par k = none := wf.none_of_none hk
@@ -1563,7 +1770,7 @@ theorem oforest_alloc_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oi
       isplitr
       · ipureintro
         exact ⟨hwf', hM.alloc_obl wf hkPar hpK, hT, hC'⟩
-      iframe HM HT HC
+      iframe HM HT HC Hx
       isplitl [Hclose Hei]
       · iapply Hclose $$ %_ %_ %hown
         ileft
@@ -1597,10 +1804,10 @@ theorem oforest_alloc_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oi
 @[lantana_alias oforest_discharge_obl]
 theorem oforest_discharge_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oid}
     (hk : k ∈ K) :
-    oforest Ω tc ∗ OForest.kids p K ∗ OForest.kids (.obl k) ∅ ⊢@{IProp GF}
-      |==> (oforest (insert Ω k .discharged) tc ∗ OForest.kids p (K \ {k})) := by
+    oforest Ω tc X ∗ OForest.kids p K ∗ OForest.kids (.obl k) ∅ ⊢@{IProp GF}
+      |==> (oforest (insert Ω k .discharged) tc X ∗ OForest.kids p (K \ {k})) := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, Hp, Hk⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, Hp, Hk⟩
   icases OForest.kidsAuth_lookup M p K $$ [$HM $Hp] with %hpK
   icases OForest.kidsAuth_lookup M (.obl k) ∅ $$ [$HM $Hk] with %hkK
   obtain ⟨-, hkids⟩ := hM.lookup hpK
@@ -1625,7 +1832,7 @@ theorem oforest_discharge_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k 
     refine ⟨wf.discharge hkkids, hM.discharge hPk hkkids hpK, hT, hC.mono fun j => ?_⟩
     rw [Forest.kids_delete]
     exact LawfulSet.diff_subset_left
-  iframe HM HT HC
+  iframe HM HT HC Hx
   isplitl [Hth]
   · iapply OForest.threads_mono hown $$ Hth
   · icases (BigSepM.bigSepM_delete hPk).mp $$ Hn with ⟨-, Hn⟩
@@ -1651,12 +1858,12 @@ theorem oforest_move_same {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K₂
     (hp₂ : match p₂ with
       | .thread j => Ω.ownerOf k = some j
       | .obl q => Ω.ownerOf q = Ω.ownerOf k ∧ Ω.fuelOf q < Ω.fuelOf k) (B₂ : Oids) :
-    oforest Ω tc ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OForest.parBill p₂ B₂ ∗
+    oforest Ω tc X ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OForest.parBill p₂ B₂ ∗
         forestPiece Ω k p₂
-      ⊢@{IProp GF} |==> (⌜k ∉ K₂⌝ ∗ oforest Ω tc ∗ OForest.kids p₁ (K₁ \ {k}) ∗
+      ⊢@{IProp GF} |==> (⌜k ∉ K₂⌝ ∗ oforest Ω tc X ∗ OForest.kids p₁ (K₁ \ {k}) ∗
         OForest.kids p₂ ({k} ∪ K₂) ∗ OForest.parBill p₂ ({k} ∪ B₂)) := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, H₁, H₂, HB, Hpc⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, H₁, H₂, HB, Hpc⟩
   by_cases hp : p₁ = p₂
   · subst hp
     iexfalso
@@ -1686,7 +1893,7 @@ theorem oforest_move_same {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K₂
   isplitr
   · ipureintro
     exact ⟨wf.move_same (by simp [hPk]) hp₂, hM.move hPk hp₁K hp₂K, hT, hC'⟩
-  iframe HM HT HC
+  iframe HM HT HC Hx
   isplitl [Hth]
   · iapply OForest.threads_mono hown $$ Hth
   · icases (BigSepM.bigSepM_delete hPk).mp $$ Hn with ⟨⟨#He, Hbnd, -⟩, Hn⟩
@@ -1704,11 +1911,11 @@ change and no new fuel, the piece of `x` above the fuel of `k` is above the fuel
 @[lantana_alias oforest_move_up]
 theorem oforest_move_up {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oid} {Kk : Oids}
     {x : Oid} (hk : k ∈ K) (hx : x ∈ Kk) (B : Oids) :
-    oforest Ω tc ∗ OForest.kids p K ∗ OForest.parBill p B ∗ OForest.kids (.obl k) Kk
-      ⊢@{IProp GF} |==> (⌜x ∉ K⌝ ∗ oforest Ω tc ∗ OForest.kids p ({x} ∪ K) ∗
+    oforest Ω tc X ∗ OForest.kids p K ∗ OForest.parBill p B ∗ OForest.kids (.obl k) Kk
+      ⊢@{IProp GF} |==> (⌜x ∉ K⌝ ∗ oforest Ω tc X ∗ OForest.kids p ({x} ∪ K) ∗
         OForest.parBill p ({x} ∪ B) ∗ OForest.kids (.obl k) (Kk \ {x})) := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, Hp, HB, Hk⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, Hp, HB, Hk⟩
   by_cases hp : p = .obl k
   · subst hp
     iexfalso
@@ -1742,7 +1949,7 @@ theorem oforest_move_up {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oid}
   isplitr
   · ipureintro
     exact ⟨wf.move_up hPk hPx, hM.move hPx hkK hpK, hT, hC'⟩
-  iframe HM HT HC
+  iframe HM HT HC Hx
   isplitl [Hth]
   · iapply OForest.threads_mono hown $$ Hth
   · icases (BigSepM.bigSepM_delete hPx).mp $$ Hn with ⟨⟨#He, Hbnd, Hpc⟩, Hn⟩
@@ -1766,13 +1973,13 @@ Rocq also hands out and takes back the running status and the set of obligations
 are not ghost state here. -/
 @[lantana_alias oforest_step]
 theorem oforest_step (Ω : Obls) (tc : Nat) (i : ThreadId) (B : Oids) :
-    oforest Ω tc ∗ OForest.bill i B ∗ ([∗set] k ∈ B, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c)
+    oforest Ω tc X ∗ OForest.bill i B ∗ ([∗set] k ∈ B, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c)
       ⊢@{IProp GF} |==> ∃ G : Oids, ⌜∀ x, x ∈ G ↔ Ω.ownerOf x = some i⌝ ∗
         OForest.bill i B ∗ ([∗set] k ∈ G, OSat.elem k ∗ ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c) ∗
         ∀ Ω' : Obls, ⌜Obls.condProgress (Obl.condOwner i) Ω Ω'⌝ -∗
-          ⌜∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ -∗ osat Ω' -∗ (osat Ω' ∗ oforest Ω' tc) := by
+          ⌜∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ -∗ osat Ω' -∗ (osat Ω' ∗ oforest Ω' tc X) := by
   unfold oforest
-  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, Hk, Hu⟩
+  iintro ⟨⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, Hk, Hu⟩
   icases OForest.billAuth_lookup C i B $$ [$HC $Hk] with %hB
   ihave Hu := BigSepS.bigSepS_subseteq (hC.lookup hB) $$ Hu
   icases (Forest.bigSepS_kids Par _ _).mp $$ Hu with Hu
@@ -1796,7 +2003,7 @@ theorem oforest_step (Ω : Obls) (tc : Nat) (i : ThreadId) (B : Oids) :
   isplitr
   · ipureintro
     exact ⟨wf.prog_piece hp (fun x _ => hown x) hpiece, hM, hT, hC⟩
-  iframe HM HT HC
+  iframe HM HT HC Hx
   isplitl [Hth]
   · iapply OForest.threads_mono howned $$ Hth
   · iapply BigSepM.bigSepM_mono (fun hx => node_unstep wf hp hx) $$ Hn
@@ -1804,9 +2011,9 @@ theorem oforest_step (Ω : Obls) (tc : Nat) (i : ThreadId) (B : Oids) :
 /-- A step of thread `i` with its progress round: the obligations of `i` make progress and keep
 their owner (`oforest_step` closed with `osat_progress_owner`). -/
 theorem oforest_osat_step (Ω : Obls) (tc : Nat) (i : ThreadId) (B : Oids) :
-    osat Ω ∗ oforest Ω tc ∗ OForest.bill i B ∗ ([∗set] k ∈ B, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c)
+    osat Ω ∗ oforest Ω tc X ∗ OForest.bill i B ∗ ([∗set] k ∈ B, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c)
       ⊢@{IProp GF} |==> ∃ Ω', ⌜Obls.condProgress (Obl.condOwner i) Ω Ω' ∧
-        ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ ∗ osat Ω' ∗ oforest Ω' tc ∗ OForest.bill i B := by
+        ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ ∗ osat Ω' ∗ oforest Ω' tc X ∗ OForest.bill i B := by
   iintro ⟨Hs, H⟩
   imod oforest_step Ω tc i B $$ H with ⟨%G, %hG, Hk, Hg, Hclose⟩
   ihave Hg := BigSepS.bigSepS_mono_of_forall (fun _ => BI.sep_elim_right) $$ Hg
@@ -1832,13 +2039,13 @@ theorem oforest_move_cross {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K�
     (hp₂ : match p₂ with
       | .thread j' => j' = j
       | .obl q => Ω.ownerOf q = some j) (B₂ : Oids) :
-    osat Ω ∗ oforest Ω tc ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OForest.parBill p₂ B₂ ∗
+    osat Ω ∗ oforest Ω tc X ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OForest.parBill p₂ B₂ ∗
         OSat.fuel k u ∗ forestPiece Ω k p₂
       ⊢@{IProp GF} |==> ∃ Ω', ⌜Obls.ndf Ω Ω' ∧ (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
-        k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc ∗ OForest.kids p₁ (K₁ \ {k}) ∗
+        k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc X ∗ OForest.kids p₁ (K₁ \ {k}) ∗
         OForest.kids p₂ ({k} ∪ K₂) ∗ OForest.parBill p₂ ({k} ∪ B₂) := by
   unfold oforest
-  iintro ⟨Hs, ⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hn⟩, H₁, H₂, HB, Hu, Hpc⟩
+  iintro ⟨Hs, ⟨%Par, %M, %T, %C, %⟨wf, hM, hT, hC⟩, HM, HT, HC, Hth, Hx, Hn⟩, H₁, H₂, HB, Hu, Hpc⟩
   by_cases hp : p₁ = p₂
   · subst hp
     iexfalso
@@ -1931,7 +2138,7 @@ theorem oforest_move_cross {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K�
   isplitr
   · ipureintro
     exact ⟨hwf', hM.move hPk hp₁K hp₂K, hT, hC'⟩
-  iframe HM HT HC
+  iframe HM HT HC Hx
   isplitl [Hclose Hej]
   · iapply Hclose $$ %_ %_ %howned
     ileft
@@ -1972,10 +2179,11 @@ structure OForestNames where
   billName := γ.bill
 
 /-- Allocation of the ghost state of the forest, with no thread and no obligation, at names `γ`
-(small enough for the existential property of satisfiability). -/
-theorem oforest_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF] :
+(small enough for the existential property of satisfiability), at any bits. -/
+theorem oforest_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF]
+    (X : ThreadId → Prop) :
     ⊢@{IProp GF} |==> ∃ γ : OForestNames, letI := OForestGS.ofNames (GF := GF) γ;
-      oforest ∅ 0 := by
+      oforest ∅ 0 X := by
   imod ghost_map_alloc_empty (GF := GF) (K := Parent) (V := Oids) (H := ParentMap)
     with ⟨%γk, HK⟩
   imod ghost_map_alloc_empty (GF := GF) (K := ThreadId) (V := ThreadStatus) (H := ThreadMap)
@@ -1990,19 +2198,23 @@ theorem oforest_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF
   isplitr
   · ipureintro
     exact ⟨ForestWf.empty 0, KidsMap.empty, StatusMap.empty, BillMap.empty⟩
+  rw [List.range_zero]
   isplitr
-  · rw [List.range_zero]
-    iapply BigSepL.bigSepL_nil.mpr
+  · iapply BigSepL.bigSepL_nil.mpr
+    iempintro
+  isplitr
+  · iapply BigSepL.bigSepL_nil.mpr
     iempintro
   · iapply BigSepM.bigSepM_empty.mpr
     iempintro
 
-/-- Allocation of the ghost state of the forest, with no thread and no obligation (Rocq
-`oforest_alloc` and `othread_alloc`). -/
+/-- Allocation of the ghost state of the forest, with no thread and no obligation, at any bits
+(Rocq `oforest_alloc` and `othread_alloc`). -/
 @[lantana_alias oforest_alloc, lantana_alias othread_alloc]
-theorem oforest_alloc {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF] :
-    ⊢@{IProp GF} |==> ∃ _ : OForestGS GF, oforest ∅ 0 := by
-  imod oforest_alloc_names (GF := GF) with ⟨%γ, H⟩
+theorem oforest_alloc {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF]
+    (X : ThreadId → Prop) :
+    ⊢@{IProp GF} |==> ∃ _ : OForestGS GF, oforest ∅ 0 X := by
+  imod oforest_alloc_names (GF := GF) X with ⟨%γ, H⟩
   imodintro
   iexists OForestGS.ofNames γ
   iexact H

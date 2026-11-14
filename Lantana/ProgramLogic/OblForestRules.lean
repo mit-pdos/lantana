@@ -1277,16 +1277,16 @@ section Steps
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 @[lantana_alias mprog_step]
-theorem mprog_step (n tc : Nat) (i : ThreadId) (P : IProp GF) :
+theorem mprog_step (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
     (|={∅}=> ∃ B : Oids, thCarriers i B ∗ oblFuels B 1 ∗
         ∃ R : Oids, ([∗set] r ∈ R, ∃ ℓ : Layer, Wit.layer r ℓ) ∗
           (thCarriers i B ∗ ([∗set] r ∈ R, Wit.cred r 1 ∨ Obl.discharged r) ={∅}=∗ P)) ⊢
-      mprog n tc i P := by
+      mprog n tc X i P := by
   iintro H
   iapply fupd_mprog
   imod H with ⟨%B, T, F, %R, W, H⟩
   imodintro
-  have hstep := step_progress (GF := GF) n tc i B R P
+  have hstep := step_progress (GF := GF) n tc X i B R P
   simp only [witLayers, witCreds] at hstep
   iapply hstep $$ T F W
   iintro T C
@@ -1295,12 +1295,14 @@ theorem mprog_step (n tc : Nat) (i : ThreadId) (P : IProp GF) :
   · iexact T
   · iexact C
 
+/-- A step that keeps the crashed bits, under a fancy update (`step_fork`). -/
 @[lantana_alias mphys_step]
-theorem mphys_step (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) :
+theorem mphys_step (n₁ n₂ tc₁ tc₂ : Nat) (X : ThreadId → Prop) (P : IProp GF) (hn : n₁ ≤ n₂)
+    (htc : tc₁ ≤ tc₂) (hX : ∀ j, tc₁ ≤ j → ¬X j) :
     (|={∅}=> ([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thActive j ∗ thKids j ∅ ∗ thCarriers j ∅)
-      ={∅}=∗ P) ⊢
-      mphys n₁ n₂ tc₁ tc₂ P :=
-  (fupd_mono (step_fork n₁ n₂ tc₁ tc₂ P hn htc)).trans (fupd_mphys n₁ n₂ tc₁ tc₂ P)
+      ={∅}=∗ ALC (|=[n₂]=>m P)) ⊢
+      mphys n₁ n₂ tc₁ tc₂ X X P :=
+  (fupd_mono (step_fork n₁ n₂ tc₁ tc₂ X P hn htc hX)).trans (fupd_mphys n₁ n₂ tc₁ tc₂ X X P)
 
 end Steps
 
