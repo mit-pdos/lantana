@@ -258,6 +258,10 @@ instance threadExpr_pureExecSI {GF : BundledGFunctors} [HeapGS GF] (C : List ECt
     iapply (stateInterp_unfold σ _).mpr
     iframe
 
+/-- Every step of HeapLang keeps the statuses: no thread is ever crashed. -/
+theorem keepsCrashed (i : ThreadId) (e : Exp) : KeepsCrashed (Ectx := List ECtxItem) i e :=
+  KeepsCrashed.of_never not_crashed i e
+
 /-! ## The primitive laws -/
 
 section Laws
@@ -289,7 +293,7 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
       (∀ v, threadExpr i C (.val v) ∗ stepPost i G R o ∗ Ψ v -∗ Φ v)
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro ⟨HT, ⟨HG, HF, HR⟩, HH, HΦ⟩
-  iapply lwp_lift_atomic_base_step_no_fork he
+  iapply lwp_lift_atomic_base_step_no_fork he (keepsCrashed i e₁)
   iintro %K %σ₁ %tp %hi Hσ
   icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
   icases hstep σ₁ $$ [Hh HH] with ⟨%hred, Hstep⟩
@@ -364,6 +368,7 @@ theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IPro
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
   iintro ⟨HT, HG, HF, HR, H⟩
   iapply Lantana.lwp_pure_step_simple (ς := fun i e => threadExpr i C e) (m + 1) hn G R o hφ
+    (fun _ _ _ => keepsCrashed i _)
   iframe HT HG HF HR
   iintro HT HG HW Ho
   iapply H $$ HT HG [HW] [Ho]
@@ -405,7 +410,7 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
         l{{{ RET Val.lit .unit; threadExpr i C (.val (.lit .unit)) ∗ stepPost i (G \ K) R o ∗
           thKids i (G \ K) }}} := by
   iintro #Hfork %Φ !> ⟨HT, ⟨HB, HF, HR⟩, HG, HK, HP⟩ HΦ
-  iapply lwp_lift_atomic_base_step rfl
+  iapply lwp_lift_atomic_base_step rfl (keepsCrashed i _)
   iintro %K' %σ₁ %tp %hi Hσ
   icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
   ihave %hC := threadExpr_ctx tp i C K' (.fork e) hi

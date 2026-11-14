@@ -291,8 +291,8 @@ instance doneTokens_persistent (tp : ThreadPool Expr) :
 /-- The owners of the obligations are threads of the pool (Rocq
 `othread_assigned_thread_elem`, through the model interpretation). -/
 theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
-    (n tc : Nat) :
-    modelInterp (GF := GF) h a Ω W n tc ⊢
+    (n tc : Nat) (X : ThreadId → Prop) :
+    modelInterp (GF := GF) h a Ω W n tc X ⊢
       ⌜∀ k fu o, get? Ω k = some (.assigned fu o) → o < tc⌝ := by
   unfold modelInterp
   iintro ⟨-, -, Hf, -, -⟩
@@ -303,11 +303,12 @@ theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnes
 
 /-- Every assigned obligation's owner is active at a configuration whose pool is `tp`: it is a
 thread of the pool, and not a finished one since a finished thread owns no obligation (Rocq
-`get_obls_thread_active_gen`). -/
+`get_obls_thread_active_gen`); the model's crashed bits are not read. -/
 @[lantana_alias get_obls_thread_active_gen]
 theorem getOblsThreadActive {tp : ThreadPool Expr} {ρ : Cfg Expr State}
-    (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses) (n : Nat) :
-    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length ⊢ ⌜oblsThreadActive Ω ρ⌝ := by
+    (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses) (n : Nat)
+    (X : ThreadId → Prop) :
+    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length X ⊢ ⌜oblsThreadActive Ω ρ⌝ := by
   classical
   by_cases hact : oblsThreadActive Ω ρ
   · exact pure_intro hact
@@ -315,7 +316,7 @@ theorem getOblsThreadActive {tp : ThreadPool Expr} {ρ : Cfg Expr State}
   obtain ⟨k, fu, o, hk, hna⟩ := hact
   unfold doneTokens
   iintro ⟨#HD, HM⟩
-  icases persistent_entails_left (modelInterp_owner_lt h a Ω W n tp.length) $$ HM
+  icases persistent_entails_left (modelInterp_owner_lt h a Ω W n tp.length X) $$ HM
     with ⟨HM, %hlt⟩
   obtain ⟨e, he⟩ : ∃ e, tp[o]? = some e :=
     Option.isSome_iff_exists.mp (by simpa using hlt k fu o hk)
@@ -324,14 +325,14 @@ theorem getOblsThreadActive {tp : ThreadPool Expr} {ρ : Cfg Expr State}
   ihave Hd := BigSepL.bigSepL_lookup he $$ HD
   have hd : doneToken (GF := GF) o e = Th.done o := by simp [doneToken, hv]
   rw [hd]
-  icases Th.done_modelInterp_not_owner o h a Ω W n tp.length $$ [$Hd $HM] with %hno
+  icases Th.done_modelInterp_not_owner o h a Ω W n tp.length X $$ [$Hd $HM] with %hno
   exact (hno k fu hk).elim
 
 /-- A stutter moves the model to the next step index (Rocq `model_history_interp_step`). -/
 theorem modelInterp_step_idx (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
-    (n tc : Nat) :
-    modelInterp (GF := GF) h a Ω W n tc ⊢
-      |==> modelInterp (h ++ [(n + 1, Ω)]) (a + 1) Ω W (n + 1) tc := by
+    (n tc : Nat) (X : ThreadId → Prop) :
+    modelInterp (GF := GF) h a Ω W n tc X ⊢
+      |==> modelInterp (h ++ [(n + 1, Ω)]) (a + 1) Ω W (n + 1) tc X := by
   unfold modelInterp
   iintro ⟨HH, Hs, Hf, Hw, %hI⟩
   imod modelHistoryInterp_step h a (Nat.le_succ n) (Obls.le_refl Ω) $$ HH with HH

@@ -19,12 +19,16 @@ public import Lantana.ProgramLogic.Notation
 /-! # The liveness weakest precondition `lWP`
 
 Rocq `lantana/program_logic/weakestpre.v`: `lWP e @ s; i; E {{ Φ }}` is the least fixpoint of
-one step of the program logic (`lwpStep`, structured as Iris-Lean's `TotalWeakestPre`): a model
-update, the progress and physical rounds of the step, later credits, a model update.  Thread `i`
-runs `fill K e₁` for every evaluation context `K : Ectx` (so that HeapLang recovers a thread's
-context from its expression); its step forks threads appended to the pool, with the ids
-`tp.length, tp.length + 1, …`, and its observation is ignored.  Induction (`lwp_ind_strong`) is
-on the predicate's closure under internal equality, so it needs no non-expansiveness.
+one step of the program logic (`lwpStep`, structured as Iris-Lean's `TotalWeakestPre`).  A step
+runs in phases: a model update before it; the progress round `mprog` of the thread at the view of
+the old configuration (its thread count and its crashed threads, `Cfg.crashed`); the physical
+round `mphys` from that view to the view of the new configuration (the forked threads' pieces and
+the later credits, a model update, the change of the crashed threads); a model update after it;
+the closing fancy update with the history and the continuation.  Thread `i` runs `fill K e₁` for
+every evaluation context `K : Ectx` (so that HeapLang recovers a thread's context from its
+expression); its step forks threads appended to the pool, with the ids `tp.length,
+tp.length + 1, …`, and its observation is ignored.  Induction (`lwp_ind_strong`) is on the
+predicate's closure under internal equality, so it needs no non-expansiveness.
 -/
 
 @[expose] public noncomputable section
@@ -37,11 +41,12 @@ open Iris.ProgramLogic.PrimStep (primStep)
 open Iris.ProgramLogic.EvContext (fill)
 
 
-/-- The ghost state of the program logic: the temporal layer, the state interpretation, and
-the postcondition of forked threads (`True` for HeapLang). -/
+/-- The ghost state of the program logic for a language with its crashed threads: the temporal
+layer, the state interpretation, and the postcondition of forked threads (`True` for HeapLang). -/
 @[lantana_alias lantanaGS]
 class LantanaGS (Expr : Type) (State : Type) (Obs Val : outParam Type) (GF : BundledGFunctors)
-    [Language Expr State Obs Val] extends TemporalGS Expr State GF, StateInterp Expr State GF where
+    [Language Expr State Obs Val] [Crash Expr State Obs Val]
+    extends TemporalGS Expr State GF, StateInterp Expr State GF where
   /-- The postcondition of a forked thread. -/
   forkPost : ThreadId → Val → IProp GF
 
@@ -49,13 +54,14 @@ section Lwp
 
 variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
 variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [ModelGS GF]
-variable [L : LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
+variable [Crash Expr State Obs Val] [L : LantanaGS Expr State Obs Val GF]
+  [TemporalInterp Expr State GF]
 
 /-- One step of `lWP` for thread `i` running `fill K e₁`, for every evaluation context `K`: a
-model update before the step (it may discharge an until), the progress round `mprog` of `i` and
-the physical round `mphys` of the step, the allocation of later credits `ALC`, and a model update
-after it; `ν e₂ len efs` holds after a step to `e₂` (with any observation) that forks `efs` with
-ids from `len` (the old pool length). -/
+model update before the step (it may discharge an until), the progress round `mprog` of `i` at the
+view of the old configuration, the physical round `mphys` from it to the view of the new one, and
+a model update after it; `ν e₂ len efs` holds after a step to `e₂` (with any observation) that
+forks `efs` with ids from `len` (the old pool length). -/
 @[lantana_alias lwp_step]
 def lwpStep (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
     (ν : Expr → Nat → List Expr → IProp GF) : IProp GF :=
@@ -67,12 +73,13 @@ def lwpStep (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
     ⌜s.maybeReducible e₁ σ₁⌝ ∗
     ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
       ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ -∗
-      mprog n tp.length i
+      mprog n tp.length (Cfg.crashed (tp, σ₁)) i
         (mphys n (n + 1) tp.length (tp.length + efs.length)
-          (ALC (|=[n + 1]=>m |={∅,E}=>
+          (Cfg.crashed (tp, σ₁)) (Cfg.crashed (tp.set i (fill K e₂) ++ efs, σ₂))
+          (|=[n + 1]=>m |={∅,E}=>
             historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
               (tp.set i (fill K e₂) ++ efs) ∗
-            ν e₂ tp.length efs))))
+            ν e₂ tp.length efs)))
 
 @[lantana_alias lwp_step_mono]
 theorem lwpStep_mono {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr}
@@ -94,8 +101,6 @@ theorem lwpStep_mono {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr}
   iintro H
   iapply mphys_wand $$ [Hν] H
   iintro H
-  iapply ALC_wand $$ [Hν] H
-  iintro H
   iapply mupdBase_wand $$ [Hν] H
   iintro H
   imod H with ⟨Hσ, H⟩
@@ -111,8 +116,8 @@ theorem lwpStep_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr} {n 
   refine forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ =>
     forall_ne fun tp => imp_ne.ne .rfl <| imp_ne.ne .rfl <| wand_ne.ne .rfl <| fupd_ne.ne <|
     (mupdBase_ne _).ne <| sep_ne.ne .rfl <| forall_ne fun _ => forall_ne fun e₂ =>
-    forall_ne fun _ => forall_ne fun efs => wand_ne.ne .rfl <| (mprog_ne _ _ _).ne <|
-    (mphys_ne _ _ _ _).ne <| ALC_ne.ne <| (mupdBase_ne _).ne <| fupd_ne.ne <|
+    forall_ne fun _ => forall_ne fun efs => wand_ne.ne .rfl <| (mprog_ne _ _ _ _).ne <|
+    (mphys_ne _ _ _ _ _ _).ne <| (mupdBase_ne _).ne <| fupd_ne.ne <|
     sep_ne.ne .rfl (h e₂ tp.length efs)
 
 /-- The postcondition of a forked thread `j` with postcondition `Φ`: it has terminated. -/
@@ -370,8 +375,6 @@ theorem lwp_strong_mono_mupd (hs : s₁ ≤ s₂) (hE : E₁ ⊆ E₂) :
     iintro IH
     iapply mphys_wand $$ [Hclose HΦ] IH
     iintro IH
-    iapply ALC_wand $$ [Hclose HΦ] IH
-    iintro IH
     iapply mupdBase_wand $$ [Hclose HΦ] IH
     iintro IH
     imod IH with ⟨Hσ, ⟨IH, -⟩, Hefs⟩
@@ -478,8 +481,6 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic ↑s e] :
     iintro H
     iapply mphys_wand $$ [] H
     iintro H
-    iapply ALC_wand $$ [] H
-    iintro H
     imod H with H
     iapply fupd_mupdBase_elim
     imod H with ⟨Hσ, H, Hefs⟩
@@ -539,8 +540,6 @@ theorem lwp_bind (K : Ectx) [hK : Language.Context (fill (Expr := Expr) K)] :
       iapply mprog_wand $$ [HΦ] IH
       iintro IH
       iapply mphys_wand $$ [HΦ] IH
-      iintro IH
-      iapply ALC_wand $$ [HΦ] IH
       iintro IH
       iapply mupdBase_wand $$ [HΦ] IH
       iintro IH

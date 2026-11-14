@@ -33,14 +33,15 @@ open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 -- Named, to be passed explicitly to `TrSpec.canon_le` (see "Always" below).
-variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [Crash Expr State Obs Val] [instM : ModelGS GF] [instT : TemporalGS Expr State GF]
+  [StateInterp Expr State GF]
 
 section Rules
 variable {E : CoPset} {N : Namespace} {k : Oid} {q : Qp} {P Q : IProp GF}
 
 /-! ## Always
 
-A `⊑ₛ` premise is given as `@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG`, with the ambient
+A `⊑ₛ` premise is given as `@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hG`, with the ambient
 instances explicit: elaborated against the expected `⊑ₛ`, the application would get the
 instances bound by `⊑ₛ` for its own instance arguments (as noted in `LantanaTest.Guarantee`;
 holes do not suffice under a `⊑ₛ` rule such as `TrSpec.always_mono`). -/
@@ -125,9 +126,9 @@ theorem alwaysIGuar_register {G : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
   iintro %h %n %σ %tp HI TI
   imod inv_acc hN $$ Hinv with ⟨HP, Hclose⟩
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
-  iintro Hcl %g %i %Ω %W %tc MI
+  iintro Hcl %g %i %Ω %W %tc %X MI
   ihave #C : ▷ record G n $$ [HP HI MI]
-  · iapply guar_elim_later_guar P G h n σ tp g i Ω W tc $$ HG
+  · iapply guar_elim_later_guar P G h n σ tp g i Ω W tc X $$ HG
     iframe HP HI MI
   ihave #HE := historyInterp_histEvent_now h n σ tp $$ HI
   iframe MI
@@ -168,9 +169,9 @@ theorem alwaysIGuar_alloc {G : TrSpec Expr State GF} :
   rw [alwaysIGuar_unfold]
   iintro #HG HP
   iapply mupd_read
-  iintro %h %n %σ %tp %g %i %Ω %W %tc HI TI MI
+  iintro %h %n %σ %tp %g %i %Ω %W %tc %X HI TI MI
   ihave #C : ▷ record G n $$ [HP HI MI]
-  · iapply guar_elim_later_guar P G h n σ tp g i Ω W tc $$ HG
+  · iapply guar_elim_later_guar P G h n σ tp g i Ω W tc X $$ HG
     iframe HP HI MI
   ihave #HE := historyInterp_histEvent_now h n σ tp $$ HI
   iframe MI
@@ -209,7 +210,7 @@ theorem guar_alwaysIGuar {G : TrSpec Expr State GF} :
     ⊢@{IProp GF} alwaysIGuar N P G ⊨ₜ □ₛ G := by
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, -, A⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, -, A⟩
   iunfold alwaysIGuar at A
   icases A with ⟨%j, %r, %γa, %st, #Hj, #HE, #Hγ, -, -, #AC⟩
   icases historyInterp_histEvent_lookup h n σ tp r st $$ [HI HE] with %hr
@@ -248,13 +249,13 @@ theorem guar_alwaysI : ⊢@{IProp GF} alwaysI N P ⊨ₜ □ₛ TrSpec.canon P :
 theorem guar_alwaysIAs_valid {V : IProp GF} {G : TrSpec Expr State GF} (hG : ⊢ V ⊨ₜ G) :
     ⊢@{IProp GF} alwaysIAs (Expr := Expr) (State := State) N P V ⊨ₜ □ₛ G :=
   guar_alwaysIAs.trans (guar_weaken (TrSpec.always_mono
-    (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG)))
+    (@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hG)))
 
 @[lantana_alias guar_alwaysI_valid]
 theorem guar_alwaysI_valid {G : TrSpec Expr State GF} (hG : ⊢ P ⊨ₜ G) :
     ⊢@{IProp GF} alwaysI N P ⊨ₜ □ₛ G :=
   guar_alwaysI.trans (guar_weaken (TrSpec.always_mono
-    (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG)))
+    (@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hG)))
 
 /-! ## Until -/
 
@@ -301,11 +302,11 @@ theorem untilIGuar_init {G₁ G₂ : TrSpec Expr State GF} :
   iintro Oa #HG₁ #HG₂ HP
   icases (Obl.assigned_halves k).mp $$ Oa with ⟨Oa, Oa'⟩
   iapply mupd_read
-  iintro %h %n %σ %tp %g %i %Ω %W %tc HI TI MI
+  iintro %h %n %σ %tp %g %i %Ω %W %tc %X HI TI MI
   ihave #C : ▷ record G₁ n $$ [HP HI MI]
-  · iapply guar_elim_later_guar P G₁ h n σ tp g i Ω W tc $$ HG₁
+  · iapply guar_elim_later_guar P G₁ h n σ tp g i Ω W tc X $$ HG₁
     iframe HP HI MI
-  icases Obl.assigned_modelInterp_lookup k _ g i Ω W n tc $$ [Oa MI] with %hk
+  icases Obl.assigned_modelInterp_lookup k _ g i Ω W n tc X $$ [Oa MI] with %hk
   · iframe Oa MI
   obtain ⟨fu, o, hk⟩ := hk
   ihave #EA := modelInterp_eventObl hk $$ MI
@@ -430,10 +431,10 @@ theorem guar_untilIDoneGuar (G₁ G₂ : TrSpec Expr State GF) :
     ⊢@{IProp GF} untilIDoneGuar k Q G₂ ⊨ₜ (G₁ Uₛ G₂) := by
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, U⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, U⟩
   iunfold untilIDoneGuar at U
   icases U with ⟨HQ, -, #HG₂⟩
-  iapply guar_elim Q (G₁ Uₛ G₂) h n σ tp m i Ω W tc $$ [] [HI MI HQ]
+  iapply guar_elim Q (G₁ Uₛ G₂) h n σ tp m i Ω W tc X $$ [] [HI MI HQ]
   · iapply guar_until_now $$ HG₂
   · iframe HI MI HQ
 
@@ -452,7 +453,7 @@ theorem guar_untilIDone_valid (G₁ : TrSpec Expr State GF) {G₂ : TrSpec Expr 
     (hG₂ : ⊢ Q ⊨ₜ G₂) : ⊢@{IProp GF} untilIDone k Q ⊨ₜ (G₁ Uₛ G₂) :=
   (guar_untilIDone G₁).trans
     (guar_weaken (TrSpec.strongUntil_mono (TrSpec.le_refl G₁)
-      (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG₂)))
+      (@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hG₂)))
 
 /-! ### Discharge -/
 
@@ -480,11 +481,11 @@ theorem untilIGuar_discharge_done {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N 
   · iframe Oa₁ Oa₂
   imod Obl.discharge_leaf E' p K k hk $$ Kp Kk Oa with ⟨Kp, #D⟩
   imod mupd_read (E := E') (P := iprop(Q ∗ untilDischarged k G₂)) $$ [HQ] with ⟨HQ, #R⟩
-  · iintro %h %n %σ %tp %g %i %Ω %W %tc HI TI MI
+  · iintro %h %n %σ %tp %g %i %Ω %W %tc %X HI TI MI
     ihave #TQ : record G₂ n $$ [HI MI HQ]
-    · iapply guar_elim Q G₂ h n σ tp g i Ω W tc $$ HG₂
+    · iapply guar_elim Q G₂ h n σ tp g i Ω W tc X $$ HG₂
       iframe HI MI HQ
-    icases Obl.discharged_modelInterp_lookup k g i Ω W n tc $$ [D MI] with %hkd
+    icases Obl.discharged_modelInterp_lookup k g i Ω W n tc X $$ [D MI] with %hkd
     · iframe D MI
     ihave #EF := modelInterp_eventObl hkd $$ MI
     iframe MI
@@ -624,13 +625,13 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     ⊢@{IProp GF} untilIGuar N k q P Q G₁ G₂ ⊨ₜ (G₁ Uₛ G₂) := by
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, U⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, U⟩
   iunfold untilIGuar at U
   icases U with ⟨Oa, U⟩
   iunfold untilIGuarPers at U
   icases U with ⟨%j, %r, %γP, %γQ, %st, %v, %Ω₁, %fu₁, %o₁, #Hj, #HE, #HγP, #HγQ, #OI, -, -, -,
     #AC⟩
-  icases Obl.assigned_modelInterp_lookup k _ m i Ω W n tc $$ [Oa MI] with %hk
+  icases Obl.assigned_modelInterp_lookup k _ m i Ω W n tc X $$ [Oa MI] with %hk
   · iframe Oa MI
   obtain ⟨fu, o, hk⟩ := hk
   ihave #EA := modelInterp_eventObl hk $$ MI
@@ -679,12 +680,12 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     imod Obl.inv_acc ⊤ N k P _ CoPset.subseteq_top $$ OI with ⟨Var, Hclose⟩
     imod lc_fupd_elim_later $$ LC Var with Var
     icases (Obl.variant_unfold k P _).1 $$ Var with (⟨Oa', HP'⟩ | ⟨#Of, #R⟩)
-    · icases Obl.assigned_modelInterp_lookup k _ g v' Ω' W' (n + 1) tp'.length $$ [Oa' MI']
-        with %hk'
+    · icases Obl.assigned_modelInterp_lookup k _ g v' Ω' W' (n + 1) tp'.length
+        (Cfg.crashed (tp', σ')) $$ [Oa' MI'] with %hk'
       · iframe Oa' MI'
       obtain ⟨fu', o', hk'⟩ := hk'
-      icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length i (n, Ω) k
-        (.assigned fu o) $$ [MI' EA] with %⟨-, -, -, -, hle⟩
+      icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) i
+        (n, Ω) k (.assigned fu o) $$ [MI' EA] with %⟨-, -, -, -, hle⟩
       · iframe MI' EA
       have hfu : fu' ≤ fu := by
         rcases hle.2 k _ _ hk hk' with ⟨h₁, -⟩ | h₁
@@ -712,8 +713,8 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     · -- discharged during the step: at `n` (before the step) or at `n + 1` (after)
       iunfold untilDischarged at R
       icases R with ⟨%n', %i', %Ω'', #EF, #TQ'⟩
-      icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length i' (n', Ω'') k
-        .discharged $$ [MI' EF] with %⟨-, -, -, hn₁, -⟩
+      icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ'))
+        i' (n', Ω'') k .discharged $$ [MI' EF] with %⟨-, -, -, hn₁, -⟩
       · iframe MI' EF
       icases eventObl_assigned_discharged_le $$ [EA EF] with %hn₂
       · iframe EA EF
@@ -768,8 +769,8 @@ theorem guar_untilI : ⊢@{IProp GF} untilI N k q P Q ⊨ₜ (TrSpec.canon P U�
 theorem guar_untilI_valid {G₁ G₂ : TrSpec Expr State GF} (hG₁ : ⊢ P ⊨ₜ G₁) (hG₂ : ⊢ Q ⊨ₜ G₂) :
     ⊢@{IProp GF} untilI N k q P Q ⊨ₜ (G₁ Uₛ G₂) :=
   guar_untilI.trans
-    (guar_weaken (TrSpec.strongUntil_mono (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG₁)
-      (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hG₂)))
+    (guar_weaken (TrSpec.strongUntil_mono (@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hG₁)
+      (@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hG₂)))
 
 /-! ## Inference -/
 

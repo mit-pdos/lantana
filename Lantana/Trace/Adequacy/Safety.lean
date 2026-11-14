@@ -75,8 +75,8 @@ end SafetyTrI
 
 section SafetyRun
 
-variable {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Obs Val GF]
-  [TemporalInterp Expr State GF]
+variable [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF]
+  [L : LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 
 /-- The running threads are safe (Rocq `lwp_fix_safety_iris_trI`): by Löb induction, each
 position is one `run_step`, which gives that no thread of the pool is stuck; the postcondition of
@@ -89,7 +89,8 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
       ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
         owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf ∧ j < tp.length ∧
         ∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ -∗
-      historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ threadsRun tp Ψ -∗
+      historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+        threadsRun tp Ψ -∗
       safetyIrisTrI j Φ ⟨n, τf⟩ := by
   iloeb as IH
   iintro %h %n %σ %tp %Ψ %g %v %Ω %W %⟨hsch, hcnt, hLb, hh, hj, hΨ⟩ ⟨HH, HM, HT⟩
@@ -134,11 +135,13 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
 end SafetyRun
 
 /-- Safety adequacy (Rocq `lwp_adequacy_safety_iris`): if, in every world, the initial threads
-can be given `lWP`s whose postcondition for the initial thread `j` implies `Φ j`, then every
-fair behavior from the initial configuration is safe for `j`: no thread of the pool is ever
-stuck, and `j`, once terminated, satisfies `Φ j`. -/
+can be given `lWP`s whose postcondition for the initial thread `j` implies `Φ j` (from the pieces
+of the initial threads, as in `lwp_adequacy_temporal`), then every fair behavior from the initial
+configuration is safe for `j`: no thread of the pool is ever stuck, and `j`, once terminated,
+satisfies `Φ j`. -/
 @[lantana_alias lwp_adequacy_safety_iris]
-theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
+theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
+    [TemporalGpreS Expr State GF]
     (σ : State) (tp : ThreadPool Expr) (j : ThreadId) (Φ : ThreadId → Val → Prop)
     (τ : Trace (Cfg Expr State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp, σ)) (hj : j < tp.length)
@@ -150,14 +153,15 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
             { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := forkPost }
           iprop(⌜∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ ∧ stateInterp σ tp ∗
             (£ₒ c -∗
-              ([∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
+              ([∗list] j ∈ List.range tp.length,
+                (⌜¬Cfg.crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) -∗
               |={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }}))) :
     safetyIris j Φ τ := by
   obtain ⟨n, τf⟩ := τ
   simp only at hpos hinit
   subst hpos
   obtain ⟨sched, γc, hsch, hγc⟩ := exists_fair_schedule_schedCounters hbeh hfair
-  obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp)
+  obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp (Cfg.crashed (tp, σ)))
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
   obtain ⟨c, hc⟩ := hwp
@@ -202,7 +206,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
   · unfold historyTInterp
     iframe HH HTI
   imod mupd_modelInterp_steps (fairMeasure (γc 0)) (owitInvLbMonoFair_fairMeasure _) ⊤ ⊤
-    [(σ, tp)] 0 σ tp [(0, ∅)] 0 ∅ ∅ tp.length _ hLb₀ $$ Hwp HHT HM
+    [(σ, tp)] 0 σ tp [(0, ∅)] 0 ∅ ∅ tp.length _ _ hLb₀ $$ Hwp HHT HM
     with ⟨HT, HHT, %g', %v', %Ω', %W', %⟨-, hLb'⟩, HM⟩
   have hfacts : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γc ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γc 0)) Ω' W' ∧ histTrace [(σ, tp)] τf ∧ j < tp.length ∧

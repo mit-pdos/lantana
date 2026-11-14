@@ -11,10 +11,11 @@ public import Lantana.Init
 
 Lantana's languages are Iris-Lean's (`Iris.ProgramLogic.Language`, `EctxLanguage`,
 `EctxItemLanguage`), used as they are.  This module adds what the program logic needs on top:
-the reducibility a stuckness requires (`Stuckness.maybeReducible`), the evaluation-context
-instances for composed functions and for the empty and composed contexts of an `EvContext`
-(candidates for upstream, `docs/iris-lean-proposal.md`), and the uniqueness of the context around
-a reducible expression of an `EctxItemLanguage`.
+the class `Crash` by which a language declares its crashed threads (a crashed thread is not
+finished, yet inactive), the reducibility a stuckness requires (`Stuckness.maybeReducible`), the
+evaluation-context instances for composed functions and for the empty and composed contexts of an
+`EvContext` (candidates for upstream, `docs/iris-lean-proposal.md`), and the uniqueness of the
+context around a reducible expression of an `EctxItemLanguage`.
 -/
 
 @[expose] public section
@@ -145,6 +146,16 @@ open Iris.ProgramLogic Iris.ProgramLogic.Language.Notation
 #lantana_ignore ectxi_lang_ctx_item "Iris-Lean's `EctxLanguage.instContextFill [Ki]`"
 
 variable {Expr State Obs Val Ectx : Type}
+
+/-! ## Crashed threads -/
+
+/-- The crashed threads of a language: whether the thread running an expression is crashed in a
+state. -/
+class Crash (Expr State : Type) (Obs Val : outParam Type) [Language Expr State Obs Val] where
+  /-- The thread running `e` is crashed in the state `σ`. -/
+  crashed : Expr → State → Prop
+  /-- A finished thread is not crashed. -/
+  crashed_not_val {e : Expr} {σ : State} : crashed e σ → toVal e = none
 
 /-! ## Reducibility required by a stuckness -/
 

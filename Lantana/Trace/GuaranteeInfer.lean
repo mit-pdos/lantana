@@ -46,7 +46,8 @@ open scoped Lantana.TrSpec Lantana.TrProp
 universe u
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
-variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [Crash Expr State Obs Val] [instM : ModelGS GF] [instT : TemporalGS Expr State GF]
+  [StateInterp Expr State GF]
 
 #lantana_ignore trSpec_inferred "`trSpecOf`."
 #lantana_ignore trSpec_of "A tactic; `trSpecOf P` reduces to the inferred specification."
@@ -73,8 +74,8 @@ theorem guar_ex_ghost_sort {X : Sort u} (P : X → IProp GF) (G : TrSpec Expr St
   iintro #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, %x, HP⟩
-  iapply guar_elim (P x) G h n σ tp m i Ω W tc $$ HG
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, %x, HP⟩
+  iapply guar_elim (P x) G h n σ tp m i Ω W tc X $$ HG
   iframe
 
 /-- How an existential over a family of guarantees is guaranteed, when inferring. -/
@@ -525,7 +526,7 @@ theorem naiveImpRule_unsound
   have hF : ∀ G : TrSpec Expr State GF, ⊢ iprop(False) ⊨ₜ G := fun G => by
     iapply guar_intro
     imodintro
-    iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨-, -, %hf⟩
+    iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨-, -, %hf⟩
     exact hf.elim
   iapply guar_mono (P := iprop(False → False)) $$ []
   · imodintro
