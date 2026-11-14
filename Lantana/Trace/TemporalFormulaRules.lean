@@ -457,6 +457,105 @@ theorem guar_untilIDone_valid (G₁ : TrSpec Expr State GF) {G₂ : TrSpec Expr 
 
 /-! ### Discharge -/
 
+/-- Opening the obligation invariant of an until held in full: its content with the whole
+assignment of `k`, and the closing that takes the content back, discharged or not, after which
+the half of the assignment kept rebuilds the until. -/
+theorem untilIGuar_acc_assigned {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
+    untilIGuar N k 1 P Q G₁ G₂ ⊢ |={E, E \ ↑N}=> ▷ (Obl.assigned k 1 ∗ P) ∗ ▷ (Q ⊨ₜ G₂) ∗
+      (▷ Obl.variant k P (untilDischarged k G₂) ={E \ ↑N, E}=∗
+        Obl.assigned k (Qp.half 1) -∗ untilIGuar N k 1 P Q G₁ G₂) := by
+  rw [untilIGuar_unfold]
+  iintro ⟨Oa, #U⟩
+  ihave #OI := untilIGuarPers_inv N k P Q G₁ G₂ $$ U
+  icases untilIGuarPers_guar N k P Q G₁ G₂ $$ U with ⟨-, #HG₂⟩
+  imod Obl.inv_acc_assigned E N k P _ hN $$ OI with H
+  icases H $$ %(Qp.half 1) Oa with ⟨H, ACC⟩
+  imodintro
+  isplitl [H]
+  · inext
+    icases H with ⟨Oa₁, Oa₂, HP⟩
+    iframe HP
+    iapply (Obl.assigned_halves k).mpr
+    iframe Oa₁ Oa₂
+  iframe HG₂
+  iintro V
+  imod ACC $$ V with -
+  imodintro
+  iintro Oa
+  iframe Oa U
+
+/-- The discharge of an until whose invariant is open, at any mask: `k`, a childless child of
+`p`, is discharged with a resource `X` that implies `Q`, which is given back with the content
+that closes the invariant (the record of `G₂` at the discharge). -/
+theorem untilIGuar_discharge_opened {G₂ : TrSpec Expr State GF} (E : CoPset) (p : Parent)
+    (K : Oids) (hk : k ∈ K) {X : IProp GF} (hX : X ⊢ Q) :
+    (Q ⊨ₜ G₂) ⊢ Obl.assigned k 1 -∗ Par.kids p K -∗ oblKids k ∅ -∗ X -∗
+      |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
+        Obl.variant k P (untilDischarged k G₂) := by
+  iintro #HG₂ Oa Kp Kk HX
+  imod Obl.discharge_leaf E p K k hk $$ Kp Kk Oa with ⟨Kp, #D⟩
+  imod mupd_read (E := E) (P := iprop(X ∗ untilDischarged k G₂)) $$ [HX] with ⟨HX, #R⟩
+  · iintro %h %n %σ %tp %g %i %Ω %W %tc %Y HI TI MI
+    ihave #TQ : record G₂ n $$ [HI MI HX]
+    · iapply guar_elim Q G₂ h n σ tp g i Ω W tc Y $$ HG₂
+      iframe HI MI
+      iapply hX $$ HX
+    icases Obl.discharged_modelInterp_lookup k g i Ω W n tc Y $$ [D MI] with %hkd
+    · iframe D MI
+    ihave #EF := modelInterp_eventObl hkd $$ MI
+    iframe MI
+    imodintro
+    iframe HI TI HX
+    iunfold untilDischarged
+    iexists n, i, Ω
+    iframe EF
+    iexact TQ
+  imodintro
+  iframe HX Kp D
+  iapply (Obl.variant_unfold k P _).2
+  iright
+  iframe D R
+
+theorem untilI_acc_assigned (hN : ↑N ⊆ E) :
+    untilI N k 1 P Q ⊢ |={E, E \ ↑N}=> ▷ (Obl.assigned k 1 ∗ P) ∗
+      (▷ Obl.variant k P (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q))
+        ={E \ ↑N, E}=∗ Obl.assigned k (Qp.half 1) -∗ untilI N k 1 P Q) := by
+  rw [untilI_eq]
+  iintro U
+  imod untilIGuar_acc_assigned hN $$ U with ⟨H, -, ACC⟩
+  imodintro
+  iframe H ACC
+
+theorem untilI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K)
+    {X : IProp GF} (hX : X ⊢ Q) :
+    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗
+      |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
+        Obl.variant k P (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q)) :=
+  (emp_sep.2.trans (sep_mono_left (guar_canon Q))).trans
+    (wand_elim (untilIGuar_discharge_opened E p K hk hX))
+
+theorem finallyI_acc_assigned (hN : ↑N ⊆ E) :
+    finallyI N k 1 Q ⊢ |={E, E \ ↑N}=> ▷ Obl.assigned k 1 ∗
+      (▷ Obl.variant k iprop(True)
+          (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q))
+        ={E \ ↑N, E}=∗ Obl.assigned k (Qp.half 1) -∗ finallyI N k 1 Q) := by
+  unfold finallyI
+  iintro U
+  imod untilI_acc_assigned hN $$ U with ⟨H, ACC⟩
+  imodintro
+  iframe ACC
+  inext
+  icases H with ⟨H, -⟩
+  iexact H
+
+theorem finallyI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K)
+    {X : IProp GF} (hX : X ⊢ Q) :
+    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗
+      |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
+        Obl.variant k iprop(True)
+          (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q)) :=
+  untilI_discharge_opened E p K hk hX
+
 /-- Discharge: `P` is taken out; once `Q` holds, `k` (a childless child of `p`) is discharged,
 the record of `G₂` at the discharge is left in the invariant, and the until becomes a done
 until (Rocq `untilI_guar_discharge_done`). -/
@@ -466,42 +565,19 @@ theorem untilIGuar_discharge_done {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N 
       ∀ (p : Parent) (K : Oids), ⌜k ∈ K⌝ → Par.kids p K -∗ oblKids k ∅ -∗ Q -∗
         ∀ E' : CoPset, |={E'}=>m |={E \ ↑N, E}=>
           (untilIDoneGuar k Q G₂ ∗ Par.kids p (K.erase k))) := by
-  rw [untilIGuar_unfold]
-  iintro ⟨Oa, #U⟩
-  ihave #OI := untilIGuarPers_inv N k P Q G₁ G₂ $$ U
-  icases untilIGuarPers_guar N k P Q G₁ G₂ $$ U with ⟨-, #HG₂⟩
-  imod Obl.inv_acc_assigned E N k P _ hN $$ OI with H
-  icases H $$ %(Qp.half 1) Oa with ⟨H, ACC⟩
+  iintro U
+  imod untilIGuar_acc_assigned hN $$ U with ⟨H, #HG₂, ACC⟩
   imodintro
   inext
-  icases H with ⟨Oa₁, Oa₂, HP⟩
+  icases H with ⟨Oa, HP⟩
   iframe HP
   iintro %p %K %hk Kp Kk HQ %E'
-  ihave Oa := (Obl.assigned_halves k).mpr $$ [Oa₁ Oa₂]
-  · iframe Oa₁ Oa₂
-  imod Obl.discharge_leaf E' p K k hk $$ Kp Kk Oa with ⟨Kp, #D⟩
-  imod mupd_read (E := E') (P := iprop(Q ∗ untilDischarged k G₂)) $$ [HQ] with ⟨HQ, #R⟩
-  · iintro %h %n %σ %tp %g %i %Ω %W %tc %X HI TI MI
-    ihave #TQ : record G₂ n $$ [HI MI HQ]
-    · iapply guar_elim Q G₂ h n σ tp g i Ω W tc X $$ HG₂
-      iframe HI MI HQ
-    icases Obl.discharged_modelInterp_lookup k g i Ω W n tc X $$ [D MI] with %hkd
-    · iframe D MI
-    ihave #EF := modelInterp_eventObl hkd $$ MI
-    iframe MI
-    imodintro
-    iframe HI TI HQ
-    iunfold untilDischarged
-    iexists n, i, Ω
-    iframe EF
-    iexact TQ
+  imod untilIGuar_discharge_opened (P := P) E' p K hk .rfl $$ HG₂ Oa Kp Kk HQ
+    with ⟨HQ, Kp, #D, V⟩
   imodintro
-  imod ACC $$ [] with -
+  imod ACC $$ [V] with -
   · inext
-    iapply (Obl.variant_unfold k P _).2
-    iright
-    iframe D
-    iexact R
+    iexact V
   imodintro
   iframe Kp
   iunfold untilIDoneGuar

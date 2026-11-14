@@ -27,9 +27,12 @@ The lemmas of a step take the hypothesis that it keeps the statuses (`KeepsCrash
 same threads are crashed before and after; free in a language that never crashes,
 `KeepsCrashed.of_never`).  The most general one, `lwp_lift_step_gen`, covers the other steps: a
 thread crashed in the current configuration steps for free, and a step that crashes or recovers
-threads hands in the nodes of the newly crashed ones and receives those of the recovered ones;
-`lwp_lift_step` (a running thread) and `lwp_lift_step_crashed` (a crashed one) are its forms for a
-step that keeps the statuses.
+threads hands in the nodes of the newly crashed ones and receives those of the recovered ones
+(`Th.nodes`); `lwp_lift_step_gen_si` is its form over the state interpretation, with a model
+update at the empty mask inside the physical round.  `lwp_lift_step_or_crashed` is its form for
+a step that keeps the statuses, the thread choosing after seeing the configuration whether it
+pays or is crashed; `lwp_lift_step` (a running thread) and `lwp_lift_step_crashed` (a crashed
+one) commit to one case.
 -/
 
 @[expose] public noncomputable section
@@ -110,15 +113,6 @@ theorem KeepsCrashed.of_never (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crash
     (i : ThreadId) (e₁ : Expr) : KeepsCrashed (Ectx := Ectx) i e₁ :=
   fun _ _ _ _ _ _ _ _ _ _ => Cfg.crashed_eq_of_never hnc _ _
 
-/-- When the bits do not change, the physical round hands in and out no node. -/
-private theorem nodes_unchanged (tc : Nat) (X : ThreadId → Prop) (P : IProp GF) :
-    P ⊢ ([∗list] j ∈ List.range tc, ⌜¬X j ∧ X j⌝ -∗ thActive j ∗ thKids j ∅) ∗
-      (([∗list] j ∈ List.range tc, ⌜X j ∧ ¬X j⌝ -∗ thActive j ∗ thKids j ∅) -∗ P) := by
-  refine emp_sep.2.trans (sep_mono (BigSepL.bigSepL_intro fun _ j _ => ?_)
-    (wand_intro sep_elim_left))
-  iintro - %hj
-  exact (hj.1 hj.2).elim
-
 /-- The most general lifting lemma, `lwpStep` with the progress and physical rounds applied: the
 thread pays its bill `G`, one unit of fuel of each of its obligations, and gets it back (`G' = G`),
 or, crashed in the current configuration, pays nothing and gets it back empty (`G' = ∅`); after the
@@ -139,12 +133,10 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
             ALC (|=[n + 1]=>m
-              ([∗list] j ∈ List.range (tp.length + efs.length),
-                ⌜¬Cfg.crashed (tp, σ₁) j ∧ Cfg.crashed (tp.set i (fill K e₂) ++ efs, σ₂) j⌝
-                  -∗ thActive j ∗ thKids j ∅) ∗
-              (([∗list] j ∈ List.range (tp.length + efs.length),
-                ⌜Cfg.crashed (tp, σ₁) j ∧ ¬Cfg.crashed (tp.set i (fill K e₂) ++ efs, σ₂) j⌝
-                  -∗ thActive j ∗ thKids j ∅) -∗
+              Th.nodes (tp.length + efs.length) (fun j =>
+                ¬Cfg.crashed (tp, σ₁) j ∧ Cfg.crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) ∗
+              (Th.nodes (tp.length + efs.length) (fun j =>
+                  Cfg.crashed (tp, σ₁) j ∧ ¬Cfg.crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) -∗
               mupdFancy ∅ E (n + 1)
                 iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
                     (tp.set i (fill K e₂) ++ efs) ∗
@@ -203,6 +195,53 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
   · subst hG
     iapply step_progress_crashed n tp.length _ hc G R $$ HG HR H
 
+/-- `lwp_lift_step_gen` for a step that keeps the statuses: having seen the configuration, the
+thread pays its bill (`G' = G`) or, crashed, nothing (`G' = ∅`), and no node is handed. -/
+theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+    (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+        (tp : ThreadPool Expr),
+      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+      historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
+        ⌜s.maybeReducible e₁ σ₁⌝ ∗
+        ∃ G G', thCarriers i G ∗
+          (oblFuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
+          ∃ R, witLayers R ∗
+          ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+            ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
+            thCarriers i G' -∗ witCreds R -∗
+            ([∗list] j ∈ List.range efs.length,
+              thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
+            ALC (mupdFancy ∅ E (n + 1)
+              iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
+                  (tp.set i (fill K e₂) ++ efs) ∗
+                |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
+                  [∗list] j ↦ ef ∈ efs,
+                    lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }}))))
+      ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
+  iintro H
+  iapply lwp_lift_step_gen he
+  iintro %K %h %n %σ₁ %tp %hK %hi Hσ
+  imod H $$ %K %h %n %σ₁ %tp %hK %hi Hσ with H
+  imodintro
+  iapply mupdBase_wand $$ [] H
+  iintro ⟨%hred, %G, %G', HG, HF, %R, HR, H⟩
+  isplitr
+  · ipureintro
+    exact hred
+  iexists G, G'
+  iframe HG HF
+  iexists R
+  iframe HR
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  imod H $$ %obs %e₂ %σ₂ %efs %hstep with H
+  imodintro
+  iintro HG HW Hforks
+  ispecialize H $$ HG HW Hforks
+  iapply ALC_wand $$ [] H
+  iintro H
+  iapply mupdBase_intro
+  iapply Th.nodes_unchanged _ (hX K tp σ₁ obs e₂ σ₂ efs hK hi hstep) $$ H
+
 /-- `lwpStep` with the progress and fork rounds of the step applied, for a step that keeps the
 statuses (Rocq `lwp_step_step` and `lwp_lift_step`). -/
 @[lantana_alias lwp_lift_step, lantana_alias lwp_step_step]
@@ -226,7 +265,7 @@ theorem lwp_lift_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
                     lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }}))))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
-  iapply lwp_lift_step_gen he
+  iapply lwp_lift_step_or_crashed he hX
   iintro %K %h %n %σ₁ %tp %hK %hi Hσ
   imod H $$ %K %h %n %σ₁ %tp %hK %hi Hσ with H
   imodintro
@@ -244,16 +283,7 @@ theorem lwp_lift_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
     rfl
   iexists R
   iframe HR
-  iintro %obs %e₂ %σ₂ %efs %hstep
-  imod H $$ %obs %e₂ %σ₂ %efs %hstep with H
-  imodintro
-  iintro HG HW Hforks
-  ispecialize H $$ HG HW Hforks
-  rw [hX K tp σ₁ obs e₂ σ₂ efs hK hi hstep]
-  iapply ALC_wand $$ [] H
-  iintro H
-  iapply mupdBase_intro
-  iapply nodes_unchanged $$ H
+  iexact H
 
 /-- `lwp_lift_step` for a thread crashed in the current configuration: it takes its bill `G`,
 pays nothing, and gets it back empty. -/
@@ -277,7 +307,7 @@ theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁
                     lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }}))))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
-  iapply lwp_lift_step_gen he
+  iapply lwp_lift_step_or_crashed he hX
   iintro %K %h %n %σ₁ %tp %hK %hi Hσ
   imod H $$ %K %h %n %σ₁ %tp %hK %hi Hσ with H
   imodintro
@@ -294,16 +324,7 @@ theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁
     exact ⟨hc, rfl⟩
   iexists R
   iframe HR
-  iintro %obs %e₂ %σ₂ %efs %hstep
-  imod H $$ %obs %e₂ %σ₂ %efs %hstep with H
-  imodintro
-  iintro HG HW Hforks
-  ispecialize H $$ HG HW Hforks
-  rw [hX K tp σ₁ obs e₂ σ₂ efs hK hi hstep]
-  iapply ALC_wand $$ [] H
-  iintro H
-  iapply mupdBase_intro
-  iapply nodes_unchanged $$ H
+  iexact H
 
 /-- `lwp_lift_step` over the state interpretation: the history and the interpretation of the
 temporal layer are threaded, and no model update is taken around the step. -/
@@ -356,6 +377,77 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
   iframe Hs Ha HT H
   ipureintro
   simp [hh.1]
+
+/-- `lwp_lift_step_gen` over the state interpretation, given back right after the step: inside
+the physical round, a model update at the empty mask, run against the history of the new
+configuration, hands in the nodes of the threads the step crashes and receives those of the
+threads it recovers. -/
+theorem lwp_lift_step_gen_si (he : toVal e₁ = none) :
+    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+      stateInterp σ₁ tp ={E,∅}=∗
+        ⌜s.maybeReducible e₁ σ₁⌝ ∗
+        ∃ G G', thCarriers i G ∗
+          (oblFuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
+          ∃ R, witLayers R ∗
+          ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+            ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
+            stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
+            (thCarriers i G' -∗ witCreds R -∗
+              ([∗list] j ∈ List.range efs.length,
+                thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗
+                  thCarriers (tp.length + j) ∅) -∗
+              ALC (|={∅}=>m
+                Th.nodes (tp.length + efs.length) (fun j =>
+                  ¬Cfg.crashed (tp, σ₁) j ∧ Cfg.crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) ∗
+                (Th.nodes (tp.length + efs.length) (fun j =>
+                    Cfg.crashed (tp, σ₁) j ∧ ¬Cfg.crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) -∗
+                  |={∅,E}=> |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
+                    [∗list] j ↦ ef ∈ efs,
+                      lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))))
+      ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
+  iintro H
+  iapply lwp_lift_step_gen he
+  iintro %K %h %n %σ₁ %tp %hK %hi Hσ
+  iunfold historyTInterp, historyInterp at Hσ
+  icases Hσ with ⟨⟨%hh, Ha, Hs⟩, HT⟩
+  imod H $$ %K %σ₁ %tp %hK %hi Hs with ⟨%hred, %G, %G', HG, HF, %R, HR, H⟩
+  imodintro
+  imodintro
+  isplitr
+  · ipureintro
+    exact hred
+  iexists G, G'
+  iframe HG HF
+  iexists R
+  iframe HR
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  imod H $$ %obs %e₂ %σ₂ %efs %hstep with ⟨Hs, H⟩
+  imod histAuth_append h [(σ₂, tp.set i (fill K e₂) ++ efs)] $$ Ha with Ha
+  imodintro
+  iintro HG HW Hforks
+  ispecialize H $$ HG HW Hforks
+  iapply ALC_wand $$ [Ha HT Hs] H
+  iintro H
+  ihave HH : historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
+      (tp.set i (fill K e₂) ++ efs) $$ [Ha HT Hs]
+  · iunfold historyTInterp, historyInterp
+    iframe Ha HT Hs
+    ipureintro
+    simp [hh.1]
+  imod mupd_elim $$ H HH with H
+  imod H with H
+  imod H with ⟨HH, Hin, Hout⟩
+  imodintro
+  iframe Hin
+  iintro Hout'
+  ispecialize Hout $$ Hout'
+  unfold mupdFancy
+  imodintro
+  imodintro
+  imod Hout with H
+  imodintro
+  iframe HH H
 
 @[lantana_alias lwp_lift_stuck]
 theorem lwp_lift_stuck (he : toVal e = none) :

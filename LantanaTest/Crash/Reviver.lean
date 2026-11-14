@@ -77,9 +77,9 @@ theorem reviver_spec (k k' : Oid) :
     · -- crashed: the step recovers the worker, whose node comes out of the model
       obtain ⟨n, hn⟩ := hS.work_of_fin hf
       isplitl []
-      · iapply nodes_none _ fun j h => not_crashed_true _ j h.2
+      · iapply Th.nodes_none _ fun j _ h => not_crashed_true _ j h.2
       iintro Hout
-      icases nodes_zero_out hlen
+      icases Th.nodes_elim hlen
         ⟨crashed_cfg_iff.mpr ⟨⟨n, hn⟩, rfl⟩, not_crashed_true _ 0⟩ $$ Hout with ⟨Ha0, Hk0⟩
       imod Hcl with -
       imod Hclose $$ [Hv Ha0 Hk0 HC] with -
@@ -92,7 +92,7 @@ theorem reviver_spec (k k' : Oid) :
         iframe Ha0 Hk0 HC
       iapply ret_done ⊤ 2 $$ Ha2 Hk2
     · -- alive and unfinished: nothing changes
-      iapply nodes_keep _ (hkeep true)
+      iapply Th.nodes_unchanged _ (hkeep true)
       imod Hcl with -
       imod Hclose $$ [Hv HC] with -
       · inext
@@ -102,7 +102,7 @@ theorem reviver_spec (k k' : Oid) :
       iapply ret_done ⊤ 2 $$ Ha2 Hk2
     all_goals
       -- finished: no thread is crashed, before or after
-      iapply nodes_keep _ (Cfg.crashed_eq_of_iff fun j =>
+      iapply Th.nodes_unchanged _ (Cfg.crashed_eq_of_iff fun j =>
         ⟨fun h => (not_crashed_fin hS' hfin _ j h).elim,
           fun h => (not_crashed_fin hS hf _ j h).elim⟩)
       imod Hcl with -

@@ -8,12 +8,11 @@ public import LantanaTest.Crash.Lang
 
 /-! # A language whose threads crash: the step rule and the facts about the pool
 
-`lwp_step` is `lwp_lift_step_gen` for this language at the level of its state interpretation:
-before the step the thread chooses, having seen the configuration, to pay its bill (running) or
-nothing (crashed); after it, under the step's later credits, a model update at the empty mask
-(where the history already is at the new configuration) hands in the nodes of the threads the
-step crashes and receives those of the threads it recovers. The facts about the pool say which
-threads a step crashes or recovers.
+`lwp_step` is the library's `lwp_lift_step_gen_si` for this language: before the step the thread
+chooses, having seen the configuration, to pay its bill (running) or nothing (crashed); after it,
+under the step's later credits, a model update at the empty mask hands in the nodes of the
+threads the step crashes and receives those of the threads it recovers (`Th.nodes`). The facts
+about the pool say which threads a step crashes or recovers.
 -/
 
 @[expose] public noncomputable section
@@ -130,75 +129,16 @@ theorem not_crashed_fin {tp : ThreadPool Exp} (hS : Shape tp) (hf : fin tp = tru
   rw [hn] at hf
   simp at hf
 
-/-! ## Handing nodes in and out -/
-
-section Nodes
-variable {GF : BundledGFunctors} [ModelGS GF]
-
-/-- When the statuses do not change, nothing is handed in and nothing comes out. -/
-theorem nodes_keep (tc : Nat) {X Y : ThreadId → Prop} (hXY : Y = X) (P : IProp GF) :
-    P ⊢ ([∗list] j ∈ List.range tc, ⌜¬X j ∧ Y j⌝ -∗ thActive j ∗ thKids j ∅) ∗
-      (([∗list] j ∈ List.range tc, ⌜X j ∧ ¬Y j⌝ -∗ thActive j ∗ thKids j ∅) -∗ P) := by
-  subst hXY
-  refine emp_sep.2.trans (sep_mono (BigSepL.bigSepL_intro fun _ j _ => ?_)
-    (wand_intro sep_elim_left))
-  iintro - %hj
-  exact (hj.1 hj.2).elim
-
-/-- The nodes of the threads that satisfy `φ`, when only thread `0` may: the node of `0`. -/
-theorem nodes_zero (tc : Nat) {φ : ThreadId → Prop} (hφ : ∀ j, φ j → j = 0) :
-    thActive 0 ∗ thKids 0 ∅ ⊢@{IProp GF}
-      [∗list] j ∈ List.range tc, ⌜φ j⌝ -∗ thActive j ∗ thKids j ∅ := by
-  cases tc with
-  | zero =>
-    rw [List.range_zero]
-    exact BigSepL.bigSepL_nil_intro
-  | succ tc =>
-    have hrest : ⊢@{IProp GF} [∗list] j ∈ List.range tc,
-        ⌜φ (j + 1)⌝ -∗ thActive (j + 1) ∗ thKids (j + 1) ∅ :=
-      BigSepL.bigSepL_intro fun _ j _ => by
-        iintro - %hj
-        exact (Nat.succ_ne_zero j (hφ _ hj)).elim
-    rw [List.range_succ_eq_map]
-    iintro H
-    iapply BigSepL.bigSepL_cons.mpr
-    isplitl [H]
-    · iintro -
-      iexact H
-    · rw [BigSepL.bigSepL_map]
-      iapply hrest
-
-/-- When no thread satisfies `φ`, there is no node to hand. -/
-theorem nodes_none (tc : Nat) {φ : ThreadId → Prop} (hφ : ∀ j, ¬φ j) :
-    ⊢@{IProp GF} [∗list] j ∈ List.range tc, ⌜φ j⌝ -∗ thActive j ∗ thKids j ∅ :=
-  BigSepL.bigSepL_intro fun _ j _ => by
-    iintro - %hj
-    exact (hφ j hj).elim
-
-/-- The node of thread `0`, among the nodes of the threads that satisfy `φ`, when `0` does. -/
-theorem nodes_zero_out {tc : Nat} (htc : 0 < tc) {φ : ThreadId → Prop} (hφ : φ 0) :
-    ([∗list] j ∈ List.range tc, ⌜φ j⌝ -∗ thActive j ∗ thKids j ∅) ⊢@{IProp GF}
-      thActive 0 ∗ thKids 0 ∅ := by
-  obtain ⟨tc, rfl⟩ : ∃ m, tc = m + 1 := ⟨tc - 1, by omega⟩
-  rw [List.range_succ_eq_map]
-  iintro H
-  icases BigSepL.bigSepL_cons.mp $$ H with ⟨H, -⟩
-  iapply H
-  ipureintro
-  exact hφ
-
-end Nodes
-
 /-! ## The step rule -/
 
 section Lifting
 variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Exp} {Φ : Unit → IProp GF}
 
-/-- A step of thread `i` from `e₁`: having seen the configuration, the thread pays its bill `G`
-(`G' = G`) or, crashed, nothing (`G' = ∅`); after the step, under the step's later credits, a
-model update at the empty mask hands in the nodes of the threads the step crashes and receives
-those of the threads it recovers. -/
+/-- `lwp_lift_step_gen_si` for this language, which has no context, no fork and no witness: having
+seen the configuration, the thread pays its bill `G` (`G' = G`) or, crashed, nothing (`G' = ∅`);
+after the step, a model update at the empty mask hands in the nodes of the threads the step
+crashes and receives those of the threads it recovers. -/
 theorem lwp_step (he : toVal e₁ = none) :
     (∀ (σ₁ : St) (tp : ThreadPool Exp), ⌜tp[i]? = some e₁⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
@@ -207,21 +147,16 @@ theorem lwp_step (he : toVal e₁ = none) :
         ∀ (e₂ : Exp) (σ₂ : St), ⌜Step e₁ σ₁ e₂ σ₂⌝ ={∅}=∗
           stateInterp σ₂ (tp.set i e₂) ∗
           (thCarriers i G' -∗ ALC (|={∅}=>m
-            ([∗list] j ∈ List.range tp.length,
-              ⌜¬Cfg.crashed (tp, σ₁) j ∧ Cfg.crashed (tp.set i e₂, σ₂) j⌝ -∗
-                thActive j ∗ thKids j ∅) ∗
-            (([∗list] j ∈ List.range tp.length,
-              ⌜Cfg.crashed (tp, σ₁) j ∧ ¬Cfg.crashed (tp.set i e₂, σ₂) j⌝ -∗
-                thActive j ∗ thKids j ∅) -∗
+            Th.nodes tp.length (fun j =>
+              ¬Cfg.crashed (tp, σ₁) j ∧ Cfg.crashed (tp.set i e₂, σ₂) j) ∗
+            (Th.nodes tp.length (fun j =>
+                Cfg.crashed (tp, σ₁) j ∧ ¬Cfg.crashed (tp.set i e₂, σ₂) j) -∗
               |={∅,E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }}))))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
-  iapply lwp_lift_step_gen he
-  iintro %K %h %n %σ₁ %tp %_ %hi Hσ
-  iunfold historyTInterp, historyInterp at Hσ
-  icases Hσ with ⟨⟨%hh, Ha, Hs⟩, HT⟩
+  iapply lwp_lift_step_gen_si he
+  iintro %K %σ₁ %tp %_ %hi Hs
   imod H $$ %σ₁ %tp %hi Hs with ⟨%hred, %G, %G', HG, HF, H⟩
-  imodintro
   imodintro
   isplitr
   · ipureintro
@@ -236,31 +171,19 @@ theorem lwp_step (he : toVal e₁ = none) :
   iintro %obs %e₂ %σ₂ %efs %hstep
   obtain ⟨hst, rfl⟩ := primStep_iff.mp hstep
   imod H $$ %e₂ %σ₂ %hst with ⟨Hs, H⟩
-  imod histAuth_append h [(σ₂, tp.set i e₂)] $$ Ha with Ha
   imodintro
+  simp only [fill_eq, List.append_nil, List.length_nil, Nat.add_zero]
+  iframe Hs
   iintro HG - -
   ispecialize H $$ HG
-  simp only [fill_eq, List.append_nil, List.length_nil, Nat.add_zero]
-  iapply ALC_wand $$ [Ha HT Hs] H
+  iapply ALC_wand $$ [] H
   iintro H
-  ihave HH : historyTInterp (h ++ [(σ₂, tp.set i e₂)]) (n + 1) σ₂ (tp.set i e₂) $$ [Ha HT Hs]
-  · iunfold historyTInterp, historyInterp
-    iframe Ha HT Hs
-    ipureintro
-    simp [hh.1]
-  imod mupd_elim $$ H HH with H
-  imod H with H
-  imod H with ⟨HH, Hin, Hout⟩
-  imodintro
+  iapply mupd_wand $$ [] H
+  iintro ⟨Hin, Hout⟩
   iframe Hin
   iintro Hout'
-  ispecialize Hout $$ Hout'
-  unfold mupdFancy
+  imod Hout $$ Hout' with H
   imodintro
-  imodintro
-  imod Hout with H
-  imodintro
-  iframe HH
   iapply mupd_wand $$ [] H
   iintro H
   iframe H

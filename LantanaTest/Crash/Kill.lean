@@ -21,7 +21,8 @@ later credit of its own) and the obligation invariants of `k'` and `k` (whose co
 and halves of the assignments, are timeless), then goes to the empty mask. Inside the physical
 round, at the new configuration (the state already `false`), it discharges `k'` and then `k` with
 the crash disjunct (`finallyI_discharge_opened`), which empties the node, and hands it in; the
-invariants are closed after the round. The killer's other steps keep the statuses.
+invariants, opened by `finallyI_acc_assigned`, are closed after the round. The killer's other
+steps keep the statuses.
 -/
 
 @[expose] public noncomputable section
@@ -101,49 +102,6 @@ theorem stVar_doneOrCrashed_fin (q : Qp) (b : Bool) :
   exact .inr rfl
 
 end
-
-/-! ## Discharging inside the physical round -/
-
-section Discharge
-variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
-
-/-- Discharging the obligation `k` of a finally of `Q` whose invariant has been opened, at the
-current position: `k` (a childless child of `p`) is discharged with a resource `X` that implies
-`Q` (and is given back), and the content of the invariant becomes the discharged one, with the
-record of `Q` at the discharge. This is the discharge of `untilI_discharge_done` without the
-closing of the invariant, so that it runs at the empty mask. -/
-theorem finallyI_discharge_opened (k : Oid) {Q X : IProp GF} (hX : X ⊢ Q) (p : Parent)
-    (K : Oids) (hk : k ∈ K) :
-    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗
-      |={∅}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
-        Obl.variant k iprop(True) (untilDischarged k (TrSpec.canon Q)) := by
-  iintro Oa Kp Kk HX
-  imod Obl.discharge_leaf ∅ p K k hk $$ Kp Kk Oa with ⟨Kp, #D⟩
-  ihave #HG := guar_canon (Expr := Exp) (State := St) Q
-  imod mupd_read (E := ∅) (P := iprop(X ∗ untilDischarged k (TrSpec.canon Q))) $$ [HX]
-    with ⟨HX, #R⟩
-  · iintro %h %n %σ %tp %g %i %Ω %W %tc %Y HI TI MI
-    ihave #TQ : record (TrSpec.canon (Expr := Exp) (State := St) Q) n $$ [HI MI HX]
-    · iapply guar_elim Q _ h n σ tp g i Ω W tc Y $$ HG
-      iframe HI MI
-      iapply hX $$ HX
-    icases Obl.discharged_modelInterp_lookup k g i Ω W n tc Y $$ [D MI] with %hkd
-    · iframe D MI
-    ihave #EF := Model.modelInterp_eventObl hkd $$ MI
-    iframe MI
-    imodintro
-    iframe HI TI HX
-    iunfold untilDischarged
-    iexists n, i, Ω
-    iframe EF
-    iexact TQ
-  imodintro
-  iframe HX Kp D
-  iapply (Obl.variant_unfold k _ _).2
-  iright
-  iframe D R
-
-end Discharge
 
 /-! ## The killer -/
 
@@ -226,7 +184,7 @@ theorem killer_spec (k k' : Oid) :
     iintro HG
     iapply ALC_intro
     imodintro
-    iapply nodes_keep _ (hkeep false)
+    iapply Th.nodes_unchanged _ (hkeep false)
     imod Hcl with -
     imod Hclose $$ [Hv HC] with -
     · inext
@@ -240,17 +198,8 @@ theorem killer_spec (k k' : Oid) :
     · -- its obligations: the invariants of `k'` and `k` are opened before the step
       iunfold workerObls at HW
       icases HW with ⟨Ha0, Hk0, HU, Hkk, HU', Hkk'⟩
-      simp only [finallyI, untilI_unfold]
-      icases HU with ⟨Oa, #U⟩
-      icases HU' with ⟨Oa', #U'⟩
-      ihave #OI := untilIPers_inv Nk k _ _ $$ U
-      ihave #OI' := untilIPers_inv Nk' k' _ _ $$ U'
-      imod Obl.inv_acc_assigned (⊤ \ ↑Ninv) Nk' k' _ _ Nk'_subseteq $$ OI' with H'
-      icases H' $$ %(Qp.half 1) Oa' with ⟨H', Hcl'⟩
-      imod H' with ⟨Oa', Ob', -⟩
-      imod Obl.inv_acc_assigned ((⊤ \ ↑Ninv) \ ↑Nk') Nk k _ _ Nk_subseteq $$ OI with H
-      icases H $$ %(Qp.half 1) Oa with ⟨H, Hcl⟩
-      imod H with ⟨Oa, Ob, -⟩
+      imod finallyI_acc_assigned Nk'_subseteq $$ HU' with ⟨>Oa', Hcl'⟩
+      imod finallyI_acc_assigned Nk_subseteq $$ HU with ⟨>Oa, Hcl⟩
       iapply fupd_mask_intro Std.LawfulSet.empty_subset
       iintro Hcl₀
       isplitr
@@ -273,19 +222,15 @@ theorem killer_spec (k k' : Oid) :
           exact hS'
         iintro HG
         iapply ALC_intro
-        ihave Oa := (Obl.assigned_halves k).mpr $$ [Oa Ob]
-        · iframe Oa Ob
-        ihave Oa' := (Obl.assigned_halves k').mpr $$ [Oa' Ob']
-        · iframe Oa' Ob'
-        imod finallyI_discharge_opened k' (stVar_doneOrCrashed (Qp.half 1) false) (.obl k) {k'}
-          (mem_singleton k') $$ Oa' Hkk Hkk' Hv with ⟨Hv, Hkk, #Dk', V'⟩
+        imod finallyI_discharge_opened ∅ (.obl k) {k'} (mem_singleton k')
+          (stVar_doneOrCrashed (Qp.half 1) false) $$ Oa' Hkk Hkk' Hv with ⟨Hv, Hkk, #Dk', V'⟩
         rw [erase_singleton]
-        imod finallyI_discharge_opened k (stVar_doneOrCrashed (Qp.half 1) false) (.thread 0) {k}
-          (mem_singleton k) $$ Oa Hk0 Hkk Hv with ⟨Hv, Hk0, #Dk, V⟩
+        imod finallyI_discharge_opened ∅ (.thread 0) {k} (mem_singleton k)
+          (stVar_doneOrCrashed (Qp.half 1) false) $$ Oa Hk0 Hkk Hv with ⟨Hv, Hk0, #Dk, V⟩
         rw [erase_singleton]
         imodintro
         isplitl [Ha0 Hk0]
-        · iapply nodes_zero _ hφ
+        · iapply Th.nodes_single _ fun j _ => hφ j
           iframe Ha0 Hk0
         iintro -
         imod Hcl₀ with -
@@ -314,19 +259,23 @@ theorem killer_spec (k k' : Oid) :
         iintro HG
         iapply ALC_intro
         imodintro
-        iapply nodes_keep _ (hkeep true)
+        iapply Th.nodes_unchanged _ (hkeep true)
+        icases (Obl.assigned_halves k).mp $$ Oa with ⟨Oa, Ob⟩
+        icases (Obl.assigned_halves k').mp $$ Oa' with ⟨Oa', Ob'⟩
         imod Hcl₀ with -
-        imod Hcl $$ [Oa] with -
+        imod Hcl $$ [Oa] with HU
         · inext
           iapply (Obl.variant_unfold k _ _).2
           ileft
           iframe Oa
-        imod Hcl' $$ [Oa'] with -
+        imod Hcl' $$ [Oa'] with HU'
         · inext
           iapply (Obl.variant_unfold k' _ _).2
           ileft
           iframe Oa'
-        imod Hclose $$ [Hv Ha0 Hk0 Ob Hkk Ob' Hkk'] with -
+        ispecialize HU $$ Ob
+        ispecialize HU' $$ Ob'
+        imod Hclose $$ [Hv Ha0 Hk0 HU Hkk HU' Hkk'] with -
         · inext
           iunfold crashInv
           iexists true, false
@@ -334,8 +283,7 @@ theorem killer_spec (k k' : Oid) :
           simp only [crashProto]
           ileft
           iunfold workerObls
-          simp only [finallyI, untilI_unfold]
-          iframe Ha0 Hk0 Ob Hkk Ob' Hkk' U U'
+          iframe Ha0 Hk0 HU Hkk HU' Hkk'
         iapply ret_done ⊤ 1 $$ Ha1 Hk1
     · -- revived: its empty node, no obligations
       iapply fupd_mask_intro Std.LawfulSet.empty_subset
@@ -361,7 +309,7 @@ theorem killer_spec (k k' : Oid) :
         iapply ALC_intro
         imodintro
         isplitl [Ha0 Hk0]
-        · iapply nodes_zero _ hφ
+        · iapply Th.nodes_single _ fun j _ => hφ j
           iframe Ha0 Hk0
         iintro -
         imod Hcl with -
@@ -383,7 +331,7 @@ theorem killer_spec (k k' : Oid) :
         iintro HG
         iapply ALC_intro
         imodintro
-        iapply nodes_keep _ (hkeep true)
+        iapply Th.nodes_unchanged _ (hkeep true)
         imod Hcl with -
         imod Hclose $$ [Hv Ha0 Hk0] with -
         · inext
@@ -418,7 +366,7 @@ theorem killer_spec (k k' : Oid) :
     iintro HG
     iapply ALC_intro
     imodintro
-    iapply nodes_keep _ (Cfg.crashed_eq_of_iff fun j =>
+    iapply Th.nodes_unchanged _ (Cfg.crashed_eq_of_iff fun j =>
       ⟨fun h => (not_crashed_fin hS' hfin _ j h).elim,
         fun h => (not_crashed_fin hS hf _ j h).elim⟩)
     imod Hcl with -
