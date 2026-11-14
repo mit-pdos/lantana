@@ -97,6 +97,12 @@ the new position, where a formula such as "… or the worker is crashed" already
 why an obligation of a thread that may be crashed by another carries such a disjunct, and why
 its token and its children are kept where the other thread can reach them.
 
+That update runs at the empty mask.  The invariants of the obligations to discharge are
+therefore opened before the step and closed after it, which needs their namespaces to be
+pairwise disjoint: `untilIGuar_acc_assigned` opens one and gives the whole assignment of the
+obligation, `untilIGuar_discharge_opened` discharges it at any mask and gives the emptied
+parent and the content that closes the invariant.
+
 A step that recovers a thread receives its node, and can put obligations under it again.
 
 ## 5. Lifting lemmas
@@ -127,3 +133,20 @@ a crashed one by its bit.  The model is allocated at the crashed threads of the 
 configuration, so the premise hands every initial thread `j` its bill `thCarriers j ∅`, and its
 node `thActive j ∗ thKids j ∅` if it is not crashed; `initThreads_of_not_crashed` gives the
 plain list when no thread is.
+
+## 7. A worked example
+
+`LantanaTest/Crash/` verifies a small language end to end: a worker that counts down and
+finishes, a killer that crashes it or gives up, and a reviver.  The worker owes two nested
+obligations whose formulas say "the worker has finished, or it is crashed"; their tokens and
+the worker's children sit in an invariant shared with the killer, and the worker keeps its
+bill and the fuel.
+
+- The killer's step that crashes the worker discharges both obligations with the crash
+  disjunct inside the physical round and hands in the worker's node (`Kill.lean`).
+- The worker pays its bill while it is alive, discharges its obligations and ends its thread
+  when it finishes, and steps for free for ever while it is crashed (`Worker.lean`).
+- The reviver's step receives the worker's node and puts it back in the invariant
+  (`Reviver.lean`).
+- `crash_adequacy` and `crash_revive_adequacy` (`Adequacy.lean`): on every behavior on which
+  the active threads are fairly scheduled, the worker eventually finishes or is crashed.
