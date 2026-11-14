@@ -7,6 +7,7 @@ module
 public import LantanaTest.Adequacy
 public import LantanaTest.Algebra
 public import LantanaTest.Basic
+public import LantanaTest.Crash
 public import LantanaTest.Credits
 public import LantanaTest.Examples
 public import LantanaTest.ExamplesAdequacy
