@@ -9,22 +9,10 @@ public import Lantana.Trace.Adequacy.Temporal
 
 /-! # Adequacy: safety
 
-Rocq `lantana/trace/adequacy_safety.v`: Iris-style safety on fair behaviors, read off the run
-directly (no guarantees): no thread of the pool is ever stuck, and a terminated thread `j` of
-the initial pool satisfies its postcondition. (Rocq asks it of the scheduled thread; traces here
-carry no thread label, and the statement for every thread is the stronger one.) Lantana-Lean
-derives it from the single-step simulation `run_step`, which also exposes the pure facts of the
-step that safety needs, instead of duplicating that proof: the step-indexed reading
-`safetyIrisTrI` (an `always` of a pure predicate) is a Löb induction whose body is one
-`run_step` (`threadsRun_safety`), and satisfiability reads it off (`safetyIrisTrI_trProp`).
-
-The temporal layer is interpreted by the registry state (`regTemporalInterp`), initialised from
-the empty registry of the allocation (`regStateWith_init`); the proof of `threadsRun_safety` is
-generic in the interpretation.
-
-Adaptation: Rocq requires the postcondition of `j` to be given (`Ψs !! j = Some Q`), i.e. `j`
-to be an initial thread; here the postconditions are a function, so `j < tp.length` is a
-hypothesis (a thread forked later gets `forkPost`, about which nothing is assumed).
+`lwp_adequacy_safety`: on every fair behavior, no thread of the pool is ever stuck, and a
+terminated initial thread `j` satisfies its postcondition. Its step-indexed reading
+`safetyIrisTrI` is a Löb induction over `run_step` (`threadsRun_safety`).
+See `docs/adequacy.md`, §5.5. Rocq: `lantana/trace/adequacy_safety.v`.
 -/
 
 @[expose] public noncomputable section
@@ -38,7 +26,7 @@ open scoped Lantana.TrProp
 
 variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvContext Expr Ectx]
 
-/-- If thread `j` has terminated with the value `v`, then `Φ j v` (Rocq `if_term_val`). -/
+/-- If thread `j` has terminated with the value `v`, then `Φ j v`. -/
 @[lantana_alias if_term_val]
 def Cfg.ifTermVal (j : ThreadId) (Φ : ThreadId → Val → Prop) (ρ : Cfg Expr State) : Prop :=
   ∀ e v, ρ.1[j]? = some e → toVal e = some v → Φ j v
@@ -49,7 +37,7 @@ def safeNow (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr S
   TrProp.atomic Cfg.notStuck ∧ₜ TrProp.atomic (Cfg.ifTermVal (Val := Val) j Φ)
 
 /-- Iris-style safety: always, no thread of the pool is stuck and a terminated thread `j`
-satisfies `Φ j` (Rocq `safety_iris`). -/
+satisfies `Φ j`. -/
 @[lantana_alias safety_iris]
 def safetyIris (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
   □ₜ (TrProp.atomic Cfg.notStuck ∧ₜ TrProp.atomic (Cfg.ifTermVal (Val := Val) j Φ))
@@ -58,13 +46,12 @@ section SafetyTrI
 
 variable {GF : BundledGFunctors} [ModelGS GF]
 
-/-- The step-indexed reading of safety (Rocq `safety_iris_trI`, with the one-formula
-`TrIProp.always`: Rocq's second formula is only used with `True`). -/
+/-- The step-indexed reading of safety. -/
 @[lantana_alias safety_iris_trI]
 def safetyIrisTrI (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrIProp Expr State GF :=
   TrIProp.always fun τ => iprop(⌜safeNow (Expr := Expr) (State := State) j Φ τ⌝)
 
-/-- Satisfiability of the step-indexed reading gives safety (Rocq `safety_iris_trI_trProp`). -/
+/-- Satisfiability of the step-indexed reading gives safety. -/
 @[lantana_alias safety_iris_trI_trProp]
 theorem safetyIrisTrI_trProp (F : IProp GF) (j : ThreadId) (Φ : ThreadId → Val → Prop)
     (τ : Trace (Cfg Expr State)) (hs : (iPropSatLcAtFrame F ⊤).sat (safetyIrisTrI j Φ τ)) :
@@ -78,9 +65,7 @@ section SafetyRun
 variable [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF]
   [L : LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 
-/-- The running threads are safe (Rocq `lwp_fix_safety_iris_trI`): by Löb induction, each
-position is one `run_step`, which gives that no thread of the pool is stuck; the postcondition of
-`j` holds whenever `j` is a value, and does not change across steps. -/
+/-- The running threads are safe from position `n` on. -/
 @[lantana_alias lwp_fix_safety_iris_trI]
 theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId)
     (γ : Nat → ThreadId → Nat) (j : ThreadId) (Φ : ThreadId → Val → Prop) :
@@ -134,11 +119,9 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
 
 end SafetyRun
 
-/-- Safety adequacy (Rocq `lwp_adequacy_safety_iris`): if, in every world, the initial threads
-can be given `lWP`s whose postcondition for the initial thread `j` implies `Φ j` (from the pieces
-of the initial threads, as in `lwp_adequacy_temporal`), then every fair behavior from the initial
-configuration is safe for `j`: no thread of the pool is ever stuck, and `j`, once terminated,
-satisfies `Φ j`. -/
+/-- **Safety adequacy.** If the initial threads can be given `lWP`s whose postcondition for the
+initial thread `j` implies `Φ j`, as in `lwp_adequacy_temporal`, then on every fair behavior from
+the initial configuration no thread is ever stuck, and `j`, once terminated, satisfies `Φ j`. -/
 @[lantana_alias lwp_adequacy_safety_iris]
 theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
     [TemporalGpreS Expr State GF]

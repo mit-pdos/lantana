@@ -10,35 +10,11 @@ public import Lantana.ProgramLogic.WeakestPre
 
 /-! # Temporal guarantees `P ⊨ₜ G`: records, certificates and the one-step property
 
-Rocq `lantana/trace/guarantee.v`: a persistent guarantee `P ⊨ₜ G` states that whenever `P`
-holds, the rest of the execution satisfies the trace specification `G`; adequacy concludes
-`G.external`.
-
-At position `n`, `P ⊨ₜ G` turns `P` (with the history and model interpretations) into a
-persistent **record** `record G n`, which gives the internal reading of `G` at `n` once the step
-from `n` is made. A record may be written in the pre-step update of step `n` (e.g. by
-discharging an until), so it is eliminated after the step, against the **bundle** of
-certificates for `n`: each registered structure (`TemporalRegistry`) has its content certified
-at every position (`certPre`, a later-guarded record). A record holds for any running system
-with the **one-step property** `sysStep` (`lWP` is one, `Adequacy/Temporal`). Between steps the
-model is at the view of the configuration (its thread count and its crashed threads,
-`Cfg.crashed`); a guarantee, used inside model updates, reads it at any view.
-
-The pure facts about the run `τf : Nat → Cfg Expr State`: the schedule
-`sched : Nat → ThreadId`, the adequacy proof's internal instrument (traces carry no thread
-label), names a thread whose trace step each position is (`Schedule sched ⟨0, τf⟩`); the
-fairness counters are an explicit sequence `γ : Nat → ThreadId → Nat` along the run under the
-schedule (`SchedCounters sched γ ⟨0, τf⟩`); the witnesses are bounded below by the fair-scheduler
-measure of the current counters (`owitInvLb`); the ghost history is a prefix of the run
-(`histTrace`); and across a step every assigned obligation's measure drops (`oblsDrop`). The
-first two are trace properties of the run from position `0` (`Lantana.Temporal.ThreadSystem`,
-`Lantana.Temporal.Fairness.Scheduling`), read at a position `n` through `schedule_iff` and
-`schedCounters_iff`; they are the same at every position. Records are a guarded fixpoint
-(`recordTrI`): the certificates hold the records under a later.
-
-`TrSpec.canon P` is the canonical (strongest) specification guaranteed by `P`. The rules are in
-`Lantana.Trace.GuaranteeRules`; the class `StateFact` of the atoms of trace specifications is
-here, so that a language can provide its instances without the rules.
+The guarantee `P ⊨ₜ G` (`Guar`): whenever `P` holds, the rest of the execution satisfies `G`.
+Its records (`record`, the guarded fixpoint `recordTrI`), the certificates and bundles of the
+checks (`cert`, `bundle`), the one-step property of a running system (`sysStep`), the canonical
+specification `TrSpec.canon` and the class `StateFact`. See `docs/adequacy.md`, §2.
+Rocq: `lantana/trace/guarantee.v`.
 -/
 
 @[expose] public noncomputable section
@@ -71,9 +47,8 @@ abbrev SysT (Expr State : Type) (GF : BundledGFunctors) :=
 section Pre
 variable [ModelGS GF] [TemporalGS Expr State GF]
 
-/-- The certificate of a registered item at `n`: a later-guarded record of its content at `n`.
-For an until, the record of its left or right formula at `n`, or, if it was discharged at
-`n' ≤ n`, the record of its right formula at `n'`. -/
+/-- The certificate of a registered entry at `n`: a later-guarded record of its content at `n`,
+or, for an until discharged at `n' ≤ n`, of its right formula at `n'`. -/
 @[lantana_alias cert_pre]
 def certPre (tg : RecT Expr State GF) (n : Nat) : RegEntry → IProp GF
   | .mark => iprop(True)
@@ -92,10 +67,8 @@ def bundlePre (tg : RecT Expr State GF) (l : List (Nat × RegEntry)) (n : Nat) :
 
 variable [Language Expr State Obs Val] [Crash Expr State Obs Val] [StateInterp Expr State GF]
 
-/-- The one-step property of `Sys`: from a consistent system at `n`, the bundle for `n` (the
-check), then after the step the system at `n + 1`, the facts about the step and `c` later
-credits. The model is at the view of the configuration (its thread count and its crashed
-threads). The modalities are those of `TrIProp.defer`. -/
+/-- The one-step property of `Sys`: from the system at `n`, the bundle for `n`, then after the
+step the system at `n + 1`, the facts about the step and `c` later credits. -/
 @[lantana_alias sys_step_pre]
 def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :=
   iprop(□ ∀ (c : Nat) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
@@ -220,7 +193,7 @@ instance recordTrI_ne (n : Nat) :
     iterate 12 refine forall_ne fun _ => ?_
     exact wand_ne.ne .rfl <| wand_ne.ne .rfl <| wand_ne.ne .rfl <| wand_ne.ne .rfl (hf _)
 
-/-- Records of internally equal readings (the agreement of saved readings is internal). -/
+/-- Records of internally equal readings. -/
 @[lantana_alias record_trI_eq]
 theorem recordTrI_internalEq (f g : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(f ≡ g) ⊢ recordTrI f n -∗ recordTrI g n :=
@@ -365,8 +338,8 @@ theorem record_mono {G G' : TrSpec Expr State GF} (hG : G ⊑ₛ G') (n : Nat) :
 
 /-! ## Guarantees -/
 
-/-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`. `P` comes with the
-history and the model, at any view: a model update reads the model at any view. -/
+/-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`; `P` comes with the
+history and the model at any view. -/
 @[lantana_alias guar]
 def Guar (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF :=
   iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
@@ -449,8 +422,8 @@ end Canon
 
 /-! ## State facts -/
 
-/-- `StateFact P φ`: the state interpretation and `P` determine the state predicate `φ`; the
-atoms of trace properties (Rocq `guarantee_rules.v`; the rule is `guar_state_fact`). -/
+/-- `StateFact P φ`: the state interpretation and `P` determine the state predicate `φ` (the
+rule is `guar_state_fact`). -/
 @[lantana_alias StateFact]
 class StateFact [StateInterp Expr State GF] (P : IProp GF)
     (φ : outParam (State → ThreadPool Expr → Prop)) : Prop where

@@ -8,35 +8,10 @@ public import Lantana.Trace.Guarantee
 
 /-! # Adequacy: one step of the run
 
-Rocq `lantana/trace/adequacy_temporal.v`, l.16–246 (`threads_run`, `run_step`), generic in the
-interpretation of the temporal layer (Rocq `history_tinterp`): one step of a fair behavior is
-simulated by the `lWP`s of the threads (`threadsRun`), threading the history, the model and the
-temporal interpretation, under the deferred shape `|={⊤,∅}=> ALC (|={∅,⊤}=> …)`.
-
-The run is a sequence of configurations `τf` with a schedule `sched`, the adequacy proof's
-internal instrument: at every position `n`, the thread `sched n` takes a trace step
-(`Schedule sched ⟨0, τf⟩`). No thread of the pool is stuck at `n`: a stuck thread's `lWP` (at
-`NotStuck`) proves its reducibility, whichever thread it is. `run_step` then inverts the trace
-step of the thread the schedule names:
-* it steps (a crashed thread too, as it is not a value): its `lWP` takes the step (the pre-step
-  model update, the progress round with the witnesses of `mprog_exists_step`, the physical round
-  with its later credits, the post-step model update), the forked threads start running, and
-  finished threads run their postconditions' model updates;
-* it is a value: the configuration stutters, the counters drop (`owitInvLb_step_na_turn`);
-* it is stuck: impossible, as above.
-
-Unlike Rocq's, `run_step` also exposes the pure facts of the step that Iris-style safety needs
-(no thread of the pool is stuck at the current position, the postconditions of the old threads
-do not change), so that `Lantana.Trace.Adequacy.Safety` is a Löb induction over it.
-
-Between steps the model is at the view of the configuration: its thread count and its crashed
-threads (`Cfg.crashed`); the physical round moves it to the view of the next configuration, and a
-stutter keeps it.  At that view and with the `Th.done` tokens of the finished threads, it shows
-every owner of an obligation active (`oblsThreadActive_keep`), as the drop of the measures needs.
-
-The threads are a pool `tp` with a postcondition function `Ψ`: thread `j` runs with
-`liftTerm j Ψ`, which only reads `Ψ j`. After a step, the forked threads `tp.length + k` get the
-postcondition `forkPost` (`postFork Ψ tp.length`).
+`run_step`: one step of a fair behavior, simulated by the `lWP`s of the threads of the pool
+(`threadsRun`), threading the history and temporal interpretation and the model, in the deferred
+shape `|={⊤,∅}=> ALC (|={∅,⊤}=> …)`; it also gives the facts of the step that safety needs
+(`runStepPost`). See `docs/adequacy.md`, §5.3. Rocq: `lantana/trace/adequacy_temporal.v`.
 -/
 
 @[expose] public noncomputable section
@@ -52,9 +27,8 @@ variable {Expr State Obs Val : Type} [Λ : Language Expr State Obs Val]
 
 /-! ## Pure facts about the run -/
 
-/-- No thread of the pool of `ρ` is stuck: each is a value or can step (Rocq `not_stuck`, for the
-scheduled thread there; here for every thread of the pool, since the run names none). -/
-@[lantana_alias adequacy_safety.not_stuck] -- shadows `language.not_stuck` in Rocq too
+/-- No thread of the pool of `ρ` is stuck: each is a value or can step. -/
+@[lantana_alias adequacy_safety.not_stuck]
 def Cfg.notStuck (ρ : Cfg Expr State) : Prop :=
   ∀ (i : ThreadId) (e : Expr), ρ.1[i]? = some e → PrimStep.NotStuck (e, ρ.2)
 
@@ -105,7 +79,7 @@ def threadRun (j : ThreadId) (e : Expr) (Ψ : ThreadId → Val → IProp GF) : I
   | some v => liftTerm j Ψ v
   | none => lWP e @ j; ⊤ {{ liftTerm j Ψ }}
 
-/-- The running threads of the pool `tp` with postconditions `Ψ` (Rocq `threads_run`). -/
+/-- The running threads of the pool `tp` with postconditions `Ψ`. -/
 @[lantana_alias threads_run]
 def threadsRun (tp : ThreadPool Expr) (Ψ : ThreadId → Val → IProp GF) : IProp GF :=
   iprop([∗list] j ↦ e ∈ tp, threadRun j e Ψ)
@@ -188,7 +162,7 @@ theorem lwp_threadRun (j : ThreadId) (e : Expr) (Ψ : ThreadId → Val → IProp
   · rw [threadRun_of_toVal he]
     exact (lwp_value_mupd_of_toVal he).mp
 
-/-- The initial threads run (Rocq, in `lwp_adequacy_internal`). -/
+/-- The initial threads run. -/
 theorem lwps_threadsRun (tp : ThreadPool Expr) (Ψ : ThreadId → Val → IProp GF) :
     ([∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }}) ⊢ |={⊤}=>m threadsRun tp Ψ := by
   unfold threadsRun
@@ -238,10 +212,8 @@ theorem historyTInterp_stutter (h : List (HistEntry Expr State)) (n : Nat) (σ :
 
 /-! ## One step of the run -/
 
-/-- What `run_step` gives after the step from `n`, with `c` later credits: the system at
-`n + 1` (history, model at the view of the new configuration, threads) and the facts about the
-step — those of the one-step property (`sysStepPre`), and the safety facts of the position `n`:
-no thread of the pool is stuck, and the old threads keep their postconditions. -/
+/-- What `run_step` gives after the step from `n`: the system at `n + 1`, `c` later credits, the
+facts of the one-step property, and those that safety needs. -/
 def runStepPost (c : Nat) (h : List (HistEntry Expr State)) (n : Nat)
     (τf : Nat → Cfg Expr State) (γ : Nat → ThreadId → Nat) (tp : ThreadPool Expr)
     (Ψ : ThreadId → Val → IProp GF) (Ω : Obls) : IProp GF :=
@@ -280,8 +252,7 @@ theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → I
   iapply H $$ %h %n %σ %tp %(Language.Context.fillEmpty (Ectx := Ectx)) %hi
 
 omit L [TemporalInterp Expr State GF] in
-/-- The owners of the obligations are active at the configuration `ρ = (tp, σ)`
-(`getOblsThreadActive`, with the model at the crashed threads of `ρ`), keeping the model. -/
+/-- `getOblsThreadActive`, keeping the model. -/
 theorem oblsThreadActive_keep {tp : ThreadPool Expr} {σ : State} {ρ : Cfg Expr State}
     (hρ : ρ = (tp, σ)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (n : Nat) :
     doneTokens tp ∗ modelInterp (GF := GF) g v Ω W n tp.length (Cfg.crashed (tp, σ)) ⊢
@@ -421,11 +392,8 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     oblsDrop_step hi hcnt hle₀ hprog (Obls.le_trans hle₃ (Obls.le_trans hle₄ hle₅)) hact₂, hns,
     by omega, fun _ hj => postFork_lt hj⟩
 
-/-- **One step of the run** (Rocq `run_step`, generalized for safety): from the system at `n` on a
-run under a schedule with fairness counters (the history and temporal interpretation, the model,
-the running threads), the system at `n + 1` with the facts about the step (`runStepPost`) and
-`c` later credits, in the deferred shape. No thread of the pool is stuck at `n`; the step is the
-trace step of the thread the schedule names. -/
+/-- **One step of the run**: from the system at `n`, the system at `n + 1` with the facts about
+the step (`runStepPost`), in the deferred shape. -/
 @[lantana_alias run_step]
 theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
@@ -439,7 +407,7 @@ theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : Sta
   iintro ⟨HH, HM, HT⟩
   icases persistent_entails_left (historyTInterp_wf h n σ tp) $$ HH with ⟨HH, %⟨hlen, hlast⟩⟩
   have hnow := hh n σ tp hlast
-  -- no thread of the pool is stuck: a stuck thread's `lWP` proves its reducibility
+  -- no thread of the pool is stuck
   by_cases hns : (τf n).notStuck
   case neg =>
     rw [hnow] at hns

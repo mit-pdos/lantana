@@ -10,28 +10,10 @@ public import Lantana.Trace.Adequacy.RunStep
 
 /-! # Adequacy (Theorem 1)
 
-Rocq `lantana/trace/adequacy_temporal.v`: `lWP` is a running system with the one-step
-property, so if the initial resources guarantee `G`, every fair behavior from the initial
-configuration satisfies the trace reading of `G`.
-
-The running system of `lWP` (`sysLwp`) is the registry state and the running threads; its
-one-step property (`sysStep_lwp`) is the check of the registry (`regCheck`) followed by one step
-of the run (`run_step`, in `Lantana.Trace.Adequacy.RunStep`). From a position `n`
-(`lwp_adequacy_internal`), the user's model update gives a resource `P` that guarantees `G`
-(whose record at `n` is eliminated after the first step against the bundle of the check at `n`)
-and the `lWP`s of the threads. The theorem allocates the ghost state at its names, small enough
-for the existential property of satisfiability (`adequacy_alloc_names`), with the model at the
-view of the initial configuration (the crashed threads' nodes held by the model, the other
-threads' handed to the user), and reads the internal reading off by satisfiability
-(`TrSpec.adeq`).
-
-The behavior carries no thread label. The proof chooses a fair schedule of it and fairness
-counters under that schedule (`exists_fair_schedule_schedCounters`), the instruments that the run is
-threaded with.
-
-The ghost state is allocated inside the proof, so the premise quantifies over its instances; the
-user then chooses the state interpretation (after allocating the language's ghost state), the
-fork postcondition and the per-thread postconditions.
+`lwp_adequacy_temporal`: if the initial resources guarantee `G`, every fair behavior from the
+initial configuration satisfies the trace reading of `G`. `lWP` is a running system with the
+one-step property (`sysStep_lwp`), run from a position by `lwp_adequacy_internal`.
+See `docs/adequacy.md`, §5.1. Rocq: `lantana/trace/adequacy_temporal.v`.
 -/
 
 @[expose] public noncomputable section
@@ -58,8 +40,8 @@ variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvConte
   [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF]
   [L : LantanaGS Expr State Obs Val GF]
 
-/-- The running system of `lWP` (Rocq `sys_lwp`): the registry state and the running threads
-of the pool, for some postconditions. -/
+/-- The running system of `lWP`: the registry state and the running threads of the pool, for
+some postconditions. -/
 @[lantana_alias sys_lwp]
 def sysLwp (_ : Nat) (_ : State) (tp : ThreadPool Expr) : IProp GF :=
   iprop(regState (Expr := Expr) (State := State) ∗
@@ -72,8 +54,7 @@ theorem historyTInterp_reg (h : List (HistEntry Expr State)) (n : Nat) (σ : Sta
       historyInterp h n σ tp ∗ regState (Expr := Expr) (State := State) :=
   .rfl
 
-/-- **The one-step property of `lWP`** (Rocq `sys_step_lwp`): the check of the registry gives
-the bundle, then one step of the run. -/
+/-- **The one-step property of `lWP`**: the check of the registry, then one step of the run. -/
 @[lantana_alias sys_step_lwp]
 theorem sysStep_lwp :
     ⊢ sysStep (sysLwp (Expr := Expr) (State := State) (Obs := Obs) (Val := Val) (GF := GF)) := by
@@ -113,9 +94,8 @@ theorem sysStep_lwp :
   iexists Ψ'
   iexact HT
 
-/-- The program logic from position `n` (Rocq `lwp_adequacy_internal`): the user's model
-update gives a resource `P` guaranteeing `G` and the `lWP`s of the threads; the record of `G`
-at `n` is eliminated after the first step, against the bundle of the check at `n`. -/
+/-- The program logic from position `n`: the user's model update gives a resource `P` that
+guarantees `G` and the `lWP`s of the threads. -/
 @[lantana_alias lwp_adequacy_internal]
 theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} (Ψ : ThreadId → Val → IProp GF) {g : List MEvent} {v : Nat}
@@ -178,9 +158,8 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
 
 end Lwp
 
-/-- The pieces of the initial threads that the adequacy theorems hand, when no thread of the
-initial configuration is crashed: every thread gets its running handle, its empty children and
-its empty bill. -/
+/-- The pieces of the initial threads in the premise of the adequacy theorems, when no initial
+thread is crashed. -/
 theorem initThreads_of_not_crashed {Expr State Obs Val : Type} [Language Expr State Obs Val]
     [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF] {σ : State}
     {tp : ThreadPool Expr} (h : ∀ j, ¬ Cfg.crashed (tp, σ) j) :
@@ -192,16 +171,11 @@ theorem initThreads_of_not_crashed {Expr State Obs Val : Type} [Language Expr St
     iframe Hc
     iapply H $$ %(h j)
 
-/-- **Theorem 1 (adequacy).** Let `G` be a trace specification and `R` a trace property implied
-by its trace reading. If, for every allocation of the temporal ghost state (the model at the
-crashed threads of the initial configuration), the user can produce (under a fancy update, from
-some amount `c` of later credits and the initial threads' empty bills, with the running handles
-and the empty sets of children of those not crashed, `initThreads_of_not_crashed`) a resource `P`
-that guarantees `G` together with `lWP`s for the initial threads, then every fair behavior from
-the initial configuration satisfies `R`.
-Fairness is the strong fairness of every thread's scheduling action (`fairScheduling`, a trace
-property), enabled where the thread is active (`Cfg.active`, which a crashed thread is not); the
-proof chooses a schedule as its instrument (`exists_fair_schedule_schedCounters`). -/
+/-- **Theorem 1 (adequacy).** If, for every allocation of the temporal ghost state, the initial
+resources give a resource `P` that guarantees `G` and `lWP`s for the initial threads, then every
+behavior from the initial configuration on which the threads are fairly scheduled satisfies
+`G.external`, hence `R`. Each initial thread gets its empty bill, and its running handle and
+empty children if it is not crashed. -/
 @[lantana_alias lwp_adequacy_temporal]
 theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val]
     [EvContext Expr Ectx] [Crash Expr State Obs Val] {GF : BundledGFunctors}
