@@ -484,6 +484,28 @@ theorem untilIGuar_acc_assigned {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N �
   iintro Oa
   iframe Oa U
 
+/-- The record of the right formula of a discharged obligation at the current position, from a
+resource `X` that implies `Q`, which is given back. -/
+theorem untilIGuar_record_discharged {G₂ : TrSpec Expr State GF} (E : CoPset) {X : IProp GF}
+    (hX : X ⊢ Q) : (Q ⊨ₜ G₂) ⊢ Obl.discharged k -∗ X -∗ |={E}=>m X ∗ untilDischarged k G₂ := by
+  iintro #HG₂ #D HX
+  iapply mupd_read
+  iintro %h %n %σ %tp %g %i %Ω %W %tc %Y HI TI MI
+  ihave #TQ : record G₂ n $$ [HI MI HX]
+  · iapply guar_elim Q G₂ h n σ tp g i Ω W tc Y $$ HG₂
+    iframe HI MI
+    iapply hX $$ HX
+  icases Obl.discharged_modelInterp_lookup k g i Ω W n tc Y $$ [D MI] with %hkd
+  · iframe D MI
+  ihave #EF := modelInterp_eventObl hkd $$ MI
+  iframe MI
+  imodintro
+  iframe HI TI HX
+  iunfold untilDischarged
+  iexists n, i, Ω
+  iframe EF
+  iexact TQ
+
 /-- The discharge of an until whose invariant is open, at any mask: `k`, a childless child of
 `p`, is discharged with a resource `X` that implies `Q`, which is given back with the content
 that closes the invariant (the record of `G₂` at the discharge). -/
@@ -494,22 +516,7 @@ theorem untilIGuar_discharge_opened {G₂ : TrSpec Expr State GF} (E : CoPset) (
         Obl.variant k P (untilDischarged k G₂) := by
   iintro #HG₂ Oa Kp Kk HX
   imod Obl.discharge_leaf E p K k hk $$ Kp Kk Oa with ⟨Kp, #D⟩
-  imod mupd_read (E := E) (P := iprop(X ∗ untilDischarged k G₂)) $$ [HX] with ⟨HX, #R⟩
-  · iintro %h %n %σ %tp %g %i %Ω %W %tc %Y HI TI MI
-    ihave #TQ : record G₂ n $$ [HI MI HX]
-    · iapply guar_elim Q G₂ h n σ tp g i Ω W tc Y $$ HG₂
-      iframe HI MI
-      iapply hX $$ HX
-    icases Obl.discharged_modelInterp_lookup k g i Ω W n tc Y $$ [D MI] with %hkd
-    · iframe D MI
-    ihave #EF := modelInterp_eventObl hkd $$ MI
-    iframe MI
-    imodintro
-    iframe HI TI HX
-    iunfold untilDischarged
-    iexists n, i, Ω
-    iframe EF
-    iexact TQ
+  imod untilIGuar_record_discharged E hX $$ HG₂ D HX with ⟨HX, #R⟩
   imodintro
   iframe HX Kp D
   iapply (Obl.variant_unfold k P _).2
@@ -525,6 +532,12 @@ theorem untilI_acc_assigned (hN : ↑N ⊆ E) :
   imod untilIGuar_acc_assigned hN $$ U with ⟨H, -, ACC⟩
   imodintro
   iframe H ACC
+
+theorem untilI_record_discharged (E : CoPset) {X : IProp GF} (hX : X ⊢ Q) :
+    Obl.discharged k ⊢ X -∗
+      |={E}=>m X ∗ untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q) :=
+  (emp_sep.2.trans (sep_mono_left (guar_canon Q))).trans
+    (wand_elim (untilIGuar_record_discharged E hX))
 
 theorem untilI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K)
     {X : IProp GF} (hX : X ⊢ Q) :
@@ -623,6 +636,179 @@ theorem untilI_discharge (hN : ↑N ⊆ E) :
         ∀ E' : CoPset, |={E'}=>m |={E \ ↑N, E}=>
           (Q ∗ Par.kids p (K.erase k) ∗ Obl.discharged k)) := by
   rw [untilI_eq]; exact untilIGuar_discharge hN
+
+/-! ### Sets of untils
+
+A finite set `S` of untils held in full opens at once, to a mask `E'` that their pairwise
+disjoint namespaces avoid; the records of a set of discharged obligations come from one
+resource that implies all their right formulas. -/
+
+section Sets
+open BigSepS LawfulSet
+variable {S : Oids} {E' : CoPset} {N : Oid → Namespace} {P Q : Oid → IProp GF}
+
+/-- Opening the obligation invariants of a finite set of untils held in full, whose namespaces
+are pairwise disjoint and outside `E'`: each content with the whole assignment under one later,
+and the closing that takes the contents back and rebuilds each until from the half kept. -/
+theorem untilIGuar_acc_assigned_set {G₁ G₂ : Oid → TrSpec Expr State GF} (hE' : E' ⊆ E)
+    (hN : ∀ k, k ∈ S → ↑(N k) ⊆ E \ E')
+    (hdisj : ∀ k k', k ∈ S → k' ∈ S → k ≠ k' → (↑(N k) : CoPset) ## ↑(N k')) :
+    ([∗set] k ∈ S, untilIGuar (N k) k 1 (P k) (Q k) (G₁ k) (G₂ k)) ⊢ |={E, E'}=>
+      ([∗set] k ∈ S, ▷ (Obl.assigned k 1 ∗ P k) ∗ ▷ (Q k ⊨ₜ G₂ k)) ∗
+      (([∗set] k ∈ S, ▷ Obl.variant k (P k) (untilDischarged k (G₂ k))) ={E', E}=∗
+        [∗set] k ∈ S, (Obl.assigned k (Qp.half 1) -∗
+          untilIGuar (N k) k 1 (P k) (Q k) (G₁ k) (G₂ k))) := by
+  induction S using FiniteSet.set_ind generalizing E with
+  | hemp =>
+    iintro -
+    iapply fupd_mask_intro hE'
+    iintro Hclose
+    isplitr
+    · iapply bigSepS_empty.2
+      iempintro
+    · iintro -
+      imod Hclose with -
+      imodintro
+      iapply bigSepS_empty.2
+      iempintro
+  | hadd x T hx ih =>
+    have hNx' := hN x (mem_insert.2 (.inl rfl))
+    have hNx : ↑(N x) ⊆ E := fun p hp => (mem_diff.1 (hNx' p hp)).1
+    have hE'x : E' ⊆ E \ ↑(N x) := fun p hp =>
+      mem_diff.2 ⟨hE' p hp, fun hpN => (mem_diff.1 (hNx' p hpN)).2 hp⟩
+    have hNT : ∀ k, k ∈ T → ↑(N k) ⊆ (E \ ↑(N x)) \ E' := fun k hk p hp => by
+      have hkx : k ≠ x := fun h => hx (h ▸ hk)
+      have hp' := mem_diff.1 (hN k (mem_insert_of_mem hk) p hp)
+      exact mem_diff.2 ⟨mem_diff.2 ⟨hp'.1, fun hpN =>
+        hdisj k x (mem_insert_of_mem hk) (mem_insert.2 (.inl rfl)) hkx p ⟨hp, hpN⟩⟩, hp'.2⟩
+    have hdisjT : ∀ k k', k ∈ T → k' ∈ T → k ≠ k' → (↑(N k) : CoPset) ## ↑(N k') :=
+      fun k k' hk hk' => hdisj k k' (mem_insert_of_mem hk) (mem_insert_of_mem hk')
+    iintro Us
+    icases (bigSepS_insert hx).1 $$ Us with ⟨U, Us⟩
+    imod untilIGuar_acc_assigned hNx $$ U with ⟨H₁, #HG₂, ACC⟩
+    imod ih hE'x hNT hdisjT $$ Us with ⟨H, ACCs⟩
+    imodintro
+    isplitl [H₁ H]
+    · iapply (bigSepS_insert hx).2
+      iframe H₁ H
+      iexact HG₂
+    · iintro Vs
+      icases (bigSepS_insert hx).1 $$ Vs with ⟨V, Vs⟩
+      imod ACCs $$ Vs with Ws
+      imod ACC $$ V with W
+      imodintro
+      iapply (bigSepS_insert hx).2
+      iframe W Ws
+
+/-- The masks of the namespaces `N₀.@k` below `N₀`, opened from `E` to `E \ ↑N₀`. -/
+private theorem ndot_masks {N₀ : Namespace} (hN : ↑N₀ ⊆ E) :
+    E \ ↑N₀ ⊆ E ∧ (∀ k : Oid, ↑(N₀.@k) ⊆ E \ (E \ ↑N₀)) ∧
+      ∀ k k' : Oid, k ≠ k' → (↑(N₀.@k) : CoPset) ## ↑(N₀.@k') :=
+  ⟨diff_subset_left, fun k p hp => mem_diff.2 ⟨hN p (nclose_subseteq N₀ k p hp),
+    fun h => (mem_diff.1 h).2 (nclose_subseteq N₀ k p hp)⟩,
+    fun _ _ hkk' => ndot_ne_disjoint N₀ hkk'⟩
+
+/-- The opening of a set of untils whose namespaces `N₀.@k` lie below `N₀`. -/
+theorem untilIGuar_acc_assigned_set_ndot {G₁ G₂ : Oid → TrSpec Expr State GF} {N₀ : Namespace}
+    (hN : ↑N₀ ⊆ E) :
+    ([∗set] k ∈ S, untilIGuar (N₀.@k) k 1 (P k) (Q k) (G₁ k) (G₂ k)) ⊢ |={E, E \ ↑N₀}=>
+      ([∗set] k ∈ S, ▷ (Obl.assigned k 1 ∗ P k) ∗ ▷ (Q k ⊨ₜ G₂ k)) ∗
+      (([∗set] k ∈ S, ▷ Obl.variant k (P k) (untilDischarged k (G₂ k))) ={E \ ↑N₀, E}=∗
+        [∗set] k ∈ S, (Obl.assigned k (Qp.half 1) -∗
+          untilIGuar (N₀.@k) k 1 (P k) (Q k) (G₁ k) (G₂ k))) :=
+  have ⟨hE', hNk, hdisj⟩ := ndot_masks hN
+  untilIGuar_acc_assigned_set hE' (fun k _ => hNk k) fun k k' _ _ => hdisj k k'
+
+/-- The records of the right formulas of a set of discharged obligations, from one resource `X`
+that implies all of them, which is given back: the contents that close their invariants. -/
+theorem untilIGuar_record_discharged_set {G₂ : Oid → TrSpec Expr State GF} (E : CoPset)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.discharged k) ⊢ X -∗
+      |={E}=>m X ∗ [∗set] k ∈ S, Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
+  induction S using FiniteSet.set_ind with
+  | hemp =>
+    iintro - HX
+    imodintro
+    iframe HX
+    iapply bigSepS_empty.2
+    iempintro
+  | hadd x T hx ih =>
+    iintro Hs HX
+    icases (bigSepS_insert hx).1 $$ Hs with ⟨⟨#HG₂, #D⟩, Hs⟩
+    imod untilIGuar_record_discharged E (hX x (mem_insert.2 (.inl rfl))) $$ HG₂ D HX
+      with ⟨HX, #R⟩
+    imod ih (fun k hk => hX k (mem_insert_of_mem hk)) $$ Hs HX with ⟨HX, Vs⟩
+    imodintro
+    iframe HX
+    iapply (bigSepS_insert hx).2
+    iframe Vs
+    iapply (Obl.variant_unfold x (P x) _).2
+    iright
+    iframe D R
+
+theorem untilI_acc_assigned_set (hE' : E' ⊆ E) (hN : ∀ k, k ∈ S → ↑(N k) ⊆ E \ E')
+    (hdisj : ∀ k k', k ∈ S → k' ∈ S → k ≠ k' → (↑(N k) : CoPset) ## ↑(N k')) :
+    ([∗set] k ∈ S, untilI (N k) k 1 (P k) (Q k)) ⊢ |={E, E'}=>
+      ([∗set] k ∈ S, ▷ (Obl.assigned k 1 ∗ P k)) ∗
+      (([∗set] k ∈ S, ▷ Obl.variant k (P k)
+          (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k)))) ={E', E}=∗
+        [∗set] k ∈ S, (Obl.assigned k (Qp.half 1) -∗ untilI (N k) k 1 (P k) (Q k))) := by
+  simp only [untilI_eq]
+  iintro Us
+  imod untilIGuar_acc_assigned_set hE' hN hdisj $$ Us with ⟨H, ACC⟩
+  imodintro
+  iframe ACC
+  iapply bigSepS_mono_of_forall (fun _ => sep_elim_left) $$ H
+
+theorem untilI_acc_assigned_set_ndot {N₀ : Namespace} (hN : ↑N₀ ⊆ E) :
+    ([∗set] k ∈ S, untilI (N₀.@k) k 1 (P k) (Q k)) ⊢ |={E, E \ ↑N₀}=>
+      ([∗set] k ∈ S, ▷ (Obl.assigned k 1 ∗ P k)) ∗
+      (([∗set] k ∈ S, ▷ Obl.variant k (P k)
+          (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))))
+        ={E \ ↑N₀, E}=∗
+        [∗set] k ∈ S, (Obl.assigned k (Qp.half 1) -∗ untilI (N₀.@k) k 1 (P k) (Q k))) :=
+  have ⟨hE', hNk, hdisj⟩ := ndot_masks hN
+  untilI_acc_assigned_set hE' (fun k _ => hNk k) fun k k' _ _ => hdisj k k'
+
+theorem untilI_record_discharged_set (E : CoPset) {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗set] k ∈ S, Obl.discharged k) ⊢ X -∗ |={E}=>m X ∗ [∗set] k ∈ S,
+      Obl.variant k (P k)
+        (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
+  (bigSepS_mono_of_forall fun k => emp_sep.2.trans (sep_mono_left (guar_canon (Q k)))).trans
+    (untilIGuar_record_discharged_set E hX)
+
+theorem finallyI_acc_assigned_set (hE' : E' ⊆ E) (hN : ∀ k, k ∈ S → ↑(N k) ⊆ E \ E')
+    (hdisj : ∀ k k', k ∈ S → k' ∈ S → k ≠ k' → (↑(N k) : CoPset) ## ↑(N k')) :
+    ([∗set] k ∈ S, finallyI (N k) k 1 (Q k)) ⊢ |={E, E'}=> ([∗set] k ∈ S, Obl.assigned k 1) ∗
+      (([∗set] k ∈ S, ▷ Obl.variant k iprop(True)
+          (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k)))) ={E', E}=∗
+        [∗set] k ∈ S, (Obl.assigned k (Qp.half 1) -∗ finallyI (N k) k 1 (Q k))) := by
+  unfold finallyI
+  iintro Us
+  imod untilI_acc_assigned_set hE' hN hdisj $$ Us with ⟨H, ACC⟩
+  icases (bigSepS_mono_of_forall fun _ => later_mono sep_elim_left).trans bigSepS_later_2 $$ H
+    with >H
+  imodintro
+  iframe ACC H
+
+theorem finallyI_acc_assigned_set_ndot {N₀ : Namespace} (hN : ↑N₀ ⊆ E) :
+    ([∗set] k ∈ S, finallyI (N₀.@k) k 1 (Q k)) ⊢ |={E, E \ ↑N₀}=>
+      ([∗set] k ∈ S, Obl.assigned k 1) ∗
+      (([∗set] k ∈ S, ▷ Obl.variant k iprop(True)
+          (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))))
+        ={E \ ↑N₀, E}=∗
+        [∗set] k ∈ S, (Obl.assigned k (Qp.half 1) -∗ finallyI (N₀.@k) k 1 (Q k))) :=
+  have ⟨hE', hNk, hdisj⟩ := ndot_masks hN
+  finallyI_acc_assigned_set hE' (fun k _ => hNk k) fun k k' _ _ => hdisj k k'
+
+theorem finallyI_record_discharged_set (E : CoPset) {X : IProp GF}
+    (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗set] k ∈ S, Obl.discharged k) ⊢ X -∗ |={E}=>m X ∗ [∗set] k ∈ S,
+      Obl.variant k iprop(True)
+        (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
+  untilI_record_discharged_set E hX
+
+end Sets
 
 /-! ### Access -/
 
