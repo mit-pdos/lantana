@@ -353,10 +353,10 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TicketLock2G GF]
 @[lantana_alias ticket_lock2.TicketLock_init_spec]
 theorem init_spec : ∃ m : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadId) (G : Oids)
     (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗ oblFuels G m }}}
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thCarriers i G ∗ oblFuels G m }}}
         hl(v(&init) #()) @ i
       l{{{ (tl : Val) (γ : TicketLockName), RET tl; threadExpr i C hl(v(&tl)) ∗ £ₒ lc ∗
-        thKids i G ∗ ownFairLockLevel γ ℓ (.own 1) ∗
+        thCarriers i G ∗ ownFairLockLevel γ ℓ (.own 1) ∗
         (∀ (E : CoPset) (R : IProp GF), R -∗ |={E}=>m isFairLock tl γ R) }}} := by
   refine ⟨4, fun lc ℓ i G C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
@@ -473,8 +473,9 @@ theorem acquire_spin (i : ThreadId) (C : List ECtxItem) (G : Oids) (next curr : 
       (γ.γt ↪◯MAP[my]{.discard} κp) -∗ Wit.layer κp ℓw -∗
       (γ.γt ↪◯MAP[my + 1]{.discard} κu) -∗ (γ.γa ↪◯MAP[my + 1]{half} false) -∗
       Wit.fuels κp ℓw α F -∗
-      threadExpr i C hl(v(&(spin curr my)) #()) -∗ thKids i G -∗ oblFuels G 4 -∗
-      (threadExpr i C hl(#()) -∗ £ₒ lc -∗ thKids i G -∗ curr ↦{half} some (vInt my) -∗ R -∗
+      threadExpr i C hl(v(&(spin curr my)) #()) -∗ thCarriers i G -∗ oblFuels G 4 -∗
+      (threadExpr i C hl(#()) -∗ £ₒ lc -∗ thCarriers i G -∗ curr ↦{half} some (vInt my) -∗
+        R -∗
         Φ hl_val(#())) -∗
       lWP hl(v(&(spin curr my)) #()) @ i {{ Φ }} := by
   induction α using WellFounded.induction Ordinals.Ordinal.lt_wf with
@@ -595,15 +596,15 @@ pays for the spinning together with the fuel of the other children (lowered from
 theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : ThreadId) (G : Oids)
     (tl : Val) (γ : TicketLockName) (dq : DFrac) (ℓ : Layer) (R : IProp GF)
     (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&acquire) v(&tl)) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&acquire) v(&tl)) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g (ℓ +ₕ aleph) m) ∗ ownFairLockLevel γ ℓ dq ∗
           isFairLock tl γ R }}}
         hl(v(&acquire) v(&tl)) @ i
       l{{{ (κu : Oid), RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ ⌜κu ∉ G⌝ ∗
-        thKids i (G.insert κu) ∗ oblKids κu ∅ ∗ Obl.fuel κu ℓ μ ∗ ownFairLockLevel γ ℓ dq ∗
-        lockToken tl γ κu R ∗ R }}} := by
+        thKids i (G.insert κu) ∗ thCarriers i (G.insert κu) ∗ oblKids κu ∅ ∗
+        Obl.fuel κu ℓ μ ∗ ownFairLockLevel γ ℓ dq ∗ lockToken tl γ κu R ∗ R }}} := by
   refine ⟨1, fun lc μ i G tl γ dq ℓ R C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, CF, #Hfl⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF, CF, #Hfl⟩ HΦ
   -- The fuel of the children, at the layer `ℓ + ω`: `100` for the steps, `1` for the loop.
   imod Obl.fuel_extend_set G (omega_lt_aleph ℓ) ((100 : Measure) + 1) $$ HF with HF
   icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, HFw⟩
@@ -653,8 +654,8 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
   icases lockLevel_lb_valid _ _ _ _ $$ CF CFp with ⟨CF, %hℓ0⟩
   icases lockLevel_get_lb _ _ _ $$ CF with ⟨CF, #CFl⟩
   -- The unlock obligation `κu` of the ticket `n + 1`.
-  imod untilI_alloc (E := ⊤ \ ↑Ninv) (.thread i) G (tkLayer ℓ (n + 1))
-    (((50 : Measure) + 50 * ▽) + 1) $$ [] HG with ⟨%κu, %hκu, HG, Kκu, Fκu, #Wκu, A⟩
+  imod untilI_alloc (E := ⊤ \ ↑Ninv) (.thread i) G G (tkLayer ℓ (n + 1))
+    (((50 : Measure) + 50 * ▽) + 1) $$ [] HK HG with ⟨%κu, %hκu, HK, HG, Kκu, Fκu, #Wκu, A⟩
   · iapply parLe_thread
   imod A $$ %(⊤ \ ↑Ninv) %Nev %iprop(True) %iprop(curr ↦{half} some (vInt (n + 1)) ∗ R) []
     with U
@@ -783,10 +784,10 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
     exact (oblFuels_add 4 46 _).trans sep_elim_left
   icases oblFuels_add 4 43 _ $$ HF with ⟨HF, -⟩
   iapply acquire_spin i C (G.insert κu) next curr γ R n κp κu (tkLayer ℓ0 n) _ hF lc Φ α
-    $$ Hinv Mtp Wp Mtu Ma1 WF HT HG HF [HΦ Kκu Qκu CF U1]
+    $$ Hinv Mtp Wp Mtu Ma1 WF HT HG HF [HΦ HK Kκu Qκu CF U1]
   iintro HT Hlc HG Hcurr2 HR
   iapply HΦ $$ %κu
-  iframe HT Hlc HG Kκu Qκu CF HR
+  iframe HT Hlc HK HG Kκu Qκu CF HR
   isplitr
   · ipureintro
     exact hκu
@@ -805,12 +806,14 @@ acknowledgement pending. -/
 @[lantana_alias ticket_lock2.TicketLock_release_spec]
 theorem release_spec : ∃ m : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (tl : Val)
     (γ : TicketLockName) (R : IProp GF) (κu : Oid) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&release) v(&tl)) ∗ thKids i G ∗ oblFuels G m ∗
-          ⌜κu ∈ G⌝ ∗ oblKids κu ∅ ∗ lockToken tl γ κu R ∗ R ∗ isFairLock tl γ R }}}
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&release) v(&tl)) ∗ thKids i G ∗ thCarriers i G ∗
+          oblFuels G m ∗ ⌜κu ∈ G⌝ ∗ oblKids κu ∅ ∗ lockToken tl γ κu R ∗ R ∗
+          isFairLock tl γ R }}}
         hl(v(&release) v(&tl)) @ i
-      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase κu) }}} := by
+      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase κu) ∗
+        thCarriers i (G.erase κu) }}} := by
   refine ⟨100, fun lc i G tl γ R κu C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, %hκu, Kκu, Htok, HR, #Hfl⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF, %hκu, Kκu, Htok, HR, #Hfl⟩ HΦ
   unfold lockToken
   icases Htok with ⟨%next, %curr, %u, %htl, Hcu, #Mtu, Uu⟩
   subst htl
@@ -873,9 +876,10 @@ theorem release_spec : ∃ m : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
   · iunfold finallyI at Uu Uu2
     iunfold finallyI
     iapply untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ Uu Uu2
-  imod finallyI_discharge (E := ⊤ \ ↑Ninv) (.thread i) G Nev_subseteq hκu $$ Hc2 HG Kκu U
-    [Hcu HR] with ⟨⟨Hcu, HR⟩, HG, #Dκu⟩
+  imod finallyI_discharge (E := ⊤ \ ↑Ninv) (.thread i) G Nev_subseteq hκu $$ Hc2 HK Kκu U
+    [Hcu HR] with ⟨⟨Hcu, HR⟩, HK, #Dκu⟩
   · iframe
+  imod Th.carriers_erase_discharged (⊤ \ ↑Ninv) i G κu $$ HG Dκu with HG
   have hdel : ∀ {t : Int} {κ : Oid}, get? (delete tickets (c + 1)) t = some κ → t ≠ c + 1 := by
     intro t κ h ht
     subst ht

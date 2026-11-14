@@ -120,12 +120,13 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
 
 /-- Initialization: a new obligation below `p` carrying the flag. -/
 @[lantana_alias flag_stable.is_flag_init]
-theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗
-      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
-        Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := by
-  iintro #B Ptr Kp
-  imod untilI_alloc (E := E) p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Fk, #Wk, H⟩
+theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K B : Oids) (ℓ : Layer)
+    (μ : Measure) :
+    parLe (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗ Par.bill p B -∗
+      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
+        oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := by
+  iintro #Hle Ptr Kp HB
+  imod untilI_alloc (E := E) p K B ℓ μ $$ Hle Kp HB with ⟨%k, %hk, Kp, HB, Kk, Fk, #Wk, H⟩
   imod H $$ %E %Np %iprop(l ↦ some v0) %(alwaysI Nv iprop(l ↦ some v1)) [Ptr] with H
   · inext
     iexact Ptr
@@ -142,7 +143,7 @@ theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K : Oids) (ℓ : Layer)
   · ipureintro
     exact hk
   unfold flagTk isFlag
-  iframe Kp Kk Fk H2
+  iframe Kp HB Kk Fk H2
   isplitl
   · iexact Wk
   · iexact HA
@@ -158,16 +159,16 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 
 @[lantana_alias flag_stable.Flag_init_spec]
 theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent)
-    (K : Oids) (ℓ : Layer) (m : Measure) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
-          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ parLe p ℓ ∗ Par.kids p K }}}
+    (K B : Oids) (ℓ : Layer) (m : Measure) (C : List ECtxItem),
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thCarriers i G ∗
+          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ parLe p ℓ ∗ Par.kids p K ∗ Par.bill p B }}}
         hl(v(&init) #()) @ i
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
-        thKids i G ∗ ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
-        Obl.fuel k ℓ m ∗
+        thCarriers i G ∗ ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
+        oblKids k ∅ ∗ Obl.fuel k ℓ m ∗
         flagTk x k ∗ isFlag x k ℓ }}} := by
-  refine ⟨10, fun lc i G p K ℓ m C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, #HB, HK⟩ HΦ
+  refine ⟨10, fun lc i G p K B ℓ m C => ?_⟩
+  iintro %Φ !> ⟨HT, HG, HF, #HB, HK, Hb⟩ HΦ
   ihave HF := oblFuels_init G 10 0 $$ HF
   unfold init
   lwp_step HT HG HF with Hlc : lc
@@ -179,7 +180,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
     iapply stepPre_nil $$ HG HF
   iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
   rw [show (hl_val(#0) : Val) = v0 from rfl]
-  imod isFlag_init ⊤ x p K ℓ m $$ HB Hx HK with ⟨%k, %hk, HK, Hkk, Hf, Htk, #Hflag⟩
+  imod isFlag_init ⊤ x p K B ℓ m $$ HB Hx HK Hb with ⟨%k, %hk, HK, Hb, Hkk, Hf, Htk, #Hflag⟩
   imodintro
   iapply HΦ $$ %x %k
   iframe
@@ -192,11 +193,11 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
 @[lantana_alias flag_stable.Flag_set_spec]
 theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids)
     (p : Parent) (K : Oids) (k : Oid) (ℓ : Layer) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&set) #l) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&set) #l) ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ Par.kids p K ∗ ⌜k ∈ K⌝ ∗
           oblKids k ∅ ∗ flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
-      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗
+      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thCarriers i G ∗
         Par.kids p (K.erase k) ∗ Obl.discharged k }}} := by
   refine ⟨10, fun lc i l G p K k ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, HK, %hk, Hkk, HU, #Hflag⟩ HΦ
@@ -253,14 +254,14 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
 @[lantana_alias flag_stable.Flag_init_thread_spec]
 theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (ℓ : Layer)
     (m : Measure) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g 0 μ) }}}
         hl(v(&init) #()) @ i
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
-        ⌜k ∉ G⌝ ∗ thKids i (G.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ m ∗
-        flagTk x k ∗ isFlag x k ℓ }}} := by
+        ⌜k ∉ G⌝ ∗ thKids i (G.insert k) ∗ thCarriers i (G.insert k) ∗ oblKids k ∅ ∗
+        Obl.fuel k ℓ m ∗ flagTk x k ∗ isFlag x k ℓ }}} := by
   refine ⟨10, fun lc i G ℓ m C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF⟩ HΦ
   ihave HF := oblFuels_init G 10 0 $$ HF
   unfold init
   lwp_step HT HG HF with Hlc : lc
@@ -272,8 +273,8 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
     iapply stepPre_nil $$ HG HF
   iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
   rw [show (hl_val(#0) : Val) = v0 from rfl]
-  imod isFlag_init ⊤ x (.thread i) G ℓ m $$ [] Hx HG with
-    ⟨%k, %hk, HG, Hkk, Hf, Htk, #Hflag⟩
+  imod isFlag_init ⊤ x (.thread i) G G ℓ m $$ [] Hx HK HG with
+    ⟨%k, %hk, HK, HG, Hkk, Hf, Htk, #Hflag⟩
   · iapply parLe_thread
   imodintro
   iapply HΦ $$ %x %k
@@ -286,14 +287,14 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
 @[lantana_alias flag_stable.Flag_set_thread_spec]
 theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids)
     (k : Oid) (ℓ : Layer) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&set) #l) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&set) #l) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ ⌜k ∈ G⌝ ∗ oblKids k ∅ ∗
           flagTk l k ∗ isFlag l k ℓ }}}
         hl(v(&set) #l) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase k) ∗
-        Obl.discharged k }}} := by
+        thCarriers i (G.erase k) ∗ Obl.discharged k }}} := by
   refine ⟨10, fun lc i l G k ℓ C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, %hk, Hkk, HU, #Hflag⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF, %hk, Hkk, HU, #Hflag⟩ HΦ
   ihave HF := oblFuels_init G 10 0 $$ HF
   unfold isFlag Flag.set
   icases Hflag with ⟨#Wk, #HA⟩
@@ -329,8 +330,9 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   imod alwaysI_alloc (N := Nv) (P := iprop(l ↦ some v1)) $$ [Hl] with #Av
   · inext
     iexact Hl
-  imod Hdis $$ %(.thread i) %G %hk HG Hkk Av %_ with H
-  imod H with ⟨-, HG, #Hd⟩
+  imod Hdis $$ %(.thread i) %G %hk HK Hkk Av %_ with H
+  imod H with ⟨-, HK, #Hd⟩
+  imod Th.carriers_erase_discharged _ i G k $$ HG Hd with HG
   imodintro
   imod Hclose $$ []
   · inext
@@ -347,18 +349,19 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
 @[lantana_alias flag_stable.Flag_wait_spec]
 theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G : Oids) (k : Oid)
     (ℓ : Layer) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&wait) #l) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&wait) #l) ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g ℓ.succ μ) ∗ isFlag l k ℓ }}}
         hl(v(&wait) #l) @ i
-      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k }}} := by
+      l{{{ RET v1; threadExpr i C hl(#1) ∗ £ₒ lc ∗ thCarriers i G ∗
+        Obl.discharged k }}} := by
   refine ⟨5 * ▽ + 5, fun lc i l G k ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, #Hflag⟩ HΦ
   unfold isFlag
   icases Hflag with ⟨#Wk, #HA⟩
   icases (Obl.fuel_add_set G ℓ.succ (5 * ▽) 5).mp $$ HF with ⟨HFw, HF⟩
   imod Wit.layer_ind k ℓ G ℓ.succ 5
-    iprop(threadExpr i C hl(v(&wait) #l) -∗ thKids i G -∗
-      (threadExpr i C hl(#1) ∗ £ₒ lc ∗ thKids i G ∗ Obl.discharged k -∗ Φ v1) -∗
+    iprop(threadExpr i C hl(v(&wait) #l) -∗ thCarriers i G -∗
+      (threadExpr i C hl(#1) ∗ £ₒ lc ∗ thCarriers i G ∗ Obl.discharged k -∗ Φ v1) -∗
       ([∗set] g ∈ G, Obl.fuel g ℓ.succ 5) -∗ lWP hl(v(&wait) #l) @ i {{ Φ }})
     (Ordinals.Ordinal.lt_succ ℓ) $$ [HFw] with HP
   · isplitl []

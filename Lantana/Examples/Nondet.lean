@@ -65,12 +65,12 @@ layer of its flag `x`, whose obligation `k` is a child of the running thread. -/
 @[lantana_alias Nondet_nest_spec]
 theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (n : Int) (G : Oids)
     (k : Oid) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&nest) #x #n) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&nest) #x #n) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g (ofNat n.toNat) μ) ∗ ⌜k ∈ G⌝ ∗ oblKids k ∅ ∗
           flagTk x k ∗ isFlag x k (ofNat n.toNat) }}}
         hl(v(&nest) #x #n) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase k) ∗
-        Obl.discharged k }}} := by
+        thCarriers i (G.erase k) ∗ Obl.discharged k }}} := by
   obtain ⟨μfi, hfi⟩ := Flag.init_thread_spec (GF := GF)
   obtain ⟨μfs, hfs⟩ := Flag.set_thread_spec (GF := GF)
   obtain ⟨μfw, hfw⟩ := Flag.wait_spec (GF := GF)
@@ -79,7 +79,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
   induction m generalizing lc i x n with
   | zero =>
     intro G k C
-    iintro %Φ !> ⟨HT, HG, HF, %hk, Hkk, Htk, #Hflag⟩ HΦ
+    iintro %Φ !> ⟨HT, HK, HG, HF, %hk, Hkk, Htk, #Hflag⟩ HΦ
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfw⟩
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfs⟩
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfi⟩
@@ -94,7 +94,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     rw [decide_eq_true (by omega : n ≤ 0)]
     lwp_step HT HG HF
     imod Obl.fuel_layer_mono_set G (ℓ₁ := 0) μfs (Ordinals.Ordinal.zero_le _) $$ Hfs with Hfs
-    iapply hfs lc i x G k (ofNat 0) C $$ [HT HG Hfs Hkk Htk] HΦ
+    iapply hfs lc i x G k (ofNat 0) C $$ [HT HK HG Hfs Hkk Htk] HΦ
     iframe
     isplitl
     · ipureintro
@@ -102,7 +102,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     · iexact Hflag
   | succ m IH =>
     intro G k C
-    iintro %Φ !> ⟨HT, HG, HF, %hk, Hkk, Htk, #Hflag⟩ HΦ
+    iintro %Φ !> ⟨HT, HK, HG, HF, %hk, Hkk, Htk, #Hflag⟩ HΦ
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfw⟩
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfs⟩
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfi⟩
@@ -122,9 +122,9 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     -- The obligation `k₀` of the new flag pays the steps of this thread until the fork, its
     -- move to the forked thread, and the steps of the forked thread.
     iapply hfi 0 i G (ofNat m) (((3 : Nat) : Measure) + (1 + (1 + (100 + μfi + μfs + μfw)))) _
-      $$ [HT HG Hfi]
+      $$ [HT HK HG Hfi]
     · iframe
-    iintro %y %k₀ ⟨HT, -, %hk₀, HG, Hkk₀, Hf₀, Htk₀, #Hflag₀⟩
+    iintro %y %k₀ ⟨HT, -, %hk₀, HK, HG, Hkk₀, Hf₀, Htk₀, #Hflag₀⟩
     ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
     lwp_expr_simp
     icases (Obl.fuel_add k₀ _ _ _).mp $$ Hf₀ with ⟨Hf₀, Hfr⟩
@@ -141,9 +141,9 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
       exact Std.ExtTreeSet.mem_insert_self
     iapply lwp_fork (o := 0) (G := G.insert k₀) (R := ∅) {k₀}
       iprop(oblKids k₀ ∅ ∗ Obl.fuel k₀ (ofNat m) (1 + (100 + μfi + μfs + μfw)) ∗ flagTk y k₀)
-      hl(v(&nest) #y (#n - #1)) hsub $$ [] [HT HG Hf₃ Hmv Hkk₀ Hfj Htk₀]
+      hl(v(&nest) #y (#n - #1)) hsub $$ [] [HT HK HG Hf₃ Hmv Hkk₀ Hfj Htk₀]
     · -- The forked thread: `n - 1`, then `nest y (n - 1)` by induction.
-      iintro %j %Φ' !> ⟨HTj, HGj, Hkk₀, Hfj, Htk₀⟩ HΦ'
+      iintro %j %Φ' !> ⟨HTj, HAj, HKj, HGj, Hkk₀, Hfj, Htk₀⟩ HΦ'
       icases (Obl.fuel_add k₀ _ _ _).mp $$ Hfj with ⟨Hf1, Hfj⟩
       ihave Hf1 : oblFuels {k₀} ((0 + 1 : Nat) : Measure) $$ [Hf1]
       · unfold oblFuels
@@ -152,8 +152,8 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
         iexact Hf1
       lwp_step HTj HGj Hf1
       iapply lwp_mupd
-      iapply IH 0 j y (n - 1) (by omega) {k₀} k₀ [] $$ [HTj HGj Hkk₀ Htk₀ Hfj]
-      · iframe HTj HGj Hkk₀ Htk₀
+      iapply IH 0 j y (n - 1) (by omega) {k₀} k₀ [] $$ [HTj HKj HGj Hkk₀ Htk₀ Hfj]
+      · iframe HTj HKj HGj Hkk₀ Htk₀
         isplitl [Hfj]
         · iapply BigSepS.bigSepS_singleton.mpr
           iexact Hfj
@@ -161,9 +161,9 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
         · ipureintro
           exact Iris.Std.LawfulSet.mem_singleton.mpr rfl
         · iexact Hflag₀
-      iintro ⟨-, -, HGj, -⟩
-      imod Th.terminate ⊤ j $$ [HGj] with #Hdone
-      · iapply Par.kids_congr _ $$ HGj
+      iintro ⟨-, -, HKj, -, -⟩
+      imod Th.terminate ⊤ j $$ HAj [HKj] with #Hdone
+      · iapply Par.kids_congr _ $$ HKj
         intro z
         simp only [Std.ExtTreeSet.mem_erase, Iris.Std.LawfulSet.mem_singleton,
           Std.ExtTreeSet.not_mem_empty]
@@ -175,19 +175,21 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
       · iexact Hdone
       · ipureintro
         trivial
-    · iframe HT Hkk₀ Hfj Htk₀
+    · iframe HT HK Hkk₀ Hfj Htk₀
       isplitl [HG Hf₃]
       · iapply stepPre_nil $$ HG Hf₃
       · unfold oblFuels
         iapply BigSepS.bigSepS_singleton.mpr
         iexists _
         iexact Hmv
-    iintro ⟨HT, -, HG, -⟩
-    ihave HG := Par.kids_congr (B := G) ?_ $$ HG
-    · intro z
+    iintro ⟨HT, ⟨-, HG, -⟩, HK⟩
+    have hdiff : ∀ z, z ∈ G.insert k₀ \ {k₀} ↔ z ∈ G := by
+      intro z
       simp only [Std.ExtTreeSet.mem_diff_iff, Std.ExtTreeSet.mem_insert, Nat.compare_eq_eq,
         Iris.Std.LawfulSet.mem_singleton]
       grind
+    ihave HG := Th.carriers_congr hdiff $$ HG
+    ihave HK := Par.kids_congr hdiff $$ HK
     ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
     lwp_expr_simp
     lwp_step HT HG HF
@@ -206,7 +208,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     lwp_step HT HG HF
     lwp_expr_simp
     imod Obl.fuel_layer_mono_set G (ℓ₁ := 0) μfs (Ordinals.Ordinal.zero_le _) $$ Hfs with Hfs
-    iapply hfs lc i x G k _ C $$ [HT HG Hfs Hkk Htk] HΦ
+    iapply hfs lc i x G k _ C $$ [HT HK HG Hfs Hkk Htk] HΦ
     iframe
     isplitl
     · ipureintro
@@ -217,7 +219,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
 caller's fuel is at layer `ω`. -/
 @[lantana_alias Nondet_nondet_spec]
 theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&nondet) #()) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&nondet) #()) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g ω μ) }}}
         hl(v(&nondet) #()) @ i
       l{{{ (v : Val), RET v; threadExpr i C hl(&v) ∗ ⌜v = v1⌝ }}} := by
@@ -225,7 +227,7 @@ theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List 
   obtain ⟨μfw, hfw⟩ := Flag.wait_spec (GF := GF)
   obtain ⟨μnn, hnn⟩ := nest_spec (GF := GF)
   refine ⟨100 + μfi + μfw + μnn, fun i G C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF⟩ HΦ
   icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hnn⟩
   icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfw⟩
   icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfi⟩
@@ -249,9 +251,9 @@ theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List 
   -- The obligation `k` of the flag pays the steps of this thread until the fork, its move to
   -- the forked thread, and the forked thread.
   iapply hfi 0 i G (ofNat (n : Int).toNat) (((3 : Nat) : Measure) + (1 + μnn)) _
-    $$ [HT HG Hfi]
+    $$ [HT HK HG Hfi]
   · iframe
-  iintro %x %k ⟨HT, -, %hk, HG, Hkk, Hf, Htk, #Hflag⟩
+  iintro %x %k ⟨HT, -, %hk, HK, HG, Hkk, Hf, Htk, #Hflag⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add k _ _ _).mp $$ Hf with ⟨Hf, Hfr⟩
@@ -268,12 +270,12 @@ theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List 
     exact Std.ExtTreeSet.mem_insert_self
   iapply lwp_fork (o := 0) (G := G.insert k) (R := ∅) {k}
     iprop(oblKids k ∅ ∗ Obl.fuel k (ofNat (n : Int).toNat) μnn ∗ flagTk x k)
-    hl(v(&nest) #x #(n : Int)) hsub $$ [] [HT HG Hf₃ Hmv Hkk Hfj Htk]
+    hl(v(&nest) #x #(n : Int)) hsub $$ [] [HT HK HG Hf₃ Hmv Hkk Hfj Htk]
   · -- The forked thread: `nest x n`.
-    iintro %j %Φ' !> ⟨HTj, HGj, Hkk, Hfj, Htk⟩ HΦ'
+    iintro %j %Φ' !> ⟨HTj, HAj, HKj, HGj, Hkk, Hfj, Htk⟩ HΦ'
     iapply lwp_mupd
-    iapply hnn 0 j x n {k} k [] $$ [HTj HGj Hkk Htk Hfj]
-    · iframe HTj HGj Hkk Htk
+    iapply hnn 0 j x n {k} k [] $$ [HTj HKj HGj Hkk Htk Hfj]
+    · iframe HTj HKj HGj Hkk Htk
       isplitl [Hfj]
       · iapply BigSepS.bigSepS_singleton.mpr
         iexact Hfj
@@ -281,9 +283,9 @@ theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List 
       · ipureintro
         exact Iris.Std.LawfulSet.mem_singleton.mpr rfl
       · iexact Hflag
-    iintro ⟨-, -, HGj, -⟩
-    imod Th.terminate ⊤ j $$ [HGj] with #Hdone
-    · iapply Par.kids_congr _ $$ HGj
+    iintro ⟨-, -, HKj, -, -⟩
+    imod Th.terminate ⊤ j $$ HAj [HKj] with #Hdone
+    · iapply Par.kids_congr _ $$ HKj
       intro z
       simp only [Std.ExtTreeSet.mem_erase, Iris.Std.LawfulSet.mem_singleton,
         Std.ExtTreeSet.not_mem_empty]
@@ -295,15 +297,15 @@ theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List 
     · iexact Hdone
     · ipureintro
       trivial
-  · iframe HT Hkk Hfj Htk
+  · iframe HT HK Hkk Hfj Htk
     isplitl [HG Hf₃]
     · iapply stepPre_nil $$ HG Hf₃
     · unfold oblFuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact Hmv
-  iintro ⟨HT, -, HG, -⟩
-  ihave HG := Par.kids_congr (B := G) ?_ $$ HG
+  iintro ⟨HT, ⟨-, HG, -⟩, -⟩
+  ihave HG := Th.carriers_congr (B := G) ?_ $$ HG
   · intro z
     simp only [Std.ExtTreeSet.mem_diff_iff, Std.ExtTreeSet.mem_insert, Nat.compare_eq_eq,
       Iris.Std.LawfulSet.mem_singleton]
