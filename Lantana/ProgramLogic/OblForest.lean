@@ -700,6 +700,18 @@ theorem Obl.discharge_leaf (E : CoPset) (p : Parent) (K : Oids) (k : Oid) (hk : 
   iintro %n
   iapply Model.OPreds.obl_discharge_mupd n p K k hk $$ Hp Hk Ha
 
+/-- A rank of the obligations of `S` whose children predicates are at hand, growing from parent to
+child: in the model, a child has more fuel than its parent. -/
+theorem Obl.kids_rank (E : CoPset) (S : Oids) (kids : Oid → Oids) :
+    ([∗set] k ∈ S, (oblKids k (kids k) : IProp GF)) ⊢ |={E}=>m
+      ⌜∃ r : Oid → Fuel, ∀ k, k ∈ S → ∀ x, x ∈ kids k → r k < r x⌝ ∗
+      [∗set] k ∈ S, oblKids k (kids k) := by
+  rw [Par.kids_unfold]
+  iintro H
+  iapply mupd_of_base
+  iintro %n
+  iapply Model.OPreds.kids_rank_mupd n S kids $$ H
+
 end ModelUpdate
 
 /-! ## Physical steps -/

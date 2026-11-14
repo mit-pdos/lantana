@@ -11,10 +11,11 @@ public import Lantana.ProgramLogic.OblForest
 Rocq `lantana/program_logic/obl_forest_rules.v`: the usual rules of the model update
 `|={E₁,E₂}=>m P` and its proof-mode instances, derived from the three core rules of the
 interface (`mupd_ne`, `fupd_mupd`, `mupd_bind`); the rules of obligation invariants, witness
-induction, parents, fuel and credits; the model updates (with the bills of the parents) and the
-physical steps in their usual shapes, with the nodes they hand in and out. Everything here is
-derived from the statements of `Lantana.ProgramLogic.OblForest`. This file also holds the rules
-of the base model update `|=[n]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
+induction, parents, fuel and credits; the model updates (with the bills of the parents), among
+them the discharge of a whole forest of obligations, and the physical steps in their usual
+shapes, with the nodes they hand in and out. Everything here is derived from the statements of
+`Lantana.ProgramLogic.OblForest`. This file also holds the rules of the base model update
+`|=[n]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
 
 Porting notes:
 * The union of `OidMap = Std.ExtTreeMap` takes the values of its *right* argument, so Rocq's
@@ -40,6 +41,43 @@ theorem Oids.erase_eq_diff (K : Oids) (k : Oid) : K.erase k = K \ {k} :=
     rw [Std.ExtTreeSet.mem_erase, mem_diff, mem_singleton, Ne,
       Std.LawfulEqCmp.compare_eq_iff_eq]
     grind
+
+open LawfulSet in
+/-- A set of obligations is empty or has one of largest rank. -/
+theorem Oids.exists_max_rank (r : Oid → Fuel) (S : Oids) :
+    S = ∅ ∨ ∃ m, m ∈ S ∧ ∀ y, y ∈ S → r y ≤ r m := by
+  induction S using FiniteSet.set_ind with
+  | hemp => exact .inl rfl
+  | hadd x X _ ih =>
+    rw [insert_union]
+    refine .inr ?_
+    have hx : x ∈ ({x} ∪ X : Oids) := mem_union.2 (.inl (mem_singleton.2 rfl))
+    rcases ih with rfl | ⟨m, hm, hmax⟩
+    · refine ⟨x, hx, fun y hy => ?_⟩
+      rcases mem_union.1 hy with hy | hy
+      · rw [mem_singleton.1 hy]
+      · exact (mem_empty hy).elim
+    · rcases Ordinals.Ordinal.le_total (r x) (r m) with h | h
+      · refine ⟨m, mem_union.2 (.inr hm), fun y hy => ?_⟩
+        rcases mem_union.1 hy with hy | hy
+        · rw [mem_singleton.1 hy]
+          exact h
+        · exact hmax y hy
+      · refine ⟨x, hx, fun y hy => ?_⟩
+        rcases mem_union.1 hy with hy | hy
+        · rw [mem_singleton.1 hy]
+        · exact Ordinals.Ordinal.le_trans (hmax y hy) h
+
+open LawfulSet in
+/-- A nonempty set of obligations closed under children, with a rank that grows from parent to
+child, has an obligation without children: one of largest rank. -/
+theorem Oids.exists_leaf {S : Oids} {kids : Oid → Oids} (r : Oid → Fuel)
+    (hclosed : ∀ k, k ∈ S → kids k ⊆ S) (hr : ∀ k, k ∈ S → ∀ x, x ∈ kids k → r k < r x)
+    (hS : S ≠ ∅) : ∃ x, x ∈ S ∧ kids x = ∅ := by
+  rcases Oids.exists_max_rank r S with h | ⟨m, hm, hmax⟩
+  · exact (hS h).elim
+  · refine ⟨m, hm, eq_empty_iff.2 fun x hx => ?_⟩
+    exact Ordinals.Ordinal.not_le_of_lt (hr m hm x hx) (hmax x (hclosed m hm x hx))
 
 /-! ## The base model update
 
@@ -506,6 +544,14 @@ theorem parBelow_le (p : Parent) (ℓ : Layer) : parBelow (GF := GF) p ℓ ⊢ p
     iframe W
     ipureintro
     exact Ordinals.Ordinal.le_of_lt h
+
+/-- A discharged obligation is not among the children of `p`. -/
+theorem Par.kids_diff_discharged (p : Parent) (K : Oids) (x : Oid) :
+    Par.kids (GF := GF) p K ⊢ Obl.discharged x -∗ Par.kids p (K \ {x}) := by
+  iintro H #D
+  icases Par.kids_discharged x p K $$ H D with %hx
+  rw [LawfulSet.diff_subset_disj (LawfulSet.disjoint_singleton_right.2 hx)]
+  iexact H
 
 end Parents
 
@@ -1268,6 +1314,206 @@ theorem obl_discharge_inv (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF
   imodintro
   iframe Kp D
 
+/-! ### Discharging a forest
+
+A forest of obligations hangs below the roots `ps`, the children of a root `p` being `K p`: a set
+`S` of obligations with their children `kids k`, closed under children, each obligation of `S` a
+child of a root or of an obligation of `S`. -/
+
+private theorem Par.kids_erase_diff (p : Parent) (K : Oids) (x : Oid) :
+    Par.kids (GF := GF) p (K.erase x) ⊢ Par.kids p (K \ {x}) := by
+  rw [Oids.erase_eq_diff]
+
+private theorem bigSepL_kids_diff_discharged (ps : List Parent) (K : Parent → Oids) (x : Oid) :
+    ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢ Obl.discharged x -∗
+      [∗list] p ∈ ps, Par.kids p (K p \ {x}) := by
+  iintro H #D
+  iapply BigSepL.bigSepL_impl $$ H
+  imodintro
+  iintro %_ %p %_ Hp
+  iapply Par.kids_diff_discharged p (K p) x $$ Hp D
+
+private theorem bigSepS_kids_diff_discharged (T : Oids) (kids : Oid → Oids) (x : Oid) :
+    ([∗set] k ∈ T, (oblKids k (kids k) ∗ Obl.assigned k 1 : IProp GF)) ⊢ Obl.discharged x -∗
+      [∗set] k ∈ T, oblKids k (kids k \ {x}) ∗ Obl.assigned k 1 := by
+  iintro H #D
+  iapply bigSepS_impl $$ H
+  imodintro
+  iintro %k %_ ⟨Hk, A⟩
+  iframe A
+  iapply Par.kids_diff_discharged (.obl k) (kids k) x $$ Hk D
+
+/-- Discharging a childless obligation `x`, a child of one of the roots `ps`: every root loses
+`x`. -/
+private theorem obl_discharge_leaf_roots (E : CoPset) (ps : List Parent) (K : Parent → Oids)
+    (x : Oid) (hx : ∃ p, p ∈ ps ∧ x ∈ K p) :
+    ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢ oblKids x ∅ -∗ Obl.assigned x 1 -∗
+      |={E}=>m ([∗list] p ∈ ps, Par.kids p (K p \ {x})) ∗ Obl.discharged x := by
+  induction ps with
+  | nil =>
+    obtain ⟨p, hp, -⟩ := hx
+    exact (List.not_mem_nil hp).elim
+  | cons q ps ih =>
+    iintro Hl Hx A
+    icases BigSepL.bigSepL_cons.1 $$ Hl with ⟨Hq, Hps⟩
+    by_cases hq : x ∈ K q
+    · imod Obl.discharge_leaf E q (K q) x hq $$ Hq Hx A with ⟨Hq, #D⟩
+      ihave Hq := Par.kids_erase_diff q (K q) x $$ Hq
+      ihave Hps := bigSepL_kids_diff_discharged ps K x $$ Hps D
+      imodintro
+      iframe D
+      iapply BigSepL.bigSepL_cons.2
+      iframe Hq Hps
+    · have hx' : ∃ p, p ∈ ps ∧ x ∈ K p := by
+        obtain ⟨p, hp, hxp⟩ := hx
+        rcases List.mem_cons.1 hp with rfl | hp
+        · exact (hq hxp).elim
+        · exact ⟨p, hp, hxp⟩
+      imod ih hx' $$ Hps Hx A with ⟨Hps, D⟩
+      imodintro
+      iframe D
+      iapply BigSepL.bigSepL_cons.2
+      rw [diff_subset_disj (disjoint_singleton_right.2 hq)]
+      iframe Hq Hps
+
+/-- The forest rule with a rank of the forest given, by induction on `S`: a leaf is discharged
+first, and every other children set loses it. -/
+private theorem obl_discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r : Oid → Fuel)
+    (S : Oids) :
+    ∀ (K : Parent → Oids) (kids : Oid → Oids), (∀ k, k ∈ S → kids k ⊆ S) →
+      (∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) →
+      (∀ k, k ∈ S → ∀ x, x ∈ kids k → r k < r x) →
+      ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢
+        ([∗set] k ∈ S, oblKids k (kids k) ∗ Obl.assigned k 1) -∗
+          |={E}=>m ([∗list] p ∈ ps, Par.kids p (K p \ S)) ∗ [∗set] k ∈ S, Obl.discharged k := by
+  induction S using WellFounded.induction (FiniteSet.set_wf (S := Oids)) with
+  | h S IH =>
+    intro K kids hclosed hcovered hr
+    by_cases hS : S = ∅
+    · subst hS
+      simp only [diff_empty]
+      iintro Hps -
+      imodintro
+      iframe Hps
+      iapply bigSepS_empty.2
+      iempintro
+    obtain ⟨x, hxS, hxk⟩ := Oids.exists_leaf r hclosed hr hS
+    have hS' : S \ {x} ⊂ S := ssubset_subset.2 ⟨diff_subset_left, fun h => by
+      have hx := h ▸ hxS
+      exact (mem_diff.1 hx).2 (mem_singleton.2 rfl)⟩
+    have hxkids : ∀ k y, y ∈ kids k → k ≠ x := fun k y hy hk => by
+      rw [hk, hxk] at hy
+      exact mem_empty hy
+    have ih := IH (S \ {x}) hS' (fun p => K p \ {x}) (fun k => kids k \ {x})
+      (fun k hk y hy => by
+        rw [mem_diff] at hk hy ⊢
+        exact ⟨hclosed k hk.1 y hy.1, hy.2⟩)
+      (fun y hy => by
+        rw [mem_diff] at hy
+        rcases hcovered y hy.1 with ⟨p, hp, hyp⟩ | ⟨k, hk, hyk⟩
+        · exact .inl ⟨p, hp, mem_diff.2 ⟨hyp, hy.2⟩⟩
+        · exact .inr ⟨k, mem_diff.2 ⟨hk, fun h => hxkids k y hyk (mem_singleton.1 h)⟩,
+            mem_diff.2 ⟨hyk, hy.2⟩⟩)
+      (fun k hk y hy => hr k (mem_diff.1 hk).1 y (mem_diff.1 hy).1)
+    have e : ∀ p, (K p \ {x}) \ (S \ {x}) = K p \ S := fun p => LawfulSet.ext fun y => by
+      simp only [mem_diff, mem_singleton]
+      grind
+    simp only [e] at ih
+    have hleaf : (oblKids x (kids x) : IProp GF) ⊢ oblKids x ∅ := by rw [hxk]
+    iintro Hps HS
+    icases (bigSepS_delete hxS).1 $$ HS with ⟨⟨Hx, Ax⟩, HS⟩
+    ihave Hx := hleaf $$ Hx
+    rcases hcovered x hxS with hroot | ⟨k, hkS, hxk'⟩
+    · imod obl_discharge_leaf_roots E ps K x hroot $$ Hps Hx Ax with ⟨Hps, #D⟩
+      ihave HS := bigSepS_kids_diff_discharged (S \ {x}) kids x $$ HS D
+      imod ih $$ Hps HS with ⟨Hps, HD⟩
+      imodintro
+      iframe Hps
+      iapply (bigSepS_delete hxS).2
+      iframe D HD
+    · have hkx : k ∈ S \ {x} := mem_diff.2 ⟨hkS, fun h => hxkids k x hxk' (mem_singleton.1 h)⟩
+      icases (bigSepS_delete hkx).1 $$ HS with ⟨⟨Hk, Ak⟩, HS⟩
+      imod Obl.discharge_leaf E (.obl k) (kids k) x hxk' $$ Hk Hx Ax with ⟨Hk, #D⟩
+      ihave Hk := Par.kids_erase_diff (.obl k) (kids k) x $$ Hk
+      ihave Hps := bigSepL_kids_diff_discharged ps K x $$ Hps D
+      ihave HS := bigSepS_kids_diff_discharged ((S \ {x}) \ {k}) kids x $$ HS D
+      imod ih $$ Hps [Hk Ak HS] with ⟨Hps, HD⟩
+      · iapply (bigSepS_delete hkx).2
+        iframe Hk Ak HS
+      imodintro
+      iframe Hps
+      iapply (bigSepS_delete hxS).2
+      iframe D HD
+
+/-- Discharging a whole forest below the roots `ps` in one model update: every obligation of `S`,
+with its children and its whole assignment, is discharged, and the roots lose them. -/
+theorem obl_discharge_forest (E : CoPset) (ps : List Parent) (K : Parent → Oids) (S : Oids)
+    (kids : Oid → Oids) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :
+    ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢
+      ([∗set] k ∈ S, oblKids k (kids k) ∗ Obl.assigned k 1) -∗
+        |={E}=>m ([∗list] p ∈ ps, Par.kids p (K p \ S)) ∗ [∗set] k ∈ S, Obl.discharged k := by
+  iintro Hps HS
+  icases bigSepS_sep.1 $$ HS with ⟨HK, HA⟩
+  imod Obl.kids_rank E S kids $$ HK with ⟨%⟨r, hr⟩, HK⟩
+  iapply obl_discharge_forest_of_rank E ps r S K kids hclosed hcovered hr $$ Hps
+  iapply bigSepS_sep.2
+  iframe HK HA
+
+/-- Discharging a whole forest below one parent `p`. -/
+theorem obl_discharge_forest_single (E : CoPset) (p : Parent) (K S : Oids) (kids : Oid → Oids)
+    (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → x ∈ K ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :
+    Par.kids (GF := GF) p K ⊢ ([∗set] k ∈ S, oblKids k (kids k) ∗ Obl.assigned k 1) -∗
+      |={E}=>m Par.kids p (K \ S) ∗ [∗set] k ∈ S, Obl.discharged k := by
+  iintro Hp HS
+  imod obl_discharge_forest E [p] (fun _ => K) S kids hclosed
+    (fun x hx => (hcovered x hx).imp_left fun h => ⟨p, List.mem_singleton_self p, h⟩)
+    $$ [Hp] HS with ⟨Hp, HD⟩
+  · iapply BigSepL.bigSepL_singleton.2
+    iexact Hp
+  icases BigSepL.bigSepL_singleton.1 $$ Hp with Hp
+  imodintro
+  iframe Hp HD
+
+/-- Discharging every obligation below the roots `ps`: the roots end without children. -/
+theorem obl_discharge_forest_all (E : CoPset) (ps : List Parent) (K : Parent → Oids) (S : Oids)
+    (kids : Oid → Oids) (hK : ∀ p, p ∈ ps → K p ⊆ S) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :
+    ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢
+      ([∗set] k ∈ S, oblKids k (kids k) ∗ Obl.assigned k 1) -∗
+        |={E}=>m ([∗list] p ∈ ps, Par.kids p ∅) ∗ [∗set] k ∈ S, Obl.discharged k := by
+  iintro Hps HS
+  imod obl_discharge_forest E ps K S kids hclosed hcovered $$ Hps HS with ⟨Hps, HD⟩
+  imodintro
+  iframe HD
+  iapply BigSepL.bigSepL_mono ?_ $$ Hps
+  intro _ p hp
+  have hp' := hK p (List.mem_of_getElem? hp)
+  rw [eq_empty_iff.2 fun y hy => (mem_diff.1 hy).2 (hp' y (mem_diff.1 hy).1)]
+
+/-- Discharging every obligation below the threads `js`: the threads end without children. -/
+theorem obl_discharge_forest_threads (E : CoPset) (js : List ThreadId) (K : ThreadId → Oids)
+    (S : Oids) (kids : Oid → Oids) (hK : ∀ j, j ∈ js → K j ⊆ S)
+    (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ j, j ∈ js ∧ x ∈ K j) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :
+    ([∗list] j ∈ js, (thKids j (K j) : IProp GF)) ⊢
+      ([∗set] k ∈ S, oblKids k (kids k) ∗ Obl.assigned k 1) -∗
+        |={E}=>m ([∗list] j ∈ js, thKids j ∅) ∗ [∗set] k ∈ S, Obl.discharged k := by
+  let K' : Parent → Oids := fun p => match p with
+    | .thread j => K j
+    | .obl _ => ∅
+  have h := obl_discharge_forest_all (GF := GF) (Expr := Expr) (State := State) E
+    (js.map .thread) K' S kids
+    (fun p hp => by
+      obtain ⟨j, hj, rfl⟩ := List.mem_map.1 hp
+      exact hK j hj)
+    hclosed
+    (fun x hx => (hcovered x hx).imp_left fun ⟨j, hj, hxj⟩ =>
+      ⟨.thread j, List.mem_map_of_mem hj, hxj⟩)
+  rw [BigSepL.bigSepL_map, BigSepL.bigSepL_map] at h
+  exact h
+
 end ModelUpdates
 
 /-! ## Physical steps in their usual shapes -/
@@ -1346,6 +1592,43 @@ theorem Th.nodes_elim {tc : Nat} {φ : ThreadId → Prop} {i : ThreadId} (hi : i
   iapply H
   ipureintro
   exact hφ
+
+/-- The threads `< tc` that satisfy `φ` are those of the duplicate-free list `js`: the nodes are
+the nodes of the threads of `js`. -/
+theorem Th.nodes_list (tc : Nat) {φ : ThreadId → Prop} {js : List ThreadId} (hjs : js.Nodup)
+    (hφ : ∀ j, j ∈ js ↔ j < tc ∧ φ j) :
+    ([∗list] j ∈ js, (thActive j ∗ thKids j ∅ : IProp GF)) ⊣⊢ Th.nodes tc φ := by
+  classical
+  let f : ThreadId → Option ThreadId := fun j => if φ j then some j else none
+  have hperm : ((List.range tc).filterMap f).Perm js := by
+    refine (List.perm_ext_iff_of_nodup ?_ hjs).2 fun j => ?_
+    · refine List.Pairwise.filterMap f (fun a a' hne b hb b' hb' => ?_) List.nodup_range
+      simp only [f, Option.ite_none_right_eq_some, Option.some.injEq] at hb hb'
+      rw [← hb.2, ← hb'.2]
+      exact hne
+    · simp only [List.mem_filterMap, List.mem_range, f, Option.ite_none_right_eq_some,
+        Option.some.injEq, hφ]
+      grind
+  refine (BigSepL.bigSepL_perm hperm).symm.trans ?_
+  rw [BigSepL.bigSepL_filterMap]
+  constructor
+  · refine BigSepL.bigSepL_mono_of_forall fun {_ j} => ?_
+    by_cases h : φ j
+    · simp only [f, h, ite_true, Option.elim]
+      exact wand_intro sep_elim_left
+    · simp only [f, h, ite_false, Option.elim]
+      iintro - %h'
+      exact h'.elim
+  · refine BigSepL.bigSepL_mono_of_forall fun {_ j} => ?_
+    by_cases h : φ j
+    · simp only [f, h, ite_true, Option.elim]
+      iintro H
+      iapply H
+      ipureintro
+      trivial
+    · simp only [f, h, ite_false, Option.elim]
+      iintro -
+      iempintro
 
 /-- When the crashed bits do not change (`Y = X`), no node goes in and none comes out. -/
 theorem Th.nodes_unchanged (tc : Nat) {X Y : ThreadId → Prop} (hXY : Y = X) (P : IProp GF) :
