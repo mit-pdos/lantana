@@ -17,14 +17,11 @@ public import Lantana.ProgramLogic.Language
 
 /-! # HeapLang: the language instance and its class instances
 
-HeapLang as an Iris-Lean `EctxItemLanguage` (Rocq `lantana_heap_lang/lang.v:676-780`), from
-which Iris-Lean derives the evaluation contexts `EvContext Exp (List ECtxItem)` (lists of items,
-innermost first), the `EctxLanguage` and the `Language`; its crashed threads (none, `instCrash`);
-and the `IntoVal`, `AsVal`, `Atomic` and `PureExec` instances (Rocq `class_instances.v`).
-HeapLang has no observations (`Obs := Empty`): the base step ignores its observation argument,
-which can only be `[]` (`obs_eq_nil`).  Adapted from Iris-Lean's `Iris.HeapLang.Instances`, for
-the labels and `chooseNat` of Lantana's HeapLang and without the lemmas about prophecies, which it
-lacks.
+HeapLang as an Iris-Lean `EctxItemLanguage` (`instEctxItemLanguageExp`), with no observations and
+no crashed threads (`instCrash`), and its `IntoVal`, `AsVal`, `Atomic` and `PureExec` instances.
+Adapted from Iris-Lean's `Iris.HeapLang.Instances`, for labels and `chooseNat` and without
+prophecies; see `docs/program-logic.md`, §4.
+Rocq: `lantana_heap_lang/lang.v` and `class_instances.v`.
 -/
 
 @[expose] public section
@@ -48,8 +45,6 @@ instance instEctxItemLanguageExp : EctxItemLanguage Exp ECtxItem State Empty Val
     cases Ki <;> simp_all [ECtxItem.fill]
   fillItem_val e Ki h := by
     cases Ki <;> simp_all [ECtxItem.fill, toVal]
-  -- `cases heq` tells the constructors apart and unifies the arguments: the same item, or a
-  -- value on the other side (`cases hv₁`/`cases hv₂`); `simp_all` on the 729 pairs costs 6.5 s.
   fillItem_no_val_inj Ki₁ Ki₂ hv₁ hv₂ heq := by
     cases Ki₁ <;> cases Ki₂ <;> cases heq <;> first | rfl | cases hv₁ | cases hv₂
   val_stuck h := by
@@ -57,8 +52,6 @@ instance instEctxItemLanguageExp : EctxItemLanguage Exp ECtxItem State Empty Val
   base_ctx_step_val {Ki} _ _ _ _ _ _ h := by
     cases Ki <;> cases h <;> rfl
 
--- The `EctxItemLanguage` instance above bundles what Rocq states as separate HeapLang lemmas and
--- then packages into `heap_lang_mixin`.
 #lantana_ignore heap_lang.fill_item_inj "The `fillItem_inj` field of `instEctxItemLanguageExp`."
 #lantana_ignore heap_lang.fill_item_val "The `fillItem_val` field of `instEctxItemLanguageExp`."
 #lantana_ignore heap_lang.fill_item_no_val_inj
@@ -101,7 +94,7 @@ theorem fill_isSome_empty {K : List ECtxItem} {e : Exp}
     rw [EctxItemLanguage.fill_cons] at h
     simpa using EctxItemLanguage.fill_val h
 
-/-- Specific to HeapLang: `fillItem Ki e` is never a value. -/
+/-- A filled context is a value only when the context is empty. -/
 @[lantana_alias heap_lang.to_val_fill_some]
 theorem toVal_fill_some {K : List ECtxItem} {e : Exp} {v : Val}
     (h : toVal (fill K e) = some v) : K = [] ∧ e = Exp.ofVal v := by
@@ -157,7 +150,7 @@ theorem prim_step_to_val_always_to_val {e₁ : Exp} {σ₁ : State} {obs : List 
   base_step_to_val hb
     (EctxLanguage.baseStep_of_primStep h' (subredexesAreValues_of_baseStep hb)) (by simp)
 
-/-- Not an instance: `BaseStep` is not a class (Rocq has a `Hint Extern`). -/
+/-- An expression with a base step to a value is atomic. -/
 theorem base_step_to_val_atomic {e₁ : Exp} {σ₁ : State} {v₂ : Val} {σ₂ : State}
     {efs : List Exp} (a : Atomicity) (h : BaseStep e₁ σ₁ (Exp.ofVal v₂) σ₂ efs) :
     Atomic a e₁ :=
@@ -196,7 +189,6 @@ instance instAtomicInjl {a : Atomicity} {v : Val} : Atomic a hl(injl(&v)) := by 
 @[lantana_alias heap_lang.injr_atomic]
 instance instAtomicInjr {a : Atomicity} {v : Val} : Atomic a hl(injr(&v)) := by solve_atomic
 
-/-- Generalizes `Skip`. -/
 @[lantana_alias heap_lang.beta_atomic]
 instance instAtomicBeta {a : Atomicity} {f x : Binder} {v1 v2 : Val} :
     Atomic a hl(v(rec &f &x := v(&v1)) &v2) := by
@@ -315,7 +307,7 @@ instance instPureExecBinOp {op : BinOp} {v1 v2 v' : Val} :
   pureExec h :=
     .once <| pureStep_of_baseStep (fun _ => .binOpS _ _ _ _ _ h) (fun hs => by cases hs; simp_all)
 
-/-- Higher priority than the generic `instPureExecBinOp`. -/
+/-- The equality test of two values, tried before the generic `instPureExecBinOp`. -/
 @[lantana_alias heap_lang.pure_eqop]
 instance (priority := default + 10) instPureExecEqOp {v1 v2 : Val} :
     PureExec (v1.compareSafe v2) 1
