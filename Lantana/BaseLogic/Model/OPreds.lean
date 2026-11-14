@@ -8,30 +8,13 @@ public import Lantana.BaseLogic.Model.OPredsBase
 public import Lantana.BaseLogic.Model.OForest
 public import Lantana.BaseLogic.Model.MUpd
 
-/-! # The children predicates and the model updates of the forest
+/-! # The children predicates and the forest operations as model updates
 
-Rocq `lantana/base_logic/opreds.v` §14.3–14.4, the part that involves the forest: the children
-predicate `parKids p K` (the children of `p` are exactly `K`: the exclusive children fragment of
-the forest, the children share of `p` if it is an obligation, and the children share of every
-child), the running handle `thActive i` (the user's half of the running status of a thread),
-`thDone i`; the facts that need no invariant (`oblKids_discharged_false`, `parKids_discharged`);
-the round templates `mupd_ghost_round` and `mupd_model_round` over `Model.mupd_nd_step`, at any
-view of the pool; the forest operations as model updates (thread termination, creation of an
-obligation, live or discharged, moves, checks of witnesses, discharge of a leaf, the only round
-with `Obls.lef`, and the read of the fuel as a rank of the forest, `kids_rank_mupd`); the facts
-about the bill `OForest.bill i B` of a thread, an upper bound of its children; and the physical
-steps: `mprog_step_kids` (paid by the bill), `mprog_step_crashed` (a crashed thread pays for
-nothing), and `mphys_step_kids` (the forked threads get their pieces, the nodes of the newly
-crashed threads go in and those of the recovered ones come out), with its form for unchanged
-bits `mphys_step_fork`. Adding a child under `p` adds it to the bill of `p`
-(`OForest.parBill`, nothing for an obligation). The statements are those of the sealed interface
-`Lantana.ProgramLogic.OblForest`, whose predicates are these definitions.
-
-Fraction scheme (plan M4 §1.4): the user's `oblAssigned k q` is the ghost fraction `q / 2`, the
-two children shares `oblShare k` (one held by the children predicate of `k`, one by the children
-predicate of its parent) are quarters, so `oblAssigned k 1 ∗ oblShare k ∗ oblShare k` is the whole
-ghost fraction (`oblAssigned_shares`).
--/
+`parKids`, `thActive`, `thDone`, the facts about the bill, and the model updates behind the
+rules of `Lantana.ProgramLogic.OblForest`: creation, moves and discharge of obligations, checks
+of witnesses, the rank of a forest (`kids_rank_mupd`), and the two rounds of a step
+(`mprog_step_kids`, `mprog_step_crashed`, `mphys_step_kids`).
+See `docs/model.md`, §2, §3, §5 and §6. Rocq: `lantana/base_logic/opreds.v`. -/
 
 @[expose] public noncomputable section
 
@@ -87,8 +70,7 @@ share of an obligation. -/
   | .thread _ => iprop(emp)
   | .obl k => oblShare k
 
-/-- The children of `p` are exactly `K` (Rocq `parP_kids`): the children fragment of the forest,
-what `p` holds of itself (`parSelf`), and the children share of every child. -/
+/-- The children of `p` are exactly `K`. -/
 @[lantana_alias omodel.parP_kids]
 def parKids (p : Parent) (K : Oids) : IProp GF :=
   iprop(parSelf p ∗ OForest.kids p K ∗ [∗set] x ∈ K, oblShare x)
@@ -97,7 +79,7 @@ def parKids (p : Parent) (K : Oids) : IProp GF :=
 def thActive (i : ThreadId) : IProp GF :=
   OForest.exec i (Qp.half 1)
 
-/-- Thread `i` has terminated (Rocq `thP_done`). -/
+/-- Thread `i` has terminated. -/
 @[lantana_alias omodel.thP_done]
 def thDone (i : ThreadId) : IProp GF :=
   OForest.done i
@@ -117,7 +99,6 @@ instance thDone_timeless (i : ThreadId) : Timeless (thDone (GF := GF) i) := by
 instance thDone_persistent (i : ThreadId) : Persistent (thDone (GF := GF) i) := by
   unfold thDone; infer_instance
 
-/-- Rocq `parP_kids_frag`: the unfolded shape. -/
 @[lantana_alias omodel.parP_kids_frag]
 theorem parKids_unfold (p : Parent) (K : Oids) :
     parKids (GF := GF) p K ⊣⊢ parSelf p ∗ OForest.kids p K ∗ [∗set] x ∈ K, oblShare x :=
@@ -176,8 +157,7 @@ theorem oblShare_discharged_false (k : Oid) :
   iintro ⟨⟨-, Ha⟩, ⟨-, Hd⟩⟩
   iapply OSat.assigned_discharged_false k _ $$ [$Ha $Hd]
 
-/-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_proper`, which also
-assumes `ℓ1 == ℓ2`: across layers, the model fuels differ by the `▽` of the encoding). -/
+/-- Fuels at one layer with equal interpretations are equal. -/
 @[lantana_alias omodel.oblP_fuel_proper]
 theorem oblFuel_eq_of_rep (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
     (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) :
@@ -300,8 +280,7 @@ section Rounds
 variable [ModelGS GF]
 
 /-- A round that may change the obligations without discharge, keeping their domain, on the
-forest at any thread count (Rocq `mupd_model_round`): the witnesses chosen by the environment are
-then below the old ones. -/
+forest at any view. -/
 @[lantana_alias omodel.mupd_model_round]
 theorem mupd_model_round (n : Nat) (P : IProp GF) :
     (∀ (Ω : Obls) (tc : Nat) (X : ThreadId → Prop), osat Ω ∗ oforest Ω tc X ==∗ ∃ Ω' : Obls,
@@ -332,8 +311,7 @@ theorem mupd_model_round (n : Nat) (P : IProp GF) :
   · iapply mupd_intro
     iexact HP
 
-/-- A round that changes only ghost state, on the forest at any thread count (Rocq
-`mupd_ghost_round`). -/
+/-- A round that changes only ghost state, on the forest at any view. -/
 @[lantana_alias omodel.mupd_ghost_round]
 theorem mupd_ghost_round (n : Nat) (P : IProp GF) :
     (∀ (Ω : Obls) (tc : Nat) (X : ThreadId → Prop),
@@ -365,7 +343,7 @@ section Operations
 
 variable [ModelGS GF]
 
-/-- A running thread without children terminates (Rocq `thread_terminate_mupd`). -/
+/-- A running thread without children terminates. -/
 @[lantana_alias omodel.thread_terminate_mupd]
 theorem thread_terminate_mupd (n : Nat) (i : ThreadId) :
     thActive (GF := GF) i ⊢ parKids (.thread i) ∅ -∗ mupd n (thDone i) := by
@@ -377,8 +355,8 @@ theorem thread_terminate_mupd (n : Nat) (i : ThreadId) :
   imodintro
   iframe Hs Hf Hd
 
-/-- The owner `t` of a new obligation below `p`, and its piece `ν` at layer `ℓ`: below an
-obligation `q` with a witness at layer `ℓq ≤ ℓ`, above the fuel of `q` (`layer_le_bound`). -/
+/-- The owner `t` of a new obligation below `p`, and a piece `ν` at layer `ℓ` above the fuel of
+`p` if it is an obligation. -/
 theorem parLe_owner (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (p : Parent) (K : Oids)
     (ℓ : Layer) :
     oforest Ω tc X ∗ OForest.kids p K ∗ parLe p ℓ ⊢@{IProp GF}
@@ -398,8 +376,7 @@ theorem parLe_owner (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (p : Parent) 
     ipureintro
     exact ⟨t, μq + 1, ht, Ordinal.lt_of_le_of_lt hle (Measure.layer_le_bound μq hℓ)⟩
 
-/-- The owner `j` of `p`: below an obligation `q` with a witness at a layer `ℓq < ℓ`, the fuel
-of `q` is below `▽` at `ℓ` (`layer_dominates`). -/
+/-- The owner `j` of `p`; if `p` is an obligation, its fuel is below `▽` at layer `ℓ`. -/
 theorem parBelow_owner (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (p : Parent) (K : Oids)
     (ℓ : Layer) :
     oforest Ω tc X ∗ OForest.kids p K ∗ parBelow p ℓ ⊢@{IProp GF}
@@ -438,9 +415,7 @@ private theorem get?_none_wits {Ω : Obls} {W : Witnesses} {k : Oid} (hI : owitI
   · rfl
   · simp [e] at h
 
-/-- A new live obligation below `p`, added to the bill of `p` (Rocq `obl_new_mupd`): its owner is
-the owner of `p`, its model fuel is the user's fuel, an extra `▽` and its piece above the fuel of
-the parent. -/
+/-- A new live obligation below `p`, with the owner of `p`, added to the bill of `p`. -/
 @[lantana_alias omodel.obl_new_mupd]
 theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
     parLe (GF := GF) p ℓ ⊢ parKids p K -∗ OForest.parBill p B -∗
@@ -530,7 +505,7 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
     rw [hrep]
     iexact Hβ
 
-/-- A new discharged obligation (Rocq `obl_new_discharged_mupd`): it is outside the forest. -/
+/-- A new discharged obligation, outside the forest. -/
 @[lantana_alias omodel.obl_new_discharged_mupd]
 theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
     ⊢@{IProp GF} mupd n iprop(∃ k : Oid, oblDischarged k ∗ witLayer k ℓ) := by
@@ -574,9 +549,8 @@ theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
   · iexists 1
     iexact Hβ
 
-/-- A move of the node `k` from `p₁` to `p₂`, with the unit `u` that `k` burns if its owner
-changes and the piece `π` above the fuel of `p₂` (Rocq: the two cases of `obl_move_mupd`, with
-`oforest_move_same` and `oforest_move_cross`). -/
+/-- A move of the node `k` from `p₁` to `p₂` (`oforest_move_same` or `oforest_move_cross`), with
+the unit `u` that `k` burns if its owner changes and its new piece `π`. -/
 theorem oforest_move {Ω : Obls} {tc : Nat} {X : ThreadId → Prop} {p₁ p₂ : Parent}
     {K₁ K₂ B₂ : Oids} {k : Oid} {j : ThreadId} {u π : Fuel} (hk : k ∈ K₁) (hu : 0 < u)
     (hp₂ : match p₂ with
@@ -628,9 +602,8 @@ theorem oforest_move {Ω : Obls} {tc : Nat} {X : ThreadId → Prop} {p₁ p₂ :
     ipureintro
     exact hΩ'
 
-/-- The obligation `k` moves with its subtree from `p₁` to `p₂`, added to the bill of `p₂`,
-burning one unit at a layer that dominates `p₂` (Rocq `obl_move_mupd`): the unit splits into `1`,
-burnt by `k` if its owner changes, and `▽`, its new piece below an obligation. -/
+/-- The obligation `k` moves with its subtree from `p₁` to `p₂`, added to the bill of `p₂`, for
+one unit of fuel at a layer that dominates `p₂`. -/
 @[lantana_alias omodel.obl_move_mupd]
 theorem obl_move_mupd (n : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k : Oid) (ℓ : Layer)
     (hk : k ∈ K₁) :
@@ -671,8 +644,7 @@ theorem obl_move_mupd (n : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k 
   · rw [oids_insert_eq]
     iexact HB
 
-/-- A grandchild `x`, child of `k`, moves up to the parent `p` of `k`, added to the bill of `p`
-(Rocq `obl_move_up_mupd`): a ghost round. -/
+/-- A grandchild `x`, child of `k`, moves up to the parent `p` of `k`, added to the bill of `p`. -/
 @[lantana_alias omodel.obl_move_up_mupd]
 theorem obl_move_up_mupd (n : Nat) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oids) (x : Oid)
     (hk : k ∈ K) (hx : x ∈ Kk) :
@@ -772,7 +744,7 @@ private theorem witLayers_creds (R : Oids) (a : Fuel) :
       [∗set] r ∈ R, witCred r a ∨ oblDischarged r :=
   BigSepS.bigSepS_sep.mpr.trans (BigSepS.bigSepS_mono_of_forall fun r => witLayer_cred_or r a)
 
-/-- The witnesses of `R` get zero credits or are discharged (Rocq `obl_check_witnesses_mupd`). -/
+/-- The witnesses of `R` get zero credits or are discharged. -/
 @[lantana_alias omodel.obl_check_witnesses_mupd]
 theorem obl_check_witnesses_mupd (n : Nat) (R : Oids) :
     ([∗set] r ∈ R, ∃ ℓ, witLayer (GF := GF) r ℓ) ⊢
@@ -811,8 +783,7 @@ theorem obl_check_witnesses_mupd (n : Nat) (R : Oids) :
   · iexact HR
   · iexact Hc
 
-/-- The witness `r` gets zero credits or is discharged (Rocq `obl_check_witnesses_mupd` for one
-witness). -/
+/-- `obl_check_witnesses_mupd` for one witness. -/
 theorem obl_check_witness_mupd (n : Nat) (r : Oid) (ℓ : Layer) :
     witLayer (GF := GF) r ℓ ⊢ mupd n iprop(witCred r 0 ∨ oblDischarged r) := by
   have h₁ : ([∗set] x ∈ ({r} : Oids), witCred (GF := GF) x 0 ∨ oblDischarged x) ⊢
@@ -823,9 +794,7 @@ theorem obl_check_witness_mupd (n : Nat) (r : Oid) (ℓ : Layer) :
       (BigSepS.bigSepS_singleton (Φ := fun x => iprop(∃ ℓ, witLayer (GF := GF) x ℓ))).mpr
   exact h₂.trans ((obl_check_witnesses_mupd n {r}).trans (mupd_mono_of h₁))
 
-/-- Discharge of a leaf `k` below `p` (Rocq `obl_discharge_mupd`): the round with `Obls.lef`,
-through `mupd_unfold`. The children predicates of `p` and `k` give the two children shares of
-`k`, with the user's half the full assignment. -/
+/-- Discharge of a leaf `k` below `p`: the only round that discharges (`Obls.lef`). -/
 @[lantana_alias omodel.obl_discharge_mupd]
 theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k ∈ K) :
     parKids (GF := GF) p K ⊢ parKids (.obl k) ∅ -∗ oblAssigned k 1 -∗
@@ -873,8 +842,7 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
     · iexact He
     · iexact Hd
 
-/-- The fuel ranks the obligations of `S` whose children predicates are at hand: each child has
-more fuel than its parent (`oforest_kids_obl`). -/
+/-- Each child of an obligation of `S` has more fuel than its parent. -/
 theorem oforest_kids_rank (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (S : Oids)
     (kids : Oid → Oids) :
     oforest Ω tc X ∗ ([∗set] k ∈ S, parKids (GF := GF) (.obl k) (kids k)) ⊢
@@ -891,8 +859,8 @@ theorem oforest_kids_rank (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (S : Oi
     exact fun x hx => (h x hx).2
   · exact BI.pure_intro fun h => (hk h).elim
 
-/-- A rank of the obligations of `S` whose children predicates are at hand, growing from parent
-to child, read from the model by a ghost round: the fuel. -/
+/-- A rank of the obligations of `S` growing from parent to child, read from the model: the
+fuel. -/
 theorem kids_rank_mupd (n : Nat) (S : Oids) (kids : Oid → Oids) :
     ([∗set] k ∈ S, parKids (GF := GF) (.obl k) (kids k)) ⊢
       mupd n iprop(⌜∃ r : Oid → Fuel, ∀ k, k ∈ S → ∀ x, x ∈ kids k → r k < r x⌝ ∗
@@ -906,8 +874,7 @@ theorem kids_rank_mupd (n : Nat) (S : Oids) (kids : Oid → Oids) :
   ipureintro
   exact ⟨Ω.fuelOf, h⟩
 
-/-- The node of a thread through the user's predicates: its running handle and its empty
-children predicate. -/
+/-- The node of a thread through the user's predicates. -/
 theorem node_eq (j : ThreadId) :
     thActive (GF := GF) j ∗ parKids (.thread j) ∅ ⊣⊢ OForest.node j := by
   unfold thActive parKids
@@ -921,8 +888,7 @@ theorem node_eq (j : ThreadId) :
     iapply BigSepS.bigSepS_empty.mpr
     iempintro
 
-/-- New threads `tc, …, tc + m - 1`, running, with empty bills, and with their running handles
-and children predicates if their bits are not set (Rocq `thP_kids_alloc_threads`). -/
+/-- `oforest_alloc_threads` through the user's predicates. -/
 @[lantana_alias omodel.thP_kids_alloc_threads]
 theorem thKids_alloc_threads (Ω : Obls) (tc m : Nat) (X : ThreadId → Prop) :
     oforest Ω tc X ⊢@{IProp GF} |==> (oforest Ω (tc + m) X ∗
@@ -944,10 +910,8 @@ section Physical
 
 variable [ModelGS GF]
 
-/-- A step of thread `i` (Rocq `mprog_step_kids`): one unit of fuel of each obligation of the
-bill of `i` makes every obligation of `i` progress (`oforest_osat_step`, keeping the owners),
-every assigned witness gets a positive credit (`owit_progress`), weakened to one credit for the
-witnesses of `R`. -/
+/-- A step of thread `i`, paid by one unit of fuel of each obligation of its bill; each witness
+of `R` gets one credit or is discharged. -/
 @[lantana_alias omodel.mprog_step_kids]
 theorem mprog_step_kids (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R : Oids)
     (P : IProp GF) :
@@ -997,9 +961,7 @@ theorem mprog_step_kids (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R
   ipureintro
   exact hI₂
 
-/-- A step of a crashed thread `i` pays for nothing, whatever its bill: the bill is resynchronized
-against the empty children that the invariant holds (`oforest_bill_crashed`), then the step is
-`mprog_step_kids` with the empty bill. -/
+/-- A step of a crashed thread `i` pays for nothing, whatever its bill. -/
 theorem mprog_step_crashed (n tc : Nat) (X : ThreadId → Prop) {i : ThreadId} (hX : X i)
     (B R : Oids) (P : IProp GF) :
     OForest.bill i B ⊢ ([∗set] r ∈ R, ∃ ℓ, witLayer r ℓ) -∗
@@ -1031,9 +993,8 @@ private theorem forked_pieces {tc₁ m : Nat} {X : ThreadId → Prop} (hX : ∀ 
     icases Hn $$ %(hX j hle) with ⟨He, Hk⟩
     iframe He Hk Hb
 
-/-- The first stage of the physical round: the step index and the thread count change at the
-bits `X₁`, and the forked threads `tc₁, …, tc₂ - 1`, not crashed, get their running handles,
-empty children predicates and empty bills. -/
+/-- The first stage of the physical round: the forked threads `tc₁, …, tc₂ - 1` get their
+running handles, empty children predicates and empty bills. -/
 theorem mphys_forks {n₁ n₂ tc₁ tc₂ : Nat} {X₁ X₂ : ThreadId → Prop} {P : IProp GF}
     (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁),
@@ -1076,10 +1037,7 @@ theorem mbits_kids (n tc : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) :
     exact hI
   · iapply HP $$ Hout
 
-/-- A step that forks the threads `tc₁, …, tc₂ - 1` and changes the bits from `X₁` to `X₂`
-(Rocq `mphys_step_kids`, with the bits): the forked threads get their pieces; after the model
-update at `n₂`, the nodes of the newly crashed threads go in and the nodes of the recovered ones
-come out. -/
+/-- A step that forks the threads `tc₁, …, tc₂ - 1` and changes the bits from `X₁` to `X₂`. -/
 @[lantana_alias omodel.mphys_step_kids]
 theorem mphys_step_kids (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF)
     (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :

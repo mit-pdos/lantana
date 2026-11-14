@@ -9,42 +9,12 @@ public import Lantana.BaseLogic.Model.OSat
 
 /-! # The obligation forest and the threads
 
-The invariant `oforest Ω tc X` (Rocq `lantana/base_logic/oforest.v`, merged with the thread part
-of `othread.v`): every live obligation of `Ω` is a node of a forest `Par : OidMap Parent` whose
-roots are the threads `0, …, tc - 1` (`ForestWf`, pure, `Lantana.BaseLogic.Forest`). The
-children of each thread of the pool and of each node are tabulated in a ghost map whose
-exclusive fragments `OForest.kids p K` are the backbone of the user's children predicates. Each
-thread of the pool also has a bill `OForest.bill i B`, an upper bound of its children kept in a
-third ghost map (`BillMap`): the set that a step of `i` pays for. A node below an obligation `c`
-stores a piece of fuel strictly above the fuel of `c` (`forestNode`), so that when the owner of
-`c` steps, every descendant can split off a positive unit (`oforest_step`). Each thread of the
-pool is running (the invariant keeps half of `OForest.exec i`, the other half is the user's) or
-terminated (`OForest.done i`, persistent; the invariant keeps its empty children fragment, and it
-owns no node).
-
-The pool is seen through the thread count `tc` and the crashed bits `X : ThreadId → Prop`. A
-crashed thread `i < tc` (`X i`) is inactive without having finished: the invariant also holds its
-node, the user's half of its running status and its empty children fragment
-(`OForest.crashedInv`). Nobody can then add a child under it, and it owns no obligation
-(`oforest_crashed_owned`). The bits change by `oforest_bits`: the nodes of the newly crashed
-threads go in, the nodes of the recovered ones come out. The other lemmas keep the bits.
-
-Design (plan M4 §1, differences with Rocq):
-* No owner ghost state and no per-thread ghost maps of owned obligations: the owner of an
-  obligation is read from `Ω` (`Obls.ownerOf`) and the nodes owned by `i` are the pure
-  `Forest.owned Ω Par i` (`ForestWf.mem_owned_iff`: the obligations of `Ω` with owner `i`). The
-  forest invariant holds no fraction of the states of the obligations.
-* The children map is *defined* by `Par` (`Forest.kids`); the authoritative children map `M`
-  tabulates it on the threads of the pool and the nodes (`KidsMap`).
-* The bills are a ghost map `ThreadId → Oids` whose entries contain the children of the threads
-  and are arbitrary beyond them: adding a child under a thread adds it to the bill, removing one
-  leaves the bill stale until `oforest_bill_resync` or `oforest_bill_erase`.
-* The thread statuses are a ghost map `ThreadId → ThreadStatus` (`OForest.exec i q`, fractional,
-  `running`; `OForest.done i`, persistent, `done`). A dedicated type rather than `Bool` keeps its
-  `GhostMapG` instance apart from the state map of `OSat` (also keyed by `Nat`).
-* Since owners are not ghost state, a progress round of `i` must keep the owners for
-  `oforest_step` to close (`osat_progress_owner` produces such rounds); owner changes go through
-  `oforest_move_cross`, which changes the owner of a whole subtree with `osat_chown_set`.
+The forest invariant `oforest Ω tc X`: the live obligations of `Ω` form a forest below the
+threads `< tc`, with the ghost maps of the children, the thread statuses and the bills
+(`OForest.kids`, `OForest.exec`, `OForest.done`, `OForest.bill`), the nodes of the crashed
+threads and the fuel pieces of the nodes; and its rules for threads (allocation, termination,
+`oforest_bits`) and obligations (allocation, discharge, moves, `oforest_step`).
+See `docs/model.md`, §1, §2 and §4. Rocq: `oforest.v` and `othread.v` in `lantana/base_logic/`.
 -/
 
 @[expose] public noncomputable section
@@ -68,9 +38,8 @@ abbrev ParentMap (V : Type _) := Std.ExtTreeMap Parent V compare
 /-- Finite maps from thread ids (the status ghost map). -/
 abbrev ThreadMap (V : Type _) := Std.ExtTreeMap ThreadId V compare
 
-/-- The ghost state of the forest that a world provides: the children map, the status map and the
-bill map. -/
-@[lantana_alias oforestGpreS] -- Rocq `oforestGS.oforestGpreS`
+/-- The ghost state of the forest that a world provides: the children, status and bill maps. -/
+@[lantana_alias oforestGpreS]
 class OForestGpreS (GF : BundledGFunctors) where
   [kidsG : GhostMapG GF Parent Oids ParentMap]
   [statusG : GhostMapG GF ThreadId ThreadStatus ThreadMap]
@@ -81,9 +50,8 @@ attribute [reducible, instance] OForestGpreS.kidsG OForestGpreS.statusG OForestG
 attribute [lantana_alias oforestGpreS_kids] OForestGpreS.kidsG
 attribute [lantana_alias othreadGpreS_exec] OForestGpreS.statusG
 
-/-- The ghost state of the forest: the names of the children map, the status map and the bill
-map. -/
-@[lantana_alias oforestGS] -- Rocq `oforestGS.oforestGS`
+/-- The ghost state of the forest: the names of its three ghost maps. -/
+@[lantana_alias oforestGS]
 class OForestGS (GF : BundledGFunctors) extends OForestGpreS GF where
   /-- The ghost name of the children map. -/
   kidsName : GName
@@ -116,22 +84,22 @@ namespace OForest
 
 variable {GF : BundledGFunctors} [OForestGS GF]
 
-/-- The children of `p` are `K` (exclusive; Rocq `oforestG_kids`). -/
+/-- The children of `p` are `K` (exclusive). -/
 @[lantana_alias oforestG_kids]
 def kids (p : Parent) (K : Oids) : IProp GF :=
   OForestGS.kidsName (GF := GF) ↪◯MAP[p] K
 
-/-- The authoritative children map (Rocq: the local `oforestG_kids_auth`). -/
+/-- The authoritative children map. -/
 @[lantana_alias oforestG_kids_auth]
 def kidsAuth (M : ParentMap Oids) : IProp GF :=
   OForestGS.kidsName (GF := GF) ↪●MAP M
 
-/-- A fraction `q` of the running status of thread `i` (Rocq `othreadG_exec`). -/
+/-- A fraction `q` of the running status of thread `i`. -/
 @[lantana_alias othreadG_exec]
 def exec (i : ThreadId) (q : Qp) : IProp GF :=
   OForestGS.statusName (GF := GF) ↪◯MAP[i]{DFrac.own q} ThreadStatus.running
 
-/-- Thread `i` has terminated (persistent; Rocq `othreadG_done`). -/
+/-- Thread `i` has terminated (persistent). -/
 @[lantana_alias othreadG_done]
 def done (i : ThreadId) : IProp GF :=
   OForestGS.statusName (GF := GF) ↪◯MAP[i]{DFrac.discard} ThreadStatus.done
@@ -263,7 +231,6 @@ theorem kidsAuth_delete (M : ParentMap Oids) (p : Parent) (K : Oids) :
 
 /-! ### Thread statuses -/
 
-/-- Rocq `othreadG_exec_valid`. -/
 @[lantana_alias othreadG_exec_valid]
 theorem exec_frac_valid (i : ThreadId) (q : Qp) : exec i q ⊢@{IProp GF} ⌜q ≤ 1⌝ := by
   unfold exec
@@ -305,8 +272,7 @@ theorem statusAuth_insert {T : ThreadMap ThreadStatus} {i : ThreadId} (hi : get?
   iintro Ha
   iapply ghost_map_insert i ThreadStatus.running hi $$ Ha
 
-/-- Termination: the whole running status becomes terminated (Rocq `othreadG_exec_to_done` and
-`othreadG_done_auth_done`, here against the authoritative status map). -/
+/-- Termination: the whole running status becomes the terminated status. -/
 @[lantana_alias othreadG_exec_to_done]
 theorem exec_to_done (T : ThreadMap ThreadStatus) (i : ThreadId) :
     statusAuth T ∗ exec i 1 ⊢@{IProp GF} |==> (statusAuth (insert T i .done) ∗ done i) := by
@@ -352,8 +318,7 @@ end OForest
 
 namespace Forest
 
-/-- The parents with an entry in the children map: the threads of the pool and the nodes
-(Rocq `fwf_kids_dom`). -/
+/-- The parents with an entry in the children map: the threads of the pool and the nodes. -/
 def keyed (tc : Nat) (Par : OidMap Parent) : Parent → Bool
   | .thread i => decide (i < tc)
   | .obl x => (get? Par x).isSome
@@ -378,7 +343,7 @@ theorem diff_singleton_of_not_mem {s : Oids} {k : Oid} (h : k ∉ s) : s \ {k} =
 end Forest
 
 /-- The authoritative children map `M` tabulates the children `Forest.kids Par p` of the threads
-of the pool and of the nodes (Rocq: `Kids` with `fwf_kids_dom` and `fwf_par_kids`). -/
+of the pool and of the nodes. -/
 def KidsMap (tc : Nat) (Par : OidMap Parent) (M : ParentMap Oids) : Prop :=
   ∀ p, get? M p = if Forest.keyed tc Par p then some (Forest.kids Par p) else none
 
@@ -665,7 +630,6 @@ section BigOp
 
 variable {PROP : Type _} [BI PROP]
 
-/-- Rocq `big_sepS_filter_dom`. -/
 @[lantana_alias big_sepS_filter_dom]
 theorem bigSepS_dom_filter {V : Type _} (m : OidMap V) (φ : Oid → V → Bool)
     (Φ : Oid → PROP) :
@@ -720,9 +684,8 @@ namespace OForest
 
 variable {GF : BundledGFunctors} [OForestGS GF]
 
-/-- What the invariant holds for thread `i` of the pool: half of its running status (the other
-half is the user's), or its terminated status with its empty children fragment, and then it
-owns no node (Rocq: the body of the big separating conjunction over `Θ` in `oforest`). -/
+/-- The entry of thread `i` in the invariant: half of its running status, or its terminated
+status with its empty children fragment and no node. -/
 @[reducible] def threadInv (Ω : Obls) (Par : OidMap Parent) (i : ThreadId) : IProp GF :=
   iprop(exec i (Qp.half 1) ∨ (done i ∗ kids (.thread i) ∅ ∗ ⌜Forest.owned Ω Par i = ∅⌝))
 
@@ -868,8 +831,8 @@ variable {GF : BundledGFunctors} [OSatGS GF]
   | .obl c => iprop(∃ π, ⌜Ω.fuelOf c < π⌝ ∗ OSat.fuel x π)
   | .thread _ => iprop(True)
 
-/-- What the invariant holds for the node `x` with parent `p` (Rocq `forest_node`, without the
-owner and the per-thread tokens): it exists, its fuel is below its bound, and its piece. -/
+/-- What the invariant holds for the node `x` below `p`: it exists, its fuel is below its bound,
+and its piece. -/
 @[lantana_alias forest_node, reducible]
 def forestNode (Ω : Obls) (x : Oid) (p : Parent) : IProp GF :=
   iprop(OSat.elem x ∗ (∃ β, OSat.bound x β ∗ ⌜Ω.fuelOf x ≤ β⌝) ∗ forestPiece Ω x p)
@@ -881,8 +844,7 @@ node is owned by `i` (it split off a unit), unchanged otherwise. -/
       (Ω.ownerOf x ≠ some i → Ω.fuelOf c < π)⌝ ∗ OSat.fuel x π)
   | .thread _ => iprop(True)
 
-/-- A node of the forest right after a step of thread `i`, before the model round (Rocq
-`forest_node_stepped`). -/
+/-- A node of the forest right after a step of thread `i`, before the model round. -/
 @[lantana_alias forest_node_stepped, reducible]
 def forestNodeStepped (Ω : Obls) (i : ThreadId) (x : Oid) (p : Parent) : IProp GF :=
   iprop(OSat.elem x ∗ (∃ β, OSat.bound x β ∗ ⌜Ω.fuelOf x ≤ β⌝) ∗ forestPieceStepped Ω i x p)
@@ -1237,11 +1199,8 @@ section Oforest
 
 variable {GF : BundledGFunctors} [OSatGS GF] [OForestGS GF] {X : ThreadId → Prop}
 
-/-- The forest invariant (Rocq `oforest`, with the thread statuses of `othread`) at the view
-`tc`, `X`: a forest `Par` of the live obligations of `Ω` below the threads `< tc`, the
-authoritative children map `M` tabulating its children, the authoritative status map `T` of the
-pool, the authoritative bill map `C` above the children of the threads, the entries of the
-threads, the nodes of the crashed threads, and the nodes of the forest. -/
+/-- The forest invariant of the obligations `Ω` at the view `tc`, `X`: the thread count and the
+crashed bits. -/
 @[lantana_alias oforest]
 def oforest (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) : IProp GF :=
   iprop(∃ (Par : OidMap Parent) (M : ParentMap Oids) (T : ThreadMap ThreadStatus)
@@ -1276,7 +1235,7 @@ theorem oforest_wf (Ω : Obls) (tc : Nat) :
   ipureintro
   exact ⟨Par, wf⟩
 
-/-- The owners are threads of the pool (Rocq `othread_assigned_thread_elem`). -/
+/-- The owners are threads of the pool. -/
 @[lantana_alias othread_assigned_thread_elem]
 theorem oforest_owner_lt (Ω : Obls) (tc : Nat) :
     oforest Ω tc X ⊢@{IProp GF} ⌜∀ x i, Ω.ownerOf x = some i → i < tc⌝ := by
@@ -1344,7 +1303,7 @@ theorem oforest_obl_fuel_bound (Ω : Obls) (tc : Nat) (q : Oid) (K : Oids) (β :
   ipureintro
   exact ⟨hβ', wf.live_of_isSome hq⟩
 
-/-- The running threads are threads of the pool (Rocq `othread_elem`, for a running thread). -/
+/-- The running threads are threads of the pool. -/
 @[lantana_alias othread_elem]
 theorem oforest_exec_lt (Ω : Obls) (tc : Nat) (i : ThreadId) (q : Qp) :
     oforest Ω tc X ∗ OForest.exec i q ⊢@{IProp GF} ⌜i < tc⌝ := by
@@ -1363,8 +1322,7 @@ theorem oforest_done_lt (Ω : Obls) (tc : Nat) (i : ThreadId) :
   ipureintro
   exact hT.lt h
 
-/-- A terminated thread owns no obligation (Rocq `othread_done_open`, which opens the empty set of
-obligations of a terminated thread). -/
+/-- A terminated thread owns no obligation. -/
 @[lantana_alias othread_done_open]
 theorem oforest_done_owned (Ω : Obls) (tc : Nat) (i : ThreadId) :
     oforest Ω tc X ∗ OForest.done i ⊢@{IProp GF} ⌜∀ x, Ω.ownerOf x ≠ some i⌝ := by
@@ -1380,8 +1338,7 @@ theorem oforest_done_owned (Ω : Obls) (tc : Nat) (i : ThreadId) :
     rw [hown] at hmem
     exact LawfulSet.mem_empty hmem
 
-/-- An obligation owned by a terminated thread is impossible (Rocq
-`othread_assigned_done_false`). -/
+/-- An obligation owned by a terminated thread is impossible. -/
 @[lantana_alias othread_assigned_done_false]
 theorem oforest_assigned_done_false {Ω : Obls} {tc : Nat} {k : Oid} {a : Fuel} {i : ThreadId}
     (hk : get? Ω k = some (.assigned a i)) :
@@ -1403,8 +1360,7 @@ theorem oforest_done_kids_false (Ω : Obls) (tc : Nat) (i : ThreadId) (K : Oids)
 /-! ### Threads: allocation and termination -/
 
 /-- A new thread `tc`, running, without children and with an empty bill; its node is the user's
-if its bit is not set, and stays in the invariant otherwise (Rocq `oforest_alloc_thread` with
-`othread_alloc_thread`). -/
+if its bit is not set, and stays in the invariant otherwise. -/
 @[lantana_alias oforest_alloc_thread, lantana_alias othread_alloc_thread]
 theorem oforest_alloc_thread (Ω : Obls) (tc : Nat) :
     oforest Ω tc X ⊢@{IProp GF} |==> (oforest Ω (tc + 1) X ∗
@@ -1435,8 +1391,7 @@ theorem oforest_alloc_thread (Ω : Obls) (tc : Nat) :
   · iapply BigSepL.bigSepL_snoc.mpr
     iframe Hx Hc
 
-/-- New threads `tc, …, tc + n - 1`, with their nodes if their bits are not set (Rocq
-`oforest_alloc_threads` with `othread_alloc_threads`; thread ids are positions in the pool). -/
+/-- New threads `tc, …, tc + n - 1`, with their nodes if their bits are not set. -/
 @[lantana_alias oforest_alloc_threads, lantana_alias othread_alloc_threads]
 theorem oforest_alloc_threads (Ω : Obls) (tc n : Nat) :
     oforest Ω tc X ⊢@{IProp GF} |==> (oforest Ω (tc + n) X ∗
@@ -1459,8 +1414,7 @@ theorem oforest_alloc_threads (Ω : Obls) (tc n : Nat) :
     iapply BigSepL.bigSepL_cons.mpr
     iframe Hu Hb Hs
 
-/-- A running thread without children terminates (Rocq `oforest_exec_to_done` with
-`othread_exec_to_done`). -/
+/-- A running thread without children terminates. -/
 @[lantana_alias oforest_exec_to_done, lantana_alias othread_exec_to_done]
 theorem oforest_exec_to_done (Ω : Obls) (tc : Nat) (i : ThreadId) :
     oforest Ω tc X ∗ OForest.exec i (Qp.half 1) ∗ OForest.kids (.thread i) ∅ ⊢@{IProp GF}
@@ -1687,7 +1641,7 @@ theorem oforest_bill_erase {Ω : Obls} {tc : Nat} {k : Oid} (hk : ¬Ω.live k) (
 
 /-! ### Obligations: allocation and discharge -/
 
-/-- A discharged obligation is outside the forest (Rocq `oforest_alloc_discharged`). -/
+/-- A discharged obligation is outside the forest. -/
 @[lantana_alias oforest_alloc_discharged]
 theorem oforest_alloc_discharged {Ω : Obls} {tc : Nat} {k : Oid} (hk : get? Ω k = none) :
     oforest Ω tc X ⊢@{IProp GF} oforest (insert Ω k .discharged) tc X := by
@@ -1710,9 +1664,8 @@ theorem oforest_alloc_discharged {Ω : Obls} {tc : Nat} {k : Oid} (hk : get? Ω 
   · iapply OForest.threads_mono hown $$ Hth
   · iapply nodes_congr wf (fun x hx => Obls.fuelOf_insert_ne (hne x hx)) $$ Hn
 
-/-- A new obligation `k` of `i` (allocated in the model), a leaf below `p` and in its bill; below
-an obligation `q`, it brings its piece above the fuel of `q` (Rocq `oforest_alloc_obl`, without
-the owner and the per-thread tokens; the existence of `k` follows from its bound). -/
+/-- A new obligation `k` of `i`, allocated in the model, becomes a leaf below `p` and enters its
+bill; below an obligation, it brings its piece. -/
 @[lantana_alias oforest_alloc_obl]
 theorem oforest_alloc_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oid}
     {a β : Fuel} {i : ThreadId} (hk : get? Ω k = none)
@@ -1799,8 +1752,7 @@ theorem oforest_alloc_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oi
       rw [hownd] at hmem
       exact (LawfulSet.mem_empty hmem).elim
 
-/-- A childless obligation `k` leaves the forest; it is about to be discharged (Rocq
-`oforest_discharge_obl`, without the owner and the per-thread tokens). -/
+/-- A childless obligation `k` leaves the forest, to be discharged. -/
 @[lantana_alias oforest_discharge_obl]
 theorem oforest_discharge_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oid}
     (hk : k ∈ K) :
@@ -1848,10 +1800,8 @@ theorem oforest_discharge_obl {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k 
 
 /-! ### Moves without owner change -/
 
-/-- The node `k` moves from `p₁` to a parent `p₂` (and its bill) with its owner and less fuel,
-with a new piece below an obligation (Rocq `oforest_move_same`, where the piece is
-`oblG_fuel k π` with `obl_fuel_of Ω q < π ≤ obl_fuel_of Ω k`; here the condition on the fuels is
-the one of the forest). -/
+/-- The node `k` moves from `p₁` to a parent `p₂` of the same owner and less fuel, entering its
+bill, with a new piece below an obligation. -/
 @[lantana_alias oforest_move_same]
 theorem oforest_move_same {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K₂ : Oids} {k : Oid}
     (hk : k ∈ K₁)
@@ -1905,9 +1855,8 @@ theorem oforest_move_same {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K₂
     · iexact Hbnd
     · iexact Hpc
 
-/-- A grandchild `x`, child of `k`, moves up to the parent `p` of `k` (and its bill): no model
-change and no new fuel, the piece of `x` above the fuel of `k` is above the fuel of `p` (Rocq
-`oforest_move_up`). -/
+/-- A grandchild `x`, child of `k`, moves up to the parent `p` of `k` and enters its bill, for
+free: its piece above the fuel of `k` is above the fuel of `p`. -/
 @[lantana_alias oforest_move_up]
 theorem oforest_move_up {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oid} {Kk : Oids}
     {x : Oid} (hk : k ∈ K) (hx : x ∈ Kk) (B : Oids) :
@@ -1963,14 +1912,9 @@ theorem oforest_move_up {Ω : Obls} {tc : Nat} {p : Parent} {K : Oids} {k : Oid}
 
 /-! ### Steps of a thread -/
 
-/-- A step of thread `i`, in two phases (Rocq `oforest_step`). First, the children of `i` take
-the units given by the user for its bill `B` (the other units are dropped), and every other node
-of `i` splits a unit off its piece, keeping exactly the fuel of its parent: this returns the set
-`G` of the obligations of `i` with a unit each. Then, after a progress round of `i` that keeps
-the owners (`osat_progress_owner`), the invariant holds again: the new pieces are below the new
-fuels of the nodes (`osat_fuel_le` on the new `osat`) and above the new fuels of their parents.
-Rocq also hands out and takes back the running status and the set of obligations of `i`, which
-are not ghost state here. -/
+/-- A step of thread `i`: the obligations `G` of `i` get a unit each (the children of `i` from the
+bill, the others from their pieces), and the invariant comes back after a progress round of `i`
+that keeps the owners. -/
 @[lantana_alias oforest_step]
 theorem oforest_step (Ω : Obls) (tc : Nat) (i : ThreadId) (B : Oids) :
     oforest Ω tc X ∗ OForest.bill i B ∗ ([∗set] k ∈ B, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c)
@@ -2008,8 +1952,7 @@ theorem oforest_step (Ω : Obls) (tc : Nat) (i : ThreadId) (B : Oids) :
   · iapply OForest.threads_mono howned $$ Hth
   · iapply BigSepM.bigSepM_mono (fun hx => node_unstep wf hp hx) $$ Hn
 
-/-- A step of thread `i` with its progress round: the obligations of `i` make progress and keep
-their owner (`oforest_step` closed with `osat_progress_owner`). -/
+/-- `oforest_step` with its progress round (`osat_progress_owner`). -/
 theorem oforest_osat_step (Ω : Obls) (tc : Nat) (i : ThreadId) (B : Oids) :
     osat Ω ∗ oforest Ω tc X ∗ OForest.bill i B ∗ ([∗set] k ∈ B, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c)
       ⊢@{IProp GF} |==> ∃ Ω', ⌜Obls.condProgress (Obl.condOwner i) Ω Ω' ∧
@@ -2027,11 +1970,9 @@ theorem oforest_osat_step (Ω : Obls) (tc : Nat) (i : ThreadId) (B : Oids) :
 
 /-! ### Moves with owner change -/
 
-/-- The node `k`, owned by `t`, moves from `p₁` to a parent `p₂` (and its bill) of another owner
-`j`: its whole subtree gets the owner `j`, and each of its nodes burns a unit: `k` burns `u`, the
-other nodes split a unit off their piece. Below an obligation, `k` brings its new piece (Rocq
-`oforest_move_cross`, without the owner and per-thread tokens; `osat_chown_set` changes the model
-`Ω` to `Ω'`, related by `chownRel`). -/
+/-- The node `k`, owned by `t`, moves from `p₁` to a parent `p₂` of another owner `j`, entering
+its bill: its whole subtree passes to `j`, `k` burning `u` and the other nodes a unit of their
+pieces; below an obligation, `k` brings its new piece. -/
 @[lantana_alias oforest_move_cross]
 theorem oforest_move_cross {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K₂ : Oids} {k : Oid}
     {t j : ThreadId} {u : Fuel} (hk : k ∈ K₁) (ht : Ω.ownerOf k = some t) (htj : t ≠ j)
@@ -2081,7 +2022,7 @@ theorem oforest_move_cross {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K�
     have h := (hSown q hqS).symm.trans hp₂
     cases h
     exact htj rfl
-  -- The entry of the new owner `j`: it is running.
+  -- the new owner `j` is running (the other case is absurd)
   icases OForest.threads_acc hj $$ Hth with ⟨Hj, Hclose⟩
   icases Hj with (Hej | ⟨-, Hkd, %hownd⟩)
   rotate_left
@@ -2094,9 +2035,7 @@ theorem oforest_move_cross {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K�
       have hmem : q ∈ Forest.owned Ω Par j := wf.mem_owned_iff.2 hp₂
       rw [hownd] at hmem
       exact (LawfulSet.mem_empty hmem).elim
-  -- The node `k`: its old piece is dropped.
   icases (BigSepM.bigSepM_delete hPk).mp $$ Hn with ⟨⟨#Hek, ⟨%βk, #Hbk, %hβk⟩, -⟩, Hn⟩
-  -- The other nodes of the subtree split a unit off their piece.
   ihave Hn := (BigSepM.bigSepM_mono fun hx => node_cross_split (Ω := Ω) hSobl hx) $$ Hn
   imod BigSepM.bigSepM_bupd _ $$ Hn with Hn
   rw [BigSepM.bigSepM_sep_eq]
@@ -2161,8 +2100,7 @@ end Oforest
 
 /-! ## Allocation -/
 
-/-- The ghost names of the forest (small enough for the existential property of satisfiability,
-unlike `OForestGS GF`). -/
+/-- The ghost names of the forest, small enough for the existential property of satisfiability. -/
 structure OForestNames where
   /-- The ghost name of the children map. -/
   kids : GName
@@ -2178,8 +2116,7 @@ structure OForestNames where
   statusName := γ.status
   billName := γ.bill
 
-/-- Allocation of the ghost state of the forest, with no thread and no obligation, at names `γ`
-(small enough for the existential property of satisfiability), at any bits. -/
+/-- `oforest_alloc` at ghost names `γ`. -/
 theorem oforest_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF]
     (X : ThreadId → Prop) :
     ⊢@{IProp GF} |==> ∃ γ : OForestNames, letI := OForestGS.ofNames (GF := GF) γ;
@@ -2208,8 +2145,7 @@ theorem oforest_alloc_names {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF
   · iapply BigSepM.bigSepM_empty.mpr
     iempintro
 
-/-- Allocation of the ghost state of the forest, with no thread and no obligation, at any bits
-(Rocq `oforest_alloc` and `othread_alloc`). -/
+/-- Allocation of the forest, with no thread and no obligation, at any bits. -/
 @[lantana_alias oforest_alloc, lantana_alias othread_alloc]
 theorem oforest_alloc {GF : BundledGFunctors} [OSatGS GF] [OForestGpreS GF]
     (X : ThreadId → Prop) :
