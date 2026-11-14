@@ -17,10 +17,11 @@ public import Lantana.ProgramLogic.WeakestPre
 Rocq `lantana/program_logic/lifting.v`, after Iris-Lean's `Iris.ProgramLogic.Lifting`: the rules
 of the operational semantics as rules of `lWP`.  Only `lwp_lift_step` sees the history and the
 model updates around a step; the others use the state interpretation and the obligation
-interface: a step burns one unit of fuel of each child `G` of the thread (`thKids i G`,
-`oblFuels G 1`), gives a credit to each witness of `R` (`witLayers R`, `witCreds R`) and gives
-every forked thread an empty set of children.  `PureExecSI ς i` updates the token `ς` of thread
-`i` (HeapLang's thread-expression token) and the state interpretation along a pure step.
+interface: a step burns one unit of fuel of each obligation of the bill `G` of the thread
+(`thCarriers i G`, `oblFuels G 1`), gives a credit to each witness of `R` (`witLayers R`,
+`witCreds R`) and gives every forked thread its running handle, an empty set of children and an
+empty bill.  `PureExecSI ς i` updates the token `ς` of thread `i` (HeapLang's thread-expression
+token) and the state interpretation along a pure step.
 -/
 
 @[expose] public noncomputable section
@@ -97,11 +98,12 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n, tp.length]=>m
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
-        ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
-            thKids i G -∗ witCreds R -∗
-            ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
+            thCarriers i G -∗ witCreds R -∗
+            ([∗list] j ∈ List.range efs.length,
+              thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
             ALC (mupdFancy ∅ E (n + 1) (tp.length + efs.length)
               iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
                   (tp.set i (fill K e₂) ++ efs) ∗
@@ -129,8 +131,8 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
   iapply step_fork n (n + 1) tp.length (tp.length + efs.length) _ (Nat.le_succ n)
     (Nat.le_add_right _ _)
   iintro Hforks
-  ihave Hforks := (bigSepL_range'_sub (Ψ := fun j => thKids j ∅) tp.length efs.length).mp $$
-    Hforks
+  ihave Hforks := (bigSepL_range'_sub (Ψ := fun j => iprop(thActive j ∗ thKids j ∅ ∗
+    thCarriers j ∅)) tp.length efs.length).mp $$ Hforks
   ispecialize H $$ HG HW Hforks
   imodintro
   iapply ALC_wand $$ [] H
@@ -150,11 +152,12 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) :
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
-        ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
-            thKids i G -∗ witCreds R -∗
-            ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
+            thCarriers i G -∗ witCreds R -∗
+            ([∗list] j ∈ List.range efs.length,
+              thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
             ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
               |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                 [∗list] j ↦ ef ∈ efs,
@@ -223,9 +226,9 @@ theorem lwp_lift_pure_step_no_fork [Inhabited State] {ς : ThreadId → Expr →
     [hς : PureExecSI ς i] (E' : CoPset)
     (hsafe : ∀ σ₁, s.pureSafe e₁ σ₁)
     (hstep : ∀ σ₁ obs e₂ σ₂ efs, primStep (e₁, σ₁) obs (e₂, σ₂, efs) → σ₂ = σ₁ ∧ efs = []) :
-    (|={E,E'}=> ς i e₁ ∗ ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
       ∀ (σ : State) (obs : List Obs) (e₂ : Expr), ⌜primStep (e₁, σ) obs (e₂, σ, [])⌝ -∗
-        ς i e₂ -∗ thKids i G -∗ witCreds R -∗
+        ς i e₂ -∗ thCarriers i G -∗ witCreds R -∗
         ALC iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }}))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   have hnv : toVal e₁ = none := Stuckness.pureSafe.toVal_eq_none (hsafe default)
@@ -279,11 +282,12 @@ theorem lwp_lift_atomic_step (he : toVal e₁ = none) :
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
-        ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
-            thKids i G -∗ witCreds R -∗
-            ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
+            thCarriers i G -∗ witCreds R -∗
+            ([∗list] j ∈ List.range efs.length,
+              thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
             ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
               |={E₁}=>m ((∃ v, ⌜toVal e₂ = some v⌝ ∗ Φ v) ∗
                 [∗list] j ↦ ef ∈ efs,
@@ -326,8 +330,8 @@ theorem lwp_lift_pure_det_step_no_fork [Inhabited State] {ς : ThreadId → Expr
     (hsafe : ∀ σ₁, s.pureSafe e₁ σ₁)
     (hdet : ∀ σ₁ obs e₂' σ₂ efs, primStep (e₁, σ₁) obs (e₂', σ₂, efs) →
       σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) :
-    (|={E,E'}=> ς i e₁ ∗ ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-      (ς i e₂ -∗ thKids i G -∗ witCreds R -∗
+    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+      (ς i e₂ -∗ thCarriers i G -∗ witCreds R -∗
         ALC iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
@@ -344,15 +348,15 @@ theorem lwp_lift_pure_det_step_no_fork [Inhabited State] {ς : ThreadId → Expr
   obtain ⟨-, rfl, -⟩ := hdet _ _ _ _ _ hst
   iapply H $$ Hc HG HW
 
-/-- `n` pure steps, each of which takes one unit of fuel of the children `G` of the thread and
+/-- `n` pure steps, each of which takes one unit of fuel of the bill `G` of the thread and
 the witness layers `R`, and gives back their credits and `£ₒ o`. -/
 @[lantana_alias lwp_pure_step]
 theorem lwp_pure_step [Inhabited State] {ς : ThreadId → Expr → IProp GF} [PureExecSI ς i]
     (n : Nat) (o : Fuel) (E' : CoPset) {φ : Prop} {e₂ : Expr}
     [hex : Language.PureExec φ n e₁ e₂] (hφ : φ) :
     ς i e₁ ∗ Nat.repeat (fun P => iprop(|={E,E'}=>
-        ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-          (thKids i G -∗ witCreds R -∗ ALC iprop(£ₒ o ={E',E}=∗ |={E}=>m P)))) n
+        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+          (thCarriers i G -∗ witCreds R -∗ ALC iprop(£ₒ o ={E',E}=∗ |={E}=>m P)))) n
       iprop(ς i e₂ -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   have hexec := hex.pureExec hφ
@@ -436,12 +440,12 @@ theorem credits_succ (o : Fuel) (m : Nat) :
 
 /-- The iterated premise of `lwp_pure_step` from the fuel of `m + 1` steps. -/
 private theorem pure_step_simple_aux (o : Fuel) (G R : Oids) (X : IProp GF) (m : Nat) :
-    thKids i G ∗ oblFuels G ((m + 1 : Nat) : Measure) ∗ witLayers R ∗
-      (thKids i G -∗ ([∗set] r ∈ R, Wit.cred r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) -∗
+    thCarriers i G ∗ oblFuels G ((m + 1 : Nat) : Measure) ∗ witLayers R ∗
+      (thCarriers i G -∗ ([∗set] r ∈ R, Wit.cred r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) -∗
         £ₒ (o ×ⱼ ((m + 1 : Nat) : Fuel)) -∗ X)
       ⊢ Nat.repeat (fun P => iprop(|={E,E}=>
-          ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-            (thKids i G -∗ witCreds R -∗ ALC iprop(£ₒ o ={E,E}=∗ |={E}=>m P)))) (m + 1) X := by
+          ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+            (thCarriers i G -∗ witCreds R -∗ ALC iprop(£ₒ o ={E,E}=∗ |={E}=>m P)))) (m + 1) X := by
   induction m generalizing X with
   | zero =>
     simp only [Nat.repeat]
@@ -483,15 +487,15 @@ private theorem pure_step_simple_aux (o : Fuel) (G R : Oids) (X : IProp GF) (m :
     · iapply credits_succ o (m + 1)
       iframe
 
-/-- `n > 0` pure steps paid at once: `n` units of fuel of each child `G` of the thread, the
-witness layers `R`; they give back `n` credits to each witness of `R` and `£ₒ (o ×ⱼ n)` (the
-rules STEP-PURE, STEP-PURE-LC and STEP-PURE-WIT of the paper in one). -/
+/-- `n > 0` pure steps paid at once: `n` units of fuel of each obligation of the bill `G` of the
+thread, the witness layers `R`; they give back `n` credits to each witness of `R` and
+`£ₒ (o ×ⱼ n)` (the rules STEP-PURE, STEP-PURE-LC and STEP-PURE-WIT of the paper in one). -/
 @[lantana_alias lwp_pure_step_simple]
 theorem lwp_pure_step_simple [Inhabited State] {ς : ThreadId → Expr → IProp GF} [PureExecSI ς i]
     (n : Nat) (hn : 0 < n) (G R : Oids) (o : Fuel) {φ : Prop} {e₂ : Expr}
     [Language.PureExec φ n e₁ e₂] (hφ : φ) :
-    ς i e₁ ∗ thKids i G ∗ oblFuels G (n : Measure) ∗ witLayers R ∗
-      (ς i e₂ -∗ thKids i G -∗ ([∗set] r ∈ R, Wit.cred r (n : Fuel) ∨ Obl.discharged r) -∗
+    ς i e₁ ∗ thCarriers i G ∗ oblFuels G (n : Measure) ∗ witLayers R ∗
+      (ς i e₂ -∗ thCarriers i G -∗ ([∗set] r ∈ R, Wit.cred r (n : Fuel) ∨ Obl.discharged r) -∗
         £ₒ (o ×ⱼ (n : Fuel)) -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩

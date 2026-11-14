@@ -263,16 +263,16 @@ theorem guar_renew_content (hQ : ⊢ Q ⊨ₜ G) :
     ⊢@{IProp GF} iprop(Q ∗ renew N Q G) ⊨ₜ renewTrSpec G :=
   guar_renew.trans (wand_entails (hQ.trans guar_sep))
 
-/-- Allocation of a link, with a fresh obligation `k` below `p`. -/
+/-- Allocation of a link, with a fresh obligation `k` below `p`, added to the bill of `p`. -/
 @[lantana_alias renew_alloc]
-theorem renew_alloc (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) (hQ : ⊢ Q ⊨ₜ G) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗
-      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗
-        Wit.layer k ℓ ∗
+theorem renew_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) (hQ : ⊢ Q ⊨ₜ G) :
+    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
+        oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ ∗
         untilIGuar N k 1 iprop(True) iprop(Q ∗ renew N Q G) TrSpec.true (renewTrSpec G) := by
   have hC := guar_renew_content (N := N) hQ
-  iintro B Kp
-  imod untilIGuar_alloc (E := E) p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, F, #W, ACC⟩
+  iintro Hl Kp HB
+  imod untilIGuar_alloc (E := E) p K B ℓ μ $$ Hl Kp HB with ⟨%k, %hk, Kp, HB, Kk, F, #W, ACC⟩
   imod ACC $$ %E %N %iprop(True) %iprop(Q ∗ renew N Q G) %TrSpec.true %(renewTrSpec G) [] []
     [] with U
   · inext
@@ -287,7 +287,7 @@ theorem renew_alloc (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) (hQ : �
   isplitr
   · ipureintro
     exact hk
-  iframe Kp Kk F U
+  iframe Kp HB Kk F U
   iexact W
 
 /-- Renewal: the link `k` is discharged with `Q` and the next link at hand. -/

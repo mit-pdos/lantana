@@ -175,8 +175,9 @@ end Lwp
 /-- **Theorem 1 (adequacy).** Let `G` be a trace specification and `R` a trace property implied
 by its trace reading. If, for every allocation of the temporal ghost state, the user can
 produce (under a fancy update, from some amount `c` of later credits and the initial threads'
-empty sets of children) a resource `P` that guarantees `G` together with `lWP`s for the
-initial threads, then every fair behavior from the initial configuration satisfies `R`.
+running handles, empty sets of children and empty bills) a resource `P` that guarantees `G`
+together with `lWP`s for the initial threads, then every fair behavior from the initial
+configuration satisfies `R`.
 Fairness is the strong fairness of every thread's scheduling action (`fairScheduling`, a trace
 property); the proof chooses a schedule as its instrument (`exists_fair_schedule_schedCounters`). -/
 @[lantana_alias lwp_adequacy_temporal]
@@ -193,7 +194,8 @@ theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr St
           let _ : LantanaGS Expr State Obs Val GF :=
             { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := forkPost }
           iprop(stateInterp σ tp ∗
-            (£ₒ c -∗ ([∗list] j ∈ List.range tp.length, thKids j ∅) -∗
+            (£ₒ c -∗
+              ([∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
               |={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ G) ∗ P ∗
                 (P -∗ |={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }})))) :
     R τ := by

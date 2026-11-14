@@ -342,44 +342,44 @@ theorem untilI_init : Obl.assigned k 1 ⊢ ▷ P -∗ |={E}=>m untilI N k 1 P Q 
   · inext
     iapply guar_canon
 
-/-- The obligation and the strong until at once: `k` is a new child of `p`, and the formulas
-are chosen once `k` is known (Rocq `untilI_guar_alloc`). -/
+/-- The obligation and the strong until at once: `k` is a new child of `p`, added to the bill
+of `p`, and the formulas are chosen once `k` is known (Rocq `untilI_guar_alloc`). -/
 @[lantana_alias untilI_guar_alloc]
-theorem untilIGuar_alloc (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗
-      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗
-        Wit.layer k ℓ ∗
+theorem untilIGuar_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
+    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
+        oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ ∗
         ∀ (E' : CoPset) (N : Namespace) (P Q : IProp GF) (G₁ G₂ : TrSpec Expr State GF),
           ▷ (P ⊨ₜ G₁) -∗ ▷ (Q ⊨ₜ G₂) -∗ ▷ P -∗ |={E'}=>m untilIGuar N k 1 P Q G₁ G₂ := by
-  iintro B Kp
-  imod Obl.new E p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Oa, F, #W⟩
+  iintro Hl Kp HB
+  imod Obl.new E p K B ℓ μ $$ Hl Kp HB with ⟨%k, %hk, Kp, HB, Kk, Oa, F, #W⟩
   imodintro
   iexists k
   isplitr
   · ipureintro
     exact hk
-  iframe Kp Kk F
+  iframe Kp HB Kk F
   isplitr
   · iexact W
   iintro %E' %N' %P' %Q' %G₁ %G₂ HG₁ HG₂ HP
   iapply untilIGuar_init $$ Oa HG₁ HG₂ HP
 
-/-- Allocation: a new obligation below `p` with its fuel and witness, and the right to turn it
-into an until with any formulas. -/
+/-- Allocation: a new obligation below `p`, added to the bill of `p`, with its fuel and
+witness, and the right to turn it into an until with any formulas. -/
 @[lantana_alias untilI_alloc]
-theorem untilI_alloc (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗
-      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗
-        Wit.layer k ℓ ∗
+theorem untilI_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
+    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
+        oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ ∗
         ∀ (E' : CoPset) (N : Namespace) (P Q : IProp GF), ▷ P -∗ |={E'}=>m untilI N k 1 P Q := by
-  iintro B Kp
-  imod Obl.new E p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Oa, F, #W⟩
+  iintro Hl Kp HB
+  imod Obl.new E p K B ℓ μ $$ Hl Kp HB with ⟨%k, %hk, Kp, HB, Kk, Oa, F, #W⟩
   imodintro
   iexists k
   isplitr
   · ipureintro
     exact hk
-  iframe Kp Kk F
+  iframe Kp HB Kk F
   isplitr
   · iexact W
   iintro %E' %N' %P' %Q' HP
