@@ -129,15 +129,15 @@ end GhostVar
 section Invariant
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [HandoffG GF]
 
-/-- A task `f a` that discharges the obligations `K`, using fuel at layer `ℓt` for the children
+/-- A task `f a` that discharges the obligations `K`, using fuel at layer `ℓt` for the bill
 of the running thread. The obligations `K` are children of some parent `p`. -/
 @[lantana_alias task_at]
 def taskAt (ℓt : Layer) (μ : Measure) (P : IProp GF) (f a : Val) (K : Oids) : IProp GF :=
   iprop(∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent) (K' : Oids) (C : List ECtxItem),
-    l{{{ threadExpr i C hl(v(&f) v(&a)) ∗ thKids i G ∗ ([∗set] g ∈ G, Obl.fuel g ℓt μ) ∗
+    l{{{ threadExpr i C hl(v(&f) v(&a)) ∗ thCarriers i G ∗ ([∗set] g ∈ G, Obl.fuel g ℓt μ) ∗
           Par.kids p K' ∗ ⌜K ⊆ K'⌝ ∗ P }}}
         hl(v(&f) v(&a)) @ i
-      l{{{ (rv : Val), RET rv; threadExpr i C hl(&rv) ∗ £ₒ lc ∗ thKids i G ∗
+      l{{{ (rv : Val), RET rv; threadExpr i C hl(&rv) ∗ £ₒ lc ∗ thCarriers i G ∗
         Par.kids p (K' \ K) }}})
 
 instance taskAt_persistent (ℓt : Layer) (μ : Measure) (P : IProp GF) (f a : Val) (K : Oids) :
@@ -253,12 +253,13 @@ the receiver's inbox, each paying one unit of fuel at the layer `ℓ` above the 
 @[lantana_alias Handoff_send_spec]
 theorem send_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (f a : Val) (G : Oids)
     (p : Parent) (K K' : Oids) (γ : HandoffName) (ℓ : Layer) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&send) #b v(&f) v(&a)) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&send) #b v(&f) v(&a)) ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ Par.kids p K' ∗ ⌜K ⊆ K'⌝ ∗
           ([∗set] k ∈ K, Obl.fuel k ℓ 1) ∗ b ↦{.own (1 : Qp).half} some vNone ∗
           isTask ℓ f a K ∗ isHandoff b γ ℓ }}}
         hl(v(&send) #b v(&f) v(&a)) @ i
-      l{{{ RET vUnit; threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗ Par.kids p (K' \ K) }}} := by
+      l{{{ RET vUnit; threadExpr i C hl(#()) ∗ £ₒ lc ∗ thCarriers i G ∗
+        Par.kids p (K' \ K) }}} := by
   refine ⟨20, fun lc i b f a G p K K' γ ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, HK, %hK, HFK, Hb, Htask, #Hh⟩ HΦ
   ihave HF := oblFuels_init G 20 0 $$ HF
@@ -292,8 +293,10 @@ theorem send_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (
     -- The container of the task, below the inbox at the layer of the task's fuel.
     unfold isTask
     icases Htask with ⟨%ℓt, %P, %hlt, HP, %μ, #Task⟩
-    imod Obl.new (⊤ \ ↑Na) (.obl g) ∅ ℓt (μ + 10) $$ [] Kg with ⟨%c, -, Kg, Kc, Ac, Fc, #Wc⟩
+    imod Obl.new (⊤ \ ↑Na) (.obl g) ∅ ∅ ℓt (μ + 10) $$ [] Kg [] with
+      ⟨%c, -, Kg, -, Kc, Ac, Fc, #Wc⟩
     · iapply parLe_obl (ℓq := 0) g (Ordinals.Ordinal.zero_le ℓt) $$ Wg
+    · iempintro
     imod obl_move_obl_set (⊤ \ ↑Na) p c K' ∅ K ℓt hK $$ Wc HK Kc [HFK] with ⟨-, HK, Kc⟩
     · iapply BigSepS.bigSepS_impl $$ HFK
       imodintro
@@ -344,14 +347,15 @@ container. The loop is not claimed to terminate (with nothing sent it spins fore
 @[lantana_alias Handoff_receive_spec]
 theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (g : Oid)
     (γ : HandoffName) (ℓ : Layer) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&receive) #b) ∗ thKids i {g} ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&receive) #b) ∗ thKids i {g} ∗ thCarriers i {g} ∗
           ([∗set] g' ∈ ({g} : Oids), Obl.fuel g' 0 μ) ∗ Obl.assigned g 1 ∗
           (γ.γd ↪VAR{.own (1 : Qp).half} g) ∗ isHandoff b γ ℓ }}}
         hl(v(&receive) #b) @ i
-      l{{{ (v : Val), RET v; threadExpr i C hl(&v) ∗ £ₒ lc ∗ thKids i ∅ }}} := by
+      l{{{ (v : Val), RET v; threadExpr i C hl(&v) ∗ £ₒ lc ∗ thKids i ∅ ∗
+        thCarriers i ∅ }}} := by
   -- For the internal steps; a task brings its own fuel.
   refine ⟨10, fun lc i b g γ ℓ C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, Ag, Gv, #Hh⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF, Ag, Gv, #Hh⟩ HΦ
   iloeb as IH generalizing %g
   ihave HF := oblFuels_init _ _ _ $$ HF
   unfold receive
@@ -378,9 +382,10 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     ihave %hg := ghost_var_agree _ _ _ _ _ $$ Gv Gv₀
     subst g₀
     imod Obl.discharge_leaf (⊤ \ ↑Na) (.thread i) {g} g
-      (Iris.Std.LawfulSet.mem_singleton.mpr rfl) $$ HG Kg Ag with ⟨HG, -⟩
-    imod Obl.new (⊤ \ ↑Na) (.thread i) _ 0 (((3 : Nat) : Measure) + 10) $$ [] HG with
-      ⟨%g', -, HG, Kg', Ag', Fg', #Wg'⟩
+      (Iris.Std.LawfulSet.mem_singleton.mpr rfl) $$ HK Kg Ag with ⟨HK, #Dg⟩
+    imod Th.carriers_erase_discharged (⊤ \ ↑Na) i {g} g $$ HG Dg with HG
+    imod Obl.new (⊤ \ ↑Na) (.thread i) _ _ 0 (((3 : Nat) : Measure) + 10) $$ [] HK HG with
+      ⟨%g', -, HK, HG, Kg', Ag', Fg', #Wg'⟩
     · iapply parLe_thread
     imod ghost_var_update_halves g' γ.γd g g $$ Gv Gv₀ with ⟨Gv, Gv₀⟩
     imod Hclose $$ [Hb Gv₀ Kg']
@@ -392,7 +397,10 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     imodintro
     ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
     lwp_expr_simp
-    ihave HG := Par.kids_congr (B := {g'}) ?_ $$ HG
+    ihave HK := Par.kids_congr (B := {g'}) ?_ $$ HK
+    · intro z
+      simp
+    ihave HG := Th.carriers_congr (B := {g'}) ?_ $$ HG
     · intro z
       simp
     icases (Obl.fuel_add g' _ _ _).mp $$ Fg' with ⟨F3, F10⟩
@@ -407,7 +415,7 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     lwp_expr_simp
     lwp_step HT HG F3
     lwp_expr_simp
-    iapply IH $$ %g' HT HG [F10] Ag' Gv HΦ
+    iapply IH $$ %g' HT HK HG [F10] Ag' Gv HΦ
     iapply BigSepS.bigSepS_singleton.mpr
     iexact F10
   · -- A task: its container moves up to the thread, the inbox is discharged, and the task runs
@@ -421,12 +429,14 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     icases ghostVar_combine_halves _ _ _ $$ [Gv Gv₀] with ⟨Gv, %hg⟩
     · iframe
     subst g₀
-    imod Obl.move_up (⊤ \ ↑Na) (.thread i) {g} g {c} c (Iris.Std.LawfulSet.mem_singleton.mpr rfl)
-      (Iris.Std.LawfulSet.mem_singleton.mpr rfl) $$ HG Kg with ⟨%hcg, HG, Kg⟩
-    imod Obl.discharge_leaf (⊤ \ ↑Na) (.thread i) _ g (by simp) $$ HG [Kg] Ag with ⟨HG, -⟩
+    imod Obl.move_up (⊤ \ ↑Na) (.thread i) {g} {g} g {c} c
+      (Iris.Std.LawfulSet.mem_singleton.mpr rfl) (Iris.Std.LawfulSet.mem_singleton.mpr rfl)
+      $$ HK HG Kg with ⟨%hcg, HK, HG, Kg⟩
+    imod Obl.discharge_leaf (⊤ \ ↑Na) (.thread i) _ g (by simp) $$ HK [Kg] Ag with ⟨HK, #Dg⟩
     · iapply Par.kids_congr _ $$ Kg
       intro z
       simp
+    imod Th.carriers_erase_discharged (⊤ \ ↑Na) i _ g $$ HG Dg with HG
     icases (Obl.fuel_add c _ _ _).mp $$ Fc with ⟨Fμ, F10⟩
     imod Hclose $$ [Hb Gv]
     · inext
@@ -438,7 +448,11 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     imodintro
     ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
     lwp_expr_simp
-    ihave HG := Par.kids_congr (B := {c}) ?_ $$ HG
+    ihave HK := Par.kids_congr (B := {c}) ?_ $$ HK
+    · intro z
+      simp at hcg ⊢
+      grind
+    ihave HG := Th.carriers_congr (B := {c}) ?_ $$ HG
     · intro z
       simp at hcg ⊢
       grind
@@ -466,16 +480,21 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
         exact fun _ h => h
     iintro %rv ⟨HT, -, HG, Kc⟩
     imod Obl.discharge_leaf ⊤ (.thread i) {c} c (Iris.Std.LawfulSet.mem_singleton.mpr rfl)
-      $$ HG [Kc] Ac with ⟨HG, -⟩
+      $$ HK [Kc] Ac with ⟨HK, #Dc⟩
     · iapply Par.kids_congr _ $$ Kc
       intro z
       simp
+    imod Th.carriers_erase_discharged ⊤ i {c} c $$ HG Dc with HG
     imodintro
     iapply HΦ
     iframe HT Hlc
-    iapply Par.kids_congr _ $$ HG
-    intro z
-    simp
+    isplitl [HK]
+    · iapply Par.kids_congr _ $$ HK
+      intro z
+      simp
+    · iapply Th.carriers_congr _ $$ HG
+      intro z
+      simp
   · iexfalso
     iapply ghostVar_half_whole_false $$ [Gv Gv₀]
     iframe
