@@ -19,11 +19,13 @@ public import Lantana.Trace
 * `ghostMapElem_halves`: a ghost map element is two halves.
 * `threadExpr_terminate_finally` (Rocq `thread_expr_terminate_finally`, `temporal_laws.v`):
   a thread that has returned the value `v` discharges a `finallyI` on its own obligation with its
-  final expression `exits v @ i`, and terminates.
+  final expression `exits v @ i`, and terminates with its running handle.
 * `HeapStateGpreS` and `heapState_init`: the cameras of HeapLang's ghost state before
   allocation (the heap and the thread-expression map), and the allocation of the ghost state
   for an initial state and thread pool (Rocq `gen_heap_init` and `thread_map_init` in the
   adequacy proofs of the examples). The instance `HeapStateGS` is then built from the names.
+* `initThreads`: the pieces of the initial threads that the adequacy theorems hand, each with its
+  running handle and empty children, no thread of HeapLang being crashed.
 -/
 
 @[expose] public noncomputable section
@@ -107,17 +109,17 @@ section Terminate
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 
 /-- Discharging a `finallyI` on the thread's final value, with a later credit from an earlier
-step: the thread then has no children and terminates. -/
+step: the thread then has no children and terminates with its running handle. -/
 @[lantana_alias thread_expr_terminate_finally]
 theorem threadExpr_terminate_finally (i : ThreadId) (E : CoPset) (v : Val) (k : Oid)
     (N : Namespace) (hN : ↑N ⊆ E) :
-    threadExpr (GF := GF) i [] (.val v) ⊢ £ₙ 1 -∗ thKids i {k} -∗ oblKids k ∅ -∗
+    threadExpr (GF := GF) i [] (.val v) ⊢ £ₙ 1 -∗ thActive i -∗ thKids i {k} -∗ oblKids k ∅ -∗
       finallyI N k 1 (threadExpr i [] (.val v)) -∗
       |={E}=>m threadExpr i [] (.val v) ∗ Th.done i := by
-  iintro HT Hc HG Hk HF
+  iintro HT Hc Ha HG Hk HF
   imod finallyI_discharge (.thread i) {k} hN (Iris.Std.LawfulSet.mem_singleton.mpr rfl)
     $$ Hc HG Hk HF HT with ⟨HT, HG, -⟩
-  imod Th.terminate E i $$ [HG] with #Hd
+  imod Th.terminate E i $$ Ha [HG] with #Hd
   · iapply Par.kids_congr _ $$ HG
     intro z
     simp only [Std.ExtTreeSet.mem_erase, Iris.Std.LawfulSet.mem_singleton,
@@ -172,5 +174,14 @@ theorem heapState_init (σ : State) (tp : ThreadPool Exp) :
   iexact Hfr
 
 end Alloc
+
+/-- The pieces of the initial threads that the adequacy theorems hand, for HeapLang: no thread
+is crashed (`initThreads_of_not_crashed`), so every thread gets its running handle, its empty
+children and its empty bill. -/
+theorem initThreads {GF : BundledGFunctors} [ModelGS GF] (σ : State) (tp : ThreadPool Exp) :
+    ([∗list] j ∈ List.range tp.length,
+        (⌜¬Cfg.crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ⊢@{IProp GF}
+      [∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅ :=
+  initThreads_of_not_crashed fun _ ⟨e, _, hc⟩ => not_crashed e σ hc
 
 end Lantana.Examples

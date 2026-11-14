@@ -70,6 +70,7 @@ info: 'Lantana.exists_fair_schedule_schedCounters' depends on axioms: [propext, 
 
 open Lantana
 open Iris.ProgramLogic (Language)
+open scoped Lantana.TrProp
 
 /-- Fair scheduling is the strong fairness of every thread's scheduling action; it names no
 scheduled thread. -/
@@ -88,19 +89,30 @@ example {C : Type} [ThreadSystem C] (a : Fairness.Action C) (i : ThreadId) (τ :
     (hown : a.OwnGrant i) (hsf : a.SF τ) : (a.own i).holds τ :=
   Fairness.Action.own_holds_of_sf hown τ hsf
 
-/-! Lantana's configurations are a thread system, and fair scheduling of its threads is weak
-fairness along a behavior. -/
+/-! Lantana's configurations are a thread system, and fair scheduling of a thread is weak
+fairness along a behavior where the thread, once crashed, stays crashed: along every behavior in
+a language that never crashes, such as HeapLang. -/
 
 section ThreadSystem
 
-variable {Expr State Obs Val : Type} [Language Expr State Obs Val]
+variable {Expr State Obs Val : Type} [Language Expr State Obs Val] [Crash Expr State Obs Val]
 
 example : ThreadSystem (Cfg Expr State) := inferInstance
 
-example (τ : Trace (Cfg Expr State)) (h : IsBehavior τ) (i : ThreadId) :
+example (τ : Trace (Cfg Expr State)) (h : IsBehavior τ) (i : ThreadId)
+    (hcr : (□ₜ TrProp.step (Cfg.staysCrashed i)) τ) :
     Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
-  Cfg.sched_sf_iff_wf h i
+  Cfg.sched_sf_iff_wf h i hcr
+
+example (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crashed e σ) (τ : Trace (Cfg Expr State))
+    (h : IsBehavior τ) (i : ThreadId) :
+    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
+  Cfg.sched_sf_iff_wf h i fun _ _ => Cfg.staysCrashed_of_never hnc i _ _
 
 end ThreadSystem
+
+example (τ : Trace (Cfg HeapLang.Exp HeapLang.State)) (h : IsBehavior τ) (i : ThreadId) :
+    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
+  Cfg.sched_sf_iff_wf h i fun _ _ => HeapLang.staysCrashed i _ _
 
 end LantanaTest.Fairness

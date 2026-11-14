@@ -70,9 +70,10 @@ obligations live at the layer `aleph`, above the lock's waiting (`acquire` at lo
 `0`). -/
 @[lantana_alias ticket_lock2_client.TicketLockClient_main_spec]
 theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
-    ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #()) ∗ thKids i {kr, kc} ∗
-          ([∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g aleph μ) ∗ ⌜kr ≠ kc⌝ ∗ oblKids kr ∅ ∗
-          oblKids kc ∅ ∗ finallyI Nr kr 1 (exits v42 @ i) ∗ finallyI Nc kc 1 someFairLock }}}
+    ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #()) ∗ thActive i ∗ thKids i {kr, kc} ∗
+          thCarriers i {kr, kc} ∗ ([∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g aleph μ) ∗
+          ⌜kr ≠ kc⌝ ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ finallyI Nr kr 1 (exits v42 @ i) ∗
+          finallyI Nc kc 1 someFairLock }}}
         hl(v(&main) #()) @ i
       l{{{ (w : Val), RET w; threadExpr i [] hl(v(&w)) ∗ ⌜w = v42⌝ ∗
         liftTerm i (fun _ _ => iprop(True)) w }}} := by
@@ -80,7 +81,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   obtain ⟨μa, hacq⟩ := TicketLock2.acquire_spec (GF := GF)
   obtain ⟨μr, hrel⟩ := TicketLock2.release_spec (GF := GF)
   refine ⟨100 + μi + μa + μr, fun i kr kc => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, %hne, Hkr, Hkc, HFr, HFc⟩ HΦ
+  iintro %Φ !> ⟨HT, HA, HK, HG, HF, %hne, Hkr, Hkc, HFr, HFc⟩ HΦ
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, HFrel⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, HFacq⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, HFini⟩
@@ -103,13 +104,16 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   -- Keep the commitment: the lock exists.
   ihave Hc1 := tlc_one_nat.mpr $$ Hc1
   imod finallyI_discharge (E := ⊤) (.thread i) {kr, kc} (fun _ _ => CoPset.mem_full) (by simp)
-    $$ Hc1 HG Hkc HFc [] with ⟨-, HG, -⟩
+    $$ Hc1 HK Hkc HFc [] with ⟨-, HK, #Dc⟩
   · iexists tl, γ
     iexact Hfl
-  ihave HG := Par.kids_congr (B := {kr}) ?_ $$ HG
-  · intro z
+  imod Th.carriers_erase_discharged ⊤ i _ kc $$ HG Dc with HG
+  have hkc : ∀ z, z ∈ ({kr, kc} : Oids).erase kc ↔ z ∈ ({kr} : Oids) := by
+    intro z
     simp
     grind
+  ihave HG := Th.carriers_congr hkc $$ HG
+  ihave HK := Par.kids_congr hkc $$ HK
   ihave HF := oblFuels_subset _ (B := {kr}) (fun z hz => by simp_all) $$ HF
   ihave HFacq := BigSepS.bigSepS_subseteq (Y := ({kr} : Oids)) (fun z hz => by simp_all)
     $$ HFacq
@@ -122,10 +126,10 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   lwp_bind hl(v(&TicketLock2.acquire) v(&tl)) HT
   have hacq' := hacq 0 (2 + μr) i {kr} tl γ (.own 1) 0 iprop(True)
   rw [Ordinals.Ordinal.zero_nadd] at hacq'
-  iapply hacq' _ $$ [HT HG HFacq CF]
-  · iframe HT HG HFacq CF
+  iapply hacq' _ $$ [HT HK HG HFacq CF]
+  · iframe HT HK HG HFacq CF
     iexact Hfl
-  iintro %κu ⟨HT, -, %hκu, HG, Kκu, Fκu, -, Htok, -⟩
+  iintro %κu ⟨HT, -, %hκu, HK, HG, Kκu, Fκu, -, Htok, -⟩
   ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add κu _ _ _).mp $$ Fκu with ⟨Fκu, Fκur⟩
@@ -138,8 +142,8 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   lwp_bind hl(v(&TicketLock2.release) v(&tl)) HT
   ihave HFrel := oblFuels_init _ _ _ $$ HFrel
   ihave HFrel := oblFuels_add_obl {kr} κu 0 _ $$ Fκur HFrel
-  iapply hrel 0 i (({kr} : Oids).insert κu) tl γ iprop(True) κu _ $$ [HT HG HFrel Kκu Htok]
-  · iframe HT HG HFrel Kκu Htok
+  iapply hrel 0 i (({kr} : Oids).insert κu) tl γ iprop(True) κu _ $$ [HT HK HG HFrel Kκu Htok]
+  · iframe HT HK HG HFrel Kκu Htok
     isplitr
     · ipureintro
       exact Std.ExtTreeSet.mem_insert_self
@@ -147,11 +151,13 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     · ipureintro
       trivial
     · iexact Hfl
-  iintro ⟨HT, -, HG⟩
-  ihave HG := Par.kids_congr (B := {kr}) ?_ $$ HG
-  · intro z
+  iintro ⟨HT, -, HK, HG⟩
+  have hκ : ∀ z, z ∈ (({kr} : Oids).insert κu).erase κu ↔ z ∈ ({kr} : Oids) := by
+    intro z
     simp at hκu ⊢
     grind
+  ihave HG := Th.carriers_congr hκ $$ HG
+  ihave HK := Par.kids_congr hκ $$ HK
   ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF
@@ -162,7 +168,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   iapply lwp_value_mupd'.mpr
   ihave Hc2 := tlc_one_nat.mpr $$ Hc2
   imod threadExpr_terminate_finally i ⊤ v42 kr Nr (fun _ _ => CoPset.mem_full)
-    $$ HT Hc2 HG Hkr HFr with ⟨HT, #Hd⟩
+    $$ HT Hc2 HA HK Hkr HFr with ⟨HT, #Hd⟩
   imodintro
   iapply HΦ
   iframe HT
@@ -178,30 +184,30 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
 /-- The commitments of the main thread `i` and its resources (Rocq `Φ_P`). -/
 def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
   iprop(∃ kr kc : Oid, finallyI Nr kr 1 (exits v42 @ i) ∗ finallyI Nc kc 1 someFairLock ∗
-    (thKids i {kr, kc} ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ ⌜kr ≠ kc⌝ ∗
+    (thKids i {kr, kc} ∗ thCarriers i {kr, kc} ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ ⌜kr ≠ kc⌝ ∗
       [∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g aleph μ))
 
 /-- The postcondition of the main thread. -/
 abbrev mainPost : ThreadId → Val → IProp GF := fun _ w => iprop(⌜w = v42⌝)
 
-/-- From the main thread's token and its empty set of children: its commitments, and its
-`lWP` from them (Rocq `main_pre`). -/
+/-- From the main thread's token, its running handle, its empty set of children and its empty
+bill: its commitments, and its `lWP` from them (Rocq `main_pre`). -/
 @[lantana_alias ticket_lock2_client.main_pre]
 theorem main_pre (i : ThreadId) :
-    threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thKids i ∅ -∗
+    threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thActive i -∗ thKids i ∅ -∗ thCarriers i ∅ -∗
       |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
         (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
   obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
-  iintro HT HG
-  imod untilI_alloc (E := ⊤) (.thread i) ∅ aleph μ $$ [] HG with
-    ⟨%kr, -, HG, Hkr, Fkr, -, Akr⟩
+  iintro HT HA HG HB
+  imod untilI_alloc (E := ⊤) (.thread i) ∅ ∅ aleph μ $$ [] HG HB with
+    ⟨%kr, -, HG, HB, Hkr, Fkr, -, Akr⟩
   · iapply parLe_thread
   imod Akr $$ %⊤ %Nr %iprop(True) %(exits v42 @ i) [] with Ur
   · inext
     ipureintro
     trivial
-  imod untilI_alloc (E := ⊤) (.thread i) _ aleph μ $$ [] HG with
-    ⟨%kc, %hkc, HG, Hkc, Fkc, -, Akc⟩
+  imod untilI_alloc (E := ⊤) (.thread i) _ _ aleph μ $$ [] HG HB with
+    ⟨%kc, %hkc, HG, HB, Hkc, Fkc, -, Akc⟩
   · iapply parLe_thread
   imod Akc $$ %⊤ %Nc %iprop(True) %(someFairLock (GF := GF)) [] with Uc
   · inext
@@ -210,17 +216,20 @@ theorem main_pre (i : ThreadId) :
   have hne : kr ≠ kc := by
     rintro rfl
     exact hkc Std.ExtTreeSet.mem_insert_self
+  have hG : ∀ z, z ∈ ((∅ : Oids).insert kr).insert kc ↔ z ∈ ({kr, kc} : Oids) := by
+    intro z
+    simp
+    grind
   imodintro
   iexists μ
-  isplitl [Ur Uc HG Hkr Hkc Fkr Fkc]
+  isplitl [Ur Uc HG HB Hkr Hkc Fkr Fkc]
   · unfold mainRes finallyI
     iexists kr, kc
     iframe Ur Uc Hkr Hkc
     isplitl [HG]
-    · iapply Par.kids_congr _ $$ HG
-      intro z
-      simp
-      grind
+    · iapply Par.kids_congr hG $$ HG
+    isplitl [HB]
+    · iapply Th.carriers_congr hG $$ HB
     isplitr
     · ipureintro
       exact hne
@@ -228,9 +237,9 @@ theorem main_pre (i : ThreadId) :
     iframe
   iintro HP
   unfold mainRes
-  icases HP with ⟨%kr, %kc, HFr, HFc, HG, Hkr, Hkc, %hne, HF⟩
+  icases HP with ⟨%kr, %kc, HFr, HFc, HG, HB, Hkr, Hkc, %hne, HF⟩
   imodintro
-  iapply hmain i kr kc $$ [HT HG HF Hkr Hkc HFr HFc]
+  iapply hmain i kr kc $$ [HT HA HG HB HF Hkr Hkc HFr HFc]
   · iframe
     ipureintro
     exact hne
@@ -315,10 +324,11 @@ theorem ticketLockClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavio
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
-  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
-  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imod main_pre 0 $$ HT HA HG HB with ⟨%μ, HP, Hwp⟩
   imodintro
   iexists mainRes 0 μ
   isplitr
@@ -349,10 +359,11 @@ theorem ticketLockClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : Is
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
-  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
-  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imod main_pre 0 $$ HT HA HG HB with ⟨%μ, HP, Hwp⟩
   imod Hwp $$ HP with Hwp
   imodintro
   iapply BigSepL.bigSepL_singleton.mpr

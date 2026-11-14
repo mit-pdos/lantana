@@ -36,7 +36,8 @@ open Iris.Std LawfulPartialMap
 open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
-variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF]
+  [StateInterp Expr State GF]
 
 /-- An obligation discharged at an event is discharged after any event at which it is
 assigned. -/
@@ -68,14 +69,15 @@ theorem untilCert_assigned (k : Oid) (P R : IProp GF) (G₁ G₂ : TrSpec Expr S
     (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (fu : Fuel) (o : ThreadId)
     (hk : get? Ω k = some (.assigned fu o)) :
     ▷ (P ⊨ₜ G₁) ⊢ ▷ Obl.variant k P R ∗ historyInterp h n σ tp ∗
-      modelInterp g v Ω W n tp.length -∗ ▷ (record G₁ n ∨ record G₂ n) := by
+      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) -∗ ▷ (record G₁ n ∨ record G₂ n) := by
   iintro #HG ⟨Var, HI, MI⟩
   inext
   icases (Obl.variant_unfold k P R).1 $$ Var with (⟨-, HP⟩ | ⟨D, -⟩)
   · ileft
-    iapply guar_elim P G₁ h n σ tp g v Ω W $$ HG
+    iapply guar_elim P G₁ h n σ tp g v Ω W tp.length (Cfg.crashed (tp, σ)) $$ HG
     iframe HI MI HP
-  · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length $$ [D MI] with %hd
+  · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length (Cfg.crashed (tp, σ))
+        $$ [D MI] with %hd
     · iframe D MI
     rw [hk] at hd
     cases hd
@@ -86,21 +88,22 @@ theorem untilCert_discharged (k : Oid) (P : IProp GF) (G₂ : TrSpec Expr State 
     (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
     (hk : get? Ω k = some .discharged) :
     ▷ Obl.variant k P (untilDischarged k G₂) ∗ historyInterp h n σ tp ∗
-      modelInterp g v Ω W n tp.length ⊢
+      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ⊢
       ▷ (∃ (n' i' : Nat) (Ω' : Obls), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
         record G₂ n') := by
   iintro ⟨Var, -, MI⟩
   inext
   icases (Obl.variant_unfold k P _).1 $$ Var with (⟨A, -⟩ | ⟨-, R⟩)
-  · icases Obl.assigned_modelInterp_lookup k _ g v Ω W n tp.length $$ [A MI] with %ha
+  · icases Obl.assigned_modelInterp_lookup k _ g v Ω W n tp.length (Cfg.crashed (tp, σ))
+        $$ [A MI] with %ha
     · iframe A MI
     obtain ⟨a, t, ha⟩ := ha
     rw [hk] at ha
     cases ha
   · iunfold untilDischarged at R
     icases R with ⟨%n', %i', %Ω', #EF, #TF⟩
-    icases modelInterp_eventObl_lookup g v Ω W n tp.length i' (n', Ω') k .discharged $$ [MI EF]
-      with %⟨-, -, -, hn, -⟩
+    icases modelInterp_eventObl_lookup g v Ω W n tp.length (Cfg.crashed (tp, σ)) i' (n', Ω') k
+      .discharged $$ [MI EF] with %⟨-, -, -, hn, -⟩
     · iframe MI EF
     iexists n', i', Ω'
     iframe EF TF
@@ -113,8 +116,8 @@ a later-guarded record of its content, and close it. -/
 theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (σ : State)
     (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
     regEntryInterp (Expr := Expr) (State := State) e ⊢ historyInterp h n σ tp -∗
-      modelInterp g v Ω W n tp.length ={⊤}=∗
-      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗
+      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ={⊤}=∗
+      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
         cert (Expr := Expr) (State := State) (GF := GF) n e := by
   rw [cert_eq]
   rcases e with _ | ⟨N, γ⟩ | ⟨N, k, γP, γQ⟩
@@ -126,7 +129,7 @@ theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (
     iintro #⟨%P, %G, #SP, #Hinv, #HG⟩ HI MI
     imod inv_acc (E := ⊤) CoPset.subseteq_top $$ Hinv with ⟨HP, Hclose⟩
     ihave #C : ▷ record G n $$ [HP HI MI]
-    · iapply guar_elim_later_guar P G h n σ tp g v Ω W $$ HG
+    · iapply guar_elim_later_guar P G h n σ tp g v Ω W tp.length (Cfg.crashed (tp, σ)) $$ HG
       iframe HP HI MI
     imod Hclose $$ HP with -
     imodintro
@@ -145,12 +148,14 @@ theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (
       · ileft
         inext
         icases (Obl.variant_unfold k P _).1 $$ Var with (⟨A, -⟩ | ⟨D, -⟩)
-        · icases Obl.assigned_modelInterp_lookup k _ g v Ω W n tp.length $$ [A MI] with %ha
+        · icases Obl.assigned_modelInterp_lookup k _ g v Ω W n tp.length (Cfg.crashed (tp, σ))
+              $$ [A MI] with %ha
           · iframe A MI
           obtain ⟨a, t, ha⟩ := ha
           rw [hk] at ha
           cases ha
-        · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length $$ [D MI] with %hd
+        · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length (Cfg.crashed (tp, σ))
+              $$ [D MI] with %hd
           · iframe D MI
           rw [hk] at hd
           cases hd
@@ -173,8 +178,8 @@ theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (
 theorem certifyEntries (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr State))
     (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
     regEntries (regEntryInterp (Expr := Expr) (State := State)) l ⊢ historyInterp h n σ tp -∗
-      modelInterp g v Ω W n tp.length ={⊤}=∗
-      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗
+      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ={⊤}=∗
+      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
         [∗list] pe ∈ l, cert (Expr := Expr) (State := State) (GF := GF) n pe.2 := by
   induction l with
   | nil =>
@@ -248,9 +253,10 @@ back. -/
 theorem regCheck (n : Nat) (h : List (HistEntry Expr State)) (σ : State) (tp : ThreadPool Expr)
     (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
     regState (Expr := Expr) (State := State) (GF := GF) ⊢ historyInterp h n σ tp -∗
-      modelInterp g v Ω W n tp.length ={⊤}=∗
+      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ={⊤}=∗
       regState (Expr := Expr) (State := State) ∗ historyInterp h n σ tp ∗
-        modelInterp g v Ω W n tp.length ∗ ∃ l, bundle (Expr := Expr) (State := State) l n := by
+        modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+        ∃ l, bundle (Expr := Expr) (State := State) l n := by
   unfold regState regStateWith
   iintro ⟨%l, Ha, #Hl⟩ HI MI
   imod regMark n l h σ tp $$ Ha Hl HI with ⟨HI, Ha, #Hl', #Hlb⟩
@@ -356,7 +362,8 @@ theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Ex
     (γ : Nat → ThreadId → Nat) (C Φ : IProp GF)
     (hf : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf) :
-    sysStep Sys ⊢ historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
+    sysStep Sys ⊢ historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+        Sys n σ tp -∗
       (∀ l, bundle (Expr := Expr) (State := State) l n -∗ ▷ C) -∗
       ▷ (∀ (l : List (Nat × RegEntry)) (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent)
           (v' : Nat) (Ω' : Obls) (W' : Witnesses),
@@ -364,7 +371,7 @@ theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Ex
           oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ -∗
         bundle (Expr := Expr) (State := State) l n -∗ C -∗ £ₙ c -∗
         historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
-          modelInterp g' v' Ω' W' (n + 1) tp'.length ∗ Sys (n + 1) σ' tp' -∗
+          modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) ∗ Sys (n + 1) σ' tp' -∗
         |={⊤}=> Φ) -∗
       TrIProp.defer Φ := by
   rw [sysStep_eq]
@@ -400,7 +407,8 @@ theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
         (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
         ⌜r < n ∧ Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
           owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
-        historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
+        historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+          Sys n σ tp -∗
         TrIProp.always G.internal ⟨n, τf⟩ := by
   iintro #ST #Hj #Hγ
   iloeb as IH
@@ -437,7 +445,7 @@ theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State G
     (hf : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf) :
     sysStep Sys ⊢ record G₂ n -∗
-      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
+      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗ Sys n σ tp -∗
       TrIProp.strongUntil fP G₂.internal a ⟨n, τf⟩ := by
   iintro #ST #TQ HS
   have hU : TrIProp.defer iprop(G₂.internal ⟨n, τf⟩ ∨ (fP ⟨n, τf⟩ ∧ ∃ a' : Fuel, ⌜a' < a⌝ ∧
@@ -474,7 +482,8 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
         ⌜r < n ∧ Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
           owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf ∧
           get? Ω k = some (.assigned fu o)⌝ -∗
-        historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
+        historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+          Sys n σ tp -∗
         TrIProp.strongUntil G₁.internal G₂.internal
           (Ordinals.Ordinal.succ (fairMeasure (γ n) o fu)) ⟨n, τf⟩ := by
   iintro #ST #Hj #HγP #HγQ #OI
@@ -518,8 +527,8 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
     imod Obl.inv_acc ⊤ N k P _ CoPset.subseteq_top $$ OI with ⟨Var, Hclose⟩
     imod lc_fupd_elim_later $$ LC Var with Var
     icases (Obl.variant_unfold k P _).1 $$ Var with (⟨Oa', HP'⟩ | ⟨#Of, #R⟩)
-    · icases Obl.assigned_modelInterp_lookup k _ g' v' Ω' W' (n + 1) tp'.length $$ [Oa' MI']
-        with %hk'
+    · icases Obl.assigned_modelInterp_lookup k _ g' v' Ω' W' (n + 1) tp'.length
+        (Cfg.crashed (tp', σ')) $$ [Oa' MI'] with %hk'
       · iframe Oa' MI'
       obtain ⟨fu', o', hk'⟩ := hk'
       imod Hclose $$ [Oa' HP'] with -
@@ -542,8 +551,8 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
     · -- discharged during the step: at `n` (before the step) or at `n + 1` (after)
       iunfold untilDischarged at R
       icases R with ⟨%n', %i', %Ω'', #EF, #TQ'⟩
-      icases modelInterp_eventObl_lookup g' v' Ω' W' (n + 1) tp'.length i' (n', Ω'') k
-        .discharged $$ [MI' EF] with %⟨-, -, -, hn₁, -⟩
+      icases modelInterp_eventObl_lookup g' v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) i'
+        (n', Ω'') k .discharged $$ [MI' EF] with %⟨-, -, -, hn₁, -⟩
       · iframe MI' EF
       icases eventObl_assigned_discharged_le $$ [EA EF] with %hn₂
       · iframe EA EF

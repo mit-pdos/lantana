@@ -53,27 +53,29 @@ section Alloc
 variable {Expr State : Type} {GF : BundledGFunctors} [ModelGpreS GF] [RegGpreS Expr State GF]
   [MonoListG GF (HistEntry Expr State)]
 
-/-- Allocation of the ghost state of adequacy for the initial configuration `(tp, σ)`, at
-names `γ` (small enough for the existential property of satisfiability; the world's cameras are
-those of `TemporalGpreS`): the credit supply, world satisfaction and the full mask; the model at
-step `0` with no obligation and no witness, over the threads of `tp`; the empty children of the
-initial threads; the history with its first entry, for every state interpretation (chosen after
-the allocation); the empty registry. -/
-theorem adequacy_alloc_names (σ : State) (tp : ThreadPool Expr) :
+/-- Allocation of the ghost state of adequacy for the initial configuration `(tp, σ)` whose
+crashed threads are `X`, at names `γ` (small enough for the existential property of
+satisfiability; the world's cameras are those of `TemporalGpreS`): the credit supply, world
+satisfaction and the full mask; the model at step `0` with no obligation and no witness, at the
+view `tp.length`, `X`; the empty bills of the initial threads, and the running handles and the
+empty children of those not crashed; the history with its first entry, for every state
+interpretation (chosen after the allocation); the empty registry. -/
+theorem adequacy_alloc_names (σ : State) (tp : ThreadPool Expr) (X : ThreadId → Prop) :
     ⊢@{IProp GF} |==> ∃ γ : ModelNames × TemporalNames,
       letI := ModelGS.ofNames (GF := GF) γ.1
       letI := TemporalGS.ofNames (Expr := Expr) (State := State) (GF := GF) γ.2
       iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
-        Model.modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length ∗
-        ([∗list] j ∈ List.range tp.length, thKids j ∅) ∗
+        Model.modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length X ∗
+        ([∗list] j ∈ List.range tp.length,
+          (⌜¬X j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ∗
         (∀ _ : StateInterp Expr State GF,
           stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp) ∗
         regAuth []) := by
-  imod Model.modelInterp_alloc_names (GF := GF) 0 with ⟨%γm, Hc, Hw, HE, HM⟩
+  imod Model.modelInterp_alloc_names (GF := GF) 0 X with ⟨%γm, Hc, Hw, HE, HM⟩
   imod historyInterp_init_names (GF := GF) σ tp with ⟨%γh, HH⟩
   imod regGS_alloc_names (Expr := Expr) (State := State) (GF := GF) with ⟨%γr, HR⟩
   letI := ModelGS.ofNames (GF := GF) γm
-  have hk := thKids_alloc_threads (GF := GF) ∅ 0 tp.length
+  have hk := thKids_alloc_threads (GF := GF) ∅ 0 tp.length X
   rw [Nat.zero_add, ← List.range_eq_range'] at hk
   unfold Model.modelInterp
   icases HM with ⟨HMH, Hs, Hf, Hwit, %hI⟩

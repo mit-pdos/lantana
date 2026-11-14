@@ -32,15 +32,19 @@ The differences that PAPER.md describes hold for Lean as well: the weakest preco
 replaces the fuel-burning triple, obligations form a forest without carriers, temporal formulas
 are `iProp`s with guarantees `P ⊨ₜ G`, and trace specifications have two entailments. In Lean:
 
-- **The triple** is a texan `lWP` triple whose superscripts are assertions `thKids i G`:
+- **The triple** is a texan `lWP` triple whose superscripts are assertions `thCarriers i G`,
+  the bill of the thread: what a step pays for.
   ```
-  l{{{ threadExpr i C e ∗ thKids i G ∗ P }}} e @ i; E
-  l{{{ v, RET v; threadExpr i C (.val v) ∗ thKids i G' ∗ Q v }}}
+  l{{{ threadExpr i C e ∗ thCarriers i G ∗ P }}} e @ i; E
+  l{{{ v, RET v; threadExpr i C (.val v) ∗ thCarriers i G' ∗ Q v }}}
   ```
   The rules of the triple are `lwp_*` lemmas or entailments and model updates `|={E}=>m`, usable
   at any point of an `lWP` proof (`mupd_lwp`, `lwp_mupd`).
 - **The obligation forest:** parents are `Parent.thread i` and `Parent.obl k`, and
-  `Par.kids p K` says that the children of `p` are `K`. The interface is
+  `Par.kids p K` says that the children of `p` are `K`. A thread `i` also has its bill
+  `thCarriers i B`, an upper bound of its children (creating a child under the thread adds it
+  to the bill, a discharge leaves the bill to be brought down), and its running handle
+  `thActive i`, by which it ends. The interface is
   `ProgramLogic/OblForest.lean`, sealed: its predicates are irreducible definitions over the
   model `Model.OPreds` with unfolding lemmas, rather than a class with one instance. Derived rules
   are in `ProgramLogic/OblForestRules.lean`.
@@ -63,8 +67,8 @@ fuel type, and ghost names exposed by allocation.
 | Paper | Lean | File |
 |---|---|---|
 | `{P}^G_i e {Q}^G'_E` (fuel-burning triple) | the texan `lWP` triple of §2 (persistent, as the `□`-specifications of §3.4) | `ProgramLogic/Notation.lean`, `ProgramLogic/WeakestPre.lean` |
-| carrier superscripts / `carriers_i G` (Thm 1) | no carriers: `thKids i G`, the children of thread `i`; every initial thread starts with `thKids i ∅` | `ProgramLogic/OblForest.lean` |
-| `Fuel^ℓ_G μ` | no carrier fuel: `Obl.fuel k ℓ μ` of each child `k` of the thread; for a set, `oblFuels K μ` | `ProgramLogic/OblForest.lean` |
+| carrier superscripts / `carriers_i G` (Thm 1) | no carriers: `thCarriers i G`, the bill of thread `i`, an upper bound of its children `thKids i K`; every initial thread starts with `thActive i ∗ thKids i ∅ ∗ thCarriers i ∅` | `ProgramLogic/OblForest.lean` |
+| `Fuel^ℓ_G μ` | no carrier fuel: `Obl.fuel k ℓ μ` of each obligation `k` of the bill; for a set, `oblFuels K μ` | `ProgramLogic/OblForest.lean` |
 | `obls^ℓ_g K` | `Par.kids p K` (`thKids i K` at a thread, `oblKids k K` at an obligation); below an obligation the layer bound is its witness layer (`parBelow`, `parLe`) | `ProgramLogic/OblForest.lean` |
 | `Φ until^k_q Ψ` | `untilI N k q P Q` (variant `untilIGuar` with given readings, e.g. for recursion, `renew` in `Trace/GuaranteeRec.lean`); guarantee `guar_untilI`. A discharged until is `untilIDone k Q` (`untilI_discharge_done`, or `untilIDone_init` for an until fulfilled at its allocation); guarantee `guar_untilIDone` | `Trace/TemporalFormula.lean`, `Trace/TemporalFormulaRules.lean` |
 | `finally^k Φ` | `finallyI N k q Q` | `Trace/TemporalFormula.lean` |
@@ -84,8 +88,8 @@ fuel type, and ghost names exposed by allocation.
 |---|---|---|
 | STEP-PURE, STEP-PURE-LC, STEP-PURE-WIT | `lwp_pure_step`; HeapLang instance `HeapLang.lwp_pure_step` | `ProgramLogic/Lifting.lean`, `HeapLang/PrimitiveLaws.lean` |
 | STEP-REF / STEP-STORE / STEP-LOAD | `HeapLang.lwp_alloc` / `HeapLang.lwp_store` / `HeapLang.lwp_load` | `HeapLang/PrimitiveLaws.lean` |
-| FORK* | `HeapLang.lwp_fork` (the children `K ⊆ G` given to the new thread move with one unit of fuel each) | `HeapLang/PrimitiveLaws.lean` |
-| EXIT | `lwp_value`; `Th.terminate` turns `thKids i ∅` into `Th.done i`, which forked threads owe in their postcondition (`liftTerm`) | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/OblForest.lean` |
+| FORK* | `HeapLang.lwp_fork` (the children `K ⊆ G` given to the new thread move with one unit of fuel each; the new thread starts with `thActive j ∗ thKids j K ∗ thCarriers j K`) | `HeapLang/PrimitiveLaws.lean` |
+| EXIT | `lwp_value`; `Th.terminate` turns `thActive i` and `thKids i ∅` into `Th.done i`, which forked threads owe in their postcondition (`liftTerm`) | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/OblForest.lean` |
 | FINALLY-EXIT* | `Examples.threadExpr_terminate_finally` | `Examples/Lib.lean` |
 | FINALLY-ALLOC* | `untilI_alloc` with left formula `True` (`finallyI`) | `Trace/TemporalFormulaRules.lean` |
 | BIND | `lwp_bind` | `ProgramLogic/WeakestPre.lean` |
@@ -111,7 +115,7 @@ fuel type, and ghost names exposed by allocation.
 |---|---|---|
 | `Cfg`, `TPool`, THREAD-STEP/THREAD-DONE, `Trace`, `Behavior` | `Cfg`, `ThreadPool` (a list; thread ids are positions), `ThreadStep` / `ThreadDone`, `Trace (Cfg Expr State)` (traces of any configuration type), `IsBehavior` over the thread system `ThreadSystem (Cfg Expr State)`; no observations. Additionally `ThreadStuck`: a stuck thread stutters, so stuck executions are behaviors too. Traces carry no scheduled-thread label: a behavior is a run in which some thread takes a trace step (`TraceStep i`) at every position, and the adequacy proof chooses the schedule | `Temporal/Trace.lean`, `Temporal/ThreadSystem.lean`, `ProgramLogic/Configuration.lean` |
 | temporal properties `Φ, Ψ` and `⟦·⟧_t` | trace specifications `TrSpec`, trace reading `TrSpec.external` (step-indexed reading `TrSpec.internal`); `Always` = `TrSpec.always`, `Until` = `TrSpec.strongUntil`, `Finally` = `TrSpec.eventually`; trace properties `TrProp` with `□ₜ`, `Uₜ`, `◇ₜ` (`TrProp.always`, `TrProp.strongUntil`, `TrProp.eventually`) | `Trace/TrSpec.lean`, `Temporal/Trace.lean`, `Trace/StateAtom.lean` (rules: `Trace/TrSpec.lean`, `Temporal/TracePropRules.lean`, `Trace/StateAtom.lean`) |
-| `Fair` (fair scheduling) | `fairScheduling`: the strong fairness `Fairness.Sched.SF` of every thread's scheduling action (enabled where the thread is active, granted at its trace step); equal to weak fairness since activity is convex (`Cfg.sched_sf_iff_wf`) | `Temporal/Fairness/Scheduling.lean`, `ProgramLogic/Configuration.lean` |
+| `Fair` (fair scheduling) | `fairScheduling`: the strong fairness `Fairness.Sched.SF` of every thread's scheduling action (enabled where the thread is active, granted at its trace step); equal to weak fairness where activity is convex, for a thread that stays crashed once crashed (`Cfg.sched_sf_iff_wf`) | `Temporal/Fairness/Scheduling.lean`, `ProgramLogic/Configuration.lean` |
 | logical assertions `φ` and `⟦·⟧_l` | no syntax: temporal formulas are `iProp`s; guarantee `P ⊨ₜ G` (`Guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
 | `lift` | `TrSpec.canon P`, the canonical trace specification guaranteed by `P` (`guar_canon`); `trSpecOf P`, the one inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
 | `Label s e`, `ChooseNat`, atomic property `label_i "s" v` | `HeapLang.Exp.label`, `HeapLang.Exp.chooseNat`; atomic properties are state predicates `HeapLang.pointstoSat` / `HeapLang.threadExprSat`, read as `TrSpec.state`; `l ↦ some v` and `threadExpr i C e` (`exits v @ i`) determine them through the state interpretation (`StateFact` instances, `HeapLang/TemporalLaws.lean`), so they guarantee them (`guar_state_fact`) | `HeapLang/Syntax.lean`, `HeapLang/Semantics.lean`, `Trace/GuaranteeRules.lean` |

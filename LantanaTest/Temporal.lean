@@ -13,7 +13,7 @@ language as an instance. -/
 namespace LantanaTest.Temporal
 
 open Lantana
-open Iris.ProgramLogic (Language)
+open Iris.ProgramLogic (Language toVal)
 open scoped Lantana.TrProp
 
 section Generic
@@ -52,7 +52,7 @@ end ThreadSystem
 
 section Lantana
 
-variable {Expr State Obs Val : Type} [Language Expr State Obs Val]
+variable {Expr State Obs Val : Type} [Language Expr State Obs Val] [Crash Expr State Obs Val]
 
 example : ThreadSystem (Cfg Expr State) := inferInstance
 
@@ -64,6 +64,15 @@ example (τ : Trace (Cfg Expr State)) :
 /-- At Lantana's instance, a thread is inactive exactly when it is not active. -/
 example (i : ThreadId) (τ : Trace (Cfg Expr State)) : inactive i τ ↔ τ.now.inactive i :=
   inactive_iff.trans Cfg.inactive_iff_not_active.symm
+
+/-- At Lantana's instance, a crashed thread is inactive. -/
+example (i : ThreadId) (τ : Trace (Cfg Expr State)) (h : τ.now.crashed i) : inactive i τ :=
+  inactive_iff.mpr (Cfg.inactive_iff_not_active.mp (.inr (.inr h)))
+
+/-- At Lantana's instance, a thread of the pool that is neither a value nor crashed is active. -/
+example (i : ThreadId) (τ : Trace (Cfg Expr State)) (e : Expr) (he : τ.now.1[i]? = some e)
+    (hv : toVal e = none) (hc : ¬ τ.now.crashed i) : active i τ :=
+  active_iff.mpr ⟨e, he, hv, fun h => hc ⟨e, he, h⟩⟩
 
 end Lantana
 

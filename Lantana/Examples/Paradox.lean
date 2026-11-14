@@ -11,7 +11,7 @@ public import Lantana.Examples.World
 Rocq `examples/paradox.v`. The class `LwpNoLc` assumes, for HeapLang, a rule for one pure step
 that pays no fuel and gives no later credits, yet yields a witness credit for each observed
 obligation that is not discharged (`lwp_pure_step_no_lc`; compare `lwp_pure_step`: no thread
-token, no children with their fuel, no `ALC`/`£`). With it, two threads running
+token, no bill with its fuel, no `ALC`/`£`). With it, two threads running
 `rec loop _ := loop ()` prove "eventually `False`" (`loop_paradox`), and a fair run of the loops
 refutes the rule (`no_lc_absurd`).
 
@@ -246,14 +246,14 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [ParadoxG GF]
 iteration it registers the next obligation, with ten later credits, and discharges `ck`. -/
 @[lantana_alias px_loop2_spec]
 theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr j C hl(v(&loop) #()) ∗ thKids j {ck} ∗ oblKids ck ∅ ∗
-          finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗ Obl.fuel ck 0 10 ∗ px rm ci cj ∗
-          cntAuth cj n (1 : Qp).half ∗ mapElem rm n ck }}}
+    ⊢@{IProp GF} l{{{ threadExpr j C hl(v(&loop) #()) ∗ thKids j {ck} ∗ thCarriers j {ck} ∗
+          oblKids ck ∅ ∗ finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗ Obl.fuel ck 0 10 ∗
+          px rm ci cj ∗ cntAuth cj n (1 : Qp).half ∗ mapElem rm n ck }}}
         hl(v(&loop) #()) @ j
       l{{{ RET hl_val(#()); threadExpr j C hl(#()) ∗
         liftTerm j (fun _ _ => iprop(True)) hl_val(#()) }}} := by
   intro j n rm ci cj ck C
-  iintro %Φ !> ⟨HT, HG, Kck, Uck, Gf, #Hpx, Caj, #Mn⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, Kck, Uck, Gf, #Hpx, Caj, #Mn⟩ HΦ
   unfold finallyI
   iloeb as IH generalizing! %n %ck
   ihave HF := oblFuels_init {ck} 10 0 $$ [Gf]
@@ -268,8 +268,8 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
   icases (tlc_split_nat 10 _).mp $$ Hlc with ⟨Hc10, Hlc⟩
   icases (tlc_split_nat 1 1).mp $$ Hlc with ⟨Hc2, Hc3⟩
   -- The next obligation `ck1`, with its until, is allocated before the invariant is opened.
-  imod untilI_alloc (E := ⊤) (.thread j) {ck} 0 10 $$ [] HG with
-    ⟨%ck1, %hck1, HG, Kck1, Of1, #Wl1, A⟩
+  imod untilI_alloc (E := ⊤) (.thread j) {ck} {ck} 0 10 $$ [] HK HG with
+    ⟨%ck1, %hck1, HK, HG, Kck1, Of1, #Wl1, A⟩
   · iapply parLe_thread
   imod A $$ %⊤ %Nu %iprop(True) %(nextQ rm cj (n + 1)) [] with Unew
   · inext
@@ -277,8 +277,9 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
     trivial
   icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half) (Qp.half_add_half 1).symm
     $$ Unew with ⟨Unew, Unew1⟩
-  ihave Hupd : |={⊤}=>m (thKids j {ck1} ∗ cntAuth cj (n + 1) (1 : Qp).half ∗
-      mapElem rm (n + 1) ck1) $$ [Hc2 Hc3 Hc10 HG Kck Uck Caj Unew1]
+  ihave Hupd : |={⊤}=>m (thKids j {ck1} ∗ thCarriers j {ck1} ∗
+      cntAuth cj (n + 1) (1 : Qp).half ∗ mapElem rm (n + 1) ck1)
+      $$ [Hc2 Hc3 Hc10 HK HG Kck Uck Caj Unew1]
   · unfold px
     ihave Hacc := inv_acc (E := ⊤) (N := N) (P := pxInv rm ci cj)
       (fun _ _ => CoPset.mem_full) $$ Hpx
@@ -309,15 +310,18 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
         |={⊤ \ ↑N}=>m nextQ rm cj n ∗ thKids j ((({ck} : Oids).insert ck1).erase ck) ∗
           Obl.discharged ck :=
       finallyI_discharge (.thread j) _ Nu_subseteq (by simp)
-    imod hdis $$ Hc3 HG Kck Uck [] with ⟨#HQ, HG, #Hd⟩
+    imod hdis $$ Hc3 HK Kck Uck [] with ⟨#HQ, HK, #Hd⟩
     · unfold nextQ
       iframe Hlb1
       iexists ck1
       iexact Mn1
-    ihave HG := Par.kids_congr (B := {ck1}) ?_ $$ HG
-    · intro z
+    imod Th.carriers_erase_discharged (⊤ \ ↑N) j _ ck $$ HG Hd with HG
+    have hck : ∀ z, z ∈ (({ck} : Oids).insert ck1).erase ck ↔ z ∈ ({ck1} : Oids) := by
+      intro z
       simp at hck1 ⊢
       grind
+    ihave HG := Th.carriers_congr hck $$ HG
+    ihave HK := Par.kids_congr hck $$ HK
     imod Hclose $$ [Ca GMA HM Hn Hc10 Unew1] with -
     · inext
       iexists n + 1, insert os (n + 1) ck1
@@ -333,16 +337,16 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
         iright
         iframe Hd HQ
     imodintro
-    iframe HG Caj Mn1
-  imod Hupd with ⟨HG, Caj, #Mn1⟩
-  iapply IH $$ %(n + 1) %ck1 HT HG Kck1 Unew Of1 Caj HΦ Mn1
+    iframe HK HG Caj Mn1
+  imod Hupd with ⟨HK, HG, Caj, #Mn1⟩
+  iapply IH $$ %(n + 1) %ck1 HT HK HG Kck1 Unew Of1 Caj HΦ Mn1
 
 /-- Thread `0` steps by the assumed rule, observing thread `1`'s obligation `ck` of index `n`;
 its later credits come from the invariant (`px`). -/
 @[lantana_alias px_loop1_spec]
 theorem px_loop1_spec [LwpNoLc GF] : ∀ (i : ThreadId) (z : Oid) (rm ci cj : GName)
     (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&loop) #()) ∗ thKids i {z} ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&loop) #()) ∗ thCarriers i {z} ∗
           untilI N1 z 1 iprop(True) iprop(False) ∗ £ₙ 10 ∗ px rm ci cj ∗
           ∃ n : Nat, cntAuth ci n 1 ∗ cntLb cj n ∗ ∃ ck : Oid, Wit.layer ck 0 ∗ mapElem rm n ck }}}
         hl(v(&loop) #()) @ i
@@ -353,7 +357,7 @@ theorem px_loop1_spec [LwpNoLc GF] : ∀ (i : ThreadId) (z : Oid) (rm ci cj : GN
   unfold px
   iloeb as IH generalizing! %n %ck
   icases Wit.fuels_init ck 0 $$ Wck with ⟨%α, #Wf⟩
-  imod Wit.fuels_ind ck 0 α ∅ iprop(threadExpr i C hl(v(&loop) #()) -∗ thKids i {z} -∗
+  imod Wit.fuels_ind ck 0 α ∅ iprop(threadExpr i C hl(v(&loop) #()) -∗ thCarriers i {z} -∗
       untilI N1 z 1 iprop(True) iprop(False) -∗ £ₙ 10 -∗ cntAuth ci n 1 -∗
       lWP hl(v(&loop) #()) @ i {{ Φ }}) $$ [] with HP
   · isplitl []
@@ -430,15 +434,16 @@ theorem px_loop1_spec [LwpNoLc GF] : ∀ (i : ThreadId) (z : Oid) (rm ci cj : GN
 registered with its witness and half of its until. -/
 @[lantana_alias px_init]
 theorem px_init (E : CoPset) (j : ThreadId) :
-    (thKids j ∅ : IProp GF) ⊢ |={E}=>m ∃ (ck : Oid) (rm ci cj : GName) (n : Nat),
-      thKids j {ck} ∗ oblKids ck ∅ ∗ Obl.fuel ck 0 10 ∗
+    (thKids j ∅ : IProp GF) ⊢ thCarriers j ∅ -∗ |={E}=>m ∃ (ck : Oid) (rm ci cj : GName) (n : Nat),
+      thKids j {ck} ∗ thCarriers j {ck} ∗ oblKids ck ∅ ∗ Obl.fuel ck 0 10 ∗
       finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗ Wit.layer ck 0 ∗ px rm ci cj ∗
       cntAuth ci n 1 ∗ cntAuth cj n (1 : Qp).half ∗ cntLb cj n ∗ mapElem rm n ck := by
-  iintro HG
+  iintro HG HB
   imod cntAuth_alloc (GF := GF) 0 with ⟨%ci, Cai, #Cli⟩
   imod cntAuth_alloc (GF := GF) 0 with ⟨%cj, Caj, #Clj⟩
   imod ghost_map_alloc_empty (GF := GF) (K := Nat) (V := Oid) (H := IdxMap) with ⟨%rm, GM⟩
-  imod untilI_alloc (E := E) (.thread j) ∅ 0 10 $$ [] HG with ⟨%ck, -, HG, Kck, Gf, #Wl, A⟩
+  imod untilI_alloc (E := E) (.thread j) ∅ ∅ 0 10 $$ [] HG HB with
+    ⟨%ck, -, HG, HB, Kck, Gf, #Wl, A⟩
   · iapply parLe_thread
   imod A $$ %E %Nu %iprop(True) %(nextQ rm cj 0) [] with HF
   · inext
@@ -466,14 +471,17 @@ theorem px_init (E : CoPset) (j : ThreadId) :
         iexact HF0
     · iapply BigSepM.bigSepM_empty.mpr
       iempintro
+  have hck : ∀ z, z ∈ (∅ : Oids).insert ck ↔ z ∈ ({ck} : Oids) := by
+    intro z
+    simp
   imodintro
   iexists ck, rm, ci, cj, 0
   unfold finallyI
   iframe Kck Gf HF Wl Cai Caj Clj Me
   isplitl [HG]
-  · iapply Par.kids_congr _ $$ HG
-    intro z
-    simp
+  · iapply Par.kids_congr hck $$ HG
+  isplitl [HB]
+  · iapply Th.carriers_congr hck $$ HB
   · unfold px
     iexact Hpx
 
@@ -484,46 +492,48 @@ def mainRes : IProp GF :=
     untilI N1 z 1 iprop(True) iprop(False) ∗
     finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗
     (£ₙ 10 ∗ px rm ci cj ∗ cntAuth ci n 1 ∗ cntAuth cj n (1 : Qp).half ∗ cntLb cj n ∗
-      mapElem rm n ck ∗ Wit.layer ck 0 ∗ thKids 0 {z} ∗ thKids 1 {ck} ∗ oblKids ck ∅ ∗
-      Obl.fuel ck 0 10))
+      mapElem rm n ck ∗ Wit.layer ck 0 ∗ thCarriers 0 {z} ∗ thKids 1 {ck} ∗
+      thCarriers 1 {ck} ∗ oblKids ck ∅ ∗ Obl.fuel ck 0 10))
 
 /-- The postcondition of both threads. -/
 abbrev post : ThreadId → Val → IProp GF := fun _ _ => iprop(True)
 
-/-- From the tokens of the two threads, ten later credits and their empty sets of children:
-the resources, and the `lWP`s of the threads from them (Rocq `px_loop_pre`). -/
+/-- From the tokens of the two threads, ten later credits and their empty sets of children and
+empty bills: the resources, and the `lWP`s of the threads from them (Rocq `px_loop_pre`). Thread
+`0` only steps, by the assumed rule: it keeps the bill of its commitment, not its node. -/
 @[lantana_alias px_loop_pre]
 theorem px_loop_pre [LwpNoLc GF] :
     threadExpr (GF := GF) 0 [] hl(v(&loop) #()) ⊢ threadExpr 1 [] hl(v(&loop) #()) -∗ £ₙ 10 -∗
-      thKids 0 ∅ -∗ thKids 1 ∅ -∗
+      thKids 0 ∅ -∗ thCarriers 0 ∅ -∗ thKids 1 ∅ -∗ thCarriers 1 ∅ -∗
       |={⊤}=>m mainRes ∗
         (mainRes -∗ |={⊤}=>m lWP hl(v(&loop) #()) @ 0; ⊤ {{ liftTerm 0 post }} ∗
           lWP hl(v(&loop) #()) @ 1; ⊤ {{ liftTerm 1 post }}) := by
-  iintro HT0 HT1 Hlc HG0 HG1
-  imod untilI_alloc (E := ⊤) (.thread 0) ∅ 1 0 $$ [] HG0 with ⟨%z, -, HG0, -, -, -, A⟩
+  iintro HT0 HT1 Hlc HG0 HB0 HG1 HB1
+  imod untilI_alloc (E := ⊤) (.thread 0) ∅ ∅ 1 0 $$ [] HG0 HB0 with
+    ⟨%z, -, -, HB0, -, -, -, A⟩
   · iapply parLe_thread
   imod A $$ %⊤ %N1 %iprop(True) %iprop(False) [] with HFz
   · inext
     ipureintro
     trivial
-  imod px_init ⊤ 1 $$ HG1 with
-    ⟨%ck, %rm, %ci, %cj, %n, HG1, Kck, Gf, HFck, #Wl, #Hpx, Cai, Caj, #Clj, #Me⟩
+  imod px_init ⊤ 1 $$ HG1 HB1 with
+    ⟨%ck, %rm, %ci, %cj, %n, HG1, HB1, Kck, Gf, HFck, #Wl, #Hpx, Cai, Caj, #Clj, #Me⟩
   imodintro
-  isplitl [HFz HFck Hlc Cai Caj HG0 HG1 Kck Gf]
+  isplitl [HFz HFck Hlc Cai Caj HB0 HG1 HB1 Kck Gf]
   · unfold mainRes
     iexists z, ck, rm, ci, cj, n
-    iframe HFz HFck Hlc Hpx Cai Caj Clj Me Wl HG1 Kck Gf
-    iapply Par.kids_congr _ $$ HG0
+    iframe HFz HFck Hlc Hpx Cai Caj Clj Me Wl HG1 HB1 Kck Gf
+    iapply Th.carriers_congr _ $$ HB0
     intro z
     simp
   iintro HP
   unfold mainRes
   icases HP with ⟨%z, %ck, %rm, %ci, %cj, %n, HFz, HFck, Hlc, #Hpx, Cai, Caj, #Clj, #Me, #Wl,
-    HG0, HG1, Kck, Gf⟩
+    HB0, HG1, HB1, Kck, Gf⟩
   imodintro
-  isplitl [HT0 HG0 HFz Hlc Cai]
-  · iapply px_loop1_spec 0 z rm ci cj [] $$ [HT0 HG0 HFz Hlc Cai]
-    · iframe HT0 HG0 HFz Hlc Hpx
+  isplitl [HT0 HB0 HFz Hlc Cai]
+  · iapply px_loop1_spec 0 z rm ci cj [] $$ [HT0 HB0 HFz Hlc Cai]
+    · iframe HT0 HB0 HFz Hlc Hpx
       iexists n
       iframe Cai Clj
       iexists ck
@@ -531,8 +541,8 @@ theorem px_loop_pre [LwpNoLc GF] :
     · iintro ⟨-, H⟩
       unfold liftTerm
       iexact H
-  · iapply px_loop2_spec 1 n rm ci cj ck [] $$ [HT1 HG1 Kck HFck Gf Caj]
-    · iframe HT1 HG1 Kck HFck Gf Hpx Caj Me
+  · iapply px_loop2_spec 1 n rm ci cj ck [] $$ [HT1 HG1 HB1 Kck HFck Gf Caj]
+    · iframe HT1 HG1 HB1 Kck HFck Gf Hpx Caj Me
     · iintro ⟨-, H⟩
       unfold liftTerm
       iexact H
@@ -591,12 +601,13 @@ theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0, 1] from rfl]
-  icases BigSepL.bigSepL_cons.mp $$ HG with ⟨HG0, HG⟩
-  ihave HG1 := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_cons.mp $$ HG with ⟨⟨-, HG0, HB0⟩, HG⟩
+  icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨-, HG1, HB1⟩
   icases BigSepL.bigSepL_cons.mp $$ HT with ⟨HT0, HT⟩
   ihave HT1 := BigSepL.bigSepL_singleton.mp $$ HT
-  imod px_loop_pre $$ HT0 HT1 Hc HG0 HG1 with ⟨HP, Hwp⟩
+  imod px_loop_pre $$ HT0 HT1 Hc HG0 HB0 HG1 HB1 with ⟨HP, Hwp⟩
   imodintro
   iexists mainRes
   isplitr
@@ -652,7 +663,7 @@ theorem loopRun_fair : fairScheduling loopRun := by
   intro j hinf
   by_cases hj : j < 2
   · exact TrProp.always_eventually_iff.mpr fun n _ =>
-      ⟨n, Nat.le_refl n, active_iff.mpr ⟨_, tp0_getElem? hj, rfl⟩,
+      ⟨n, Nat.le_refl n, active_iff.mpr ⟨_, tp0_getElem? hj, rfl, not_crashed _ _⟩,
         stepOf_iff.mpr (loopRun_traceStep n hj)⟩
   · obtain ⟨m, -, hm⟩ := TrProp.always_eventually_iff.mp hinf 0 (Nat.le_refl _)
     obtain ⟨e, he, -⟩ := active_iff.mp hm

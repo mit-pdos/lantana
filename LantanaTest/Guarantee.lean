@@ -16,7 +16,7 @@ open Iris.ProgramLogic (Language)
 open scoped Lantana.TrProp Lantana.TrSpec
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
-  [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+  [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- `inext` keeps the one-step property and the bundle as they are: their certificates'
 laters are not stripped. -/
@@ -48,7 +48,7 @@ whose conclusion is `⊑ₛ` has its trailing instance arguments (those of `⊑�
 ambient instances, so the expected `⊑ₛ` must be matched without elaborating the application
 against it (here with `@`). -/
 example (Q : IProp GF) : TrSpec.canon Q ⊑ₛ (TrSpec.true : TrSpec Expr State GF) :=
-  @TrSpec.canon_le _ _ _ _ _ _ _ _ _ _ _ guar_true
+  @TrSpec.canon_le _ _ _ _ _ _ _ _ _ _ _ _ guar_true
 
 example (Q : IProp GF) : TrSpec.canon Q ⊑ₛ (TrSpec.true : TrSpec Expr State GF) :=
   @Iff.mp _ _ (guar_canon_complete Q TrSpec.true) guar_true

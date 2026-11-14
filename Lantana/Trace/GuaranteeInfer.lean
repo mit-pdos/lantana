@@ -46,7 +46,8 @@ open scoped Lantana.TrSpec Lantana.TrProp
 universe u
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
-variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [Crash Expr State Obs Val] [instM : ModelGS GF] [instT : TemporalGS Expr State GF]
+  [StateInterp Expr State GF]
 
 #lantana_ignore trSpec_inferred "`trSpecOf`."
 #lantana_ignore trSpec_of "A tactic; `trSpecOf P` reduces to the inferred specification."
@@ -73,8 +74,8 @@ theorem guar_ex_ghost_sort {X : Sort u} (P : X → IProp GF) (G : TrSpec Expr St
   iintro #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W ⟨HI, MI, %x, HP⟩
-  iapply guar_elim (P x) G h n σ tp m i Ω W $$ HG
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, %x, HP⟩
+  iapply guar_elim (P x) G h n σ tp m i Ω W tc X $$ HG
   iframe
 
 /-- How an existential over a family of guarantees is guaranteed, when inferring. -/
@@ -400,15 +401,16 @@ theorem ex_trSpec_of_eq :
   rfl
 
 /-- A done until, allocated with its right formula at hand, exports the until of any left
-formula in the form the adequacy takes: a formula, its guarantee, and the formula back. -/
+formula in the form the adequacy takes: a formula, its guarantee, and the formula back. The
+bill of `p` becomes its children. -/
 @[lantana_alias ex_until_done_export]
-theorem ex_until_done_export (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) (Q : IProp GF)
+theorem ex_until_done_export (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) (Q : IProp GF)
     (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] (G₁ : TrSpec Expr State GF) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Q -∗
-      |={E}=>m Par.kids p K ∗
+    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗ Q -∗
+      |={E}=>m Par.kids p K ∗ Par.bill p K ∗
         ∃ P : IProp GF, (P ⊨ₜ (G₁ Uₛ TrSpec.state φ)) ∗ P ∗ (P -∗ Q) := by
-  iintro B Kp HQ
-  imod Obl.new E p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Oa, -, -⟩
+  iintro Hl Kp HB HQ
+  imod Obl.new E p K B ℓ μ $$ Hl Kp HB with ⟨%k, %hk, Kp, HB, Kk, Oa, -, -⟩
   have hmem : k ∈ K.insert k := Std.ExtTreeSet.mem_insert_self
   have heq : (K.insert k).erase k = K := Std.ExtTreeSet.ext_mem fun a => by
     simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert, ne_eq,
@@ -423,8 +425,9 @@ theorem ex_until_done_export (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure
     (K.insert k) hmem
   rw [heq] at hinit
   imod hinit $$ Oa Kp Kk HQ with ⟨U, Kp⟩
+  imod Par.bill_resync E p K (B.insert k) $$ Kp HB with ⟨Kp, HB⟩
   imodintro
-  iframe Kp
+  iframe Kp HB
   iexists untilIDone (Expr := Expr) (State := State) k Q
   iframe U
   isplitl []
@@ -523,7 +526,7 @@ theorem naiveImpRule_unsound
   have hF : ∀ G : TrSpec Expr State GF, ⊢ iprop(False) ⊨ₜ G := fun G => by
     iapply guar_intro
     imodintro
-    iintro %h %n %σ %tp %m %i %Ω %W ⟨-, -, %hf⟩
+    iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨-, -, %hf⟩
     exact hf.elim
   iapply guar_mono (P := iprop(False → False)) $$ []
   · imodintro

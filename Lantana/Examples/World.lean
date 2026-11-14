@@ -16,16 +16,17 @@ The world `ExGF` in which the adequacy corollaries of the examples are stated (R
 `Σ := #[mupdΣ; histGS.histΣ …; tregGS.tregΣ heap_lang; heap_stateΣ; …]`): the ghost state of
 the temporal layer before allocation (slots 0–15, as in the test world of
 `LantanaTest.TrSpecModel`: world satisfaction and credits, obligations, witnesses, the forest,
-the model history, the registry and the history), the heap with its meta data (16–18) and the
-thread-expression map (19) of HeapLang, a ghost variable of obligation ids for the handoff
-(20), and the counters (mono-nat, 21) and the ghost map from indices to obligations (22) of the
-paradox, the lock level (40) and the ghost maps from tickets to obligations (41) and
-to acknowledgements (42) of the starvation-free ticket lock. Slots 50–55 hold the cameras
-of the queue of `Lantana.Examples.Queue` (its list of elements, 50; its inbox is the ghost
-variable of slot 20) and of the ticket lock of `Lantana.Examples.TicketLock` (51–55), for
-the task-queue clients. Its instances are `TemporalGpreS Exp State ExGF`, the premise of the
-adequacy theorems, `HeapStateGpreS ExGF`, from which `heapState_init` allocates HeapLang's
-ghost state, and the cameras of the examples (`TicketLockG ExGF`, `QueueG ExGF`, …).
+the model history, the registry and the history; the bill map of the forest is in slot 23),
+the heap with its meta data (16–18) and the thread-expression map (19) of HeapLang, a ghost
+variable of obligation ids for the handoff (20), and the counters (mono-nat, 21) and the ghost
+map from indices to obligations (22) of the paradox, the lock level (40) and the ghost maps
+from tickets to obligations (41) and to acknowledgements (42) of the starvation-free ticket lock.
+Slots 50–55 hold the cameras of the queue of `Lantana.Examples.Queue` (its list of elements,
+50; its inbox is the ghost variable of slot 20) and of the ticket lock of
+`Lantana.Examples.TicketLock` (51–55), for the task-queue clients. Its instances are
+`TemporalGpreS Exp State ExGF`, the premise of the adequacy theorems, `HeapStateGpreS ExGF`,
+from which `heapState_init` allocates HeapLang's ghost state, and the cameras of the examples
+(`TicketLockG ExGF`, `QueueG ExGF`, …).
 
 Universes: as in `LantanaTest.TrSpecModel`, the slots holding ordinals are `ULiftOF.{4}` of
 `constOFP` of the camera, the others `ULiftOF` of `constOF`.
@@ -79,6 +80,7 @@ def ExGF : BundledGFunctors.{0} := fun n =>
             contractive := @ULiftOF.instRFunctorContractive _ ghostVarF_contractive }
   | 21 => ⟨ULiftOF MonoNatRF⟩
   | 22 => ⟨ULiftOF (constOF (HeapView Nat (Agree (DiscreteO Oid)) OidMap))⟩
+  | 23 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO Oids)) ThreadMap))⟩
   | 40 => ⟨ULiftOF.{4} LockLevelF⟩
   | 41 => ⟨ULiftOF (constOF (HeapView Int (Agree (DiscreteO Oid)) IntMap))⟩
   | 42 => ⟨ULiftOF (constOF (HeapView Int (Agree (DiscreteO Bool)) IntMap))⟩
@@ -124,6 +126,7 @@ instance : OWitGpreS ExGF where
 instance : OForestGpreS ExGF where
   kidsG := ⟨ElemG.ofEqLift 10 (by unfold ExGF; rfl)⟩
   statusG := ⟨ElemG.ofEqLift 11 (by unfold ExGF; rfl)⟩
+  billG := ⟨ElemG.ofEqLift 23 (by unfold ExGF; rfl)⟩
 
 instance : MHistGpreS ExGF where
   elem := (ElemG.ofEq 12 (by unfold ExGF; rfl) :

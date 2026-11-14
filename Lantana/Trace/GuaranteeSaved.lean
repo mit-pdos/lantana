@@ -29,7 +29,8 @@ open Iris.Std LawfulPartialMap
 open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
-variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF]
+  [StateInterp Expr State GF]
 
 /-! ## Saved guarantees -/
 

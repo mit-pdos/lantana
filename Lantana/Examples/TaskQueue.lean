@@ -104,14 +104,14 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TicketLockG GF] [Queu
 theorem putTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent)
     (K B : Oids) (γ : QueueName) (ℓ : Layer) (ql f a : Val) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&putTask) v(&ql) v(&f) v(&a)) ∗ thKids i G ∗
-          ([∗set] g ∈ G, Obl.fuel g 1 μ) ∗ Par.kids p K ∗ ⌜B ⊆ K⌝ ∗
+          thCarriers i G ∗ ([∗set] g ∈ G, Obl.fuel g 1 μ) ∗ Par.kids p K ∗ ⌜B ⊆ K⌝ ∗
           ([∗set] b ∈ B, Obl.fuel b ℓ.succ.succ 1) ∗ isTask ℓ f a B ∗ isTaskQueue ql γ ℓ }}}
         hl(v(&putTask) v(&ql) v(&f) v(&a)) @ i
-      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗
+      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗ thCarriers i G ∗
         Par.kids p (K \ B) }}} := by
   obtain ⟨μe, he⟩ := Queue.enqueue_spec (GF := GF)
   refine ⟨100 + μe, fun lc i G p K B γ ℓ ql f a C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, HK, %hBK, HFB, Htask, #IQ⟩ HΦ
+  iintro %Φ !> ⟨HT, HKi, HG, HF, HK, %hBK, HFB, Htask, #IQ⟩ HΦ
   icases (Obl.fuel_add_set G _ 100 μe).mp $$ HF with ⟨HF, Fe⟩
   ihave HF := oblFuels_init G 100 _ $$ HF
   unfold putTask
@@ -125,8 +125,8 @@ theorem putTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   lwp_expr_simp
   lwp_step HT HG HF
   lwp_expr_simp
-  iapply he 0 i G p K B (taskElem ℓ) γ ℓ ql hl_val((&f, &a)) C $$ [HT HG Fe HK HFB Htask]
-  · iframe HT HG Fe HK HFB
+  iapply he 0 i G p K B (taskElem ℓ) γ ℓ ql hl_val((&f, &a)) C $$ [HT HKi HG Fe HK HFB Htask]
+  · iframe HT HKi HG Fe HK HFB
     isplitr
     · ipureintro
       exact hBK
@@ -137,7 +137,7 @@ theorem putTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
       rfl
     · iunfold isTaskQueue at IQ
       iexact IQ
-  iintro ⟨HT, -, HG, HK⟩
+  iintro ⟨HT, -, HKi, HG, HK⟩
   iapply HΦ
   iframe
 
@@ -147,17 +147,17 @@ child of the thread (lifted to the task's layer), then its container is discharg
 @[lantana_alias task_queue.TaskQueue_run_task_spec]
 theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool) (wg : Oid)
     (i : ThreadId) (G : Oids) (γ : QueueName) (ℓ : Layer) (ql : Val) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&runTask) v(&ql)) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&runTask) v(&ql)) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g 1 μ) ∗ ([∗set] g ∈ G, Obl.fuel g ℓ 1) ∗
           (if b then Queue.worker γ wg else iprop(True)) ∗ isTaskQueue ql γ ℓ }}}
         hl(v(&runTask) v(&ql)) @ i
       l{{{ (rv : Val), RET rv; threadExpr i C hl(&rv) ∗ £ₒ lc ∗
-        (if b then iprop(∃ ng : Oid, thKids i (G.insert ng) ∗ ⌜ng ∉ G⌝ ∗ Queue.worker γ ng ∗
-          oblKids wg ∅ ∗ Obl.assigned wg 1 ∗ Obl.fuel ng ℓ m)
-        else thKids i G) }}} := by
+        (if b then iprop(∃ ng : Oid, thKids i (G.insert ng) ∗ thCarriers i (G.insert ng) ∗
+          ⌜ng ∉ G⌝ ∗ Queue.worker γ ng ∗ oblKids wg ∅ ∗ Obl.assigned wg 1 ∗ Obl.fuel ng ℓ m)
+        else iprop(thKids i G ∗ thCarriers i G)) }}} := by
   obtain ⟨μd, hd⟩ := Queue.dequeue_spec (GF := GF)
   refine ⟨100 + μd, fun lc m b wg i G γ ℓ ql C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, Ft, HW, #IQ⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF, Ft, HW, #IQ⟩ HΦ
   icases (Obl.fuel_add_set G _ 100 μd).mp $$ HF with ⟨HF, Fd⟩
   ihave HF := oblFuels_init G 100 _ $$ HF
   unfold runTask
@@ -165,8 +165,8 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
   lwp_expr_simp
   lwp_bind hl(v(&Queue.dequeue) v(&ql)) HT
   iapply hd 0 (m + ((99 : Nat) : Measure) + 1) b wg i G (taskElem ℓ) γ ℓ ql _ $$
-    [HT HG Fd HW]
-  · iframe HT HG Fd HW
+    [HT HK HG Fd HW]
+  · iframe HT HK HG Fd HW
     iunfold isTaskQueue at IQ
     iexact IQ
   iintro %x ⟨HT, -, Hx⟩
@@ -178,17 +178,18 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     cases b with
     | false =>
       simp only [dequeueRes, Bool.false_eq_true, ↓reduceIte]
-      lwp_step HT Hx HF
-      lwp_step HT Hx HF
+      icases Hx with ⟨HK, HG⟩
+      lwp_step HT HG HF
+      lwp_step HT HG HF
       lwp_expr_simp
-      lwp_step HT Hx HF
+      lwp_step HT HG HF
       lwp_expr_simp
       iapply lwp_value'
       iapply HΦ
       iframe
     | true =>
       simp only [dequeueRes, ↓reduceIte]
-      icases Hx with ⟨%ng, HG, %hng, HW, Kwg, Awg, Fng⟩
+      icases Hx with ⟨%ng, HK, HG, %hng, HW, Kwg, Awg, Fng⟩
       icases (Obl.fuel_add ng ℓ _ 1).mp $$ Fng with ⟨Fng, -⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng99⟩
       ihave HF := oblFuels_add_obl G ng ℓ _ $$ Fng99 HF
@@ -221,6 +222,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     cases b with
     | false =>
       simp only [Bool.false_eq_true, ↓reduceIte]
+      icases Hb with ⟨HK, Hb⟩
       lwp_step HT Hb HF
       lwp_step HT Hb HF
       lwp_expr_simp
@@ -231,25 +233,29 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       lwp_expr_simp
       imod Obl.fuel_extend_set (G.insert g) hlt μt $$ Ft with Ft
       iapply lwp_mupd
-      iapply Task $$ %(0 : Fuel) %i %(G.insert g) %(Parent.obl g) %B %C [HT Hb Ft Kg HP]
-      · iframe HT Hb Ft Kg HP
+      iapply Task $$ %(0 : Fuel) %i %(G.insert g) %(Parent.obl g) %B %C [HT HK Hb Ft Kg HP]
+      · iframe HT HK Hb Ft Kg HP
         ipureintro
         exact fun _ h => h
-      iintro %rv ⟨HT, -, HG, Kg⟩
-      imod Obl.discharge_leaf ⊤ (.thread i) (G.insert g) g hgg $$ HG [Kg] Ag with ⟨HG, -⟩
+      iintro %rv ⟨HT, -, HK, HG, Kg⟩
+      imod Obl.discharge_leaf ⊤ (.thread i) (G.insert g) g hgg $$ HK [Kg] Ag with ⟨HK, #Dg⟩
       · iapply Par.kids_congr _ $$ Kg
         intro z
         rw [LawfulSet.diff_all]
+      imod Th.carriers_erase_discharged ⊤ i (G.insert g) g $$ HG Dg with HG
+      have hge : ∀ z, z ∈ (G.insert g).erase g ↔ z ∈ G := by
+        intro z
+        simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
+        grind
       imodintro
       iapply HΦ
       iframe HT Hlc
-      iapply Par.kids_congr _ $$ HG
-      intro z
-      simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
-      grind
+      isplitl [HK]
+      · iapply Par.kids_congr hge $$ HK
+      · iapply Th.carriers_congr hge $$ HG
     | true =>
       simp only [↓reduceIte]
-      icases Hb with ⟨%ng, HG, %⟨hng, hgn⟩, HW, Kwg, Awg, Fng⟩
+      icases Hb with ⟨%ng, HK, HG, %⟨hng, hgn⟩, HW, Kwg, Awg, Fng⟩
       have hng' : ng ∉ G.insert g := by
         simp only [Std.ExtTreeSet.mem_insert]
         grind
@@ -269,26 +275,30 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       imod Obl.fuel_extend_set ((G.insert g).insert ng) hlt μt $$ Ft with Ft
       iapply lwp_mupd
       iapply Task $$ %(0 : Fuel) %i %((G.insert g).insert ng) %(Parent.obl g) %B %C
-        [HT HG Ft Kg HP]
-      · iframe HT HG Ft Kg HP
+        [HT HK HG Ft Kg HP]
+      · iframe HT HK HG Ft Kg HP
         ipureintro
         exact fun _ h => h
-      iintro %rv ⟨HT, -, HG, Kg⟩
+      iintro %rv ⟨HT, -, HK, HG, Kg⟩
       imod Obl.discharge_leaf ⊤ (.thread i) ((G.insert g).insert ng) g
-        (Std.ExtTreeSet.mem_insert.mpr (.inr hgg)) $$ HG [Kg] Ag with ⟨HG, -⟩
+        (Std.ExtTreeSet.mem_insert.mpr (.inr hgg)) $$ HK [Kg] Ag with ⟨HK, #Dg⟩
       · iapply Par.kids_congr _ $$ Kg
         intro z
         rw [LawfulSet.diff_all]
+      imod Th.carriers_erase_discharged ⊤ i ((G.insert g).insert ng) g $$ HG Dg with HG
+      have hge : ∀ z, z ∈ ((G.insert g).insert ng).erase g ↔ z ∈ G.insert ng := by
+        intro z
+        simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
+        grind
       imodintro
       iapply HΦ
       iframe HT Hlc
       iexists ng
       iframe HW Kwg Awg Fng
+      isplitl [HK]
+      · iapply Par.kids_congr hge $$ HK
       isplitl [HG]
-      · iapply Par.kids_congr _ $$ HG
-        intro z
-        simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
-        grind
+      · iapply Th.carriers_congr hge $$ HG
       · ipureintro
         exact hng
 
@@ -305,14 +315,14 @@ without (`G = ∅`), it pays nothing. By Löb induction (Rocq `TaskQueue_worker_
 @[lantana_alias task_queue.TaskQueue_worker_spec]
 theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids) (γ : QueueName)
     (ℓ : Layer) (ql : Val) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&worker) v(&ql)) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&worker) v(&ql)) ∗ thKids i G ∗ thCarriers i G ∗
           (if b then iprop(∃ g : Oid, ⌜G = {g} ∧ 1 ≤ ℓ⌝ ∧ (Obl.fuel g ℓ μ ∗ Queue.worker γ g))
            else iprop(⌜G = ∅⌝)) ∗ isTaskQueue ql γ ℓ }}}
         hl(v(&worker) v(&ql)) @ i
       l{{{ RET hl_val(#()); iprop(False) }}} := by
   obtain ⟨μr, hr⟩ := runTask_spec (GF := GF)
   refine ⟨((10 : Nat) : Measure) + (μr + 1), fun b i G γ ℓ ql C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HW, #IQ⟩ -
+  iintro %Φ !> ⟨HT, HK, HG, HW, #IQ⟩ -
   cases b with
   | true =>
     simp only [↓reduceIte]
@@ -332,24 +342,27 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     icases (Obl.fuel_add g ℓ μr 1).mp $$ Fr with ⟨Fmr, F1⟩
     imod Obl.fuel_layer_mono (ℓ₁ := 1) g μr hℓ $$ Fmr with Fmr
     iapply hr 1 (((2 : Nat) : Measure) + (((10 : Nat) : Measure) + (μr + 1))) true g i {g} γ ℓ
-      ql _ $$ [HT HG Fmr F1 Wk]
+      ql _ $$ [HT HK HG Fmr F1 Wk]
     · simp only [↓reduceIte]
-      iframe HT HG Wk IQ
+      iframe HT HK HG Wk IQ
       isplitl [Fmr]
       · iapply BigSepS.bigSepS_singleton.mpr
         iexact Fmr
       · iapply BigSepS.bigSepS_singleton.mpr
         iexact F1
     simp only [↓reduceIte]
-    iintro %rv ⟨HT, Hc, %ng, HG, %hng, Wk, Kg, Ag, Fng⟩
+    iintro %rv ⟨HT, Hc, %ng, HK, HG, %hng, Wk, Kg, Ag, Fng⟩
     imod Obl.discharge_leaf ⊤ (.thread i) (({g} : Oids).insert ng) g
-      (Std.ExtTreeSet.mem_insert.mpr (.inr (LawfulSet.mem_singleton.mpr rfl))) $$ HG Kg Ag
-      with ⟨HG, -⟩
-    ihave HG := Par.kids_congr (B := {ng}) ?_ $$ HG
-    · intro z
+      (Std.ExtTreeSet.mem_insert.mpr (.inr (LawfulSet.mem_singleton.mpr rfl))) $$ HK Kg Ag
+      with ⟨HK, #Dg⟩
+    imod Th.carriers_erase_discharged ⊤ i (({g} : Oids).insert ng) g $$ HG Dg with HG
+    have hng' : ∀ z, z ∈ (({g} : Oids).insert ng).erase g ↔ z ∈ ({ng} : Oids) := by
+      intro z
       simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert, LawfulSet.mem_singleton]
       simp only [LawfulSet.mem_singleton] at hng
       grind
+    ihave HK := Par.kids_congr hng' $$ HK
+    ihave HG := Th.carriers_congr hng' $$ HG
     icases (Obl.fuel_add ng ℓ _ _).mp $$ Fng with ⟨F2, Fng⟩
     ihave F2 : oblFuels {ng} ((2 : Nat) : Measure) $$ [F2]
     · unfold oblFuels
@@ -363,7 +376,7 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     lwp_expr_simp
     iapply lwp_credit_later $$ Hc
     inext
-    iapply IH $$ %ng HT HG Fng Wk
+    iapply IH $$ %ng HT HK HG Fng Wk
   | false =>
     simp only [Bool.false_eq_true, ↓reduceIte]
     icases HW with %hG
@@ -374,16 +387,16 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     lwp_step HT HG HF
     lwp_expr_simp
     lwp_bind hl(v(&runTask) v(&ql)) HT
-    iapply hr 1 0 false 0 i ∅ γ ℓ ql _ $$ [HT HG]
+    iapply hr 1 0 false 0 i ∅ γ ℓ ql _ $$ [HT HK HG]
     · simp only [Bool.false_eq_true, ↓reduceIte]
-      iframe HT HG IQ
+      iframe HT HK HG IQ
       isplitl []
       · iapply BigSepS.bigSepS_empty.mpr
         iempintro
       iapply BigSepS.bigSepS_empty.mpr
       iempintro
     simp only [Bool.false_eq_true, ↓reduceIte]
-    iintro %rv ⟨HT, Hc, HG⟩
+    iintro %rv ⟨HT, Hc, HK, HG⟩
     ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
     lwp_expr_simp
     ihave HF := oblFuels_empty (GF := GF) ((2 : Nat) : Measure)
@@ -392,7 +405,7 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     lwp_expr_simp
     iapply lwp_credit_later $$ Hc
     inext
-    iapply IH $$ HT HG
+    iapply IH $$ HT HK HG
 
 /-- Creating a task queue at layer `ℓ ≥ 1`, with its worker thread (Rocq
 `TaskQueue_init_spec`). The worker's inbox is created below this thread before the fork, and
@@ -400,15 +413,15 @@ the fork moves it to the worker. -/
 @[lantana_alias task_queue.TaskQueue_init_spec]
 theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (ℓ : Layer)
     (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ ⌜1 ≤ ℓ⌝ }}}
         hl(v(&init) #()) @ i
       l{{{ (ql : Val) (γ : QueueName), RET ql; threadExpr i C hl(&ql) ∗ £ₒ lc ∗ thKids i G ∗
-        isTaskQueue ql γ ℓ }}} := by
+        thCarriers i G ∗ isTaskQueue ql γ ℓ }}} := by
   obtain ⟨μi, hi⟩ := Queue.init_spec (GF := GF)
   obtain ⟨μw, hw⟩ := worker_spec (GF := GF)
   refine ⟨100 + μi, fun lc i G ℓ C => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, %hℓ⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF, %hℓ⟩ HΦ
   icases (Obl.fuel_add_set G _ 100 μi).mp $$ HF with ⟨HF, Fi⟩
   ihave HF := oblFuels_init G 100 _ $$ HF
   unfold init
@@ -425,8 +438,8 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   lwp_expr_simp
   -- The worker's inbox, at the queue's layer: a child of this thread until the fork moves it
   -- to the worker. It pays the fork step, its move, and the worker.
-  imod Obl.new ⊤ (.thread i) G ℓ (((1 : Nat) : Measure) + (((1 : Nat) : Measure) + μw)) $$ []
-    HG with ⟨%gj, %hgj, HG, Kgj, Agj, Fgj, #Wgj⟩
+  imod Obl.new ⊤ (.thread i) G G ℓ (((1 : Nat) : Measure) + (((1 : Nat) : Measure) + μw))
+    $$ [] HK HG with ⟨%gj, %hgj, HK, HG, Kgj, Agj, Fgj, #Wgj⟩
   · iapply parLe_thread
   imod Queue.isQueue_initialize ⊤ ql γ ℓ (taskElem ℓ) gj $$ IQI Kgj Wgj Agj with ⟨#IQ, Wk⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨F1, Fgj⟩
@@ -440,12 +453,12 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
     exact Std.ExtTreeSet.mem_insert_self
   iapply lwp_fork (o := 0) (G := G.insert gj) (R := ∅) {gj}
     iprop(Obl.fuel gj ℓ μw ∗ Queue.worker γ gj) hl(v(&worker) v(&ql)) hsub $$ []
-    [HT HG HF1 Fmv Fw Wk]
+    [HT HK HG HF1 Fmv Fw Wk]
   · -- The worker thread runs forever.
-    iintro %j %Φ' !> ⟨HTj, HGj, Fw, Wk⟩ -
-    iapply hw true j {gj} γ ℓ ql [] $$ [HTj HGj Fw Wk]
+    iintro %j %Φ' !> ⟨HTj, -, HKj, HGj, Fw, Wk⟩ -
+    iapply hw true j {gj} γ ℓ ql [] $$ [HTj HKj HGj Fw Wk]
     · simp only [↓reduceIte]
-      iframe HTj HGj
+      iframe HTj HKj HGj
       isplitl [Fw Wk]
       · iexists gj
         isplitr
@@ -457,18 +470,20 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
     iintro H
     iexfalso
     iexact H
-  · iframe HT Fw Wk
+  · iframe HT HK Fw Wk
     isplitl [HG HF1]
     · iapply stepPre_nil $$ HG HF1
     · unfold oblFuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact Fmv
-  iintro ⟨HT, -, HG, -⟩
-  ihave HG := Par.kids_congr (B := G) ?_ $$ HG
-  · intro z
+  iintro ⟨HT, ⟨-, HG, -⟩, HK⟩
+  have hdiff : ∀ z, z ∈ G.insert gj \ {gj} ↔ z ∈ G := by
+    intro z
     simp only [Std.ExtTreeSet.mem_diff_iff, Std.ExtTreeSet.mem_insert, LawfulSet.mem_singleton]
     grind
+  ihave HG := Th.carriers_congr hdiff $$ HG
+  ihave HK := Par.kids_congr hdiff $$ HK
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF
@@ -476,7 +491,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   lwp_expr_simp
   iapply lwp_value'
   iapply HΦ
-  iframe HT Hlc HG
+  iframe HT Hlc HK HG
   unfold isTaskQueue
   iexact IQ
 

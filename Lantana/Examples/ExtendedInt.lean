@@ -12,7 +12,7 @@ public import Lantana.Trace.TemporalFormula
 Rocq `examples/extended_int.v` (module `Int`): the integers extended with `-∞` and `+∞`, their
 representation as HeapLang values (a tag `0`, `1`, `2` paired with `()` or the integer), the
 strict order `ltRel`, and the program `lt` that compares two representations, with its
-specification `lwp_lt`: from `100` units of fuel of the children of the calling thread (as in
+specification `lwp_lt`: from `100` units of fuel of the bill of the calling thread (as in
 Rocq; the comparison takes at most `18` pure steps), `lt` returns whether `ltRel` holds.
 
 The type is `ExtInt` (Rocq `Int.t`; `Int` is Lean's), with the coercion from `Int` and the
@@ -119,11 +119,11 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 /-- `lt` returns whether `ltRel` holds. -/
 @[lantana_alias Int.lwp_lt]
 theorem lwp_lt : ∃ μ : Measure, ∀ (x y : ExtInt) (i : ThreadId) (G : Oids) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&lt) v(&(intoVal x)) v(&(intoVal y))) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&lt) v(&(intoVal x)) v(&(intoVal y))) ∗ thCarriers i G ∗
           oblFuels G μ }}}
         hl(v(&lt) v(&(intoVal x)) v(&(intoVal y))) @ i
       l{{{ RET hl_val(#(decide (ltRel x y))); threadExpr i C hl(#(decide (ltRel x y))) ∗
-        thKids i G }}} := by
+        thCarriers i G }}} := by
   refine ⟨100, fun x y i G C => ?_⟩
   rw [decide_ltRel]
   iintro %Φ !> ⟨HT, HG, HF⟩ HΦ

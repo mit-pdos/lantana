@@ -20,7 +20,9 @@ from `n` is made. A record may be written in the pre-step update of step `n` (e.
 discharging an until), so it is eliminated after the step, against the **bundle** of
 certificates for `n`: each registered structure (`TemporalRegistry`) has its content certified
 at every position (`certPre`, a later-guarded record). A record holds for any running system
-with the **one-step property** `sysStep` (`lWP` is one, `Adequacy/Temporal`).
+with the **one-step property** `sysStep` (`lWP` is one, `Adequacy/Temporal`). Between steps the
+model is at the view of the configuration (its thread count and its crashed threads,
+`Cfg.crashed`); a guarantee, used inside model updates, reads it at any view.
 
 The pure facts about the run `τf : Nat → Cfg Expr State`: the schedule
 `sched : Nat → ThreadId`, the adequacy proof's internal instrument (traces carry no thread
@@ -88,11 +90,12 @@ certificates of its entries. -/
 def bundlePre (tg : RecT Expr State GF) (l : List (Nat × RegEntry)) (n : Nat) : IProp GF :=
   iprop(regLb l ∗ ⌜l.getLast? = some (n, .mark)⌝ ∗ [∗list] pe ∈ l, certPre tg n pe.2)
 
-variable [Language Expr State Obs Val] [StateInterp Expr State GF]
+variable [Language Expr State Obs Val] [Crash Expr State Obs Val] [StateInterp Expr State GF]
 
 /-- The one-step property of `Sys`: from a consistent system at `n`, the bundle for `n` (the
 check), then after the step the system at `n + 1`, the facts about the step and `c` later
-credits. The modalities are those of `TrIProp.defer`. -/
+credits. The model is at the view of the configuration (its thread count and its crashed
+threads). The modalities are those of `TrIProp.defer`. -/
 @[lantana_alias sys_step_pre]
 def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :=
   iprop(□ ∀ (c : Nat) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
@@ -100,14 +103,16 @@ def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
     ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
-    historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ Sys n σ tp -∗
+    historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+      Sys n σ tp -∗
     |={⊤,∅}=> ∃ l, bundlePre tg l n ∗ ▷ |={∅,⊤}=> |={⊤,∅}=> ALC iprop(|={∅,⊤}=>
       ∃ (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent) (v' : Nat) (Ω' : Obls)
         (W' : Witnesses),
         ⌜owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
           oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ ∗
         £ₙ c ∗ historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
-        modelInterp g' v' Ω' W' (n + 1) tp'.length ∗ Sys (n + 1) σ' tp'))
+        modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) ∗
+        Sys (n + 1) σ' tp'))
 
 /-- A record for `f` at `n`: for any system with the one-step property, given the bundle for
 `n` and the system at `n + 1` consistent with the trace, `f` holds at `n` on the trace. -/
@@ -121,7 +126,8 @@ def recordPre (tg : RecT Expr State GF) : RecT Expr State GF := fun f n =>
     ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundlePre tg l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+      Sys (n + 1) σ tp -∗
     f ⟨n, τf⟩)
 
 end Pre
@@ -153,7 +159,7 @@ theorem bundlePre_contractive {k : SI} {tg₁ tg₂ : RecT Expr State GF}
   sep_ne.ne .rfl <| sep_ne.ne .rfl <|
     BigSepL.bigSepL_dist fun _ => certPre_contractive h n _
 
-variable [Language Expr State Obs Val] [StateInterp Expr State GF]
+variable [Language Expr State Obs Val] [Crash Expr State Obs Val] [StateInterp Expr State GF]
 
 @[lantana_alias sys_step_pre_contractive]
 theorem sysStepPre_contractive {k : SI} {tg₁ tg₂ : RecT Expr State GF}
@@ -181,7 +187,7 @@ end Contractive
 
 section Records
 variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Obs Val]
-  [StateInterp Expr State GF]
+  [Crash Expr State Obs Val] [StateInterp Expr State GF]
 
 /-- Records of step-indexed readings: the guarded fixpoint of `recordPre`. -/
 @[lantana_alias record_trI]
@@ -285,7 +291,8 @@ theorem recordTrI_intro (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+      Sys (n + 1) σ tp -∗
     f ⟨n, τf⟩) ⊢ recordTrI f n := by
   rw [recordTrI_eq]
   unfold recordPre
@@ -301,7 +308,8 @@ theorem recordTrI_elim (f : Trace (Cfg Expr State) → IProp GF) {Sys : SysT Exp
     ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+      Sys (n + 1) σ tp -∗
     f ⟨n, τf⟩ := by
   rw [recordTrI_eq]
   unfold recordPre
@@ -322,7 +330,8 @@ theorem record_intro (G : TrSpec Expr State GF) (n : Nat) :
     ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+      Sys (n + 1) σ tp -∗
     G.internal ⟨n, τf⟩) ⊢ record G n :=
   recordTrI_intro G.internal n
 
@@ -335,7 +344,8 @@ theorem record_elim (G : TrSpec Expr State GF) {Sys : SysT Expr State GF}
     ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
     bundle l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length ∗ Sys (n + 1) σ tp -∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+      Sys (n + 1) σ tp -∗
     G.internal ⟨n, τf⟩ :=
   recordTrI_elim G.internal
 
@@ -355,12 +365,13 @@ theorem record_mono {G G' : TrSpec Expr State GF} (hG : G ⊑ₛ G') (n : Nat) :
 
 /-! ## Guarantees -/
 
-/-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`. -/
+/-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`. `P` comes with the
+history and the model, at any view: a model update reads the model at any view. -/
 @[lantana_alias guar]
 def Guar (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF :=
   iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
-    historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n)
+      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
+    historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n)
 
 @[inherit_doc] scoped infix:25 " ⊨ₜ " => Guar
 
@@ -373,7 +384,7 @@ instance Guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF
   ne k P₁ P₂ hP := by
     unfold Guar
     refine intuitionistically_ne.ne ?_
-    iterate 8 refine forall_ne fun _ => ?_
+    iterate 10 refine forall_ne fun _ => ?_
     exact wand_ne.ne (sep_ne.ne .rfl (sep_ne.ne .rfl hP)) .rfl
 
 #lantana_ignore guar_proper "OFE is Leibniz: `Guar.ne` gives the equalities."
@@ -382,41 +393,42 @@ instance Guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF
 
 theorem guar_intro (P : IProp GF) (G : TrSpec Expr State GF) :
     iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
-    historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n) ⊢ P ⊨ₜ G :=
+      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
+    historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n) ⊢ P ⊨ₜ G :=
   .rfl
 
 @[lantana_alias guar_elim]
 theorem guar_elim (P : IProp GF) (G : TrSpec Expr State GF) (h : List (HistEntry Expr State))
     (n : Nat) (σ : State) (tp : ThreadPool Expr) (m : List MEvent) (i : Nat) (Ω : Obls)
-    (W : Witnesses) :
-    (P ⊨ₜ G) ⊢ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n :=
+    (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
+    (P ⊨ₜ G) ⊢ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n :=
   intuitionistically_elim.trans <| (forall_elim h).trans <| (forall_elim n).trans <|
     (forall_elim σ).trans <| (forall_elim tp).trans <| (forall_elim m).trans <|
-    (forall_elim i).trans <| (forall_elim Ω).trans <| forall_elim W
+    (forall_elim i).trans <| (forall_elim Ω).trans <| (forall_elim W).trans <|
+    (forall_elim tc).trans <| forall_elim X
 
 /-- For the certificates: a later-guarded content gives a later-guarded record. -/
 @[lantana_alias guar_elim_later]
 theorem guar_elim_later (P : IProp GF) (G : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) :
-    (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length -∗
+    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
+    (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X -∗
       ▷ record G n := by
   iintro #HG ⟨HP, HI, MI⟩
   inext
-  iapply guar_elim P G h n σ tp m i Ω W $$ HG
+  iapply guar_elim P G h n σ tp m i Ω W tc X $$ HG
   iframe
 
 /-- The same with a later-guarded guarantee, as stored with a registered structure. -/
 @[lantana_alias guar_elim_later_guar]
 theorem guar_elim_later_guar (P : IProp GF) (G : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) :
-    ▷ (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length -∗
+    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
+    ▷ (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X -∗
       ▷ record G n := by
   iintro HG ⟨HP, HI, MI⟩
   inext
-  iapply guar_elim P G h n σ tp m i Ω W $$ HG
+  iapply guar_elim P G h n σ tp m i Ω W tc X $$ HG
   iframe
 
 end Records
@@ -425,7 +437,7 @@ end Records
 
 section Canon
 variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Obs Val]
-  [StateInterp Expr State GF]
+  [Crash Expr State Obs Val] [StateInterp Expr State GF]
 
 /-- The canonical specification guaranteed by `Q`: the meet of all specifications validly
 guaranteed by `Q`. -/

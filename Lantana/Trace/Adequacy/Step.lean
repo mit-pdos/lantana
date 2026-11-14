@@ -18,11 +18,12 @@ dropped, the fairness counter of every other active owner dropped (the counters 
 explicit sequence `γ` along the run under the schedule, the trace property `SchedCounters` of the
 run from position `0`, so no choice is needed for them).
 
-The ghost-state part: from the model interpretation and the `Th.done` tokens of the finished
-threads, every assigned obligation's owner is active (`getOblsThreadActive`); a stutter of a
-finished thread keeps the witnesses' lower bound with the next counters
-(`owitInvLb_step_na_turn`) and moves the model to the next step index
-(`modelInterp_step_idx`).
+The ghost-state part: every assigned obligation's owner is active (`getOblsThreadActive`). It is
+a thread of the pool (the model interpretation); not a finished one, whose `Th.done` token
+contradicts the ownership; and not a crashed one, since the model at the configuration's crashed
+threads holds the node of a crashed thread, which so owns nothing. A stutter of a finished thread
+keeps the witnesses' lower bound with the next counters (`owitInvLb_step_na_turn`) and moves the
+model to the next step index (`modelInterp_step_idx`).
 -/
 
 @[expose] public section
@@ -33,6 +34,9 @@ open Lantana.Model Iris.Std LawfulPartialMap
 open Iris.ProgramLogic (Language)
 
 variable {Expr State Obs Val : Type} [Λ : Language Expr State Obs Val]
+
+section Active
+variable [Crash Expr State Obs Val]
 
 /-- Every assigned obligation is owned by a thread that is active at the configuration `ρ`
 (Rocq `obls_thread_active`). -/
@@ -259,6 +263,8 @@ theorem owitInvLb_step_na_turn {τf : Nat → Cfg Expr State} {sched : Nat → T
       intro ho
       exact Cfg.not_active_and_inactive o _ ⟨hact k a o eg, by rw [ho]; exact hna⟩
 
+end Active
+
 /-! ## The owners of the obligations are active -/
 
 section Ghost
@@ -291,8 +297,8 @@ instance doneTokens_persistent (tp : ThreadPool Expr) :
 /-- The owners of the obligations are threads of the pool (Rocq
 `othread_assigned_thread_elem`, through the model interpretation). -/
 theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
-    (n tc : Nat) :
-    modelInterp (GF := GF) h a Ω W n tc ⊢
+    (n tc : Nat) (X : ThreadId → Prop) :
+    modelInterp (GF := GF) h a Ω W n tc X ⊢
       ⌜∀ k fu o, get? Ω k = some (.assigned fu o) → o < tc⌝ := by
   unfold modelInterp
   iintro ⟨-, -, Hf, -, -⟩
@@ -301,13 +307,15 @@ theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnes
   intro k fu o hk
   exact h k o (Obls.ownerOf_eq hk)
 
-/-- Every assigned obligation's owner is active at a configuration whose pool is `tp`: it is a
-thread of the pool, and not a finished one since a finished thread owns no obligation (Rocq
-`get_obls_thread_active_gen`). -/
+/-- Every assigned obligation's owner is active at a configuration `ρ` whose pool is `tp`, from
+the `Th.done` tokens of the finished threads and the model at the crashed threads of `ρ` (Rocq
+`get_obls_thread_active_gen`): a finished thread owns no obligation, nor does a crashed one. -/
 @[lantana_alias get_obls_thread_active_gen]
-theorem getOblsThreadActive {tp : ThreadPool Expr} {ρ : Cfg Expr State}
-    (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses) (n : Nat) :
-    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length ⊢ ⌜oblsThreadActive Ω ρ⌝ := by
+theorem getOblsThreadActive [Crash Expr State Obs Val] {tp : ThreadPool Expr}
+    {ρ : Cfg Expr State} (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
+    (n : Nat) :
+    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length (Cfg.crashed ρ) ⊢
+      ⌜oblsThreadActive Ω ρ⌝ := by
   classical
   by_cases hact : oblsThreadActive Ω ρ
   · exact pure_intro hact
@@ -315,23 +323,27 @@ theorem getOblsThreadActive {tp : ThreadPool Expr} {ρ : Cfg Expr State}
   obtain ⟨k, fu, o, hk, hna⟩ := hact
   unfold doneTokens
   iintro ⟨#HD, HM⟩
-  icases persistent_entails_left (modelInterp_owner_lt h a Ω W n tp.length) $$ HM
+  icases persistent_entails_left (modelInterp_owner_lt h a Ω W n tp.length _) $$ HM
     with ⟨HM, %hlt⟩
   obtain ⟨e, he⟩ : ∃ e, tp[o]? = some e :=
     Option.isSome_iff_exists.mp (by simpa using hlt k fu o hk)
+  have heρ : ρ.1[o]? = some e := by rw [hτ]; exact he
   rcases hv : toVal e with _ | v
-  · exact absurd ⟨e, by rw [hτ]; exact he, hv⟩ hna
+  · -- a running owner is crashed, and the model holds its node
+    have hc : ρ.crashed o := ⟨e, heρ, Classical.byContradiction fun hc => hna ⟨e, heρ, hv, hc⟩⟩
+    icases Th.crashed_modelInterp_not_owner hc (hlt k fu o hk) h a Ω W n $$ HM with %hno
+    exact (hno k fu hk).elim
   ihave Hd := BigSepL.bigSepL_lookup he $$ HD
   have hd : doneToken (GF := GF) o e = Th.done o := by simp [doneToken, hv]
   rw [hd]
-  icases Th.done_modelInterp_not_owner o h a Ω W n tp.length $$ [$Hd $HM] with %hno
+  icases Th.done_modelInterp_not_owner o h a Ω W n tp.length _ $$ [$Hd $HM] with %hno
   exact (hno k fu hk).elim
 
 /-- A stutter moves the model to the next step index (Rocq `model_history_interp_step`). -/
 theorem modelInterp_step_idx (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
-    (n tc : Nat) :
-    modelInterp (GF := GF) h a Ω W n tc ⊢
-      |==> modelInterp (h ++ [(n + 1, Ω)]) (a + 1) Ω W (n + 1) tc := by
+    (n tc : Nat) (X : ThreadId → Prop) :
+    modelInterp (GF := GF) h a Ω W n tc X ⊢
+      |==> modelInterp (h ++ [(n + 1, Ω)]) (a + 1) Ω W (n + 1) tc X := by
   unfold modelInterp
   iintro ⟨HH, Hs, Hf, Hw, %hI⟩
   imod modelHistoryInterp_step h a (Nat.le_succ n) (Obls.le_refl Ω) $$ HH with HH

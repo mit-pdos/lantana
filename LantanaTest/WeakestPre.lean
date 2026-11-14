@@ -18,8 +18,8 @@ open Iris.ProgramLogic.EvContext (fill)
 section
 
 variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
-variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [ModelGS GF]
-variable [LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
+variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [Crash Expr State Obs Val]
+variable [ModelGS GF] [LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 variable {s : Stuckness} {i : ThreadId} {E E₂ : CoPset} {e : Expr} {Φ : Val → IProp GF}
   {P Q : IProp GF}
 
@@ -101,15 +101,17 @@ example (K₁ K₂ : Ectx) [Language.Context (fill (Expr := Expr) K₁)]
 example : lWP e @ s; i; E {{ Φ }} ⊢ lWP (fill (EvContextOps.empty : Ectx) e) @ s; i; E {{ Φ }} := by
   rw [EvContext.fill_empty]
 
-/-! Two pure steps paid at once. -/
+/-! Two pure steps paid at once, each keeping the crashed threads. -/
 
 example [Inhabited State] (ς : ThreadId → Expr → IProp GF) [PureExecSI ς i] {e₁ e₂ : Expr}
-    [Language.PureExec True 2 e₁ e₂] (G R : Oids) (o : Fuel) :
-    ς i e₁ ∗ thKids i G ∗ oblFuels G ((2 : Nat) : Measure) ∗ witLayers R ∗
-      (ς i e₂ -∗ thKids i G -∗ ([∗set] r ∈ R, Wit.cred r ((2 : Nat) : Fuel) ∨ Obl.discharged r) -∗
+    [Language.PureExec True 2 e₁ e₂] (G R : Oids) (o : Fuel)
+    (hX : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed (Ectx := Ectx) i e) :
+    ς i e₁ ∗ thCarriers i G ∗ oblFuels G ((2 : Nat) : Measure) ∗ witLayers R ∗
+      (ς i e₂ -∗ thCarriers i G -∗
+        ([∗set] r ∈ R, Wit.cred r ((2 : Nat) : Fuel) ∨ Obl.discharged r) -∗
         £ₒ (o ×ⱼ ((2 : Nat) : Fuel)) -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} :=
-  lwp_pure_step_simple 2 (by omega) G R o trivial
+  lwp_pure_step_simple 2 (by omega) G R o trivial hX
 
 end
 

@@ -20,8 +20,10 @@ of the run (`run_step`, in `Lantana.Trace.Adequacy.RunStep`). From a position `n
 (`lwp_adequacy_internal`), the user's model update gives a resource `P` that guarantees `G`
 (whose record at `n` is eliminated after the first step against the bundle of the check at `n`)
 and the `lWP`s of the threads. The theorem allocates the ghost state at its names, small enough
-for the existential property of satisfiability (`adequacy_alloc_names`), and reads the internal
-reading off by satisfiability (`TrSpec.adeq`).
+for the existential property of satisfiability (`adequacy_alloc_names`), with the model at the
+view of the initial configuration (the crashed threads' nodes held by the model, the other
+threads' handed to the user), and reads the internal reading off by satisfiability
+(`TrSpec.adeq`).
 
 The behavior carries no thread label. The proof chooses a fair schedule of it and fairness
 counters under that schedule (`exists_fair_schedule_schedCounters`), the instruments that the run is
@@ -53,7 +55,8 @@ attribute [reducible, instance] TemporalGpreS.modelG TemporalGpreS.histG Tempora
 section Lwp
 
 variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvContext Expr Ectx]
-  {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Obs Val GF]
+  [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF]
+  [L : LantanaGS Expr State Obs Val GF]
 
 /-- The running system of `lWP` (Rocq `sys_lwp`): the registry state and the running threads
 of the pool, for some postconditions. -/
@@ -120,7 +123,7 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
     {γ : Nat → ThreadId → Nat} (G : TrSpec Expr State GF) (hsch : Schedule sched ⟨0, τf⟩)
     (hcnt : SchedCounters sched γ ⟨0, τf⟩) (hLb : owitInvLb (fairMeasure (γ n)) Ω W)
     (hh : histTrace h τf) :
-    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗
+    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
       (|={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ G) ∗ P ∗
         (P -∗ |={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }})) ⊢
       |={⊤,∅}=> ALC iprop(|={∅,⊤}=> G.internal ⟨n, τf⟩) := by
@@ -130,10 +133,12 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
     (mupd_mono (lwps_threadsRun tp Ψ)).trans mupd_trans
   ihave #ST := sysStep_lwp (Expr := Expr) (State := State) (Obs := Obs) (Val := Val) (GF := GF)
   iintro ⟨HH, MI, HW⟩
-  imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp g v Ω W _ hLb $$ HW HH MI
+  imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp g v Ω W tp.length _ _ hLb
+    $$ HW HH MI
     with ⟨⟨%P, #HG, HP, HW⟩, HH, %g₁, %v₁, %Ω₁, %W₁, %⟨-, hLb₁⟩, MI⟩
   icases (historyTInterp_reg _ _ _ _).mp $$ HH with ⟨HI, HR⟩
-  icases persistent_entails_left (wand_elim (guar_elim P G h n σ tp _ _ Ω₁ W₁)) $$
+  icases persistent_entails_left
+    (wand_elim (guar_elim P G h n σ tp _ _ Ω₁ W₁ tp.length (Cfg.crashed (tp, σ)))) $$
     [HI MI HP] with ⟨⟨-, HI, MI, HP⟩, #TF⟩
   · isplitl []
     · iexact HG
@@ -142,7 +147,8 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
   ihave HW := hrun $$ HW
   ihave HH := (historyTInterp_reg h n σ tp).mpr $$ [HI HR]
   · iframe HI HR
-  imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp _ _ Ω₁ W₁ _ hLb₁ $$ HW HH MI
+  imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp _ _ Ω₁ W₁ tp.length _ _ hLb₁
+    $$ HW HH MI
     with ⟨HT, HH, %g₂, %v₂, %Ω₂, %W₂, %⟨-, hLb₂⟩, MI⟩
   icases (historyTInterp_reg _ _ _ _).mp $$ HH with ⟨HI, HR⟩
   -- the check at `n`
@@ -172,16 +178,34 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
 
 end Lwp
 
+/-- The pieces of the initial threads that the adequacy theorems hand, when no thread of the
+initial configuration is crashed: every thread gets its running handle, its empty children and
+its empty bill. -/
+theorem initThreads_of_not_crashed {Expr State Obs Val : Type} [Language Expr State Obs Val]
+    [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF] {σ : State}
+    {tp : ThreadPool Expr} (h : ∀ j, ¬ Cfg.crashed (tp, σ) j) :
+    ([∗list] j ∈ List.range tp.length,
+        (⌜¬Cfg.crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ⊢@{IProp GF}
+      [∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅ :=
+  BigSepL.bigSepL_mono fun {_ j} _ => by
+    iintro ⟨H, Hc⟩
+    iframe Hc
+    iapply H $$ %(h j)
+
 /-- **Theorem 1 (adequacy).** Let `G` be a trace specification and `R` a trace property implied
-by its trace reading. If, for every allocation of the temporal ghost state, the user can
-produce (under a fancy update, from some amount `c` of later credits and the initial threads'
-empty sets of children) a resource `P` that guarantees `G` together with `lWP`s for the
-initial threads, then every fair behavior from the initial configuration satisfies `R`.
+by its trace reading. If, for every allocation of the temporal ghost state (the model at the
+crashed threads of the initial configuration), the user can produce (under a fancy update, from
+some amount `c` of later credits and the initial threads' empty bills, with the running handles
+and the empty sets of children of those not crashed, `initThreads_of_not_crashed`) a resource `P`
+that guarantees `G` together with `lWP`s for the initial threads, then every fair behavior from
+the initial configuration satisfies `R`.
 Fairness is the strong fairness of every thread's scheduling action (`fairScheduling`, a trace
-property); the proof chooses a schedule as its instrument (`exists_fair_schedule_schedCounters`). -/
+property), enabled where the thread is active (`Cfg.active`, which a crashed thread is not); the
+proof chooses a schedule as its instrument (`exists_fair_schedule_schedCounters`). -/
 @[lantana_alias lwp_adequacy_temporal]
 theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val]
-    [EvContext Expr Ectx] {GF : BundledGFunctors} [TemporalGpreS Expr State GF]
+    [EvContext Expr Ectx] [Crash Expr State Obs Val] {GF : BundledGFunctors}
+    [TemporalGpreS Expr State GF]
     (σ : State) (tp : ThreadPool Expr) (G : TrSpec Expr State GF)
     (R : TrProp (Cfg Expr State)) (hGR : G.external ⊆ R) (τ : Trace (Cfg Expr State))
     (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
@@ -193,7 +217,9 @@ theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr St
           let _ : LantanaGS Expr State Obs Val GF :=
             { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := forkPost }
           iprop(stateInterp σ tp ∗
-            (£ₒ c -∗ ([∗list] j ∈ List.range tp.length, thKids j ∅) -∗
+            (£ₒ c -∗
+              ([∗list] j ∈ List.range tp.length,
+                (⌜¬Cfg.crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) -∗
               |={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ G) ∗ P ∗
                 (P -∗ |={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }})))) :
     R τ := by
@@ -202,7 +228,7 @@ theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr St
   simp only at hpos hinit
   subst hpos
   obtain ⟨sched, γc, hsch, hγc⟩ := exists_fair_schedule_schedCounters hbeh hfair
-  obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp)
+  obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp (Cfg.crashed (tp, σ)))
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
   obtain ⟨c, hc⟩ := hwp

@@ -40,7 +40,8 @@ open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 -- Named, to be passed explicitly to `TrSpec.canon_le`.
-variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [Crash Expr State Obs Val] [instM : ModelGS GF] [instT : TemporalGS Expr State GF]
+  [StateInterp Expr State GF]
 
 /-! ## Guarantees of fixpoints -/
 
@@ -56,7 +57,7 @@ theorem guar_nu_coind {H : TrSpec Expr State GF} (hH : H ⊑ₛ F H) :
 @[lantana_alias guar_nu_canon]
 theorem guar_nu_canon (hP : ⊢ P ⊨ₜ F (TrSpec.canon P)) : ⊢ P ⊨ₜ TrSpec.nu F :=
   (guar_canon P).trans
-    (guar_weaken (TrSpec.nu_coind F (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hP)))
+    (guar_weaken (TrSpec.nu_coind F (@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hP)))
 
 @[lantana_alias guar_mu_rank]
 theorem guar_mu_rank (H : Fuel → TrSpec Expr State GF)
@@ -149,7 +150,7 @@ theorem nest_alloc (hN : ↑N ⊆ E) (hQ : ⊢ Q ⊨ₜ G) : ▷ Q ⊢ |={E}=>m 
     inext
     iapply hC
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
-  iintro Hcl %g %i %Ω %W MI
+  iintro Hcl %g %i %Ω %W %tc %X MI
   -- the record of the content at `n`, by Löb induction
   ihave #T : ▷ record (nestTrSpec G) n $$ [HQ HI MI]
   · iloeb as IH
@@ -165,7 +166,7 @@ theorem nest_alloc (hN : ↑N ⊆ E) (hQ : ⊢ Q ⊨ₜ G) : ▷ Q ⊢ |={E}=>m 
       · iapply IH $$ [HQ] HI MI
         inext
         iexact HQ
-    iapply guar_elim_later_guar iprop(Q ∗ nest N Q G) (nestTrSpec G) h n σ tp g i Ω W $$ []
+    iapply guar_elim_later_guar iprop(Q ∗ nest N Q G) (nestTrSpec G) h n σ tp g i Ω W tc X $$ []
       [HQ HI MI]
     · inext
       iapply hC
@@ -263,16 +264,16 @@ theorem guar_renew_content (hQ : ⊢ Q ⊨ₜ G) :
     ⊢@{IProp GF} iprop(Q ∗ renew N Q G) ⊨ₜ renewTrSpec G :=
   guar_renew.trans (wand_entails (hQ.trans guar_sep))
 
-/-- Allocation of a link, with a fresh obligation `k` below `p`. -/
+/-- Allocation of a link, with a fresh obligation `k` below `p`, added to the bill of `p`. -/
 @[lantana_alias renew_alloc]
-theorem renew_alloc (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) (hQ : ⊢ Q ⊨ₜ G) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗
-      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗
-        Wit.layer k ℓ ∗
+theorem renew_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) (hQ : ⊢ Q ⊨ₜ G) :
+    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
+        oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ ∗
         untilIGuar N k 1 iprop(True) iprop(Q ∗ renew N Q G) TrSpec.true (renewTrSpec G) := by
   have hC := guar_renew_content (N := N) hQ
-  iintro B Kp
-  imod untilIGuar_alloc (E := E) p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, F, #W, ACC⟩
+  iintro Hl Kp HB
+  imod untilIGuar_alloc (E := E) p K B ℓ μ $$ Hl Kp HB with ⟨%k, %hk, Kp, HB, Kk, F, #W, ACC⟩
   imod ACC $$ %E %N %iprop(True) %iprop(Q ∗ renew N Q G) %TrSpec.true %(renewTrSpec G) [] []
     [] with U
   · inext
@@ -287,7 +288,7 @@ theorem renew_alloc (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) (hQ : �
   isplitr
   · ipureintro
     exact hk
-  iframe Kp Kk F U
+  iframe Kp HB Kk F U
   iexact W
 
 /-- Renewal: the link `k` is discharged with `Q` and the next link at hand. -/
