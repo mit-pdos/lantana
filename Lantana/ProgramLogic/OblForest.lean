@@ -36,9 +36,9 @@ The predicates are `@[irreducible]` definitions over the model of `Lantana.BaseL
 `Model.mphys`), each with a private unfolding lemma used only in this file, and every rule
 is the corresponding model lemma (`Lantana.BaseLogic.Model.OPreds`, `OPredsBase`, `MUpd`) seen
 through these unfoldings; the model updates of the forest operations are lifted from the base
-model update `|=[n,tc]=>m` to `|={E}=>m` by `mupd_of_base`. The predicates take the ghost state
+model update `|=[n]=>m` to `|={E}=>m` by `mupd_of_base`. The predicates take the ghost state
 of the model, `[ModelGS GF]`. The last section exposes what the adequacy proofs read of the
-model: the predicates of new threads and the runs of `|=[n,tc]=>m`, `mprog`, `mphys`
+model: the predicates of new threads and the runs of `|=[n]=>m`, `mprog`, `mphys`
 and `|={E₁,E₂}=>m` against the model interpretation `Model.modelInterp`.
 
 `Obl.fuel_eq` is unprovable as stated (it lacks the hypothesis `ℓ₁ = ℓ₂` of Rocq
@@ -109,11 +109,11 @@ def Wit.cred (k : Oid) (a : Fuel) : IProp GF := Model.OPreds.witCred k a
 def Wit.fuels (k : Oid) (ℓ : Layer) (α : Fuel) (F : OidMap (Layer × Measure)) : IProp GF :=
   Model.OPreds.witFuels k ℓ α F
 
-/-- The base model update `|=[n,tc]=>m P` at step index `n` with `tc` threads: a least fixpoint
-of rounds that may change obligations and witnesses while keeping the model interpretation
+/-- The base model update `|=[n]=>m P` at position `n`: a least fixpoint of rounds that may
+change obligations and witnesses while keeping the model interpretation, at any thread count
 (Rocq `mupd`). -/
 @[lantana_alias mupd, irreducible]
-def mupdBase (n tc : Nat) (P : IProp GF) : IProp GF := Model.mupd n tc P
+def mupdBase (n : Nat) (P : IProp GF) : IProp GF := Model.mupd n P
 
 /-- The progress round of a physical step of thread `i`, at step index `n` with `tc` threads:
 `i`'s obligations progress and the witnesses get credits (Rocq `mprog`, `@={n,Θ,i}=↓ P`). -/
@@ -151,7 +151,7 @@ private theorem Wit.cred_unfold : Wit.cred (GF := GF) = Model.OPreds.witCred := 
 private theorem Wit.fuels_unfold : Wit.fuels (GF := GF) = Model.OPreds.witFuels := by
   funext k ℓ α F; exact Wit.fuels.eq_1 k ℓ α F
 private theorem mupdBase_unfold : mupdBase (GF := GF) = Model.mupd := by
-  funext n tc P; exact mupdBase.eq_1 n tc P
+  funext n P; exact mupdBase.eq_1 n P
 private theorem mprog_unfold : mprog (GF := GF) = Model.mprog := by
   funext n tc i P; exact mprog.eq_1 n tc i P
 private theorem mphys_unfold : mphys (GF := GF) = Model.mphys := by
@@ -161,19 +161,20 @@ end Predicates
 
 /-! ## Notations -/
 
-/-- `|=[n,tc]=>m P`: the base model update. Like Iris-Lean's `|={E}=> P` (and unlike `|==> P`),
-the argument extends as far as possible: `|=[n,tc]=>m A ∗ B` is `|=[n,tc]=>m (A ∗ B)`. -/
-scoped syntax:max "|=[" term "," term "]=>m " term : term
+/-- `|=[n]=>m P`: the base model update. Like Iris-Lean's `|={E}=> P` (and unlike `|==> P`),
+the argument extends as far as possible: `|=[n]=>m A ∗ B` is `|=[n]=>m (A ∗ B)`. -/
+scoped syntax:max "|=[" term "]=>m " term : term
 scoped macro_rules
-  | `(|=[$n,$tc]=>m $P) => `(mupdBase $n $tc iprop($P))
+  | `(|=[$n]=>m $P) => `(mupdBase $n iprop($P))
 
 section
 variable {Expr : Type} {State : Type} {GF : BundledGFunctors} [ModelGS GF]
 
-/-- The fancy model update `|={E₁,E₂:n,tc}=>m P` (Rocq `fmupd`). -/
+/-- The fancy model update `|={E₁,∅}=> |=[n]=>m |={∅,E₂}=> P` at position `n` (Rocq
+`fmupd`). -/
 @[lantana_alias fmupd]
-def mupdFancy (E₁ E₂ : CoPset) (n tc : Nat) (P : IProp GF) : IProp GF :=
-  iprop(|={E₁,∅}=> |=[n,tc]=>m |={∅,E₂}=> P)
+def mupdFancy (E₁ E₂ : CoPset) (n : Nat) (P : IProp GF) : IProp GF :=
+  iprop(|={E₁,∅}=> |=[n]=>m |={∅,E₂}=> P)
 
 variable [TemporalGS Expr State GF] [StateInterp Expr State GF] [TemporalInterp Expr State GF]
 
@@ -182,7 +183,7 @@ the model, keeping the history and temporal interpretations (Rocq `sfmupd`). -/
 @[lantana_alias oblf.sfmupd]
 def mupd (E₁ E₂ : CoPset) (P : IProp GF) : IProp GF :=
   iprop(∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr),
-    historyTInterp h n σ tp -∗ mupdFancy E₁ E₂ n tp.length iprop(historyTInterp h n σ tp ∗ P))
+    historyTInterp h n σ tp -∗ mupdFancy E₁ E₂ n iprop(historyTInterp h n σ tp ∗ P))
 
 end
 
@@ -318,23 +319,23 @@ Their structural rules (Rocq `base_logic/mupd.v` and `model_physical_updates.v`)
 program logic to prove the rules of `lWP`. -/
 
 @[lantana_alias mupd_ne]
-instance mupdBase_ne (n tc : Nat) : OFE.NonExpansive (mupdBase (GF := GF) n tc) := by
-  rw [mupdBase_unfold]; exact Model.mupd_ne n tc
+instance mupdBase_ne (n : Nat) : OFE.NonExpansive (mupdBase (GF := GF) n) := by
+  rw [mupdBase_unfold]; exact Model.mupd_ne n
 
 @[lantana_alias mupd_intro]
-theorem mupdBase_intro (n tc : Nat) (P : IProp GF) : P ⊢ |=[n,tc]=>m P := by
-  rw [mupdBase_unfold]; exact Model.mupd_intro n tc P
+theorem mupdBase_intro (n : Nat) (P : IProp GF) : P ⊢ |=[n]=>m P := by
+  rw [mupdBase_unfold]; exact Model.mupd_intro n P
 
 /-- A fancy update at the empty mask can be absorbed by the base model update. -/
 @[lantana_alias fupd_mupd_elim]
-theorem fupd_mupdBase_elim (n tc : Nat) (P : IProp GF) :
-    (|={∅}=> |=[n,tc]=>m P) ⊢ |=[n,tc]=>m P := by
-  rw [mupdBase_unfold]; exact Model.fupd_mupd_elim n tc P
+theorem fupd_mupdBase_elim (n : Nat) (P : IProp GF) :
+    (|={∅}=> |=[n]=>m P) ⊢ |=[n]=>m P := by
+  rw [mupdBase_unfold]; exact Model.fupd_mupd_elim n P
 
 @[lantana_alias mupd_bind]
-theorem mupdBase_bind (n tc : Nat) (P Q : IProp GF) :
-    (P -∗ |=[n,tc]=>m Q) ⊢ (|=[n,tc]=>m P) -∗ |=[n,tc]=>m Q := by
-  rw [mupdBase_unfold]; exact Model.mupd_bind n tc P Q
+theorem mupdBase_bind (n : Nat) (P Q : IProp GF) :
+    (P -∗ |=[n]=>m Q) ⊢ (|=[n]=>m P) -∗ |=[n]=>m Q := by
+  rw [mupdBase_unfold]; exact Model.mupd_bind n P Q
 
 @[lantana_alias mprog_ne]
 instance mprog_ne (n tc : Nat) (i : ThreadId) : OFE.NonExpansive (mprog (GF := GF) n tc i) := by
@@ -379,7 +380,7 @@ instance mupd_ne (E₁ E₂ : CoPset) :
   unfold mupd mupdFancy
   refine forall_ne fun h => forall_ne fun n => forall_ne fun σ => forall_ne fun tp => ?_
   refine wand_ne.ne .rfl (OFE.NonExpansive.ne ?_)
-  refine OFE.NonExpansive.ne (f := mupdBase n tp.length) ?_
+  refine OFE.NonExpansive.ne (f := mupdBase n) ?_
   exact OFE.NonExpansive.ne (sep_ne.ne .rfl hPQ)
 
 @[lantana_alias oblf.fupd_sfmupd]
@@ -403,7 +404,7 @@ private theorem mupd_bind_aux (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
   iintro HPQ HP %h %n %σ %tp HT
   imod HP $$ %h %n %σ %tp HT with HP
   imodintro
-  iapply mupdBase_bind n tp.length _ _ $$ [HPQ] HP
+  iapply mupdBase_bind n _ _ $$ [HPQ] HP
   iintro HP
   iapply fupd_mupdBase_elim
   imod HP with ⟨HT, HP⟩
@@ -415,17 +416,17 @@ theorem mupd_bind (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
       mupd (Expr := Expr) (State := State) E₁ E₂ P -∗ mupd (Expr := Expr) (State := State) E₁ E₃ Q :=
   mupd_bind_aux E₁ E₂ E₃ P Q
 
-/-- A base model update at every step index and thread count is a model update at one mask:
-how the forest operations of the model are lifted. -/
+/-- A base model update at every position is a model update at one mask: how the forest
+operations of the model are lifted. -/
 private theorem mupd_of_base (E : CoPset) (P : IProp GF) :
-    (∀ n tc, Model.mupd n tc P) ⊢ mupd (Expr := Expr) (State := State) E E P := by
+    (∀ n, Model.mupd n P) ⊢ mupd (Expr := Expr) (State := State) E E P := by
   unfold mupd mupdFancy
   rw [mupdBase_unfold]
   iintro H %h %n %σ %tp HT
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
   iintro Hclose
-  ihave H := H $$ %n %tp.length
-  iapply Model.mupd_bind n tp.length P _ $$ [Hclose HT] H
+  ihave H := H $$ %n
+  iapply Model.mupd_bind n P _ $$ [Hclose HT] H
   iintro HP
   iapply Model.mupd_intro
   imod Hclose with -
@@ -581,8 +582,8 @@ theorem Th.terminate (E : CoPset) (i : ThreadId) :
   rw [Th.active_unfold, Par.kids_unfold, Th.done_unfold]
   iintro Ha H
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.thread_terminate_mupd n tc i $$ Ha H
+  iintro %n
+  iapply Model.OPreds.thread_terminate_mupd n i $$ Ha H
 
 @[lantana_alias oblf.obl_new]
 theorem Obl.new (E : CoPset) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
@@ -593,16 +594,16 @@ theorem Obl.new (E : CoPset) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measu
     parLe_eq]
   iintro Hb Hp HB
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.obl_new_mupd n tc p K B ℓ μ $$ Hb Hp HB
+  iintro %n
+  iapply Model.OPreds.obl_new_mupd n p K B ℓ μ $$ Hb Hp HB
 
 @[lantana_alias oblf.obl_new_discharged]
 theorem Obl.new_discharged (E : CoPset) (ℓ : Layer) :
     ⊢ |={E}=>m ∃ k : Oid, Obl.discharged (GF := GF) k ∗ Wit.layer k ℓ := by
   rw [Obl.discharged_unfold, Wit.layer_unfold]
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.obl_new_discharged_mupd n tc ℓ
+  iintro %n
+  iapply Model.OPreds.obl_new_discharged_mupd n ℓ
 
 @[lantana_alias oblf.obl_move]
 theorem Obl.move (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k : Oid) (ℓ : Layer)
@@ -613,8 +614,8 @@ theorem Obl.move (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k : 
   rw [Par.kids_unfold, Par.bill_unfold, Obl.fuel_unfold, parBelow_eq]
   iintro Hb H₁ H₂ HB Hf
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.obl_move_mupd n tc p₁ p₂ K₁ K₂ B₂ k ℓ hk $$ Hb H₁ H₂ HB Hf
+  iintro %n
+  iapply Model.OPreds.obl_move_mupd n p₁ p₂ K₁ K₂ B₂ k ℓ hk $$ Hb H₁ H₂ HB Hf
 
 @[lantana_alias oblf.obl_move_up]
 theorem Obl.move_up (E : CoPset) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oids) (x : Oid)
@@ -625,8 +626,8 @@ theorem Obl.move_up (E : CoPset) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oids)
   rw [Par.kids_unfold, Par.bill_unfold]
   iintro Hp HB Hk
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.obl_move_up_mupd n tc p K B k Kk x hk hx $$ Hp HB Hk
+  iintro %n
+  iapply Model.OPreds.obl_move_up_mupd n p K B k Kk x hk hx $$ Hp HB Hk
 
 /-! ## The bill of a thread -/
 
@@ -636,8 +637,8 @@ theorem Th.carriers_kids_subset (E : CoPset) (i : ThreadId) (B K : Oids) :
   rw [Th.carriers_unfold, Par.kids_unfold]
   iintro Hb Hk
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.bill_kids_subset_mupd n tc i B K $$ Hb Hk
+  iintro %n
+  iapply Model.OPreds.bill_kids_subset_mupd n i B K $$ Hb Hk
 
 /-- The bill of thread `i` becomes its children. -/
 theorem Th.carriers_resync (E : CoPset) (i : ThreadId) (B K : Oids) :
@@ -645,8 +646,8 @@ theorem Th.carriers_resync (E : CoPset) (i : ThreadId) (B K : Oids) :
   rw [Th.carriers_unfold, Par.kids_unfold]
   iintro Hb Hk
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.bill_resync_mupd n tc i B K $$ Hb Hk
+  iintro %n
+  iapply Model.OPreds.bill_resync_mupd n i B K $$ Hb Hk
 
 /-- A discharged obligation leaves the bill of thread `i`. -/
 theorem Th.carriers_erase_discharged (E : CoPset) (i : ThreadId) (B : Oids) (k : Oid) :
@@ -654,8 +655,8 @@ theorem Th.carriers_erase_discharged (E : CoPset) (i : ThreadId) (B : Oids) (k :
   rw [Th.carriers_unfold, Obl.discharged_unfold]
   iintro Hb Hd
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.bill_erase_discharged_mupd n tc i B k $$ Hb Hd
+  iintro %n
+  iapply Model.OPreds.bill_erase_discharged_mupd n i B k $$ Hb Hd
 
 @[lantana_alias oblf.obl_check_witness]
 theorem Obl.check_witness (E : CoPset) (r : Oid) (ℓ : Layer) :
@@ -663,8 +664,8 @@ theorem Obl.check_witness (E : CoPset) (r : Oid) (ℓ : Layer) :
   rw [Wit.layer_unfold, Wit.cred_unfold, Obl.discharged_unfold]
   iintro H
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.obl_check_witness_mupd n tc r ℓ $$ H
+  iintro %n
+  iapply Model.OPreds.obl_check_witness_mupd n r ℓ $$ H
 
 /-! ## Discharge -/
 
@@ -675,8 +676,8 @@ theorem Obl.discharge_leaf (E : CoPset) (p : Parent) (K : Oids) (k : Oid) (hk : 
   rw [Par.kids_unfold, Obl.assigned_unfold, Obl.discharged_unfold]
   iintro Hp Hk Ha
   iapply mupd_of_base
-  iintro %n %tc
-  iapply Model.OPreds.obl_discharge_mupd n tc p K k hk $$ Hp Hk Ha
+  iintro %n
+  iapply Model.OPreds.obl_discharge_mupd n p K k hk $$ Hp Hk Ha
 
 end ModelUpdate
 
@@ -723,25 +724,27 @@ theorem thKids_alloc_threads (Ω : Model.Obls) (tc m : Nat) :
   rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold]
   exact Model.OPreds.thKids_alloc_threads Ω tc m
 
-/-- Running a base model update against the model: the rounds compose into `Obls.le` and keep
-a lower bound `γ` of the witnesses (`Model.modelInterp_mupd_steps`). -/
-theorem mupdBase_modelInterp_steps (n tc : Nat) (γ : ThreadId → Fuel → Fuel)
+/-- Running a base model update against the model at any thread count, which it keeps: the
+rounds compose into `Obls.le` and keep a lower bound `γ` of the witnesses
+(`Model.modelInterp_mupd_steps`). -/
+theorem mupdBase_modelInterp_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
     (hγ : Model.owitInvLbMonoFair γ) (P : IProp GF) :
-    (|=[n,tc]=>m P) ⊢ ∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obls)
-      (W : Model.Witnesses), ⌜Model.owitInvLb γ Ω W⌝ → Model.modelInterp h i Ω W n tc ={∅}=∗
+    (|=[n]=>m P) ⊢ ∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obls)
+      (W : Model.Witnesses) (tc : Nat), ⌜Model.owitInvLb γ Ω W⌝ →
+        Model.modelInterp h i Ω W n tc ={∅}=∗
         P ∗ ∃ h' i' Ω' W', ⌜Model.Obls.le Ω Ω' ∧ Model.owitInvLb γ Ω' W'⌝ ∗
           Model.modelInterp (h ++ h') (i + i') Ω' W' n tc := by
   rw [mupdBase_unfold]
-  exact Model.modelInterp_mupd_steps n tc γ hγ P
+  exact Model.modelInterp_mupd_steps n γ hγ P
 
 /-- A base model update that only reads the model, which it returns unchanged (Rocq
 `mupd_read`, `temporal_formula.v`): how the temporal formulas record their contents. -/
 @[lantana_alias mupd_read]
-theorem mupdBase_read (n tc : Nat) (P : IProp GF) :
-    (∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obls) (W : Model.Witnesses),
-      Model.modelInterp h i Ω W n tc -∗ Model.modelInterp h i Ω W n tc ∗ P) ⊢ |=[n,tc]=>m P := by
+theorem mupdBase_read (n : Nat) (P : IProp GF) :
+    (∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obls) (W : Model.Witnesses) (tc : Nat),
+      Model.modelInterp h i Ω W n tc -∗ Model.modelInterp h i Ω W n tc ∗ P) ⊢ |=[n]=>m P := by
   rw [mupdBase_unfold]
-  exact Model.mupd_read n tc P
+  exact Model.mupd_read n P
 
 open Iris.Std LawfulPartialMap in
 /-- A live obligation is assigned in the model (Rocq `osat_lookup_assigned` read through
@@ -791,21 +794,22 @@ theorem mphys_modelInterp (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) :
 variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
   [TemporalInterp Expr State GF]
 
-/-- Running a model update against the model (Rocq `all_interp_sfmupd_steps`). -/
+/-- Running a model update against the model at any thread count, which it keeps (Rocq
+`all_interp_sfmupd_steps`). -/
 @[lantana_alias all_interp_sfmupd_steps]
 theorem mupd_modelInterp_steps (γ : ThreadId → Fuel → Fuel) (hγ : Model.owitInvLbMonoFair γ)
     (E₁ E₂ : CoPset) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
     (tp : ThreadPool Expr) (g : List Model.MEvent) (v : Nat) (Ω : Model.Obls)
-    (W : Model.Witnesses) (P : IProp GF) (hLb : Model.owitInvLb γ Ω W) :
-    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗ Model.modelInterp g v Ω W n tp.length ={E₁,E₂}=∗
+    (W : Model.Witnesses) (tc : Nat) (P : IProp GF) (hLb : Model.owitInvLb γ Ω W) :
+    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗ Model.modelInterp g v Ω W n tc ={E₁,E₂}=∗
       P ∗ historyTInterp h n σ tp ∗ ∃ g' v' Ω' W',
         ⌜Model.Obls.le Ω Ω' ∧ Model.owitInvLb γ Ω' W'⌝ ∗
-        Model.modelInterp (g ++ g') (v + v') Ω' W' n tp.length := by
+        Model.modelInterp (g ++ g') (v + v') Ω' W' n tc := by
   unfold mupd mupdFancy
   rw [mupdBase_unfold]
   iintro HP HT HM
   imod HP $$ %h %n %σ %tp HT with HP
-  imod Model.modelInterp_mupd_steps n tp.length γ hγ _ $$ HP %g %v %Ω %W %hLb HM
+  imod Model.modelInterp_mupd_steps n γ hγ _ $$ HP %g %v %Ω %W %tc %hLb HM
     with ⟨HP, %g', %v', %Ω', %W', %hle, HM⟩
   imod HP with ⟨HT, HP⟩
   imodintro

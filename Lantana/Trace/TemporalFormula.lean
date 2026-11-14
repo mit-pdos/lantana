@@ -207,21 +207,21 @@ and updates the registry state. -/
 section Read
 variable {E : CoPset} {P : IProp GF}
 
-/-- A model update with fancy updates before and after reading the model, which it returns
-unchanged (Rocq `sfmupd_read_fupd`). -/
+/-- A model update with fancy updates before and after reading the model, at any thread count,
+which it returns unchanged (Rocq `sfmupd_read_fupd`). -/
 @[lantana_alias sfmupd_read_fupd]
 theorem mupd_read_fupd :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr),
       historyInterp h n σ tp -∗ regState -∗ |={E,∅}=> ∀ (g : List MEvent) (i : Nat) (Ω : Obls)
-        (W : Witnesses), modelInterp g i Ω W n tp.length -∗ modelInterp g i Ω W n tp.length ∗
+        (W : Witnesses) (tc : Nat), modelInterp g i Ω W n tc -∗ modelInterp g i Ω W n tc ∗
           |={∅,E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢ |={E}=>m P := by
   unfold mupd mupdFancy historyTInterp
   iintro H %h %n %σ %tp ⟨HI, TI⟩
   imod H $$ %h %n %σ %tp HI TI with H
   imodintro
   iapply mupdBase_read
-  iintro %g %i %Ω %W MI
-  icases H $$ %g %i %Ω %W MI with ⟨MI, H⟩
+  iintro %g %i %Ω %W %tc MI
+  icases H $$ %g %i %Ω %W %tc MI with ⟨MI, H⟩
   iframe MI
   imod H with ⟨HI, TI, HP⟩
   imodintro
@@ -229,21 +229,21 @@ theorem mupd_read_fupd :
   iframe HI
   iexact TI
 
-/-- A model update that reads the history and the model and updates the registry
-(Rocq `sfmupd_read`). -/
+/-- A model update that reads the history and the model, at any thread count, and updates the
+registry (Rocq `sfmupd_read`). -/
 @[lantana_alias sfmupd_read]
 theorem mupd_read :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (g : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
-      historyInterp h n σ tp -∗ regState -∗ modelInterp g i Ω W n tp.length -∗
-        modelInterp g i Ω W n tp.length ∗ |={E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
+      (g : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat),
+      historyInterp h n σ tp -∗ regState -∗ modelInterp g i Ω W n tc -∗
+        modelInterp g i Ω W n tc ∗ |={E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
       |={E}=>m P := by
   iintro H
   iapply mupd_read_fupd
   iintro %h %n %σ %tp HI TI
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
-  iintro Hclose %g %i %Ω %W MI
-  icases H $$ %h %n %σ %tp %g %i %Ω %W HI TI MI with ⟨MI, H⟩
+  iintro Hclose %g %i %Ω %W %tc MI
+  icases H $$ %h %n %σ %tp %g %i %Ω %W %tc HI TI MI with ⟨MI, H⟩
   iframe MI
   imod Hclose with -
   iexact H

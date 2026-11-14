@@ -84,11 +84,6 @@ theorem bigSepL_range'_sub {Ψ : Nat → IProp GF} (tc n : Nat) :
   rw [Nat.add_sub_cancel_left, List.range'_eq_map_range, BigSepL.bigSepL_map]
   exact .rfl
 
-/-- The length of the pool after a step. -/
-theorem length_set_append {tp efs : List Expr} {j : ThreadId} {e' : Expr} :
-    (tp.set j e' ++ efs).length = tp.length + efs.length := by
-  simp
-
 /-- `lwpStep` with the progress and fork rounds of the step applied (Rocq `lwp_step_step` and
 `lwp_lift_step`). -/
 @[lantana_alias lwp_lift_step, lantana_alias lwp_step_step]
@@ -96,7 +91,7 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
     (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
-      historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n, tp.length]=>m
+      historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
         ⌜s.maybeReducible e₁ σ₁⌝ ∗
         ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
@@ -104,7 +99,7 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
             thCarriers i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
-            ALC (mupdFancy ∅ E (n + 1) (tp.length + efs.length)
+            ALC (mupdFancy ∅ E (n + 1)
               iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
                   (tp.set i (fill K e₂) ++ efs) ∗
                 |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
@@ -142,7 +137,7 @@ theorem lwp_lift_step (he : toVal e₁ = none) :
   imod H with H
   iapply fupd_mupdBase_elim
   imod H with ⟨Hσ, H⟩
-  iapply mupd_elim (tp.length + efs.length) length_set_append $$ H Hσ
+  iapply mupd_elim $$ H Hσ
 
 /-- `lwp_lift_step` over the state interpretation: the history and the interpretation of the
 temporal layer are threaded, and no model update is taken around the step. -/

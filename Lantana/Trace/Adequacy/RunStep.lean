@@ -252,12 +252,12 @@ theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → I
     (he : toVal e₁ = none) :
     threadRun i e₁ Ψ ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
       (tp : ThreadPool Expr), ⌜tp[i]? = some e₁⌝ →
-      historyTInterp h n σ tp ={⊤,∅}=∗ |=[n, tp.length]=>m
+      historyTInterp h n σ tp ={⊤,∅}=∗ |=[n]=>m
         ⌜PrimStep.Reducible (e₁, σ)⌝ ∗
         ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
           ⌜primStep (e₁, σ) obs (e₂, σ₂, efs)⌝ -∗
           mprog n tp.length i (mphys n (n + 1) tp.length (tp.length + efs.length)
-            (ALC (|=[n + 1, tp.length + efs.length]=>m |={∅,⊤}=>
+            (ALC (|=[n + 1]=>m |={∅,⊤}=>
               historyTInterp (h ++ [(σ₂, tp.set i e₂ ++ efs)]) (n + 1) σ₂
                 (tp.set i e₂ ++ efs) ∗
               lWP e₂ @ i; ⊤ {{ liftTerm i Ψ }} ∗
@@ -279,17 +279,6 @@ theorem oblsThreadActive_keep {tp : ThreadPool Expr} {ρ : Cfg Expr State}
       modelInterp g v Ω W n tp.length ∗ ⌜oblsThreadActive Ω ρ⌝ :=
   (persistent_entails_left (getOblsThreadActive hτ g v Ω W n)).trans
     (sep_mono_left sep_elim_right)
-
-/-- `mupd_modelInterp_steps` with the thread count given by an equation. -/
-theorem mupd_modelInterp_steps_len (γ : ThreadId → Fuel → Fuel) (hγ : owitInvLbMonoFair γ)
-    (E₁ E₂ : CoPset) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
-    (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (P : IProp GF)
-    (hLb : owitInvLb γ Ω W) {tc : Nat} (htc : tp.length = tc) :
-    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗ modelInterp g v Ω W n tc ={E₁,E₂}=∗
-      P ∗ historyTInterp h n σ tp ∗ ∃ g' v' Ω' W',
-        ⌜Obls.le Ω Ω' ∧ owitInvLb γ Ω' W'⌝ ∗ modelInterp (g ++ g') (v + v') Ω' W' n tc := by
-  subst htc
-  exact mupd_modelInterp_steps γ hγ E₁ E₂ h n σ tp g v Ω W P hLb
 
 /-- The threads after a step of `i` to `e₂` forking `efs`, after the model updates of the
 finished threads' postconditions. -/
@@ -323,8 +312,8 @@ theorem run_step_stuck {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
   ihave Hi := BigSepL.bigSepL_lookup he $$ HT
   ihave Hi := threadRun_step hv $$ Hi
   imod Hi $$ %h %n %σ %tp %he HH with Hi
-  imod mupdBase_modelInterp_steps n tp.length (fairMeasure c') (owitInvLbMonoFair_fairMeasure c')
-    _ $$ Hi %g %v %Ω %W %hLb HM with ⟨⟨%hred, -⟩, -⟩
+  imod mupdBase_modelInterp_steps n (fairMeasure c') (owitInvLbMonoFair_fairMeasure c')
+    _ $$ Hi %g %v %Ω %W %tp.length %hLb HM with ⟨⟨%hred, -⟩, -⟩
   exact (Language.not_reducible_iff_irreducible.mpr hirr hred).elim
 
 /-- The thread the schedule names is a value: the configuration stutters. -/
@@ -385,8 +374,8 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   icases BigSepL.bigSepL_insert_acc he₁ $$ HT with ⟨Hi, HT⟩
   ihave Hi := threadRun_step hv₁ $$ Hi
   imod Hi $$ %h %n %σ %tp %he₁ HH with Hi
-  imod mupdBase_modelInterp_steps n tp.length (fairMeasure (γ n)) hγn _ $$
-    Hi %g %v %Ω %W %hLb HM with ⟨⟨%_, Hi⟩, %g₀, %v₀, %Ω₀, %W₀, %⟨hle₀, hLb₀⟩, HM⟩
+  imod mupdBase_modelInterp_steps n (fairMeasure (γ n)) hγn _ $$
+    Hi %g %v %Ω %W %tp.length %hLb HM with ⟨⟨%_, Hi⟩, %g₀, %v₀, %Ω₀, %W₀, %⟨hle₀, hLb₀⟩, HM⟩
   icases Model.modelInterp_owitInv' _ _ _ _ _ _ $$ HM with ⟨HM, %hI₀⟩
   icases oblsThreadActive_keep hτ _ _ Ω₀ W₀ n $$ [$HD $HM] with ⟨HM, %hact₀⟩
   ispecialize Hi $$ %obs %e₂ %σ₂ %efs %hprim
@@ -401,14 +390,15 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   iapply (ALC_credits (Ordinals.Ordinal.ofNat c)).mpr
   iapply ALC_wand $$ [HM HT] Hi
   iintro Hi Hc
-  imod mupdBase_modelInterp_steps (n + 1) (tp.length + efs.length) (fairMeasure (γ (n + 1)))
-    hγn1 _ $$ Hi %_ %_ %Ω₂ %W₂ %hLb₂ HM with ⟨Hi, %g₃, %v₃, %Ω₃, %W₃, %⟨hle₃, hLb₃⟩, HM⟩
+  imod mupdBase_modelInterp_steps (n + 1) (fairMeasure (γ (n + 1))) hγn1 _ $$
+    Hi %_ %_ %Ω₂ %W₂ %(tp.length + efs.length) %hLb₂ HM
+    with ⟨Hi, %g₃, %v₃, %Ω₃, %W₃, %⟨hle₃, hLb₃⟩, HM⟩
   imod Hi with ⟨HH, Hi, Hefs⟩
   ihave Hth := threadsRun_after_step tp i e₂ efs Ψ $$ [HT Hi Hefs]
   · iframe HT Hi Hefs
-  imod mupd_modelInterp_steps_len (fairMeasure (γ (n + 1))) hγn1 ⊤ ⊤
-    (h ++ [(σ₂, tp.set i e₂ ++ efs)]) (n + 1) σ₂ (tp.set i e₂ ++ efs) _ _ Ω₃ W₃ _ hLb₃
-    (by simp) $$ Hth HH HM with ⟨HT, HH, %g₄, %v₄, %Ω₄, %W₄, %⟨hle₄, hLb₄⟩, HM⟩
+  imod mupd_modelInterp_steps (fairMeasure (γ (n + 1))) hγn1 ⊤ ⊤
+    (h ++ [(σ₂, tp.set i e₂ ++ efs)]) (n + 1) σ₂ (tp.set i e₂ ++ efs) _ _ Ω₃ W₃ _ _ hLb₃
+    $$ Hth HH HM with ⟨HT, HH, %g₄, %v₄, %Ω₄, %W₄, %⟨hle₄, hLb₄⟩, HM⟩
   imodintro
   unfold runStepPost
   iexists σ₂, tp.set i e₂ ++ efs, postFork Ψ L.forkPost tp.length, _, _, Ω₄, W₄

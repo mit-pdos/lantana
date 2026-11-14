@@ -355,12 +355,13 @@ theorem record_mono {G G' : TrSpec Expr State GF} (hG : G ⊑ₛ G') (n : Nat) :
 
 /-! ## Guarantees -/
 
-/-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`. -/
+/-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`. `P` comes with the
+history and the model, at any thread count: a model update reads the model at any count. -/
 @[lantana_alias guar]
 def Guar (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF :=
   iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
-    historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n)
+      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat),
+    historyInterp h n σ tp ∗ modelInterp m i Ω W n tc ∗ P -∗ record G n)
 
 @[inherit_doc] scoped infix:25 " ⊨ₜ " => Guar
 
@@ -373,7 +374,7 @@ instance Guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF
   ne k P₁ P₂ hP := by
     unfold Guar
     refine intuitionistically_ne.ne ?_
-    iterate 8 refine forall_ne fun _ => ?_
+    iterate 9 refine forall_ne fun _ => ?_
     exact wand_ne.ne (sep_ne.ne .rfl (sep_ne.ne .rfl hP)) .rfl
 
 #lantana_ignore guar_proper "OFE is Leibniz: `Guar.ne` gives the equalities."
@@ -382,41 +383,41 @@ instance Guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF
 
 theorem guar_intro (P : IProp GF) (G : TrSpec Expr State GF) :
     iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
-    historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n) ⊢ P ⊨ₜ G :=
+      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat),
+    historyInterp h n σ tp ∗ modelInterp m i Ω W n tc ∗ P -∗ record G n) ⊢ P ⊨ₜ G :=
   .rfl
 
 @[lantana_alias guar_elim]
 theorem guar_elim (P : IProp GF) (G : TrSpec Expr State GF) (h : List (HistEntry Expr State))
     (n : Nat) (σ : State) (tp : ThreadPool Expr) (m : List MEvent) (i : Nat) (Ω : Obls)
-    (W : Witnesses) :
-    (P ⊨ₜ G) ⊢ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length ∗ P -∗ record G n :=
+    (W : Witnesses) (tc : Nat) :
+    (P ⊨ₜ G) ⊢ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc ∗ P -∗ record G n :=
   intuitionistically_elim.trans <| (forall_elim h).trans <| (forall_elim n).trans <|
     (forall_elim σ).trans <| (forall_elim tp).trans <| (forall_elim m).trans <|
-    (forall_elim i).trans <| (forall_elim Ω).trans <| forall_elim W
+    (forall_elim i).trans <| (forall_elim Ω).trans <| (forall_elim W).trans <| forall_elim tc
 
 /-- For the certificates: a later-guarded content gives a later-guarded record. -/
 @[lantana_alias guar_elim_later]
 theorem guar_elim_later (P : IProp GF) (G : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) :
-    (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length -∗
+    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) :
+    (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc -∗
       ▷ record G n := by
   iintro #HG ⟨HP, HI, MI⟩
   inext
-  iapply guar_elim P G h n σ tp m i Ω W $$ HG
+  iapply guar_elim P G h n σ tp m i Ω W tc $$ HG
   iframe
 
 /-- The same with a later-guarded guarantee, as stored with a registered structure. -/
 @[lantana_alias guar_elim_later_guar]
 theorem guar_elim_later_guar (P : IProp GF) (G : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) :
-    ▷ (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tp.length -∗
+    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) :
+    ▷ (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc -∗
       ▷ record G n := by
   iintro HG ⟨HP, HI, MI⟩
   inext
-  iapply guar_elim P G h n σ tp m i Ω W $$ HG
+  iapply guar_elim P G h n σ tp m i Ω W tc $$ HG
   iframe
 
 end Records

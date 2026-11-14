@@ -14,10 +14,11 @@ public import Lantana.BaseLogic.Model.OForest
 /-! # The model interpretation and the model update
 
 Rocq `lantana/base_logic/mupd.v` and `model_physical_updates.v`: the ghost state of the whole
-model (`ModelGS`), its interpretation `modelInterp h i Ω W n tc` (history, obligations, forest,
-witnesses, and the witness invariant), and the model update `mupd n tc P` as the *least fixpoint*
-of rounds: the prover changes the obligations by `Obls.lef`, the environment picks any
-admissible witnesses, and the update continues. `modelInterp_mupd_steps` is adequacy's
+model (`ModelGS`), its interpretation `modelInterp h i Ω W n tc` (history, obligations, forest
+over `tc` threads, witnesses, and the witness invariant), and the model update `mupd n P` at
+position `n` as the *least fixpoint* of rounds: given the model at any thread count, the prover
+changes the obligations by `Obls.lef`, the environment picks any admissible witnesses, the model
+comes back at the same count, and the update continues. `modelInterp_mupd_steps` is adequacy's
 elimination: the rounds compose into `Obls.le` and witnesses keeping a lower bound exist
 (`owitInv_exists_witnesses`). The two single rounds of a physical step, `mprog` (progress of the
 scheduled thread) and `mphys` (change of the step index and thread count), close the file. The
@@ -120,23 +121,23 @@ at the empty mask), or, given the model, the prover changes the obligations by `
 for every admissible choice of witnesses by the environment, returns the new model and
 continues. -/
 @[lantana_alias mupd_pre]
-def mupdPre (n tc : Nat) (mupd : IProp GF → IProp GF) (P : IProp GF) : IProp GF :=
+def mupdPre (n : Nat) (mupd : IProp GF → IProp GF) (P : IProp GF) : IProp GF :=
   iprop((|={∅}=> P) ∨
-    ∀ (h : List MEvent) (i : Nat) (Ω₁ : Obls) (W₁ : Witnesses),
+    ∀ (h : List MEvent) (i : Nat) (Ω₁ : Obls) (W₁ : Witnesses) (tc : Nat),
       modelInterp h i Ω₁ W₁ n tc ={∅}=∗ ∃ Ω₂, ⌜Obls.lef Ω₁ Ω₂⌝ ∗
         ∀ W₂, ⌜W₁.lef W₂ ∧ owitInvFair Ω₂ W₂⌝ ={∅}=∗
           modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc ∗ mupd P)
 
 @[lantana_alias mupd_pre_mono]
-theorem mupdPre_mono (n tc : Nat) {Φ Ψ : IProp GF → IProp GF} :
-    □ (∀ P, Φ P -∗ Ψ P) ⊢ ∀ P, mupdPre n tc Φ P -∗ mupdPre n tc Ψ P := by
+theorem mupdPre_mono (n : Nat) {Φ Ψ : IProp GF → IProp GF} :
+    □ (∀ P, Φ P -∗ Ψ P) ⊢ ∀ P, mupdPre n Φ P -∗ mupdPre n Ψ P := by
   iintro #H %P Hpre
   unfold mupdPre
   icases Hpre with (HP | Hround)
   · ileft
     iexact HP
   · iright
-    iintro %h %i %Ω₁ %W₁ HM
+    iintro %h %i %Ω₁ %W₁ %tc HM
     imod Hround $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
     imodintro
     iexists Ω₂
@@ -150,64 +151,66 @@ theorem mupdPre_mono (n tc : Nat) {Φ Ψ : IProp GF → IProp GF} :
     iapply H $$ HΦ
 
 @[lantana_alias mupd_pre_mono']
-instance mupdPre_monoPred (n tc : Nat) : BIMonoPred (mupdPre (GF := GF) n tc) where
+instance mupdPre_monoPred (n : Nat) : BIMonoPred (mupdPre (GF := GF) n) where
   mono_pred := by
     intro Φ Ψ _ _
     iintro #H %P Hpre
-    iapply mupdPre_mono n tc $$ [] Hpre
+    iapply mupdPre_mono n $$ [] Hpre
     iexact H
   mono_pred_ne {Φ} _ := ⟨fun {m} P Q hPQ => by
     unfold mupdPre
     refine or_ne.ne (OFE.NonExpansive.ne hPQ) ?_
-    refine forall_ne fun h => forall_ne fun i => forall_ne fun Ω₁ => forall_ne fun W₁ => ?_
+    refine forall_ne fun h => forall_ne fun i => forall_ne fun Ω₁ => forall_ne fun W₁ =>
+      forall_ne fun tc => ?_
     refine wand_ne.ne .rfl (OFE.NonExpansive.ne ?_)
     refine exists_ne fun Ω₂ => sep_ne.ne .rfl (forall_ne fun W₂ => ?_)
     refine wand_ne.ne .rfl (OFE.NonExpansive.ne ?_)
     exact sep_ne.ne .rfl (OFE.NonExpansive.ne hPQ)⟩
 
-/-- The base model update `|=[n,tc]=>m P` (Rocq `mupd`). -/
-def mupd (n tc : Nat) (P : IProp GF) : IProp GF := bi_least_fixpoint (mupdPre n tc) P
+/-- The base model update `|=[n]=>m P` at position `n` (Rocq `mupd`): its rounds take the model
+at any thread count and return it at the same one. -/
+def mupd (n : Nat) (P : IProp GF) : IProp GF := bi_least_fixpoint (mupdPre n) P
 
 @[lantana_alias mupd_unfold]
-theorem mupd_unfold (n tc : Nat) (P : IProp GF) :
-    mupd n tc P ⊣⊢ mupdPre n tc (mupd n tc) P :=
+theorem mupd_unfold (n : Nat) (P : IProp GF) :
+    mupd n P ⊣⊢ mupdPre n (mupd n) P :=
   (least_fixpoint_unfold ..).to_bi
 
-instance mupd_ne (n tc : Nat) : OFE.NonExpansive (mupd (GF := GF) n tc) :=
-  inferInstanceAs (OFE.NonExpansive (bi_least_fixpoint (mupdPre n tc)))
+instance mupd_ne (n : Nat) : OFE.NonExpansive (mupd (GF := GF) n) :=
+  inferInstanceAs (OFE.NonExpansive (bi_least_fixpoint (mupdPre n)))
 
 /-- Strong induction (Rocq `mupd_ind_strong`). -/
 @[lantana_alias mupd_ind_strong]
-theorem mupd_ind_strong (n tc : Nat) (Ψ : IProp GF → IProp GF) [OFE.NonExpansive Ψ] :
-    □ (∀ P, mupdPre n tc (fun P => iprop(Ψ P ∧ mupd n tc P)) P -∗ Ψ P) ⊢
-      ∀ P, mupd n tc P -∗ Ψ P :=
-  wand_entails (least_fixpoint_ind (mupdPre n tc) Ψ)
+theorem mupd_ind_strong (n : Nat) (Ψ : IProp GF → IProp GF) [OFE.NonExpansive Ψ] :
+    □ (∀ P, mupdPre n (fun P => iprop(Ψ P ∧ mupd n P)) P -∗ Ψ P) ⊢
+      ∀ P, mupd n P -∗ Ψ P :=
+  wand_entails (least_fixpoint_ind (mupdPre n) Ψ)
 
 /-- Induction (Rocq `mupd_ind`). -/
 @[lantana_alias mupd_ind]
-theorem mupd_ind (n tc : Nat) (Ψ : IProp GF → IProp GF) [OFE.NonExpansive Ψ] :
-    □ (∀ P, mupdPre n tc Ψ P -∗ Ψ P) ⊢ ∀ P, mupd n tc P -∗ Ψ P :=
-  wand_entails (least_fixpoint_iter (mupdPre n tc) (Φ := Ψ))
+theorem mupd_ind (n : Nat) (Ψ : IProp GF → IProp GF) [OFE.NonExpansive Ψ] :
+    □ (∀ P, mupdPre n Ψ P -∗ Ψ P) ⊢ ∀ P, mupd n P -∗ Ψ P :=
+  wand_entails (least_fixpoint_iter (mupdPre n) (Φ := Ψ))
 
-theorem fupd_mupd (n tc : Nat) (P : IProp GF) : (|={∅}=> P) ⊢ mupd n tc P := by
+theorem fupd_mupd (n : Nat) (P : IProp GF) : (|={∅}=> P) ⊢ mupd n P := by
   iintro H
-  iapply (mupd_unfold n tc P).2
+  iapply (mupd_unfold n P).2
   unfold mupdPre
   ileft
   iexact H
 
-theorem mupd_intro (n tc : Nat) (P : IProp GF) : P ⊢ mupd n tc P :=
-  fupd_intro.trans (fupd_mupd n tc P)
+theorem mupd_intro (n : Nat) (P : IProp GF) : P ⊢ mupd n P :=
+  fupd_intro.trans (fupd_mupd n P)
 
 /-- A fancy update at the empty mask before the model update is absorbed by a trivial round
 (Rocq `fupd_mupd_elim`). -/
-theorem fupd_mupd_elim (n tc : Nat) (P : IProp GF) :
-    (|={∅}=> mupd n tc P) ⊢ mupd n tc P := by
+theorem fupd_mupd_elim (n : Nat) (P : IProp GF) :
+    (|={∅}=> mupd n P) ⊢ mupd n P := by
   iintro H
-  iapply (mupd_unfold n tc P).2
+  iapply (mupd_unfold n P).2
   unfold mupdPre
   iright
-  iintro %h %i %Ω₁ %W₁ HM
+  iintro %h %i %Ω₁ %W₁ %tc HM
   imod H with H
   imodintro
   iexists Ω₁
@@ -221,15 +224,15 @@ theorem fupd_mupd_elim (n tc : Nat) (P : IProp GF) :
 
 /-- A model update that only reads the model, which it returns unchanged (a trivial round;
 Rocq `mupd_read` in `temporal_formula.v`). -/
-theorem mupd_read (n tc : Nat) (P : IProp GF) :
-    (∀ (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
-      modelInterp h i Ω W n tc -∗ modelInterp h i Ω W n tc ∗ P) ⊢ mupd n tc P := by
+theorem mupd_read (n : Nat) (P : IProp GF) :
+    (∀ (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat),
+      modelInterp h i Ω W n tc -∗ modelInterp h i Ω W n tc ∗ P) ⊢ mupd n P := by
   iintro H
-  iapply (mupd_unfold n tc P).2
+  iapply (mupd_unfold n P).2
   unfold mupdPre
   iright
-  iintro %h %i %Ω₁ %W₁ HM
-  icases H $$ %h %i %Ω₁ %W₁ HM with ⟨HM, HP⟩
+  iintro %h %i %Ω₁ %W₁ %tc HM
+  icases H $$ %h %i %Ω₁ %W₁ %tc HM with ⟨HM, HP⟩
   imodintro
   iexists Ω₁
   isplitr
@@ -239,7 +242,7 @@ theorem mupd_read (n tc : Nat) (P : IProp GF) :
   imod modelInterp_trivial_round h i Ω₁ W₁ W₂ n tc hW hI₂ $$ HM with HM
   imodintro
   iframe HM
-  iapply mupd_intro n tc P $$ HP
+  iapply mupd_intro n P $$ HP
 
 /-- A snapshot of the current obligation `k` (Rocq `model_interp_event_obl`). -/
 @[lantana_alias model_interp_event_obl]
@@ -261,12 +264,12 @@ theorem modelInterp_eventObl_lookup (h : List MEvent) (i : Nat) (Ω : Obls) (W :
   iframe HH He
 
 /-- Sequencing (Rocq `mupd_bind`). -/
-theorem mupd_bind (n tc : Nat) (P Q : IProp GF) :
-    (P -∗ mupd n tc Q) ⊢ mupd n tc P -∗ mupd n tc Q := by
-  letI Ψ : IProp GF → IProp GF := fun P => iprop((P -∗ mupd n tc Q) -∗ mupd n tc Q)
+theorem mupd_bind (n : Nat) (P Q : IProp GF) :
+    (P -∗ mupd n Q) ⊢ mupd n P -∗ mupd n Q := by
+  letI Ψ : IProp GF → IProp GF := fun P => iprop((P -∗ mupd n Q) -∗ mupd n Q)
   letI : OFE.NonExpansive Ψ := ⟨fun _ _ _ h => wand_ne.ne (wand_ne.ne h .rfl) .rfl⟩
   iintro HPQ HP
-  iapply mupd_ind_strong n tc Ψ $$ [] HP HPQ
+  iapply mupd_ind_strong n Ψ $$ [] HP HPQ
   iintro !> %P' Hpre HPQ'
   unfold mupdPre
   icases Hpre with (HP' | Hround)
@@ -274,10 +277,10 @@ theorem mupd_bind (n tc : Nat) (P Q : IProp GF) :
     imod HP' with HP'
     imodintro
     iapply HPQ' $$ HP'
-  · iapply (mupd_unfold n tc Q).2
+  · iapply (mupd_unfold n Q).2
     unfold mupdPre
     iright
-    iintro %h %i %Ω₁ %W₁ HM
+    iintro %h %i %Ω₁ %W₁ %tc HM
     imod Hround $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
     imodintro
     iexists Ω₂
@@ -294,17 +297,17 @@ theorem mupd_bind (n tc : Nat) (P Q : IProp GF) :
 /-- A non-discharging round (Rocq `mupd_nd_step`): the environment's witnesses then satisfy
 `Witnesses.ndf`. -/
 @[lantana_alias mupd_nd_step]
-theorem mupd_nd_step (n tc : Nat) (P : IProp GF) :
-    (∀ (h : List MEvent) (i : Nat) (Ω₁ : Obls) (W₁ : Witnesses),
+theorem mupd_nd_step (n : Nat) (P : IProp GF) :
+    (∀ (h : List MEvent) (i : Nat) (Ω₁ : Obls) (W₁ : Witnesses) (tc : Nat),
       modelInterp h i Ω₁ W₁ n tc ={∅}=∗ ∃ Ω₂, ⌜Obls.ndf Ω₁ Ω₂⌝ ∗
         ∀ W₂, ⌜W₁.ndf W₂ ∧ owitInvFair Ω₂ W₂⌝ ={∅}=∗
-          modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc ∗ mupd n tc P)
-      ⊢@{IProp GF} mupd n tc P := by
+          modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc ∗ mupd n P)
+      ⊢@{IProp GF} mupd n P := by
   iintro H
-  iapply (mupd_unfold n tc P).2
+  iapply (mupd_unfold n P).2
   unfold mupdPre
   iright
-  iintro %h %i %Ω₁ %W₁ HM
+  iintro %h %i %Ω₁ %W₁ %tc HM
   icases modelInterp_owitInv' h i Ω₁ W₁ n tc $$ HM with ⟨HM, %hI₁⟩
   imod H $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
   imodintro
@@ -319,22 +322,22 @@ theorem mupd_nd_step (n tc : Nat) (P : IProp GF) :
 used by adequacy): the rounds compose into `Obls.le`, and the environment can always choose
 witnesses keeping a lower bound `γ` that is strictly monotone and below `fairMeasureUb`. -/
 @[lantana_alias model_interp_mupd_steps]
-theorem modelInterp_mupd_steps (n tc : Nat) (γ : ThreadId → Fuel → Fuel)
+theorem modelInterp_mupd_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
     (hγ : owitInvLbMonoFair γ) (P : IProp GF) :
-    mupd n tc P ⊢@{IProp GF} ∀ (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses),
+    mupd n P ⊢@{IProp GF} ∀ (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat),
       ⌜owitInvLb γ Ω W⌝ → modelInterp h i Ω W n tc ={∅}=∗
         P ∗ ∃ h' i' Ω' W', ⌜Obls.le Ω Ω' ∧ owitInvLb γ Ω' W'⌝ ∗
           modelInterp (h ++ h') (i + i') Ω' W' n tc := by
   letI Ψ : IProp GF → IProp GF := fun P => iprop(∀ (h : List MEvent) (i : Nat) (Ω : Obls)
-    (W : Witnesses), ⌜owitInvLb γ Ω W⌝ → modelInterp h i Ω W n tc ={∅}=∗
+    (W : Witnesses) (tc : Nat), ⌜owitInvLb γ Ω W⌝ → modelInterp h i Ω W n tc ={∅}=∗
       P ∗ ∃ h' i' Ω' W', ⌜Obls.le Ω Ω' ∧ owitInvLb γ Ω' W'⌝ ∗
         modelInterp (h ++ h') (i + i') Ω' W' n tc)
   letI : OFE.NonExpansive Ψ := ⟨fun _ _ _ h => forall_ne fun _ => forall_ne fun _ =>
-    forall_ne fun _ => forall_ne fun _ =>
+    forall_ne fun _ => forall_ne fun _ => forall_ne fun _ =>
       imp_ne.ne .rfl (wand_ne.ne .rfl (OFE.NonExpansive.ne (sep_ne.ne h .rfl)))⟩
   iintro HM
-  iapply mupd_ind n tc Ψ $$ [] HM
-  iintro !> %P' Hpre %h %i %Ω %W %hLb HM
+  iapply mupd_ind n Ψ $$ [] HM
+  iintro !> %P' Hpre %h %i %Ω %W %tc %hLb HM
   unfold mupdPre
   icases Hpre with (HP | Hround)
   · imod HP with HP
@@ -350,7 +353,7 @@ theorem modelInterp_mupd_steps (n tc : Nat) (γ : ThreadId → Fuel → Fuel)
     imod Hround $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
     obtain ⟨W₂, hW, hI₂, hLb₂⟩ := owitInv_exists_witnesses hγ hΩ hI hLb
     imod Hk $$ %W₂ %(⟨hW, hI₂⟩) with ⟨HM, HΨ⟩
-    imod HΨ $$ %(h ++ [(n, Ω₂)]) %(i + 1) %Ω₂ %W₂ %hLb₂ HM
+    imod HΨ $$ %(h ++ [(n, Ω₂)]) %(i + 1) %Ω₂ %W₂ %tc %hLb₂ HM
       with ⟨HP, %h', %i', %Ω', %W', %⟨hle, hLb'⟩, HM⟩
     imodintro
     iframe HP
