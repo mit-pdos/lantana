@@ -13,24 +13,11 @@ public import Lantana.BaseLogic.Model.OForest
 
 /-! # The model interpretation and the model update
 
-Rocq `lantana/base_logic/mupd.v` and `model_physical_updates.v`: the ghost state of the whole
-model (`ModelGS`), its interpretation `modelInterp h i Ω W n tc X` (history, obligations, forest,
-witnesses, and the witness invariant), and the model update `mupd n P` at position `n` as the
-*least fixpoint* of rounds. The model sees the pool through its *view*: the thread count `tc` and
-the crashed bits `X : ThreadId → Prop` (`Lantana.BaseLogic.Model.OForest`). A round of `mupd`
-takes the model at any view, the prover changes the obligations by `Obls.lef`, the environment
-picks any admissible witnesses, the model comes back at the same view, and the update continues.
-`modelInterp_mupd_steps` is adequacy's elimination: the rounds compose into `Obls.le` and
-witnesses keeping a lower bound exist (`owitInv_exists_witnesses`).
-
-The two rounds of a physical step close the file; they alone read and change the view. `mprog`
-is the progress of the scheduled thread at the view. `mphys` runs in three stages: the step index
-and the thread count change at the old bits and the step's later credits are granted (`ALC`); a
-model update at the new position; the bits change (`mbits`). `mphys_run` runs it against the
-model in the shape of adequacy's step. The fancy version `|={E₁,E₂}=>m` and the derived rules are
-in `Lantana.ProgramLogic.OblForest` and `OblForestRules`; the Rocq aliases of `mupd`, `mprog`,
-`mphys` and their core rules sit on the interface's declarations, which are these definitions
-once the interface is sealed.
+The ghost state `ModelGS` of the model, its interpretation `modelInterp h i Ω W n tc X`, the
+model update `mupd n P` as a least fixpoint of rounds with its elimination
+`modelInterp_mupd_steps`, and the two rounds of a physical step: `mprog`, and `mphys` with its
+last stage `mbits` and its run `mphys_run`.
+See `docs/model.md`, §5. Rocq: `mupd.v` and `model_physical_updates.v` in `lantana/base_logic/`.
 -/
 
 @[expose] public noncomputable section
@@ -40,7 +27,7 @@ namespace Lantana
 open Iris Iris.BI Iris.ProofMode Iris.Std LawfulPartialMap
 open Lantana.Model
 
-/-- The ghost state of the model that a world provides (Rocq `mupdGpreS`). -/
+/-- The ghost state of the model that a world provides. -/
 @[lantana_alias mupdGpreS]
 class ModelGpreS (GF : BundledGFunctors) where
   [invG : InvGpreS GF]
@@ -52,8 +39,8 @@ class ModelGpreS (GF : BundledGFunctors) where
 attribute [reducible, instance] ModelGpreS.invG ModelGpreS.osatG ModelGpreS.owitG
   ModelGpreS.oforestG ModelGpreS.mhistG
 
-/-- The ghost state of the model (Rocq `mupdGS`): invariants and credits, obligations,
-witnesses, the forest with the thread statuses, and the model history. -/
+/-- The ghost state of the model: invariants and credits, obligations, witnesses, the forest and
+the model history. -/
 @[lantana_alias mupdGS]
 class ModelGS (GF : BundledGFunctors) where
   [toInvGS : InvGS GF]
@@ -73,9 +60,8 @@ section ModelInterp
 
 variable {GF : BundledGFunctors} [ModelGS GF]
 
-/-- The model interpretation (Rocq `model_interp`): the history of `i + 1` events ending at
-`(n, Ω)`, the ghost state of the obligations `Ω`, the forest at the view `tc`, `X` (the thread
-count and the crashed bits), the witnesses `W` with the witness invariant. -/
+/-- The model interpretation: the history of `i + 1` events ending at `(n, Ω)`, the obligations
+`Ω`, the forest at the view `tc`, `X`, and the witnesses `W` with their invariant. -/
 @[lantana_alias model_interp]
 def modelInterp (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (n tc : Nat)
     (X : ThreadId → Prop) : IProp GF :=
@@ -105,8 +91,7 @@ theorem modelInterp_owitInv' (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnes
   ipureintro
   exact ⟨hI, hI⟩
 
-/-- A trivial round: the obligations do not change, the environment may lower the witnesses
-(Rocq, inside `fupd_mupd_elim`). -/
+/-- A trivial round: the obligations do not change, the environment may lower the witnesses. -/
 theorem modelInterp_trivial_round (h : List MEvent) (i : Nat) (Ω : Obls) (W₁ W₂ : Witnesses)
     (n tc : Nat) (X : ThreadId → Prop) (hW : W₁.lef W₂) (hI₂ : owitInvFair Ω W₂) :
     modelInterp (GF := GF) h i Ω W₁ n tc X ⊢
@@ -123,10 +108,7 @@ theorem modelInterp_trivial_round (h : List MEvent) (i : Nat) (Ω : Obls) (W₁ 
 
 /-! ### The model update as a least fixpoint -/
 
-/-- One round of the model update (Rocq `mupd_pre`): either `P` holds now (under a fancy update
-at the empty mask), or, given the model at any view, the prover changes the obligations by
-`Obls.lef` and, for every admissible choice of witnesses by the environment, returns the new
-model at the same view and continues. -/
+/-- The body of the model update: `P` now, or one round and then the update again. -/
 @[lantana_alias mupd_pre]
 def mupdPre (n : Nat) (mupd : IProp GF → IProp GF) (P : IProp GF) : IProp GF :=
   iprop((|={∅}=> P) ∨
@@ -175,8 +157,7 @@ instance mupdPre_monoPred (n : Nat) : BIMonoPred (mupdPre (GF := GF) n) where
     refine wand_ne.ne .rfl (OFE.NonExpansive.ne ?_)
     exact sep_ne.ne .rfl (OFE.NonExpansive.ne hPQ)⟩
 
-/-- The base model update `|=[n]=>m P` at position `n` (Rocq `mupd`): its rounds take the model
-at any view and return it at the same one. -/
+/-- The base model update `|=[n]=>m P` at position `n`. -/
 def mupd (n : Nat) (P : IProp GF) : IProp GF := bi_least_fixpoint (mupdPre n) P
 
 @[lantana_alias mupd_unfold]
@@ -187,14 +168,12 @@ theorem mupd_unfold (n : Nat) (P : IProp GF) :
 instance mupd_ne (n : Nat) : OFE.NonExpansive (mupd (GF := GF) n) :=
   inferInstanceAs (OFE.NonExpansive (bi_least_fixpoint (mupdPre n)))
 
-/-- Strong induction (Rocq `mupd_ind_strong`). -/
 @[lantana_alias mupd_ind_strong]
 theorem mupd_ind_strong (n : Nat) (Ψ : IProp GF → IProp GF) [OFE.NonExpansive Ψ] :
     □ (∀ P, mupdPre n (fun P => iprop(Ψ P ∧ mupd n P)) P -∗ Ψ P) ⊢
       ∀ P, mupd n P -∗ Ψ P :=
   wand_entails (least_fixpoint_ind (mupdPre n) Ψ)
 
-/-- Induction (Rocq `mupd_ind`). -/
 @[lantana_alias mupd_ind]
 theorem mupd_ind (n : Nat) (Ψ : IProp GF → IProp GF) [OFE.NonExpansive Ψ] :
     □ (∀ P, mupdPre n Ψ P -∗ Ψ P) ⊢ ∀ P, mupd n P -∗ Ψ P :=
@@ -210,8 +189,7 @@ theorem fupd_mupd (n : Nat) (P : IProp GF) : (|={∅}=> P) ⊢ mupd n P := by
 theorem mupd_intro (n : Nat) (P : IProp GF) : P ⊢ mupd n P :=
   fupd_intro.trans (fupd_mupd n P)
 
-/-- A fancy update at the empty mask before the model update is absorbed by a trivial round
-(Rocq `fupd_mupd_elim`). -/
+/-- A fancy update at the empty mask before the model update is absorbed by a trivial round. -/
 theorem fupd_mupd_elim (n : Nat) (P : IProp GF) :
     (|={∅}=> mupd n P) ⊢ mupd n P := by
   iintro H
@@ -230,8 +208,7 @@ theorem fupd_mupd_elim (n : Nat) (P : IProp GF) :
   imodintro
   iframe
 
-/-- A model update that only reads the model, which it returns unchanged (a trivial round;
-Rocq `mupd_read` in `temporal_formula.v`). -/
+/-- A model update that only reads the model, which it returns unchanged. -/
 theorem mupd_read (n : Nat) (P : IProp GF) :
     (∀ (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
       modelInterp h i Ω W n tc X -∗ modelInterp h i Ω W n tc X ∗ P) ⊢ mupd n P := by
@@ -252,7 +229,7 @@ theorem mupd_read (n : Nat) (P : IProp GF) :
   iframe HM
   iapply mupd_intro n P $$ HP
 
-/-- A snapshot of the current obligation `k` (Rocq `model_interp_event_obl`). -/
+/-- A snapshot of the current obligation `k`. -/
 @[lantana_alias model_interp_event_obl]
 theorem modelInterp_eventObl {h : List MEvent} {i : Nat} {Ω : Obls} {W : Witnesses}
     {n tc : Nat} {X : ThreadId → Prop} {k : Oid} {o : Obl} (hk : get? Ω k = some o) :
@@ -271,7 +248,6 @@ theorem modelInterp_eventObl_lookup (h : List MEvent) (i : Nat) (Ω : Obls) (W :
   iapply eventObl_modelHistoryInterp_lookup h i n Ω j e k o
   iframe HH He
 
-/-- Sequencing (Rocq `mupd_bind`). -/
 theorem mupd_bind (n : Nat) (P Q : IProp GF) :
     (P -∗ mupd n Q) ⊢ mupd n P -∗ mupd n Q := by
   letI Ψ : IProp GF → IProp GF := fun P => iprop((P -∗ mupd n Q) -∗ mupd n Q)
@@ -302,8 +278,7 @@ theorem mupd_bind (n : Nat) (P Q : IProp GF) :
     iapply HΨ $$ HPQ'
 
 
-/-- A non-discharging round (Rocq `mupd_nd_step`): the environment's witnesses then satisfy
-`Witnesses.ndf`. -/
+/-- A non-discharging round: the environment's witnesses then satisfy `Witnesses.ndf`. -/
 @[lantana_alias mupd_nd_step]
 theorem mupd_nd_step (n : Nat) (P : IProp GF) :
     (∀ (h : List MEvent) (i : Nat) (Ω₁ : Obls) (W₁ : Witnesses) (tc : Nat)
@@ -327,9 +302,8 @@ theorem mupd_nd_step (n : Nat) (P : IProp GF) :
   iintro %W₂ %⟨hW, hI₂⟩
   iapply Hk $$ %W₂ %(⟨wits_lef_wits_ndf hI₁ hΩ hW hI₂, hI₂⟩)
 
-/-- Running a model update against the model (Rocq `model_interp_mupd_steps`, the elimination
-used by adequacy): the rounds compose into `Obls.le`, and the environment can always choose
-witnesses keeping a lower bound `γ` that is strictly monotone and below `fairMeasureUb`. -/
+/-- Running a model update against the model: the rounds compose into `Obls.le`, and witnesses
+keeping the lower bound `γ` can always be chosen. -/
 @[lantana_alias model_interp_mupd_steps]
 theorem modelInterp_mupd_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
     (hγ : owitInvLbMonoFair γ) (P : IProp GF) :
@@ -376,9 +350,7 @@ theorem modelInterp_mupd_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
 
 end ModelInterp
 
-/-- The ghost names of the model: of world satisfaction and the credits, of the obligations, of
-the witnesses, of the forest and of the model history (small enough for the existential property
-of satisfiability, unlike `ModelGS GF`). -/
+/-- The ghost names of the model, small enough for the existential property of satisfiability. -/
 structure _root_.Lantana.ModelNames where
   /-- World satisfaction and the credits. -/
   inv : InvNames
@@ -400,9 +372,7 @@ structure _root_.Lantana.ModelNames where
   toOForestGS := OForestGS.ofNames γ.oforest
   toMHistGS := MHistGS.ofName γ.mhist
 
-/-- Allocation of the model at names `γ` (small enough for the existential property of
-satisfiability), with the credit supply, world satisfaction and the full mask of the
-invariants, at any bits. -/
+/-- `modelInterp_alloc` at ghost names `γ`. -/
 theorem modelInterp_alloc_names {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat)
     (X : ThreadId → Prop) :
     ⊢@{IProp GF} |==> ∃ γ : ModelNames, letI := ModelGS.ofNames (GF := GF) γ
@@ -424,8 +394,8 @@ theorem modelInterp_alloc_names {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat
   ipureintro
   exact owitInv_empty
 
-/-- Allocation of the model (Rocq `model_interp_alloc`), with the credit supply, world
-satisfaction and the full mask of the invariants, at any bits. -/
+/-- Allocation of the model, with the credit supply, world satisfaction and the full mask of the
+invariants, at any bits. -/
 @[lantana_alias model_interp_alloc]
 theorem modelInterp_alloc {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat)
     (X : ThreadId → Prop) :
@@ -438,15 +408,14 @@ theorem modelInterp_alloc {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat)
   iexists ModelGS.ofNames γ
   iexact H
 
-/-! ### The rounds of a physical step (Rocq `model_physical_updates.v`) -/
+/-! ### The rounds of a physical step -/
 
 section Physical
 
 variable {GF : BundledGFunctors} [ModelGS GF]
 
-/-- The progress round of the scheduled thread `i` at the view `tc`, `X` (Rocq `mprog`): every
-obligation of `i` strictly progresses, every assigned witness strictly progresses, the
-environment chooses the witnesses. -/
+/-- The progress round of the scheduled thread `i`: every obligation of `i` and every assigned
+witness progress strictly, the witnesses being the environment's choice. -/
 def mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) : IProp GF :=
   iprop(∀ (h : List MEvent) (a : Nat) (Ω₁ : Obls) (W₁ : Witnesses),
     modelInterp h a Ω₁ W₁ n tc X ={∅}=∗
@@ -455,15 +424,14 @@ def mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) : I
         owitInvFair Ω₂ W₂⌝ ={∅}=∗
         modelInterp (h ++ [(n, Ω₂)]) (a + 1) Ω₂ W₂ n tc X ∗ P)
 
-/-- The change of the bits from `X₁` to `X₂` at position `n` with `tc` threads, the last stage of
-the physical round; the rest of the model is unchanged. -/
+/-- The last stage of the physical round: the bits change from `X₁` to `X₂`, the rest of the
+model does not. -/
 def mbits (n tc : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
   iprop(∀ (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses),
     modelInterp h a Ω W n tc X₁ ={∅}=∗ modelInterp h a Ω W n tc X₂ ∗ P)
 
-/-- The physical round (Rocq `mphys`), in three stages: the step index and the thread count
-change at the bits `X₁` and the step's later credits are granted; a model update at the new
-position; the bits change from `X₁` to `X₂` (`mbits`). -/
+/-- The physical round, in three stages: the position and the thread count change; under the
+step's later credits, a model update at `n₂`; the bits change (`mbits`). -/
 def mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
   iprop(∀ (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses),
     modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
@@ -573,9 +541,7 @@ theorem fupd_mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop)
   imod H with H
   iapply H $$ HM
 
-/-- Running the physical round against the model, in the shape of adequacy's step: the model
-moves, the later credits are granted, the model update runs (`modelInterp_mupd_steps`, keeping a
-lower bound `γ` of the witnesses), and the bits change. -/
+/-- Running the physical round against the model, keeping the lower bound `γ` of the witnesses. -/
 theorem mphys_run (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (γ : ThreadId → Fuel → Fuel)
     (hγ : owitInvLbMonoFair γ) (P : IProp GF) :
     mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses),
