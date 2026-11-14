@@ -9,12 +9,12 @@ public import Lantana
 /-! Tests for the model behind the sealed obligation-forest interface: a closed world `TestGF`
 with all the ghost state of the model — world satisfaction and transfinite later credits (slots
 0 to 3, as in `LantanaTest.FUpd`), obligations (slots 4 to 7, as in `LantanaTest.OSat`), the
-forest (slots 8 and 9, as in `LantanaTest.OForest`), witnesses (slots 10 and 11, as in
+forest (slots 8, 9 and 13, as in `LantanaTest.OForest`), witnesses (slots 10 and 11, as in
 `LantanaTest.OWit`) and the model history (slot 12, a `MonoList` of events in `Type 2`) — with
 its `ModelGpreS` instance (the universe check); the allocation of the model; a fork of thread `0`
 through the interface (`step_fork`, run against the model with `mphys_modelInterp`); and
-`Obl.new` through the interface, alone, followed by `Obl.discharge_leaf`, and run against the
-model (`mupd_modelInterp_steps`). -/
+`Obl.new` through the interface, alone, followed by `Obl.discharge_leaf` and
+`Th.carriers_erase_discharged`, and run against the model (`mupd_modelInterp_steps`). -/
 
 namespace LantanaTest.OPreds
 
@@ -36,6 +36,7 @@ noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   | 10 => ⟨ULiftOF (constOF (HeapView Oid (Agree (DiscreteO GName)) OidMap))⟩
   | 11 => ⟨ULiftOF.{4} (constOFP (BCred Fuel))⟩
   | 12 => ⟨ULiftOF.{4} (constOFP (MonoList (DiscreteO MEvent)))⟩
+  | 13 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO Oids)) ThreadMap))⟩
   | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : WsatGpreS TestGF where
@@ -61,6 +62,7 @@ noncomputable instance : OSatGpreS TestGF where
 noncomputable instance : OForestGpreS TestGF where
   kidsG := ⟨ElemG.ofEqLift 8 (by unfold TestGF; rfl)⟩
   statusG := ⟨ElemG.ofEqLift 9 (by unfold TestGF; rfl)⟩
+  billG := ⟨ElemG.ofEqLift 13 (by unfold TestGF; rfl)⟩
 
 noncomputable instance : OWitGpreS TestGF where
   namesG := ⟨ElemG.ofEqLift 10 (by unfold TestGF; rfl)⟩
@@ -80,20 +82,23 @@ example : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
   modelInterp_alloc 0
 
 /-- Allocate the model and fork thread `0` (a physical round of the interface, run against the
-model): thread `0` runs, without children. -/
+model): thread `0` runs, without children and with an empty bill. -/
 example : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
-    |={∅}=> (modelInterp ([(0, ∅)] ++ [(0, ∅)]) (0 + 1) ∅ ∅ 0 1 ∗ thKids 0 ∅) := by
+    |={∅}=> (modelInterp ([(0, ∅)] ++ [(0, ∅)]) (0 + 1) ∅ ∅ 0 1 ∗
+      (thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅)) := by
   imod modelInterp_alloc (GF := TestGF) 0 with ⟨%G, -, -, -, HM⟩
   imodintro
   iexists G
-  have hfork : ⊢@{IProp TestGF} Lantana.mphys 0 0 0 1 (thKids 0 ∅) := by
+  have hfork : ⊢@{IProp TestGF}
+      Lantana.mphys 0 0 0 1 iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) := by
     refine (?_ : ⊢ _).trans (step_fork 0 0 0 1 _ (Nat.le_refl 0) (Nat.zero_le 1))
     rw [show List.range' 0 (1 - 0) = [0] from rfl]
     iintro Hl
     imodintro
     icases BigSepL.bigSepL_cons.mp $$ Hl with ⟨Hk, -⟩
     iexact Hk
-  ihave Hrun := hfork.trans (mphys_modelInterp 0 0 0 1 (thKids 0 ∅))
+  ihave Hrun := hfork.trans
+    (mphys_modelInterp 0 0 0 1 iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅))
   imod Hrun $$ [] %([(0, ∅)] : List MEvent) %0 %(∅ : Obls) %(∅ : Witnesses) HM with ⟨HM, Hk⟩
   · iempintro
   imodintro
@@ -104,30 +109,36 @@ section Interface
 variable {Expr State : Type} [ModelGS TestGF] [TemporalGS Expr State TestGF]
   [StateInterp Expr State TestGF] [TemporalInterp Expr State TestGF]
 
-/-- `Obl.new` through the interface: a new obligation below thread `0`. -/
+/-- `Obl.new` through the interface: a new obligation below thread `0`, in its bill. -/
 example (E : CoPset) (ℓ : Layer) :
-    thKids 0 ∅ ⊢@{IProp TestGF} |={E}=>m ∃ k : Oid, thKids 0 ((∅ : Oids).insert k) ∗
+    thKids 0 ∅ ∗ thCarriers 0 ∅ ⊢@{IProp TestGF} |={E}=>m ∃ k : Oid,
+      thKids 0 ((∅ : Oids).insert k) ∗ thCarriers 0 ((∅ : Oids).insert k) ∗
       oblKids k ∅ ∗ Obl.assigned k 1 ∗ Obl.fuel k ℓ 1 ∗ Wit.layer k ℓ := by
-  iintro Hk
+  iintro ⟨Hk, HB⟩
   ihave #Hb := parLe_thread (GF := TestGF) 0 ℓ
-  imod Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ℓ 1 $$ Hb Hk
-    with ⟨%k, -, Hk, Hkk, Ha, Hf, #Hw⟩
+  imod Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
+    with ⟨%k, -, Hk, HB, Hkk, Ha, Hf, #Hw⟩
   imodintro
   iexists k
-  iframe Hk Hkk Ha Hf
+  iframe Hk HB Hkk Ha Hf
   iexact Hw
 
-/-- A new obligation below thread `0`, discharged at once (`Obl.new`, `Obl.discharge_leaf`). -/
+/-- A new obligation below thread `0`, discharged at once and erased from its bill (`Obl.new`,
+`Obl.discharge_leaf`, `Th.carriers_erase_discharged`). -/
 example (E : CoPset) (ℓ : Layer) :
-    thKids 0 ∅ ⊢@{IProp TestGF} |={E}=>m ∃ k : Oid, Obl.discharged k ∗ Wit.layer k ℓ := by
-  iintro Hk
+    thKids 0 ∅ ∗ thCarriers 0 ∅ ⊢@{IProp TestGF} |={E}=>m ∃ k : Oid,
+      thKids 0 (((∅ : Oids).insert k).erase k) ∗ thCarriers 0 (((∅ : Oids).insert k).erase k) ∗
+      Obl.discharged k ∗ Wit.layer k ℓ := by
+  iintro ⟨Hk, HB⟩
   ihave #Hb := parLe_thread (GF := TestGF) 0 ℓ
-  imod Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ℓ 1 $$ Hb Hk
-    with ⟨%k, -, Hk, Hkk, Ha, -, #Hw⟩
+  imod Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
+    with ⟨%k, -, Hk, HB, Hkk, Ha, -, #Hw⟩
   imod Obl.discharge_leaf (Expr := Expr) (State := State) E (.thread 0) _ k
-    Std.ExtTreeSet.mem_insert_self $$ Hk Hkk Ha with ⟨-, #Hd⟩
+    Std.ExtTreeSet.mem_insert_self $$ Hk Hkk Ha with ⟨Hk, #Hd⟩
+  imod Th.carriers_erase_discharged (Expr := Expr) (State := State) E 0 _ k $$ HB Hd with HB
   imodintro
   iexists k
+  iframe Hk HB
   isplitl []
   · iexact Hd
   · iexact Hw
@@ -136,13 +147,13 @@ example (E : CoPset) (ℓ : Layer) :
 example (E : CoPset) (ℓ : Layer) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
     (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
     (hLb : owitInvLb (fun _ a => a) Ω W) :
-    thKids 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ⊢@{IProp TestGF}
-      |={E}=> ∃ k : Oid, Obl.assigned k 1 ∗ historyTInterp h n σ tp := by
-  iintro ⟨Hk, HT, HM⟩
+    thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length
+      ⊢@{IProp TestGF} |={E}=> ∃ k : Oid, Obl.assigned k 1 ∗ historyTInterp h n σ tp := by
+  iintro ⟨Hk, HB, HT, HM⟩
   ihave #Hb := parLe_thread (GF := TestGF) 0 ℓ
-  ihave H := Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ℓ 1 $$ Hb Hk
+  ihave H := Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
   imod mupd_modelInterp_steps (fun _ a => a) ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
-    E E h n σ tp g v Ω W _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, Ha, -⟩, HT, -⟩
+    E E h n σ tp g v Ω W _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, -, Ha, -⟩, HT, -⟩
   imodintro
   iexists k
   iframe Ha HT

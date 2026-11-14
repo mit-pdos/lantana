@@ -114,17 +114,18 @@ section
 variable {Expr State : Type} {GF : BundledGFunctors} [ModelGS GF]
 variable [TemporalGS Expr State GF] [StateInterp Expr State GF] [TemporalInterp Expr State GF]
 
-/-- Allocating an obligation below a thread, and checking its witness. -/
-example (E : CoPset) (i : ThreadId) (K : Oids) (ℓ : Layer) (μ : Measure) :
-    (thKids i K : IProp GF) ⊢ |={E}=>m ∃ k : Oid, thKids i (K.insert k) ∗
-      Obl.assigned k (Qp.half 1) ∗ (Wit.cred k 0 ∨ Obl.discharged k) := by
-  iintro T
+/-- Allocating an obligation below a thread and into its bill, and checking its witness. -/
+example (E : CoPset) (i : ThreadId) (K G : Oids) (ℓ : Layer) (μ : Measure) :
+    (thKids i K ∗ thCarriers i G : IProp GF) ⊢ |={E}=>m ∃ k : Oid, thKids i (K.insert k) ∗
+      thCarriers i (G.insert k) ∗ Obl.assigned k (Qp.half 1) ∗
+      (Wit.cred k 0 ∨ Obl.discharged k) := by
+  iintro ⟨T, HG⟩
   ihave B := parLe_thread (GF := GF) i ℓ
-  imod obl_alloc_assigned E (.thread i) K ℓ μ $$ B T with ⟨%k, %_, T, -, A, -, #W, -⟩
+  imod obl_alloc_assigned E (.thread i) K G ℓ μ $$ B T HG with ⟨%k, %_, T, HG, -, A, -, #W, -⟩
   imod Obl.check_witness E k ℓ $$ W with C
   imodintro
   iexists k
-  iframe T A C
+  iframe T HG A C
 
 /-- Witness-layer induction with an empty set of fuels. -/
 example (k : Oid) (ℓ l : Layer) (hl : ℓ < l) (P : IProp GF)

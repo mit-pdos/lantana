@@ -105,8 +105,9 @@ example : lWP e @ s; i; E {{ Φ }} ⊢ lWP (fill (EvContextOps.empty : Ectx) e) 
 
 example [Inhabited State] (ς : ThreadId → Expr → IProp GF) [PureExecSI ς i] {e₁ e₂ : Expr}
     [Language.PureExec True 2 e₁ e₂] (G R : Oids) (o : Fuel) :
-    ς i e₁ ∗ thKids i G ∗ oblFuels G ((2 : Nat) : Measure) ∗ witLayers R ∗
-      (ς i e₂ -∗ thKids i G -∗ ([∗set] r ∈ R, Wit.cred r ((2 : Nat) : Fuel) ∨ Obl.discharged r) -∗
+    ς i e₁ ∗ thCarriers i G ∗ oblFuels G ((2 : Nat) : Measure) ∗ witLayers R ∗
+      (ς i e₂ -∗ thCarriers i G -∗
+        ([∗set] r ∈ R, Wit.cred r ((2 : Nat) : Fuel) ∨ Obl.discharged r) -∗
         £ₒ (o ×ⱼ ((2 : Nat) : Fuel)) -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} :=
   lwp_pure_step_simple 2 (by omega) G R o trivial
