@@ -42,7 +42,7 @@ discharged. Lean names are in the namespace `Lantana`, and files in `Lantana/`.
 | Concept | Lean | File |
 |---|---|---|
 | Thread-local weakest precondition, a least fixpoint; one step is a model update, the physical step with its progress update, and a model update | `lWP e @ s; i; E {{ Φ }}` (`Lwp.lwp`), texan triples `l{{{ P }}} e @ i; E l{{{ v, RET v; Q }}}`, one step `lwpStep` | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/Notation.lean` |
-| The obligation predicates and their rules, as a sealed interface that the program logic uses | obligations `Obl.*`, witnesses `Wit.*`, threads `Th.*`, the children `Par.kids p K` of a parent `p` (`thKids i K`, `oblKids k K`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
+| The obligation predicates and their rules, as a sealed interface that the program logic uses | obligations `Obl.*`, witnesses `Wit.*`, threads `Th.*`, the children `Par.kids p K` of a parent `p` (`thKids i K`, `oblKids k K`), the bill `thCarriers i B` that a step of thread `i` pays for, its running handle `thActive i` | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | The model update, which changes obligations and witnesses | `\|={E₁,E₂}=>m P` (`mupd`) | `ProgramLogic/OblForest.lean` |
 | The model of the interface | `Model.OPreds`, over the obligation model (`ModelGS`) | `BaseLogic/Model/OPreds.lean` |
 | Trace properties, with LTL on traces; the attempt–grant theory of fairness over them, and fair scheduling as the strong fairness of each thread's scheduling action | `TrProp`, `□ₜ` `◇ₜ` `○ₜ` `Uₜ`, entailment `R ⊆ S`; `Fairness.Action.SF`, `Fairness.Sched.SF`, `fairScheduling` | `Temporal/Trace.lean`, `Temporal/TracePropRules.lean`, `Temporal/Fairness/` (fair scheduling in `Fairness/Scheduling.lean`) |
@@ -68,9 +68,10 @@ The two adequacy theorems:
 forks a thread that sets a flag and waits for the flag.
 
 1. Specify each module with texan `lWP` triples. Their pre- and postconditions hold the
-   thread-expression token `threadExpr i C e`, the children `thKids i G` of the thread and fuel
-   `Obl.fuel g ℓ μ` for each child `g` (`init_spec`, `set_spec` and `wait_spec` in
-   `Examples/Flag.lean`).
+   thread-expression token `threadExpr i C e`, the bill `thCarriers i G` of the thread and fuel
+   `Obl.fuel g ℓ μ` for each obligation `g` of the bill; a spec that creates or discharges a
+   child of the thread also holds its children `thKids i G` (`init_spec`, `set_spec` and
+   `wait_spec` in `Examples/Flag.lean`).
 2. In the proofs, create obligations (`Obl.new`) and temporal formulas (`alwaysI_alloc`,
    `untilI_alloc`) inside model updates `|={E}=>m`, and discharge an until once its right
    formula holds (`untilI_discharge`, `finallyI_discharge`).
