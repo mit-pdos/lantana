@@ -24,6 +24,8 @@ public import Lantana.Trace
   allocation (the heap and the thread-expression map), and the allocation of the ghost state
   for an initial state and thread pool (Rocq `gen_heap_init` and `thread_map_init` in the
   adequacy proofs of the examples). The instance `HeapStateGS` is then built from the names.
+* `initThreads`: the pieces of the initial threads that the adequacy theorems hand, each with its
+  running handle and empty children, no thread of HeapLang being crashed.
 -/
 
 @[expose] public noncomputable section
@@ -172,5 +174,14 @@ theorem heapState_init (σ : State) (tp : ThreadPool Exp) :
   iexact Hfr
 
 end Alloc
+
+/-- The pieces of the initial threads that the adequacy theorems hand, for HeapLang: no thread
+is crashed (`initThreads_of_not_crashed`), so every thread gets its running handle, its empty
+children and its empty bill. -/
+theorem initThreads {GF : BundledGFunctors} [ModelGS GF] (σ : State) (tp : ThreadPool Exp) :
+    ([∗list] j ∈ List.range tp.length,
+        (⌜¬Cfg.crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ⊢@{IProp GF}
+      [∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅ :=
+  initThreads_of_not_crashed fun _ ⟨e, _, hc⟩ => not_crashed e σ hc
 
 end Lantana.Examples

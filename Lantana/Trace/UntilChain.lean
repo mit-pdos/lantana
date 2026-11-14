@@ -183,7 +183,8 @@ end Log
 
 section Chain
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
-variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF]
+  [StateInterp Expr State GF]
 
 /-- `untilIChain N k o P Q`: `P` until `Q` or until a next link `untilIChain N k' o' P Q` with
 `o' < o`, on the obligation `k` (half of the until). By well-founded recursion on `o`. -/

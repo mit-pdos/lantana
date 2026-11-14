@@ -19,11 +19,12 @@ public import Lantana.ProgramLogic.Language
 
 HeapLang as an Iris-Lean `EctxItemLanguage` (Rocq `lantana_heap_lang/lang.v:676-780`), from
 which Iris-Lean derives the evaluation contexts `EvContext Exp (List ECtxItem)` (lists of items,
-innermost first), the `EctxLanguage` and the `Language`; and the `IntoVal`, `AsVal`, `Atomic`
-and `PureExec` instances (Rocq `class_instances.v`).  HeapLang has no observations
-(`Obs := Empty`): the base step ignores its observation argument, which can only be `[]`
-(`obs_eq_nil`).  Adapted from Iris-Lean's `Iris.HeapLang.Instances`, for the labels and
-`chooseNat` of Lantana's HeapLang and without the lemmas about prophecies, which it lacks.
+innermost first), the `EctxLanguage` and the `Language`; its crashed threads (none, `instCrash`);
+and the `IntoVal`, `AsVal`, `Atomic` and `PureExec` instances (Rocq `class_instances.v`).
+HeapLang has no observations (`Obs := Empty`): the base step ignores its observation argument,
+which can only be `[]` (`obs_eq_nil`).  Adapted from Iris-Lean's `Iris.HeapLang.Instances`, for
+the labels and `chooseNat` of Lantana's HeapLang and without the lemmas about prophecies, which it
+lacks.
 -/
 
 @[expose] public section
@@ -79,6 +80,14 @@ instance instEctxItemLanguageExp : EctxItemLanguage Exp ECtxItem State Empty Val
   "As in Iris-Lean, `instPureExecBeta` matches a `rec` value syntactically."
 #lantana_ignore heap_lang.AsRecV_recv
   "As in Iris-Lean, `instPureExecBeta` matches a `rec` value syntactically."
+
+/-- No thread of HeapLang is ever crashed. -/
+instance instCrash : Crash Exp State Empty Val where
+  crashed _ _ := False
+  crashed_not_val h := h.elim
+
+/-- A thread of HeapLang is never crashed. -/
+theorem not_crashed (e : Exp) (σ : State) : ¬ Crash.crashed e σ := id
 
 @[simp]
 theorem fillItem_expToVal_none (Ki : ECtxItem) (e : Exp) : toVal (fillItem Ki e) = none := by

@@ -40,7 +40,8 @@ open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 -- Named, to be passed explicitly to `TrSpec.canon_le`.
-variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
+variable [Crash Expr State Obs Val] [instM : ModelGS GF] [instT : TemporalGS Expr State GF]
+  [StateInterp Expr State GF]
 
 /-! ## Guarantees of fixpoints -/
 
@@ -56,7 +57,7 @@ theorem guar_nu_coind {H : TrSpec Expr State GF} (hH : H ⊑ₛ F H) :
 @[lantana_alias guar_nu_canon]
 theorem guar_nu_canon (hP : ⊢ P ⊨ₜ F (TrSpec.canon P)) : ⊢ P ⊨ₜ TrSpec.nu F :=
   (guar_canon P).trans
-    (guar_weaken (TrSpec.nu_coind F (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hP)))
+    (guar_weaken (TrSpec.nu_coind F (@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hP)))
 
 @[lantana_alias guar_mu_rank]
 theorem guar_mu_rank (H : Fuel → TrSpec Expr State GF)
@@ -149,7 +150,7 @@ theorem nest_alloc (hN : ↑N ⊆ E) (hQ : ⊢ Q ⊨ₜ G) : ▷ Q ⊢ |={E}=>m 
     inext
     iapply hC
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
-  iintro Hcl %g %i %Ω %W %tc MI
+  iintro Hcl %g %i %Ω %W %tc %X MI
   -- the record of the content at `n`, by Löb induction
   ihave #T : ▷ record (nestTrSpec G) n $$ [HQ HI MI]
   · iloeb as IH
@@ -165,7 +166,7 @@ theorem nest_alloc (hN : ↑N ⊆ E) (hQ : ⊢ Q ⊨ₜ G) : ▷ Q ⊢ |={E}=>m 
       · iapply IH $$ [HQ] HI MI
         inext
         iexact HQ
-    iapply guar_elim_later_guar iprop(Q ∗ nest N Q G) (nestTrSpec G) h n σ tp g i Ω W tc $$ []
+    iapply guar_elim_later_guar iprop(Q ∗ nest N Q G) (nestTrSpec G) h n σ tp g i Ω W tc X $$ []
       [HQ HI MI]
     · inext
       iapply hC

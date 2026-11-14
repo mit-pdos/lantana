@@ -17,6 +17,9 @@ the forked threads, which so get fresh ids.  A trace step (`TraceStep i`) is a s
 stutter when the thread is a value or stuck.  The configurations are a thread system: the step
 of the thread at `i` is `TraceStep i`, its activity `Cfg.active i` (in the pool and not a value),
 which is convex along a behavior, so fair scheduling is weak fairness (`Cfg.sched_sf_iff_wf`).
+The crashed threads of a configuration (`Cfg.crashed`) are those of its pool that the language
+declares crashed in its state (`Crash`); they are the model's view of the crashed threads, and a
+step keeps the statuses when `Cfg.crashed ρ₂ = Cfg.crashed ρ₁`.
 -/
 
 @[expose] public section
@@ -100,6 +103,51 @@ theorem Cfg.inactive_iff_not_active {i : ThreadId} {ρ : Cfg Expr State} :
     ρ.inactive i ↔ ¬ ρ.active i :=
   ⟨fun h ha => Cfg.not_active_and_inactive i ρ ⟨ha, h⟩,
     fun h => (Cfg.active_or_inactive i ρ).resolve_left h⟩
+
+/-! ## Crashed threads -/
+
+section Crashed
+variable [Crash Expr State Obs Val]
+
+/-- Thread `i` is crashed at `ρ`: in the pool, and crashed in the state by the language
+(`Crash.crashed`). The configuration comes first, so that `ρ.crashed` is the model's view of the
+crashed threads. -/
+def Cfg.crashed (ρ : Cfg Expr State) (i : ThreadId) : Prop :=
+  ∃ e, ρ.1[i]? = some e ∧ Crash.crashed e ρ.2
+
+/-- A crashed thread is a thread of the pool. -/
+theorem Cfg.crashed.lt_length {ρ : Cfg Expr State} {i : ThreadId} (h : ρ.crashed i) :
+    i < ρ.1.length := by
+  obtain ⟨e, he, -⟩ := h
+  exact (List.getElem?_eq_some_iff.mp he).1
+
+/-- No thread beyond the pool is crashed. -/
+theorem Cfg.not_crashed_of_le {ρ : Cfg Expr State} {i : ThreadId} (h : ρ.1.length ≤ i) :
+    ¬ ρ.crashed i :=
+  fun hc => Nat.lt_irrefl _ (Nat.lt_of_lt_of_le hc.lt_length h)
+
+/-- A crashed thread is not finished. -/
+theorem Cfg.crashed.not_val {ρ : Cfg Expr State} {i : ThreadId} {e : Expr} (h : ρ.crashed i)
+    (he : ρ.1[i]? = some e) : toVal e = none := by
+  obtain ⟨e', he', hc⟩ := h
+  rw [he] at he'
+  cases he'
+  exact Crash.crashed_not_val hc
+
+/-- Two configurations have the same crashed threads when they agree on each: how a step that
+keeps the statuses is stated (`Cfg.crashed ρ₂ = Cfg.crashed ρ₁`). -/
+theorem Cfg.crashed_eq_of_iff {ρ₁ ρ₂ : Cfg Expr State} (h : ∀ j, ρ₂.crashed j ↔ ρ₁.crashed j) :
+    Cfg.crashed ρ₂ = Cfg.crashed ρ₁ :=
+  funext fun j => propext (h j)
+
+/-- In a language that never crashes, all configurations have the same crashed threads (none),
+so every step keeps the statuses. -/
+theorem Cfg.crashed_eq_of_never (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crashed e σ)
+    (ρ₁ ρ₂ : Cfg Expr State) : Cfg.crashed ρ₂ = Cfg.crashed ρ₁ :=
+  Cfg.crashed_eq_of_iff fun _ =>
+    ⟨fun ⟨e, _, hc⟩ => (hnc e _ hc).elim, fun ⟨e, _, hc⟩ => (hnc e _ hc).elim⟩
+
+end Crashed
 
 /-! ## Lantana's thread system -/
 

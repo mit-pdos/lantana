@@ -30,8 +30,8 @@ open Lantana.Model
 open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors}
-variable [Language Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF]
-  [StateInterp Expr State GF]
+variable [Language Expr State Obs Val] [Crash Expr State Obs Val] [ModelGS GF]
+  [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-! ## Combining records -/
 
@@ -93,7 +93,7 @@ variable {P Q : IProp GF} {G G₁ G₂ H : TrSpec Expr State GF}
 theorem guar_weaken (h : G ⊑ₛ H) : (P ⊨ₜ G) ⊢ P ⊨ₜ H := by
   unfold Guar
   refine intuitionistically_mono ?_
-  iterate 9 refine forall_mono fun _ => ?_
+  iterate 10 refine forall_mono fun _ => ?_
   exact wand_mono_right (record_mono h _)
 
 /-- Exporting trace-level consequences. -/
@@ -107,8 +107,8 @@ theorem guar_mono : □ (Q -∗ P) ⊢ (P ⊨ₜ G) -∗ Q ⊨ₜ G := by
   iintro #HQP #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, HQ⟩
-  iapply guar_elim P G h n σ tp m i Ω W tc $$ HG
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, HQ⟩
+  iapply guar_elim P G h n σ tp m i Ω W tc X $$ HG
   iframe HI MI
   iapply HQP $$ HQ
 
@@ -118,7 +118,7 @@ theorem guar_mono : □ (Q -∗ P) ⊢ (P ⊨ₜ G) -∗ Q ⊨ₜ G := by
 theorem guar_true : ⊢@{IProp GF} P ⊨ₜ TrSpec.true (Expr := Expr) (State := State) := by
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc -
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X -
   iapply record_intro
   imodintro
   iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - - - -
@@ -131,7 +131,7 @@ theorem guar_pure (φ : Prop) :
     ⊢@{IProp GF} iprop(⌜φ⌝) ⊨ₜ TrSpec.pure (Expr := Expr) (State := State) φ := by
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨-, -, %hφ⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨-, -, %hφ⟩
   iapply record_intro
   imodintro
   iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - - - -
@@ -144,14 +144,14 @@ theorem guar_and : (P ⊨ₜ G₁) ⊢ (Q ⊨ₜ G₂) -∗ iprop(P ∧ Q) ⊨�
   iintro #HG₁ #HG₂
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, HPQ⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, HPQ⟩
   iapply record_and
   isplit
-  · iapply guar_elim P G₁ h n σ tp m i Ω W tc $$ HG₁
+  · iapply guar_elim P G₁ h n σ tp m i Ω W tc X $$ HG₁
     iframe HI MI
     icases HPQ with ⟨HP, -⟩
     iexact HP
-  · iapply guar_elim Q G₂ h n σ tp m i Ω W tc $$ HG₂
+  · iapply guar_elim Q G₂ h n σ tp m i Ω W tc X $$ HG₂
     iframe HI MI
     icases HPQ with ⟨-, HQ⟩
     iexact HQ
@@ -161,12 +161,12 @@ theorem guar_sep : (P ⊨ₜ G₁) ⊢ (Q ⊨ₜ G₂) -∗ iprop(P ∗ Q) ⊨�
   iintro #HG₁ #HG₂
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, HP, HQ⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, HP, HQ⟩
   iapply record_and
   isplit
-  · iapply guar_elim P G₁ h n σ tp m i Ω W tc $$ HG₁
+  · iapply guar_elim P G₁ h n σ tp m i Ω W tc X $$ HG₁
     iframe
-  · iapply guar_elim Q G₂ h n σ tp m i Ω W tc $$ HG₂
+  · iapply guar_elim Q G₂ h n σ tp m i Ω W tc X $$ HG₂
     iframe
 
 @[lantana_alias guar_or]
@@ -174,12 +174,12 @@ theorem guar_or : (P ⊨ₜ G₁) ⊢ (Q ⊨ₜ G₂) -∗ iprop(P ∨ Q) ⊨ₜ
   iintro #HG₁ #HG₂
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, HP | HQ⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, HP | HQ⟩
   · iapply record_mono (G := G₁) (fun _ => or_intro_l)
-    iapply guar_elim P G₁ h n σ tp m i Ω W tc $$ HG₁
+    iapply guar_elim P G₁ h n σ tp m i Ω W tc X $$ HG₁
     iframe
   · iapply record_mono (G := G₂) (fun _ => or_intro_r)
-    iapply guar_elim Q G₂ h n σ tp m i Ω W tc $$ HG₂
+    iapply guar_elim Q G₂ h n σ tp m i Ω W tc X $$ HG₂
     iframe
 
 /-- An until fulfilled now (rank `0`; the until's step strips the later). -/
@@ -188,9 +188,9 @@ theorem guar_until_now : ▷ (P ⊨ₜ G₂) ⊢ P ⊨ₜ (G₁ Uₛ G₂) := by
   iintro #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, HP⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, HP⟩
   iapply record_until_now
-  iapply guar_elim_later_guar P G₂ h n σ tp m i Ω W tc $$ HG
+  iapply guar_elim_later_guar P G₂ h n σ tp m i Ω W tc X $$ HG
   iframe
 
 /-- Universal quantification over any type. -/
@@ -200,10 +200,10 @@ theorem guar_all {X : Type _} (P : X → IProp GF) (G : X → TrSpec Expr State 
   iintro #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, HP⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, HP⟩
   iapply record_all
   iintro %x
-  iapply guar_elim (P x) (G x) h n σ tp m i Ω W tc $$ HG
+  iapply guar_elim (P x) (G x) h n σ tp m i Ω W tc X $$ HG
   iframe HI MI
   iapply HP
 
@@ -214,9 +214,9 @@ theorem guar_ex {X : Type _} [SIdxLarge SI X] (P : X → IProp GF) (G : X → Tr
   iintro #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, %x, HP⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, %x, HP⟩
   iapply record_mono (G := G x) (fun τ => exists_intro (Ψ := fun x => (G x).internal τ) x)
-  iapply guar_elim (P x) (G x) h n σ tp m i Ω W tc $$ HG
+  iapply guar_elim (P x) (G x) h n σ tp m i Ω W tc X $$ HG
   iframe
 
 /-- A ghost existential: the witness is not trace-visible. -/
@@ -226,8 +226,8 @@ theorem guar_ex_ghost {X : Type _} (P : X → IProp GF) :
   iintro #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, %x, HP⟩
-  iapply guar_elim (P x) G h n σ tp m i Ω W tc $$ HG
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, %x, HP⟩
+  iapply guar_elim (P x) G h n σ tp m i Ω W tc X $$ HG
   iframe
 
 /-- An iProp carrying its own guarantee: such pairs can be stored in invariants and saved
@@ -237,8 +237,8 @@ theorem guar_packed (G : TrSpec Expr State GF) :
     ⊢@{IProp GF} iprop(∃ P : IProp GF, P ∗ (P ⊨ₜ G)) ⊨ₜ G := by
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, %P, HP, #HG⟩
-  iapply guar_elim P G h n σ tp m i Ω W tc $$ HG
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, %P, HP, #HG⟩
+  iapply guar_elim P G h n σ tp m i Ω W tc X $$ HG
   iframe
 
 @[lantana_alias guar_persistently]
@@ -246,8 +246,8 @@ theorem guar_persistently : (P ⊨ₜ G) ⊢ iprop(□ P) ⊨ₜ G := by
   iintro #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, #HP⟩
-  iapply guar_elim P G h n σ tp m i Ω W tc $$ HG
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, #HP⟩
+  iapply guar_elim P G h n σ tp m i Ω W tc X $$ HG
   iframe HI MI
   iexact HP
 
@@ -258,13 +258,13 @@ theorem guar_or_excl (A B C : IProp GF) [Persistent C] (hexcl : C ∗ A ⊢ Fals
   iintro #HC #HB
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, MI, HA | HB'⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, HA | HB'⟩
   · iexfalso
     iapply hexcl
     isplitr [HA]
     · iexact HC
     · iexact HA
-  · iapply guar_elim B G h n σ tp m i Ω W tc $$ HB
+  · iapply guar_elim B G h n σ tp m i Ω W tc X $$ HB
     iframe
 
 /-! ## Implications
@@ -382,7 +382,7 @@ theorem guar_state (φ : State → ThreadPool Expr → Prop) (P : IProp GF)
     iframe
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc ⟨HI, -, HP⟩
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, -, HP⟩
   ihave #HE := historyInterp_histEvent_now h n σ tp $$ HI
   ihave %hσ := hs h n σ tp $$ [HI HP]
   · iframe
