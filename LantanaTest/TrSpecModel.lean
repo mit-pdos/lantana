@@ -9,8 +9,8 @@ public import Lantana
 /-! Tests for the model of trace specifications: a closed world `TestGF : BundledGFunctors.{0}`
 with all the ghost state the temporal layer of HeapLang needs before allocation, that is,
 world satisfaction and credits (slots 0–3, as in `LantanaTest.FUpd`), obligations (4–7, as in
-`LantanaTest.OSat`), witnesses (8–9, as in `LantanaTest.OWit`), the forest (10–11, as in
-`LantanaTest.OForest`), the model history (12), the registry (13–14, as in
+`LantanaTest.OSat`), witnesses (8–9, as in `LantanaTest.OWit`), the forest (10–11 and 16, as
+in `LantanaTest.OForest`), the model history (12), the registry (13–14, as in
 `LantanaTest.Registry`) and the history (15); its `TemporalGpreS` instance (the universe check
 of the adequacy theorem's assumptions), the allocations with the ghost names in the existential
 (up to the combined allocation of adequacy, `adequacy_alloc_names`, and the extraction of its
@@ -48,6 +48,7 @@ noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   | 13 => ⟨ULiftOF (constOF (MonoList (DiscreteO (Nat × RegEntry))))⟩
   | 14 => ⟨DFracAgree.DFracAgreeRF TrPredF⟩
   | 15 => ⟨ULiftOF (constOF (MonoList (DiscreteO (HistEntry Exp State))))⟩
+  | 16 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO Oids)) ThreadMap))⟩
   | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : WsatGpreS TestGF where
@@ -78,6 +79,7 @@ noncomputable instance : OWitGpreS TestGF where
 noncomputable instance : OForestGpreS TestGF where
   kidsG := ⟨ElemG.ofEqLift 10 (by unfold TestGF; rfl)⟩
   statusG := ⟨ElemG.ofEqLift 11 (by unfold TestGF; rfl)⟩
+  billG := ⟨ElemG.ofEqLift 16 (by unfold TestGF; rfl)⟩
 
 noncomputable instance : MHistGpreS TestGF where
   elem := (ElemG.ofEq 12 (by unfold TestGF; rfl) :
@@ -115,7 +117,7 @@ example (σ : State) (tp : ThreadPool Exp) :
       letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
       iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
         modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length ∗
-        ([∗list] j ∈ List.range tp.length, thKids j ∅) ∗
+        ([∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) ∗
         (∀ _ : StateInterp Exp State TestGF,
           stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp) ∗
         regAuth []) :=
@@ -128,7 +130,8 @@ example (σ : State) (tp : ThreadPool Exp) : ∃ γ : ModelNames × TemporalName
     letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
     letI : StateInterp Exp State TestGF := ⟨fun _ _ => iprop(True)⟩
     (iPropSat (GF := TestGF)).sat iprop(wsat ∗ ownE ⊤ ∗ |==> (historyInterp [(σ, tp)] 0 σ tp ∗
-      regStateWith (fun _ => iprop(True)) ∗ [∗list] j ∈ List.range tp.length, thKids j ∅)) := by
+      regStateWith (fun _ => iprop(True)) ∗
+      [∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅)) := by
   obtain ⟨γ, h⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := TestGF) σ tp)
   refine ⟨γ, iPropSat.mono ?_ h⟩
   letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2

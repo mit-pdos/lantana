@@ -8,12 +8,12 @@ public import Lantana
 
 /-! Tests for the obligation forest: a closed world `TestGF : BundledGFunctors.{0}` with the ghost
 state of obligations (slots 0 to 3, as in `LantanaTest.OSat`) and of the forest: the children map
-(slot 4) and the status map (slot 5), its `OSatGpreS` and `OForestGpreS` instances (the universe
-check), the allocation of `osat` and `oforest`, and the life of a thread with one obligation below
-it: allocation, a step of the thread, discharge, termination.
+(slot 4), the status map (slot 5) and the bill map (slot 6), its `OSatGpreS` and `OForestGpreS`
+instances (the universe check), the allocation of `osat` and `oforest`, and the life of a thread
+with one obligation below it: allocation, a step of the thread, discharge, termination.
 
-Universes: the children and status maps hold `Type` values (`Oids`, `ThreadStatus`), so their
-slots are `ULiftOF` of `constOF` of the camera (`ElemG.ofEqLift`), as for the state map. -/
+Universes: the children, status and bill maps hold `Type` values (`Oids`, `ThreadStatus`), so
+their slots are `ULiftOF` of `constOF` of the camera (`ElemG.ofEqLift`), as for the state map. -/
 
 namespace LantanaTest.OForest
 
@@ -28,6 +28,7 @@ noncomputable def TestGF : BundledGFunctors.{0} := fun n =>
   | 3 => ⟨ULiftOF.{4} (constOFP (Bank Fuel))⟩
   | 4 => ⟨ULiftOF (constOF (HeapView Parent (Agree (DiscreteO Oids)) ParentMap))⟩
   | 5 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO ThreadStatus)) ThreadMap))⟩
+  | 6 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO Oids)) ThreadMap))⟩
   | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : OSatGpreS TestGF where
@@ -41,6 +42,7 @@ noncomputable instance : OSatGpreS TestGF where
 noncomputable instance : OForestGpreS TestGF where
   kidsG := ⟨ElemG.ofEqLift 4 (by unfold TestGF; rfl)⟩
   statusG := ⟨ElemG.ofEqLift 5 (by unfold TestGF; rfl)⟩
+  billG := ⟨ElemG.ofEqLift 6 (by unfold TestGF; rfl)⟩
 
 /-! Allocation. -/
 
@@ -55,29 +57,30 @@ example : ⊢@{IProp TestGF} |==> ∃ _ : OSatGS TestGF, ∃ _ : OForestGS TestG
 section
 variable [OSatGS TestGF] [OForestGS TestGF]
 
-/-- Two new threads. -/
+/-- Two new threads, each without children and with an empty bill. -/
 example (Ω : Obls) : oforest Ω 0 ⊢@{IProp TestGF} |==> (oforest Ω 2 ∗
-    OForest.kids (.thread 0) ∅ ∗ OForest.kids (.thread 1) ∅) := by
+    OForest.kids (.thread 0) ∅ ∗ OForest.bill 0 ∅ ∗ OForest.kids (.thread 1) ∅ ∗
+    OForest.bill 1 ∅) := by
   iintro Hf
   imod oforest_alloc_threads Ω 0 2 $$ Hf with ⟨Hf, Hl⟩
   rw [show List.range' 0 2 = [0, 1] from rfl]
-  icases BigSepL.bigSepL_cons.mp $$ Hl with ⟨⟨Hk₀, -⟩, Hl⟩
-  icases BigSepL.bigSepL_cons.mp $$ Hl with ⟨⟨Hk₁, -⟩, -⟩
+  icases BigSepL.bigSepL_cons.mp $$ Hl with ⟨⟨Hk₀, -, HB₀⟩, Hl⟩
+  icases BigSepL.bigSepL_cons.mp $$ Hl with ⟨⟨Hk₁, -, HB₁⟩, -⟩
   imodintro
   iframe
 
-/-- A new thread with a new obligation below it. -/
+/-- A new thread with a new obligation below it, in its bill. -/
 example (Ω : Obls) (tc : Nat) :
     osat Ω ∗ oforest Ω tc ⊢@{IProp TestGF} |==>
       (osat (insert Ω Ω.fresh (.assigned 1 tc)) ∗ oforest (insert Ω Ω.fresh (.assigned 1 tc))
-        (tc + 1) ∗ OForest.kids (.thread tc) ({Ω.fresh} ∪ ∅) ∗
+        (tc + 1) ∗ OForest.kids (.thread tc) ({Ω.fresh} ∪ ∅) ∗ OForest.bill tc ({Ω.fresh} ∪ ∅) ∗
         OForest.kids (.obl Ω.fresh) ∅) := by
   iintro ⟨Hs, Hf⟩
-  imod oforest_alloc_thread Ω tc $$ Hf with ⟨Hf, Hk, -⟩
+  imod oforest_alloc_thread Ω tc $$ Hf with ⟨Hf, Hk, -, HB⟩
   imod osat_alloc_obl_assigned (Obls.get?_fresh Ω) (1 : Ordinal.{1}) tc $$ Hs
     with ⟨Hs, #Hb, -, -, -, -⟩
-  imod oforest_alloc_obl (p := .thread tc) (Obls.get?_fresh Ω) rfl Ordinal.le_rfl
-    $$ [$Hf $Hk $Hb //] with ⟨Hf, -, Hk, Hkk⟩
+  imod oforest_alloc_obl (p := .thread tc) (Obls.get?_fresh Ω) rfl Ordinal.le_rfl ∅
+    $$ [$Hf $Hk $HB $Hb //] with ⟨Hf, -, Hk, HB, Hkk⟩
   imodintro
   iframe
 
@@ -96,11 +99,11 @@ example (Ω : Obls) (tc : Nat) :
       exact ⟨fun h => (h.2 h.1).elim, fun h => (LawfulSet.mem_empty h).elim⟩
   have hk : Ω.fresh ∈ ({Ω.fresh} : Oids) := LawfulSet.mem_singleton.2 rfl
   iintro ⟨Hs, Hf⟩
-  imod oforest_alloc_thread Ω tc $$ Hf with ⟨Hf, Hk, He⟩
+  imod oforest_alloc_thread Ω tc $$ Hf with ⟨Hf, Hk, He, HB⟩
   imod osat_alloc_obl_assigned (Obls.get?_fresh Ω) (1 : Ordinal.{1}) tc $$ Hs
     with ⟨Hs, #Hb, -, Ha, Hu, -⟩
-  imod oforest_alloc_obl (p := .thread tc) (Obls.get?_fresh Ω) rfl Ordinal.le_rfl
-    $$ [$Hf $Hk $Hb //] with ⟨Hf, -, Hk, Hkk⟩
+  imod oforest_alloc_obl (p := .thread tc) (Obls.get?_fresh Ω) rfl Ordinal.le_rfl ∅
+    $$ [$Hf $Hk $HB $Hb //] with ⟨Hf, -, Hk, HB, Hkk⟩
   rw [hsing]
   ihave Hus : [∗set] x ∈ ({Ω.fresh} : Oids), ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c $$ [Hu]
   · iapply BigSepS.bigSepS_singleton.mpr
@@ -108,7 +111,7 @@ example (Ω : Obls) (tc : Nat) :
     iframe Hu
     ipureintro
     exact Ordinal.zero_lt_one
-  imod oforest_osat_step _ _ tc _ $$ [$Hs $Hf $Hk $Hus] with ⟨%Ω₂, -, Hs, Hf, Hk⟩
+  imod oforest_osat_step _ _ tc _ $$ [$Hs $Hf $HB $Hus] with ⟨%Ω₂, -, Hs, Hf, -⟩
   imod osat_discharge _ _ $$ [$Hs $Ha] with ⟨Hs, -, -⟩
   imod oforest_discharge_obl hk $$ [$Hf $Hk $Hkk] with ⟨Hf, Hk⟩
   rw [hset]
