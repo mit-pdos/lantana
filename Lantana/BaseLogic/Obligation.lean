@@ -14,7 +14,7 @@ An obligation is assigned (with fuel and an owner thread) or discharged (Rocq
 relations on obligation maps `Obls` used by the model: allocation, conditional steps and progress,
 and the order `Obls.le` seen by adequacy.
 
-Design (D10): ids are `Nat` (`Oid`), fuel is fixed to `Fuel` (no `obl_class`), owners are
+Design: ids are `Nat` (`Oid`), fuel is fixed to `Fuel` (no `obl_class`), owners are
 positional thread ids (`ThreadId`), and the unused boolean state flag of Rocq is dropped. The
 pointwise relations on maps (`mapForall2`, `condRel`) are generic in the value type and shared
 with witnesses (`Witness.lean`), where Rocq duplicates them.
@@ -232,8 +232,8 @@ inductive Obl where
 attribute [lantana_alias obl_assigned] Obl.assigned
 attribute [lantana_alias obl_discharged] Obl.discharged
 
-#lantana_ignore obl_class "D6/D10: fuel is fixed to `Fuel`"
-#lantana_ignore obl_owner "D14: owners are thread ids, `ThreadId`"
+#lantana_ignore obl_class "fuel is fixed to `Fuel`"
+#lantana_ignore obl_owner "owners are thread ids, `ThreadId` (positions in the pool)"
 #lantana_ignore obl_cond "the type `Oid → Obl → Prop` is written out"
 
 namespace Obl

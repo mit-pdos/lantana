@@ -16,10 +16,11 @@ public import Lantana.ProgramLogic.Language
 /-! # HeapLang: syntax
 
 The syntax of Lantana's HeapLang (Rocq `lantana_heap_lang/lang.v`, `locations.v`), a fork of
-Iris-Lean's `Iris.HeapLang.Syntax` with the same declaration names (D22). Compared with
-Iris-Lean's HeapLang, expressions gain `label t e` (a trace-visible label, which evaluates `e`)
-and `chooseNat` (unbounded nondeterminism in one step), and lose the prophecy constructs
-`newProph`/`resolve` and the `prophecy` literal (D15).
+Iris-Lean's `Iris.HeapLang.Syntax` with the same declaration names (a fork because the syntax
+differs). Compared with Iris-Lean's HeapLang, expressions gain `label t e` (a trace-visible
+label, which evaluates `e`) and `chooseNat` (unbounded nondeterminism in one step), and lose the
+prophecy constructs `newProph`/`resolve` and the `prophecy` literal (Lantana's program logic
+does not track observations, which prophecies need).
 
 The Rocq declarations of `lantana_heap_lang/` (logical path `lantana.heap_lang`) are recorded
 as `heap_lang.X`; for those inside `lang.v`'s `Module heap_lang`, the module and the directory
@@ -32,8 +33,8 @@ namespace Lantana.HeapLang
 
 open Iris.ProgramLogic (ToVal)
 
-#lantana_ignore heap_lang.proph_id "prophecies dropped (D15)"
-#lantana_ignore heap_lang.observation "prophecies dropped (D15)"
+#lantana_ignore heap_lang.proph_id "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.observation "Lantana's HeapLang has no observations (`Obs := Empty`)."
 
 @[ext, lantana_alias heap_lang.loc]
 structure Loc where
@@ -176,8 +177,8 @@ instance : Pos.Countable Binder where
     | _ => none
   decode_encode b := by cases b <;> simp [Pos.Countable.decode_encode]
 
-/-- Literals. There is no prophecy literal (Rocq `LitrProphecy`, D15). `poison` is a unit that
-compares with nothing. -/
+/-- Literals. There is no prophecy literal (Rocq `LitrProphecy`): HeapLang has no prophecies.
+`poison` is a unit that compares with nothing. -/
 @[lantana_alias heap_lang.base_lit]
 inductive BaseLit where
   | int (n : Int)
@@ -340,9 +341,9 @@ attribute [lantana_alias heap_lang.val_eq_dec] instDecidableEqVal
 attribute [lantana_alias heap_lang.expr_inhabited] instInhabitedExp
 attribute [lantana_alias heap_lang.val_inhabited] instInhabitedVal
 
-#lantana_ignore heap_lang.NewProph "prophecies dropped (D15)"
-#lantana_ignore heap_lang.Resolve "prophecies dropped (D15)"
-#lantana_ignore heap_lang.LitrProphecy "prophecies dropped (D15)"
+#lantana_ignore heap_lang.NewProph "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.Resolve "Lantana's HeapLang has no prophecies."
+#lantana_ignore heap_lang.LitrProphecy "Lantana's HeapLang has no prophecies."
 
 /-! ### Countability of expressions and values
 

@@ -23,8 +23,8 @@ relational update of transfinite later credits instead of the basic update:
 
 Iris-Lean's `Iris.Instances.Lib.FUpd` (template of this file) builds the fancy update on its `Nat`
 later-credit update `|==£>`, whose `▷^[n] False` escape disjunct hides the `◇`; Lantana's `|==>r`
-has no escape disjunct, so the `◇` is explicit (decision D8 (i)). World satisfaction (`wsat`,
-`ownE`, `ownI`, `wsat_alloc`) is Iris-Lean's `Iris.Instances.Lib.WSat`, unchanged.
+has no escape disjunct, so the `◇` is explicit. World satisfaction (`wsat`, `ownE`, `ownI`,
+`wsat_alloc`) is Iris-Lean's `Iris.Instances.Lib.WSat`, unchanged.
 
 Lantana never provides an instance of Iris-Lean's `InvGS_gen` (and this file does not import
 `Iris.Instances.Lib.FUpd`): two `BIFUpdate (IProp GF)` instances would compete.
@@ -70,8 +70,8 @@ attribute [lantana_alias invGS_lc] InvGS.toCreditGS
 #lantana_ignore «invΣ» "Superseded by the `InvGpreS` typeclass on `BundledGFunctors`."
 #lantana_ignore «subG_invΣ» "Superseded by Lean's direct `ElemG` typeclass synthesis."
 
-/-- The ghost names of world satisfaction and of the credits (D32: small enough for the
-existential property of satisfiability, unlike `InvGS GF`). -/
+/-- The ghost names of world satisfaction and of the credits (small enough for the existential
+property of satisfiability, unlike `InvGS GF`). -/
 structure InvNames where
   /-- The ghost name of the invariant map. -/
   inv : GName
@@ -92,7 +92,7 @@ cameras. -/
   toCreditGS := { elem := CreditGpreS.elem, name := γ.credit }
 
 /-- Allocate world satisfaction and an empty credit supply, at names `γ`: `invGS_alloc` with the
-ghost names in the existential (D32). -/
+ghost names in the existential, small enough for the existential property of satisfiability. -/
 theorem invGS_alloc_names {GF : BundledGFunctors.{u}} [InvGpreS GF] :
     ⊢@{IProp GF} |==> ∃ γ : InvNames, letI := InvGS.ofNames (GF := GF) γ
       iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤) := by

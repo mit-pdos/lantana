@@ -24,7 +24,7 @@ step of the thread the schedule names:
 * it is a value: the configuration stutters, the counters drop (`owitInvLb_step_na_turn`);
 * it is stuck: impossible, as above.
 
-Following D20, `run_step` also exposes the pure facts of the step that Iris-style safety needs
+Unlike Rocq's, `run_step` also exposes the pure facts of the step that Iris-style safety needs
 (no thread of the pool is stuck at the current position, the postconditions of the old threads
 do not change), so that `Lantana.Trace.Adequacy.Safety` is a Löb induction over it.
 
@@ -38,10 +38,11 @@ postcondition `forkPost` (`postFork Ψ tp.length`).
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode
-open Iris.ProgramLogic (toVal)
+open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
+open Iris.ProgramLogic.PrimStep (primStep)
 open Lantana.Model
 
-variable {Expr State Val : Type} [Λ : Language Expr State Val]
+variable {Expr State Obs Val : Type} [Λ : Language Expr State Obs Val]
 
 /-! ## Pure facts about the run -/
 
@@ -49,14 +50,14 @@ variable {Expr State Val : Type} [Λ : Language Expr State Val]
 scheduled thread there; here for every thread of the pool, since the run names none). -/
 @[lantana_alias adequacy_safety.not_stuck] -- shadows `language.not_stuck` in Rocq too
 def Cfg.notStuck (ρ : Cfg Expr State) : Prop :=
-  ∀ (i : ThreadId) (e : Expr), ρ.1[i]? = some e → Language.NotStuck e ρ.2
+  ∀ (i : ThreadId) (e : Expr), ρ.1[i]? = some e → PrimStep.NotStuck (e, ρ.2)
 
 /-- The inversion of a thread step. -/
 theorem ThreadStep.inv {i : ThreadId} {ρ₁ ρ₂ : Cfg Expr State} (h : ThreadStep i ρ₁ ρ₂) :
-    ∃ e₁ e₂ σ₂ efs, ρ₁.1[i]? = some e₁ ∧ primStep e₁ ρ₁.2 e₂ σ₂ efs ∧
+    ∃ e₁ obs e₂ σ₂ efs, ρ₁.1[i]? = some e₁ ∧ primStep (e₁, ρ₁.2) obs (e₂, σ₂, efs) ∧
       ρ₂ = (ρ₁.1.set i e₂ ++ efs, σ₂) := by
   cases h with
-  | step he hs => exact ⟨_, _, _, _, he, hs, rfl⟩
+  | step he hs => exact ⟨_, _, _, _, _, he, hs, rfl⟩
 
 /-- The ghost history extended by the configuration of the next position is a prefix of the
 run. -/
@@ -85,7 +86,8 @@ theorem owitInvLbMonoFair_fairMeasure (c : Nat → Nat) : owitInvLbMonoFair (fai
 
 section Run
 
-variable {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Val GF]
+variable {Ectx : Type} [EvContext Expr Ectx]
+variable {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Obs Val GF]
   [TemporalInterp Expr State GF]
 
 /-! ## The running threads -/
@@ -245,14 +247,15 @@ def runStepPost (c : Nat) (h : List (HistEntry Expr State)) (n : Nat)
     £ₙ c ∗ historyTInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
     modelInterp g' v' Ω' W' (n + 1) tp'.length ∗ threadsRun tp' Ψ')
 
-/-- One step of `lWP` for a running thread: `lwpStep` at the empty context `ctxId`, mask `⊤`. -/
+/-- One step of `lWP` for a running thread: `lwpStep` at the empty context, mask `⊤`. -/
 theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → IProp GF}
     (he : toVal e₁ = none) :
     threadRun i e₁ Ψ ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
       (tp : ThreadPool Expr), ⌜tp[i]? = some e₁⌝ →
       historyTInterp h n σ tp ={⊤,∅}=∗ |=[n, tp.length]=>m
-        ⌜Language.Reducible e₁ σ⌝ ∗
-        ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜primStep e₁ σ e₂ σ₂ efs⌝ -∗
+        ⌜PrimStep.Reducible (e₁, σ)⌝ ∗
+        ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+          ⌜primStep (e₁, σ) obs (e₂, σ₂, efs)⌝ -∗
           mprog n tp.length i (mphys n (n + 1) tp.length (tp.length + efs.length)
             (ALC (|=[n + 1, tp.length + efs.length]=>m |={∅,⊤}=>
               historyTInterp (h ++ [(σ₂, tp.set i e₂ ++ efs)]) (n + 1) σ₂
@@ -263,10 +266,10 @@ theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → I
   rw [threadRun_of_toVal_none he, lwp_unfold.to_eq]
   simp only [lwpPre, he]
   unfold lwpStep
-  refine (forall_elim ctxId).trans ?_
-  simp only [Language.ctxApply_id, Stuckness.maybeReducible]
+  refine (forall_elim (EvContextOps.empty : Ectx)).trans ?_
+  simp only [EvContext.fill_empty, Stuckness.maybeReducible]
   iintro H %h %n %σ %tp %hi
-  iapply H $$ %h %n %σ %tp %Language.Context.instId %hi
+  iapply H $$ %h %n %σ %tp %(Language.Context.fillEmpty (Ectx := Ectx)) %hi
 
 omit L [TemporalInterp Expr State GF] in
 /-- The owners of the obligations are active (`getOblsThreadActive`), keeping the model. -/
@@ -310,7 +313,7 @@ theorem threadsRun_after_step (tp : ThreadPool Expr) (i : ThreadId) (e₂ : Expr
 theorem run_step_stuck {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obls} {W : Witnesses} {i : ThreadId} {c' : Nat → Nat}
-    (hLb : owitInvLb (fairMeasure c') Ω W) (hst : ∃ e, tp[i]? = some e ∧ Language.Stuck e σ)
+    (hLb : owitInvLb (fairMeasure c') Ω W) (hst : ∃ e, tp[i]? = some e ∧ PrimStep.Stuck (e, σ))
     (P : IProp GF) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ threadsRun tp Ψ ⊢
       |={⊤,∅}=> P := by
@@ -322,7 +325,7 @@ theorem run_step_stuck {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
   imod Hi $$ %h %n %σ %tp %he HH with Hi
   imod mupdBase_modelInterp_steps n tp.length (fairMeasure c') (owitInvLbMonoFair_fairMeasure c')
     _ $$ Hi %g %v %Ω %W %hLb HM with ⟨⟨%hred, -⟩, -⟩
-  exact (Language.not_reducible_iff.mpr hirr hred).elim
+  exact (Language.not_reducible_iff_irreducible.mpr hirr hred).elim
 
 /-- The thread the schedule names is a value: the configuration stutters. -/
 theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
@@ -370,9 +373,9 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     (hstep : ThreadStep i (tp, σ) (τf (n + 1))) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length ∗ threadsRun tp Ψ ⊢
       |={⊤,∅}=> ALC iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
-  obtain ⟨e₁, e₂, σ₂, efs, he₁, hprim, hcfg⟩ := hstep.inv
+  obtain ⟨e₁, obs, e₂, σ₂, efs, he₁, hprim, hcfg⟩ := hstep.inv
   simp only at he₁ hprim
-  have hv₁ : toVal e₁ = none := val_stuck hprim
+  have hv₁ : toVal e₁ = none := Language.val_stuck hprim
   have hτ : (τf n).1 = tp := by rw [hnow]
   have hγn := owitInvLbMonoFair_fairMeasure (γ n)
   have hγn1 := owitInvLbMonoFair_fairMeasure (γ (n + 1))
@@ -386,7 +389,7 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     Hi %g %v %Ω %W %hLb HM with ⟨⟨%_, Hi⟩, %g₀, %v₀, %Ω₀, %W₀, %⟨hle₀, hLb₀⟩, HM⟩
   icases Model.modelInterp_owitInv' _ _ _ _ _ _ $$ HM with ⟨HM, %hI₀⟩
   icases oblsThreadActive_keep hτ _ _ Ω₀ W₀ n $$ [$HD $HM] with ⟨HM, %hact₀⟩
-  ispecialize Hi $$ %e₂ %σ₂ %efs %hprim
+  ispecialize Hi $$ %obs %e₂ %σ₂ %efs %hprim
   imod mprog_modelInterp n tp.length i _ $$ Hi %(g ++ g₀) %(v + v₀) %Ω₀ %W₀ HM
     with ⟨%Ω₂, %hprog, Hk⟩
   obtain ⟨W₂, hW₂, hI₂, hLb₂⟩ := mprog_exists_step hi hact₀ hI₀ hLb₀ hcnt hprog
@@ -416,7 +419,7 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     oblsDrop_step hi hcnt hle₀ hprog (Obls.le_trans hle₃ hle₄) hact₂, hns, by omega,
     fun _ hj => postFork_lt hj⟩
 
-/-- **One step of the run** (Rocq `run_step`, generalized per D20): from the system at `n` on a
+/-- **One step of the run** (Rocq `run_step`, generalized for safety): from the system at `n` on a
 run under a schedule with fairness counters (the history and temporal interpretation, the model,
 the running threads), the system at `n + 1` with the facts about the step (`runStepPost`) and
 `c` later credits, in the deferred shape. No thread of the pool is stuck at `n`; the step is the
@@ -439,7 +442,7 @@ theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : Sta
     rw [hnow] at hns
     simp only [Cfg.notStuck, Classical.not_forall] at hns
     obtain ⟨j, e, he, hst⟩ := hns
-    iapply run_step_stuck hLb ⟨e, he, Language.not_notStuck_iff.mp hst⟩
+    iapply run_step_stuck hLb ⟨e, he, Language.not_not_suck.mp hst⟩
     iframe HH HM HT
   have hts := (schedule_iff.mp hsch) n (Nat.zero_le n)
   simp only [ThreadSystem.step_def, TraceStep, hnow] at hts

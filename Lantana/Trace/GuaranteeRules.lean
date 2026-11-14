@@ -25,11 +25,12 @@ the same system and bundle.
 namespace Lantana
 
 open Iris Iris.BI
+open Iris.ProgramLogic (Language)
 open Lantana.Model
 open scoped Lantana.TrSpec Lantana.TrProp
 
-variable {Expr State Val : Type} {GF : BundledGFunctors}
-variable [Language Expr State Val] [ModelGS GF] [TemporalGS Expr State GF]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors}
+variable [Language Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF]
   [StateInterp Expr State GF]
 
 /-! ## Combining records -/
@@ -464,7 +465,7 @@ theorem guar_bigSepS {S A : Type _} [LawfulFiniteSet S A] (X : S) (Φ : A → IP
 
 end BigOps
 
-/-! ## Inference (D21): `GuarOf` infers from the shape, `IntoGuar` checks against a target -/
+/-! ## Inference: `GuarOf` infers from the shape, `IntoGuar` checks against a target -/
 
 /-- The specification inferred from the shape of `P`. -/
 class GuarOf (P : IProp GF) (G : outParam (TrSpec Expr State GF)) : Prop where

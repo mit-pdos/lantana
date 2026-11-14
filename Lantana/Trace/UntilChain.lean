@@ -24,6 +24,7 @@ definitions file; the rules live with the clients.
 namespace Lantana
 
 open Iris Iris.BI
+open Iris.ProgramLogic (Language)
 open Lantana.Model
 
 /-! ## Well-formed logs -/
@@ -181,7 +182,7 @@ end Log
 /-! ## Chains -/
 
 section Chain
-variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- `untilIChain N k o P Q`: `P` until `Q` or until a next link `untilIChain N k' o' P Q` with

@@ -13,7 +13,8 @@ that find their hypotheses (`lwp_step`, `lwp_pures`). -/
 
 namespace LantanaTest.HeapLangLaws
 
-open Iris Iris.BI Iris.ProofMode Lantana Lantana.HeapLang Lantana.Language
+open Iris Iris.BI Iris.ProofMode Lantana Lantana.HeapLang
+open Iris.ProgramLogic (EctxLanguage fill)
 
 section
 
@@ -178,18 +179,18 @@ example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
 end
 
 /-! The context of a thread that can step is determined by its expression, also for
-`chooseNat` (D31). -/
+`chooseNat`: contexts are lists of items, and a redex has one context in an expression. -/
 
 example (tp : ThreadPool Exp) (i : ThreadId) (K C : List ECtxItem) (σ : State) (n : Nat)
     (hK : tp[i]? = some (fill K .chooseNat)) (hC : tp[i]? = some (fill C .chooseNat)) : C = K :=
-  ctx_eq_of_primStep (EctxLanguage.primStep_of_baseStep (.chooseNatS n σ)) hC hK
+  ctx_eq_of_primStep (EctxLanguage.primStep_of_baseStep (obs := []) (.chooseNatS n σ)) hC hK
 
 example {GF : BundledGFunctors} [HeapStateGS GF] (tp : ThreadPool Exp) (i : ThreadId)
     (K C : List ECtxItem) (σ : State) (n : Nat) (hK : tp[i]? = some (fill K .chooseNat)) :
     threadMapAuth (GF := GF) tp ∗ threadExpr i C .chooseNat ⊢ ⌜C = K⌝ :=
-  threadExpr_ctx tp i C K _ hK (EctxLanguage.primStep_of_baseStep (.chooseNatS n σ))
+  threadExpr_ctx tp i C K _ hK (EctxLanguage.primStep_of_baseStep (obs := []) (.chooseNatS n σ))
 
-/-! The step tactics that find their hypotheses (D27, M10): `lwp_step`, `lwp_step with`,
+/-! The step tactics that find their hypotheses (M10): `lwp_step`, `lwp_step with`,
 `lwp_pure`, `lwp_bind e'` and `lwp_pures`; on a value they fail with an error that `try`,
 `repeat` and `fail_if_success` catch. -/
 

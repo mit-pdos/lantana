@@ -12,7 +12,7 @@ Ordered commutative monoids (`OCM`, Rocq `ocm.v`) and well-founded ones (`WFOCM`
 `wfocm.v`), and the instance on the ordinals with the natural sum (Rocq `ordinal_wfocm.v`). They
 are the carriers of the bank (`Lantana.Bank`) and of the bounded credits (`Lantana.BCred`).
 
-## Leibniz order (decision D6)
+## Leibniz order
 
 Rocq's `OCM.t` is a total *pre*order whose monoid laws hold up to the preorder; its modules
 `quotient` and `partition` quotient it to obtain Leibniz equality for the cameras. Here the order
@@ -214,7 +214,7 @@ end OCM
 
 section Quotient
 
-#lantana_ignore quotient.t "Leibniz order: the cameras are defined on the carrier (decision D6)"
+#lantana_ignore quotient.t "Leibniz order: the cameras are defined on the carrier"
 #lantana_ignore quotient.from_monoid "Leibniz order: the identity"
 #lantana_ignore quotient.le "Leibniz order: `≤`"
 #lantana_ignore quotient.le_PreOrder "Leibniz order: `Std.IsLinearOrder`"
@@ -280,7 +280,7 @@ section Quotient
 #lantana_ignore quotient.meet_idemp_eq "Leibniz order: `OCM.min_self`"
 
 #lantana_ignore partition.t
-  "Leibniz order: a bound is `Option α`, `none` for `top` (decision D6, `Lantana.BCred`)"
+  "Leibniz order: a bound is `Option α`, `none` for `top` (see `Lantana.BCred`)"
 #lantana_ignore partition.ext "Leibniz order"
 #lantana_ignore partition.meet "Leibniz order: `BCred.boundMin`"
 #lantana_ignore partition.top "Leibniz order: `none`"

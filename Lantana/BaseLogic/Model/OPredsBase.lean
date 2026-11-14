@@ -13,7 +13,7 @@ public import Lantana.BaseLogic.Model.MapBigOp
 /-! # The user-facing predicates on obligations and witnesses
 
 Rocq `lantana/base_logic/opreds.v` §14.1–14.2, the part that does not involve the forest: the
-fuel encoding (`modelFuel ℓ μ := Measure.rep ℓ ((1 + ▽) * μ)`, D10 item 6), the predicates
+fuel encoding (`modelFuel ℓ μ := Measure.rep ℓ ((1 + ▽) * μ)`), the predicates
 `oblAssigned` (half of the ghost fraction; the other quarters are the children shares
 `oblShare`), `oblDischarged`, `oblFuel`, `oblInv` (an `OSat.oinv` at a quarter), `witCred`,
 `witLayer`, and the witness-induction package `witFuels` with `collectFuels`, with their pure
@@ -32,8 +32,8 @@ open scoped Lantana.Measure
 
 /-! ## The fuel encoding -/
 
-/-- The model fuel of a user fuel `μ` at layer `ℓ`: each unit carries an extra `▽` (D10 item 6,
-Rocq `measure_rep ℓ ((1 ⊕ ▽) × μ)`). -/
+/-- The model fuel of a user fuel `μ` at layer `ℓ`: each unit carries an extra `▽` (Rocq
+`measure_rep ℓ ((1 ⊕ ▽) × μ)`). -/
 def modelFuel (ℓ : Layer) (μ : Measure) : Fuel := Measure.rep ℓ ((1 + ▽) * μ)
 
 theorem modelFuel_add (ℓ : Layer) (μ₁ μ₂ : Measure) :

@@ -43,7 +43,10 @@ needed: the rule is applied once, directly.
 
 namespace Lantana.Examples.Paradox
 
-open Iris Iris.BI Lantana Lantana.HeapLang Lantana.Language
+open Iris Iris.BI Lantana Lantana.HeapLang
+open Iris.ProgramLogic (EctxLanguage)
+open Iris.ProgramLogic.Language (PureExec)
+open Iris.ProgramLogic.PrimStep (primStep)
 open Iris.Std (get? insert)
 open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 
@@ -612,7 +615,7 @@ theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
 /-- `loop ()` steps to itself. -/
 @[lantana_alias paradox.loop_prim_step]
 theorem loop_primStep (σ : State) :
-    primStep (hl(v(&loop) #()) : Exp) σ hl(v(&loop) #()) σ [] :=
+    primStep ((hl(v(&loop) #()) : Exp), σ) [] (hl(v(&loop) #()), σ, []) :=
   EctxLanguage.primStep_of_baseStep (.betaS _ _ _ _ _ σ rfl)
 
 /-- The run of the two loops: every step takes `loop ()` to `loop ()`. -/

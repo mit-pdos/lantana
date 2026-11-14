@@ -34,10 +34,11 @@ which are contractive in their contents (`alwaysIGuar_contractive`,
 namespace Lantana
 
 open Iris Iris.BI
+open Iris.ProgramLogic (Language)
 open Lantana.Model
 open scoped Lantana.TrSpec Lantana.TrProp
 
-variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 -- Named, to be passed explicitly to `TrSpec.canon_le`.
 variable [instM : ModelGS GF] [instT : TemporalGS Expr State GF] [StateInterp Expr State GF]
 
@@ -55,7 +56,7 @@ theorem guar_nu_coind {H : TrSpec Expr State GF} (hH : H ⊑ₛ F H) :
 @[lantana_alias guar_nu_canon]
 theorem guar_nu_canon (hP : ⊢ P ⊨ₜ F (TrSpec.canon P)) : ⊢ P ⊨ₜ TrSpec.nu F :=
   (guar_canon P).trans
-    (guar_weaken (TrSpec.nu_coind F (@TrSpec.canon_le _ _ _ _ _ instM instT _ _ _ hP)))
+    (guar_weaken (TrSpec.nu_coind F (@TrSpec.canon_le _ _ _ _ _ _ instM instT _ _ _ hP)))
 
 @[lantana_alias guar_mu_rank]
 theorem guar_mu_rank (H : Fuel → TrSpec Expr State GF)

@@ -11,7 +11,7 @@ public import Lantana.ProgramLogic.OblForest
 
 What the adequacy theorems allocate before the user's resources (Rocq
 `lantana/trace/adequacy_temporal.v`, the proof of `lwp_adequacy_temporal`: `model_interp_alloc 0`,
-`history_interp_init`, `reg_alloc`, `thP_kids_alloc_threads`), in the form of decision D32: the
+`history_interp_init`, `reg_alloc`, `thP_kids_alloc_threads`), with one change: the
 existential is over the ghost *names* (`ModelNames × TemporalNames`, small enough for the
 existential property of satisfiability), and the instances are rebuilt from the world's
 cameras and the names (`ModelGS.ofNames`, `TemporalGS.ofNames`). The instance records themselves
@@ -54,10 +54,11 @@ variable {Expr State : Type} {GF : BundledGFunctors} [ModelGpreS GF] [RegGpreS E
   [MonoListG GF (HistEntry Expr State)]
 
 /-- Allocation of the ghost state of adequacy for the initial configuration `(tp, σ)`, at
-names `γ` (D32; the world's cameras are those of `TemporalGpreS`): the credit supply, world
-satisfaction and the full mask; the model at step `0` with no obligation and no witness,
-over the threads of `tp`; the empty children of the initial threads; the history with its first
-entry, for every state interpretation (chosen after the allocation); the empty registry. -/
+names `γ` (small enough for the existential property of satisfiability; the world's cameras are
+those of `TemporalGpreS`): the credit supply, world satisfaction and the full mask; the model at
+step `0` with no obligation and no witness, over the threads of `tp`; the empty children of the
+initial threads; the history with its first entry, for every state interpretation (chosen after
+the allocation); the empty registry. -/
 theorem adequacy_alloc_names (σ : State) (tp : ThreadPool Expr) :
     ⊢@{IProp GF} |==> ∃ γ : ModelNames × TemporalNames,
       letI := ModelGS.ofNames (GF := GF) γ.1

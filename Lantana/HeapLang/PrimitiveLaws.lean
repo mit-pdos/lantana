@@ -13,27 +13,30 @@ public import Lantana.ProgramLogic.EctxLifting
 
 Rocq `lantana_heap_lang/primitive_laws.v`. The ghost state `HeapGS` is the temporal layer plus
 the heap (Iris-Lean's `genHeap`, locations to `Option Val`) and the *thread-expression map*
-(a ghost map from thread ids to their expressions, D17): `threadExpr i C e` is exact
-ownership of thread `i`'s whole expression `fill C e`, split into the caller context `C` and
-the current subexpression `e`. Every step law takes and returns the token, the children
-`thKids i G` of the thread with one unit of fuel each, and a witness set `R`; it returns `£ₒ o`
-later credits and the witnesses' credits (the paper's STEP rules).
+(a ghost map from thread ids to their expressions, which the state interpretation keeps equal
+to the pool): `threadExpr i C e` is exact ownership of thread `i`'s whole expression `fill C e`,
+split into the caller context `C` and the current subexpression `e`. Every step law takes and
+returns the token, the children `thKids i G` of the thread with one unit of fuel each, and a
+witness set `R`; it returns `£ₒ o` later credits and the witnesses' credits (the paper's STEP
+rules).
 
 Points-to is Iris-Lean's `l ↦{dq} v` at value type `Option Val`: `l ↦ v` with `v : Val` means
 `l ↦ some v` by coercion, and a freed location is `l ↦{q} none` (Rocq `freed l q`).
 
-**Contexts.** As in Rocq, the contexts of HeapLang are lists of items (D31): `lWP` quantifies
-over the contexts `K` that put the thread's expression into the pool, `fill K e`. The token knows
+**Contexts.** As in Rocq, the contexts of HeapLang are lists of items, Iris-Lean's
+`EvContext Exp (List ECtxItem)` of the `EctxItemLanguage` instance: `lWP` quantifies over the
+contexts `K` that put the thread's expression into the pool, `fill K e`. The token knows
 `fill C e`; as `e` can step, `K = C` (`threadExpr_ctx`, by `fill_ctx_step_inj`), so the pool
-after the step is `tp.set i (fill C e')`.
+after the step is `tp.set i (fill C e')`.  HeapLang has no observations: the steps of the
+lifting lemmas carry an observation list `obs : List Empty`, which is `[]`.
 -/
 
 @[expose] public noncomputable section
 
 namespace Lantana.HeapLang
 
-open Iris Iris.BI Iris.ProofMode Lantana Lantana.Language
-open Iris.ProgramLogic (toVal)
+open Iris Iris.BI Iris.ProofMode Lantana Iris.ProgramLogic
+open Iris.ProgramLogic.PrimStep (primStep)
 
 /-! ## Ghost state -/
 
@@ -138,15 +141,16 @@ theorem threadMapAuth_lookup (tp : ThreadPool Exp) (i : ThreadId) (C : List ECtx
 /-- The context of a thread is determined by its expression when that expression can step: the
 context `K` of the pool is the context `C` of the token (`fill_ctx_step_inj`). -/
 theorem ctx_eq_of_primStep {tp : ThreadPool Exp} {i : ThreadId} {C K : List ECtxItem} {e : Exp}
-    {σ : State} {e' : Exp} {σ' : State} {efs : List Exp} (hs : primStep e σ e' σ' efs)
+    {σ : State} {obs : List Empty} {e' : Exp} {σ' : State} {efs : List Exp}
+    (hs : primStep (e, σ) obs (e', σ', efs))
     (hC : tp[i]? = some (fill C e)) (hK : tp[i]? = some (fill K e)) : C = K :=
   EctxItemLanguage.fill_ctx_step_inj hs (Option.some.inj (hC.symm.trans hK))
 
 /-- The token determines the context of a thread that can step. -/
 @[lantana_alias thread_expr_ctx]
 theorem threadExpr_ctx (tp : ThreadPool Exp) (i : ThreadId) (C K : List ECtxItem) (e : Exp)
-    {σ : State} {e' : Exp} {σ' : State} {efs : List Exp} (hK : tp[i]? = some (fill K e))
-    (hs : primStep e σ e' σ' efs) :
+    {σ : State} {obs : List Empty} {e' : Exp} {σ' : State} {efs : List Exp}
+    (hK : tp[i]? = some (fill K e)) (hs : primStep (e, σ) obs (e', σ', efs)) :
     threadMapAuth (GF := GF) tp ∗ threadExpr i C e ⊢ ⌜C = K⌝ := by
   iintro H
   ihave %hC := threadMapAuth_lookup tp i C e $$ H
@@ -221,7 +225,7 @@ instance instStateInterp {GF : BundledGFunctors} [HeapStateGS GF] : StateInterp 
 
 /-- HeapLang's instance of the program logic: forked threads have the postcondition `True`. -/
 @[lantana_alias heapGS_lantanaGS]
-instance instLantanaGS {GF : BundledGFunctors} [HeapGS GF] : LantanaGS Exp State Val GF where
+instance instLantanaGS {GF : BundledGFunctors} [HeapGS GF] : LantanaGS Exp State Empty Val GF where
   toTemporalGS := inferInstance
   toStateInterp := instStateInterp
   forkPost _ _ := iprop(True)
@@ -241,7 +245,7 @@ end
 @[lantana_alias thread_expr_pure_exec_si]
 instance threadExpr_pureExecSI {GF : BundledGFunctors} [HeapGS GF] (C : List ECtxItem)
     (i : ThreadId) : PureExecSI (GF := GF) (fun i e => threadExpr i C e) i where
-  pureExecSI {K e₁ e₂ σ tp} _ hi hstep := by
+  pureExecSI {K e₁ e₂ σ obs tp} _ hi hstep := by
     iintro ⟨Hf, Hσ⟩
     icases (stateInterp_unfold σ tp).mp $$ Hσ with ⟨Hh, Ha⟩
     ihave %hC := threadExpr_ctx tp i C K e₁ hi hstep $$ [Ha Hf]
@@ -277,7 +281,7 @@ and the witnesses are handled here, the heap by `hstep` (from the heap's interpr
 resources `H`). -/
 theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ : Val → IProp GF)
     (Φ : Val → IProp GF)
-    (hstep : ∀ σ₁ : State, genHeapInterp σ₁.heap ∗ H ⊢ ⌜EctxLanguage.BaseReducible e₁ σ₁⌝ ∗
+    (hstep : ∀ σ₁ : State, genHeapInterp σ₁.heap ∗ H ⊢ ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
       ∀ e₂ σ₂ efs, ⌜BaseStep e₁ σ₁ e₂ σ₂ efs⌝ ==∗
         ⌜efs = []⌝ ∗ ∃ v : Val, ⌜e₂ = Exp.val v⌝ ∗ genHeapInterp σ₂.heap ∗ Ψ v) :
     threadExpr i C e₁ ∗ stepPre i G R ∗ H ∗
@@ -289,7 +293,7 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
   icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
   icases hstep σ₁ $$ [Hh HH] with ⟨%hred, Hstep⟩
   · iframe
-  have ⟨_, _, _, hb⟩ := hred
+  have ⟨_, _, _, _, hb⟩ := hred
   ihave %hC := threadExpr_ctx tp i C K e₁ hi (EctxLanguage.primStep_of_baseStep hb) $$ [Ha HT]
   · iframe
   subst hC
@@ -301,7 +305,7 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
   iframe HG HF
   iexists R
   iframe HR
-  iintro %e₂ %σ₂ %efs %hs
+  iintro %obs %e₂ %σ₂ %efs %hs
   imod Hstep $$ %e₂ %σ₂ %efs %hs with ⟨%hefs, %v, %hv, Hh, HΨ⟩
   imod threadMapAuth_update tp i C e₁ e₂ $$ [Ha HT] with ⟨Ha, HT⟩
   · iframe
@@ -351,7 +355,7 @@ theorem witCreds_of_nat (R : Oids) (m : Nat) :
 
 @[lantana_alias heap_lang.lwp_pure_step]
 theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IProp GF)
-    [PureExec φ n e₁ e₂] (hφ : φ) (hn : 0 < n) :
+    [Language.PureExec φ n e₁ e₂] (hφ : φ) (hn : 0 < n) :
     threadExpr i C e₁ ∗ thKids i G ∗ oblFuels G n ∗ witLayers R ∗
       (threadExpr i C e₂ -∗ thKids i G -∗ witCreds R -∗ £ₒ o -∗
         |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
@@ -442,18 +446,18 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
   iintro %K' %σ₁ %tp %hi Hσ
   icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
   ihave %hC := threadExpr_ctx tp i C K' (.fork e) hi
-    (EctxLanguage.primStep_of_baseStep (.forkS e σ₁)) $$ [Ha HT]
+    (EctxLanguage.primStep_of_baseStep (obs := []) (.forkS e σ₁)) $$ [Ha HT]
   · iframe
   subst hC
   imodintro
   isplitr
   · ipureintro
-    exact ⟨_, _, _, .forkS e σ₁⟩
+    exact ⟨[], _, _, _, .forkS e σ₁⟩
   iexists G
   iframe HG HF
   iexists R
   iframe HR
-  iintro %e₂ %σ₂ %efs %hs
+  iintro %obs %e₂ %σ₂ %efs %hs
   cases hs
   imod threadMapAuth_update tp i C (.fork e) (.val (.lit .unit)) $$ [Ha HT] with ⟨Ha, HT⟩
   · iframe
@@ -499,7 +503,7 @@ theorem lwp_chooseNat :
     iintro ⟨Hh, -⟩
     isplitr
     · ipureintro
-      exact ⟨_, _, _, .chooseNatS 0 σ₁⟩
+      exact ⟨[], _, _, _, .chooseNatS 0 σ₁⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     next n =>
@@ -534,7 +538,7 @@ theorem lwp_alloc (v : Val) :
     iintro ⟨Hh, -⟩
     isplitr
     · ipureintro
-      exact ⟨_, _, _, alloc_fresh v 1 σ₁ (by omega)⟩
+      exact ⟨[], _, _, _, alloc_fresh v 1 σ₁ (by omega)⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     next l _ hfresh =>
@@ -579,7 +583,7 @@ theorem lwp_free (l : Loc) (v : Val) :
       iframe
     isplitr
     · ipureintro
-      exact ⟨_, _, _, .freeS l v σ₁ hl⟩
+      exact ⟨[], _, _, _, .freeS l v σ₁ hl⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     imod genHeap_update (v₂ := none) $$ [$Hh $Hl] with ⟨Hh, Hl⟩
@@ -615,7 +619,7 @@ theorem lwp_load (l : Loc) (dq : DFrac) (v : Val) :
       itrivial
     isplitr
     · ipureintro
-      exact ⟨_, _, _, .loadS l v σ₁ hl⟩
+      exact ⟨[], _, _, _, .loadS l v σ₁ hl⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     next v' hget =>
@@ -653,7 +657,7 @@ theorem lwp_store (l : Loc) (v' v : Val) :
       iframe
     isplitr
     · ipureintro
-      exact ⟨_, _, _, .storeS l v' v σ₁ hl⟩
+      exact ⟨[], _, _, _, .storeS l v' v σ₁ hl⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     imod genHeap_update (v₂ := some v) $$ [$Hh $Hl] with ⟨Hh, Hl⟩
@@ -689,7 +693,7 @@ theorem lwp_xchg (l : Loc) (v' v : Val) :
       iframe
     isplitr
     · ipureintro
-      exact ⟨_, _, _, .xchgS l v' v σ₁ hl⟩
+      exact ⟨[], _, _, _, .xchgS l v' v σ₁ hl⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     next v'' hget =>
@@ -731,7 +735,7 @@ theorem lwp_cmpXchg_fail (l : Loc) (dq : DFrac) (v' v₁ v₂ : Val) (hne : v' �
       iframe
     isplitr
     · ipureintro
-      exact ⟨_, _, _, .cmpXchgS l v₁ v₂ v' σ₁ false hl hsafe (by simp [hne])⟩
+      exact ⟨[], _, _, _, .cmpXchgS l v₁ v₂ v' σ₁ false hl hsafe (by simp [hne])⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     next vl b _ _ hget =>
@@ -773,7 +777,7 @@ theorem lwp_cmpXchg_suc (l : Loc) (v' v₁ v₂ : Val) (heq : v' = v₁)
       iframe
     isplitr
     · ipureintro
-      exact ⟨_, _, _, .cmpXchgS l v₁ v₂ v' σ₁ true hl hsafe (by simp [heq])⟩
+      exact ⟨[], _, _, _, .cmpXchgS l v₁ v₂ v' σ₁ true hl hsafe (by simp [heq])⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     next vl b _ _ hget =>
@@ -815,7 +819,7 @@ theorem lwp_faa (l : Loc) (n₁ n₂ : Int) :
       iframe
     isplitr
     · ipureintro
-      exact ⟨_, _, _, .faaS l n₁ n₂ σ₁ hl⟩
+      exact ⟨[], _, _, _, .faaS l n₁ n₂ σ₁ hl⟩
     iintro %e₂ %σ₂ %efs %hs
     cases hs
     next i₁ hget =>

@@ -146,9 +146,10 @@ that are neither aliased nor ignored, which is no longer maintained.
 
 ## Design (the main departures from Rocq)
 
-- **One language per world**: languages are universe-monomorphic (`Expr State Val : Type`) and
-  the temporal ghost state determines the language; thread ids are list positions and pools are
-  `List Expr`; observations and prophecies are dropped.
+- **One language per world**: languages are Iris-Lean's (`Language Expr State Obs Val`, at
+  `Type`), with the evaluation contexts of `lWP` an Iris-Lean `EvContext Expr Ectx`, and the
+  temporal ghost state determines the language; thread ids are list positions and pools are
+  `List Expr`; `lWP` and traces ignore observations, and prophecies are dropped.
 - **The obligation model** keeps Rocq's rules but not its ghost layout: owners are read from the
   obligation map (no owner ghost state), there is no boolean state flag, the per-thread maps are
   folded into the forest invariant, and ordinal-valued cells live under per-obligation ghost
@@ -187,9 +188,9 @@ Lantana-Lean reimplements the Rocq development, whose README credits the sources
 parts; the Lean counterparts come from them through it:
 
 - HeapLang from Iris's HeapLang, here through a fork of Iris-Lean's;
-- the language interface, the lifting lemmas and the `lWP` notations from Iris, here after
-  Iris-Lean's, and `ProgramLogic/WeakestPre.lean` follows the structure of Iris's weakest
-  precondition;
+- the lifting lemmas and the `lWP` notations from Iris, here after Iris-Lean's (whose language
+  interface Lantana uses directly), and `ProgramLogic/WeakestPre.lean` follows the structure of
+  Iris's weakest precondition;
 - fancy updates, invariants, satisfiability and invariant locations from Transfinite Iris, and
   the relational updates and later credits from the artifact of *Later Credits* (Spies et al.,
   ICFP 2022);

@@ -10,16 +10,15 @@ Modified by the Lantana-Lean Contributors; the module documentation describes th
 -/
 module
 
-public import Lantana.ProgramLogic.EctxLanguage
 public import Lantana.ProgramLogic.Lifting
 
 /-! # Lifting lemmas for languages with evaluation contexts
 
 Rocq `lantana/program_logic/ectx_lifting.v`, after Iris-Lean's `Iris.ProgramLogic.EctxLifting`:
-the lifting lemmas of `Lantana.ProgramLogic.Lifting` stated with base steps and base
-reducibility, for the language of an `EctxLanguage`. The contexts of that language are the
-evaluation contexts `Ectx`, all of which are contexts (`instContextFill`): the lemmas quantify
-over `K : Ectx` with `fill K`, without the hypothesis `Language.Context K`.
+the lifting lemmas of `Lantana.ProgramLogic.Lifting` with base steps and base reducibility, for
+the language of an Iris-Lean `EctxLanguage`.  Every evaluation context is a context of that
+language (`EctxLanguage.instContextFill`), so the lemmas quantify over `K : Ectx` without the
+hypothesis `Language.Context (fill K)`.
 -/
 
 @[expose] public noncomputable section
@@ -27,19 +26,20 @@ over `K : Ectx` with `fill K`, without the hypothesis `Language.Context K`.
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode
-open Iris.ProgramLogic (toVal)
-open EctxLanguage
+open Iris.ProgramLogic (toVal BaseStep EctxLanguage)
+open Iris.ProgramLogic.BaseStep (baseStep)
+open Iris.ProgramLogic.EvContext (fill)
 
 section EctxLifting
 
-variable {Expr : Type} {State : Type} {Val : Type} {Ectx : Type} {GF : BundledGFunctors}
-variable [Λ : EctxLanguage Expr State Val Ectx] [ModelGS GF]
-variable [L : LantanaGS Expr State Val GF] [TemporalInterp Expr State GF]
+variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
+variable [Λ : EctxLanguage Expr Ectx State Obs Val] [ModelGS GF]
+variable [L : LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 variable {s : Stuckness} {i : ThreadId} {E E₁ E₂ : CoPset} {e e₁ : Expr} {Φ : Val → IProp GF}
 
 /-- `lwp_bind` at an evaluation context. -/
 theorem lwp_bind_fill (K : Ectx) :
-    lWP e @ s; i; E {{ fun v : Val => lWP (fill K (v : Expr)) @ s; i; E {{ Φ }} }} ⊢
+    lWP e @ s; i; E {{ v, lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }} ⊢
       lWP (fill K e) @ s; i; E {{ Φ }} :=
   lwp_bind (Expr := Expr) K
 
@@ -48,9 +48,10 @@ theorem lwp_bind_fill (K : Ectx) :
 theorem lwp_lift_base_step (he : toVal e₁ = none) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
-        ⌜BaseReducible e₁ σ₁⌝ ∗
+        ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-          ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜baseStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
+          ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+            ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
             ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
@@ -66,20 +67,21 @@ theorem lwp_lift_base_step (he : toVal e₁ = none) :
   isplitr
   · ipureintro
     cases s
-    · exact reducible_of_baseReducible hred
+    · exact EctxLanguage.primStep_reducible_of_baseStep_reducible hred
     · trivial
   icases H with ⟨%G, HG, HF, %R, HR, H⟩
   iexists G
   iframe HG HF
   iexists R
   iframe HR
-  iintro %e₂ %σ₂ %efs %hstep
-  iapply H $$ %e₂ %σ₂ %efs %(baseStep_of_primStep_of_baseReducible hred hstep)
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  iapply H $$ %obs %e₂ %σ₂ %efs
+    %(EctxLanguage.baseStep_of_primStep_of_baseStep_reducible hred hstep)
 
 @[lantana_alias lwp_lift_base_stuck]
-theorem lwp_lift_base_stuck (he : toVal e = none) (hsub : SubredexesAreValues e) :
+theorem lwp_lift_base_stuck (he : toVal e = none) (hsub : EctxLanguage.SubredexesAreValues e) :
     (∀ (K : Ectx) (σ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e)⌝ →
-      stateInterp σ tp ={E,∅}=∗ ⌜BaseStuck e σ⌝)
+      stateInterp σ tp ={E,∅}=∗ ⌜BaseStep.Stuck (e, σ)⌝)
       ⊢ lWP e @ i; E ?{{ Φ }} := by
   iintro H
   iapply lwp_lift_stuck he
@@ -87,11 +89,11 @@ theorem lwp_lift_base_stuck (he : toVal e = none) (hsub : SubredexesAreValues e)
   imod H $$ %K %σ %tp %hi Hs with %hstuck
   imodintro
   ipureintro
-  exact stuck_of_baseStuck hstuck hsub
+  exact EctxLanguage.primStep_stuck_of_baseStep_stuck hstuck hsub
 
 @[lantana_alias lwp_lift_pure_base_stuck]
-theorem lwp_lift_pure_base_stuck (he : toVal e = none) (hsub : SubredexesAreValues e)
-    (hstuck : ∀ σ, BaseStuck e σ) : iprop(True) ⊢ lWP e @ i; E ?{{ Φ }} := by
+theorem lwp_lift_pure_base_stuck (he : toVal e = none) (hsub : EctxLanguage.SubredexesAreValues e)
+    (hstuck : ∀ σ, BaseStep.Stuck (e, σ)) : iprop(True) ⊢ lWP e @ i; E ?{{ Φ }} := by
   iintro -
   iapply lwp_lift_base_stuck he hsub
   iintro %K %σ %tp %hi -
@@ -105,9 +107,10 @@ theorem lwp_lift_pure_base_stuck (he : toVal e = none) (hsub : SubredexesAreValu
 theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
-        ⌜BaseReducible e₁ σ₁⌝ ∗
+        ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-          ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜baseStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
+          ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+            ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ([∗list] j ∈ List.range efs.length, thKids (tp.length + j) ∅) -∗
             ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
@@ -123,24 +126,26 @@ theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) :
   isplitr
   · ipureintro
     cases s
-    · exact reducible_of_baseReducible hred
+    · exact EctxLanguage.primStep_reducible_of_baseStep_reducible hred
     · trivial
   icases H with ⟨%G, HG, HF, %R, HR, H⟩
   iexists G
   iframe HG HF
   iexists R
   iframe HR
-  iintro %e₂ %σ₂ %efs %hstep
-  iapply H $$ %e₂ %σ₂ %efs %(baseStep_of_primStep_of_baseReducible hred hstep)
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  iapply H $$ %obs %e₂ %σ₂ %efs
+    %(EctxLanguage.baseStep_of_primStep_of_baseStep_reducible hred hstep)
 
 /-- An atomic step of a base redex that forks no thread. -/
 @[lantana_alias lwp_lift_atomic_base_step_no_fork]
 theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
-        ⌜BaseReducible e₁ σ₁⌝ ∗
+        ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
         ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-          ∀ (e₂ : Expr) (σ₂ : State) (efs : List Expr), ⌜baseStep e₁ σ₁ e₂ σ₂ efs⌝ ={∅}=∗
+          ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
+            ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thKids i G -∗ witCreds R -∗
             ALC iprop(|={E₂,E₁}=> ⌜efs = []⌝ ∗ stateInterp σ₂ (tp.set i (fill K e₂)) ∗
               ∃ v, ⌜toVal e₂ = some v⌝ ∗ |={E₁}=>m Φ v))
@@ -157,8 +162,8 @@ theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) :
   iframe HG HF
   iexists R
   iframe HR
-  iintro %e₂ %σ₂ %efs %hstep
-  imod H $$ %e₂ %σ₂ %efs %hstep with H
+  iintro %obs %e₂ %σ₂ %efs %hstep
+  imod H $$ %obs %e₂ %σ₂ %efs %hstep with H
   imodintro
   iintro HG HW -
   ispecialize H $$ HG HW
@@ -182,8 +187,9 @@ theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) :
 @[lantana_alias lwp_lift_pure_det_base_step_no_fork]
 theorem lwp_lift_pure_det_base_step_no_fork [Inhabited State] {ς : ThreadId → Expr → IProp GF}
     [PureExecSI ς i] (E' : CoPset) {e₂ : Expr} (he : toVal e₁ = none)
-    (hsafe : ∀ σ₁, BaseReducible e₁ σ₁)
-    (hdet : ∀ σ₁ e₂' σ₂ efs, baseStep e₁ σ₁ e₂' σ₂ efs → σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) :
+    (hsafe : ∀ σ₁, BaseStep.Reducible (e₁, σ₁))
+    (hdet : ∀ σ₁ obs e₂' σ₂ efs, baseStep (e₁, σ₁) obs (e₂', σ₂, efs) →
+      σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) :
     (|={E,E'}=> ς i e₁ ∗ ∃ G, thKids i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
       (ς i e₂ -∗ thKids i G -∗ witCreds R -∗
         ALC iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})))
@@ -191,9 +197,10 @@ theorem lwp_lift_pure_det_base_step_no_fork [Inhabited State] {ς : ThreadId →
   lwp_lift_pure_det_step_no_fork (ς := ς) E'
     (fun σ₁ => by
       cases s
-      · exact reducible_of_baseReducible (hsafe σ₁)
+      · exact EctxLanguage.primStep_reducible_of_baseStep_reducible (hsafe σ₁)
       · exact he)
-    (fun σ₁ _ _ _ h => hdet _ _ _ _ (baseStep_of_primStep_of_baseReducible (hsafe σ₁) h))
+    (fun σ₁ _ _ _ _ h =>
+      hdet _ _ _ _ _ (EctxLanguage.baseStep_of_primStep_of_baseStep_reducible (hsafe σ₁) h))
 
 end EctxLifting
 

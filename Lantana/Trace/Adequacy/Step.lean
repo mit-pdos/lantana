@@ -30,8 +30,9 @@ finished thread keeps the witnesses' lower bound with the next counters
 namespace Lantana
 
 open Lantana.Model Iris.Std LawfulPartialMap
+open Iris.ProgramLogic (Language)
 
-variable {Expr : Type} {State : Type} {Val : Type} [Λ : Language Expr State Val]
+variable {Expr State Obs Val : Type} [Λ : Language Expr State Obs Val]
 
 /-- Every assigned obligation is owned by a thread that is active at the configuration `ρ`
 (Rocq `obls_thread_active`). -/

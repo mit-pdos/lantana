@@ -13,9 +13,9 @@ Rocq `lantana/trace/adequacy_safety.v`: Iris-style safety on fair behaviors, rea
 directly (no guarantees): no thread of the pool is ever stuck, and a terminated thread `j` of
 the initial pool satisfies its postcondition. (Rocq asks it of the scheduled thread; traces here
 carry no thread label, and the statement for every thread is the stronger one.) Lantana-Lean
-derives it from the generalized single-step simulation `run_step` (D20) instead of duplicating
-that proof: the step-indexed
-reading `safetyIrisTrI` (an `always` of a pure predicate) is a Löb induction whose body is one
+derives it from the single-step simulation `run_step`, which also exposes the pure facts of the
+step that safety needs, instead of duplicating that proof: the step-indexed reading
+`safetyIrisTrI` (an `always` of a pure predicate) is a Löb induction whose body is one
 `run_step` (`threadsRun_safety`), and satisfiability reads it off (`safetyIrisTrI_trProp`).
 
 The temporal layer is interpreted by the registry state (`regTemporalInterp`), initialised from
@@ -32,11 +32,11 @@ hypothesis (a thread forked later gets `forkPost`, about which nothing is assume
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Ordinals
-open Iris.ProgramLogic (toVal)
+open Iris.ProgramLogic (toVal Language EvContext)
 open Lantana.Model
 open scoped Lantana.TrProp
 
-variable {Expr State Val : Type} [Language Expr State Val]
+variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvContext Expr Ectx]
 
 /-- If thread `j` has terminated with the value `v`, then `Φ j v` (Rocq `if_term_val`). -/
 @[lantana_alias if_term_val]
@@ -59,7 +59,7 @@ section SafetyTrI
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 /-- The step-indexed reading of safety (Rocq `safety_iris_trI`, with the one-formula
-`TrIProp.always` of D20). -/
+`TrIProp.always`: Rocq's second formula is only used with `True`). -/
 @[lantana_alias safety_iris_trI]
 def safetyIrisTrI (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrIProp Expr State GF :=
   TrIProp.always fun τ => iprop(⌜safeNow (Expr := Expr) (State := State) j Φ τ⌝)
@@ -75,7 +75,7 @@ end SafetyTrI
 
 section SafetyRun
 
-variable {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Val GF]
+variable {GF : BundledGFunctors} [ModelGS GF] [L : LantanaGS Expr State Obs Val GF]
   [TemporalInterp Expr State GF]
 
 /-- The running threads are safe (Rocq `lwp_fix_safety_iris_trI`): by Löb induction, each
@@ -146,7 +146,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
       ∃ c : Fuel, ⊢@{IProp GF} |={⊤}=>
         ∃ (SI : StateInterp Expr State GF) (forkPost : ThreadId → Val → IProp GF)
           (Ψ : ThreadId → Val → IProp GF),
-          let _ : LantanaGS Expr State Val GF :=
+          let _ : LantanaGS Expr State Obs Val GF :=
             { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := forkPost }
           iprop(⌜∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ ∧ stateInterp σ tp ∗
             (£ₒ c -∗ ([∗list] j ∈ List.range tp.length, thKids j ∅) -∗
@@ -183,7 +183,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
   · itrivial
   ihave H := hc
   imod H with ⟨%SI, %fp, %Ψ, H⟩
-  letI : LantanaGS Expr State Val GF :=
+  letI : LantanaGS Expr State Obs Val GF :=
     { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := fp }
   icases H with ⟨%hΨ, Hs, Hwp⟩
   imod Hhist $$ %SI Hs with HH

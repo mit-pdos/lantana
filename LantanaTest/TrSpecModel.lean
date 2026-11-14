@@ -12,9 +12,9 @@ world satisfaction and credits (slots 0–3, as in `LantanaTest.FUpd`), obligati
 `LantanaTest.OSat`), witnesses (8–9, as in `LantanaTest.OWit`), the forest (10–11, as in
 `LantanaTest.OForest`), the model history (12), the registry (13–14, as in
 `LantanaTest.Registry`) and the history (15); its `TemporalGpreS` instance (the universe check
-of the adequacy theorem's assumptions), the allocations in the names form of D32 (up to the
-combined allocation of adequacy, `adequacy_alloc_names`, and the extraction of its names), and
-the lemmas of `Lantana.Trace.TrSpecModel` in it.
+of the adequacy theorem's assumptions), the allocations with the ghost names in the existential
+(up to the combined allocation of adequacy, `adequacy_alloc_names`, and the extraction of its
+names), and the lemmas of `Lantana.Trace.TrSpecModel` in it.
 
 Universes: the model history holds obligation maps (ordinals, `Type 2`), so its slot is
 `ULiftOF.{4}` of `constOFP` of the camera, read back with `ElemG.ofLift`, as for the bound and
@@ -94,8 +94,8 @@ noncomputable instance : MonoListG TestGF (HistEntry Exp State) :=
 
 noncomputable instance : TemporalGpreS Exp State TestGF where
 
-/-! Allocation: the model (with its `ModelGS`), and in the names form of D32: world
-satisfaction, the model, and everything adequacy allocates. -/
+/-! Allocation: the model (with its `ModelGS`), and with the ghost names in the existential:
+world satisfaction, the model, and everything adequacy allocates. -/
 
 example : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
     (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 :=

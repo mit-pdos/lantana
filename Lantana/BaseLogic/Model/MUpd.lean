@@ -16,7 +16,7 @@ public import Lantana.BaseLogic.Model.OForest
 Rocq `lantana/base_logic/mupd.v` and `model_physical_updates.v`: the ghost state of the whole
 model (`ModelGS`), its interpretation `modelInterp h i Ω W n tc` (history, obligations, forest,
 witnesses, and the witness invariant), and the model update `mupd n tc P` as the *least fixpoint*
-of rounds (D11): the prover changes the obligations by `Obls.lef`, the environment picks any
+of rounds: the prover changes the obligations by `Obls.lef`, the environment picks any
 admissible witnesses, and the update continues. `modelInterp_mupd_steps` is adequacy's
 elimination: the rounds compose into `Obls.le` and witnesses keeping a lower bound exist
 (`owitInv_exists_witnesses`). The two single rounds of a physical step, `mprog` (progress of the
@@ -364,8 +364,8 @@ theorem modelInterp_mupd_steps (n tc : Nat) (γ : ThreadId → Fuel → Fuel)
 end ModelInterp
 
 /-- The ghost names of the model: of world satisfaction and the credits, of the obligations, of
-the witnesses, of the forest and of the model history (D32: small enough for the existential
-property of satisfiability, unlike `ModelGS GF`). -/
+the witnesses, of the forest and of the model history (small enough for the existential property
+of satisfiability, unlike `ModelGS GF`). -/
 structure _root_.Lantana.ModelNames where
   /-- World satisfaction and the credits. -/
   inv : InvNames
@@ -387,8 +387,9 @@ structure _root_.Lantana.ModelNames where
   toOForestGS := OForestGS.ofNames γ.oforest
   toMHistGS := MHistGS.ofName γ.mhist
 
-/-- Allocation of the model at names `γ` (D32), with the credit supply, world satisfaction and
-the full mask of the invariants. -/
+/-- Allocation of the model at names `γ` (small enough for the existential property of
+satisfiability), with the credit supply, world satisfaction and the full mask of the
+invariants. -/
 theorem modelInterp_alloc_names {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat) :
     ⊢@{IProp GF} |==> ∃ γ : ModelNames, letI := ModelGS.ofNames (GF := GF) γ
       iprop((∃ x : Ordinals.Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗

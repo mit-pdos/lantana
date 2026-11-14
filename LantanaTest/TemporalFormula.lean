@@ -12,9 +12,10 @@ guarantees inferred from the shape of a formula, and the axioms of the guarantee
 namespace LantanaTest.TemporalFormula
 
 open Iris Iris.BI Lantana
+open Iris.ProgramLogic (Language)
 open scoped Lantana.TrProp Lantana.TrSpec
 
-variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
   [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- `iinv` opens an `alwaysI` like an invariant. -/

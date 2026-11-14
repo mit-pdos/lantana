@@ -13,7 +13,7 @@ public import Lantana.Trace.StateAtom
 
 Rocq `lantana/trace/triprop.v`: predicates `Trace → IProp GF` (the internal reading, which a run
 establishes) and the two guarded fixpoints `TrIProp.always` and `TrIProp.until` (with a
-decreasing fuel rank). Their bodies carry the **deferred shape** `defer` (D19): a check at the
+decreasing fuel rank). Their bodies carry the **deferred shape** `defer`: a check at the
 current position (a fancy update with a later, where adequacy certifies the registered
 invariants) followed by the step (a fancy update that allocates later credits); everything
 about a position is established after the step from it.

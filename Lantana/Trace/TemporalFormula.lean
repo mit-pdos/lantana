@@ -38,10 +38,11 @@ The structures carry their trace readings `G` explicitly (`alwaysIGuar`, `untilI
 namespace Lantana
 
 open Iris Iris.BI
+open Iris.ProgramLogic (Language)
 open Lantana.Model
 open scoped Lantana.TrSpec Lantana.TrProp
 
-variable {Expr State Val : Type} {GF : BundledGFunctors} [Language Expr State Val]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
 variable [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-! ## The registry and the registered structures -/
