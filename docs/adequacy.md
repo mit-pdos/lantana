@@ -5,7 +5,7 @@ an obligation that holds `P` until `Q`.  This note describes how they are regist
 guarantee `P ⊨ₜ G` is, how the adequacy proof reads the formulas off a run, the rules that
 discharge untils, the structure of the adequacy proof, and the crash test.  Configurations, the
 step of `lWP` and the lifting lemmas are described in `docs/program-logic.md`; the obligation
-model, the nodes of crashed threads and the rounds of a step in `docs/activity.md`; traces,
+model, the nodes of crashed threads and the rounds of a step in `docs/model.md`; traces,
 schedules and fairness counters in `docs/temporal.md`.
 
 | module | contents |
@@ -167,7 +167,7 @@ the obligation below a parent, adds it to the parent's bill and lets the formula
 The rules above discharge an until inside its own invariant.  A thread whose step crashes
 another must discharge the other's obligations in the model update inside the physical round,
 which runs at the empty mask against the new configuration (`docs/program-logic.md`, §3;
-`docs/activity.md`, §4).  The invariants are then opened before the step and closed after it:
+`docs/activity.md`, §3).  The invariants are then opened before the step and closed after it:
 
 - `untilIGuar_acc_assigned` opens the invariant of an until held in full (`q = 1`).  It gives the
   content with the whole assignment of `k`, the guarantee of the right formula under a later,
@@ -192,7 +192,7 @@ The number of obligations to discharge need not be known.
   crashed.
 - `untilIGuar_discharge_opened_forest` discharges a forest in one model update: every obligation
   of `S`, with its whole assignment, where `S` is closed under children (`kids`) and hangs below
-  the roots `ps`.  It rests on `obl_discharge_forest` (`docs/activity.md`, §4) and leaves each
+  the roots `ps`.  It rests on `obl_discharge_forest` (`docs/model.md`, §6) and leaves each
   root with its children outside `S`.  `…_all` is the case where the roots end without
   children, and `…_threads` the case of thread roots, which end at `thKids j ∅`.
 
@@ -226,7 +226,7 @@ user then chooses the state interpretation (after allocating the language's ghos
 postcondition of the forked threads and the postconditions of the initial threads.  The pieces
 of an initial thread `j` are its empty bill `thCarriers j ∅` and, if it is not crashed, its
 running handle and empty children `thActive j ∗ thKids j ∅`; the model holds the node of a
-crashed one (`docs/activity.md`, §3).  `initThreads_of_not_crashed` gives the plain list when no
+crashed one (`docs/model.md`, §4).  `initThreads_of_not_crashed` gives the plain list when no
 initial thread is crashed.
 
 `lwp_adequacy_safety` assumes the same, with a postcondition of an initial thread `j` that
@@ -341,7 +341,7 @@ the interpretation of the temporal layer, initialized from the empty registry of
 ## 7. The crash test
 
 `LantanaTest/Crash/` verifies end to end a small language whose threads crash (the idea is in
-`docs/activity.md`, §7).
+`docs/activity.md`, §3).
 
 - `Lang.lean`: the language, a worker `work n`, a killer and a reviver over a boolean state,
   "the worker is alive"; the worker is crashed while the state is `false` (`instCrash`).  The

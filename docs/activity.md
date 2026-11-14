@@ -55,7 +55,7 @@ That update runs at the empty mask, so the invariants of the obligations are ope
 step and closed after it, in pairwise disjoint namespaces.  The rules discharge a whole forest
 of obligations, of any size and shape, in one update: `obl_discharge_forest`,
 `untilIGuar_acc_assigned_set`, `untilIGuar_discharge_opened_forest` and their forms for thread
-roots (`docs/adequacy.md`).
+roots (`docs/adequacy.md`, §4.1–§4.2).
 
 ## 4. Proofs
 
@@ -65,6 +65,6 @@ roots (`docs/adequacy.md`).
   threads (`docs/program-logic.md`, §3).
 - **Adequacy.**  Every owner of an obligation is active: a finished thread owns nothing by its
   `Th.done`, a crashed one by its bit in the model.  The premise of the adequacy theorems gives
-  every initial thread its bill, and its node if it is not crashed (`docs/adequacy.md`).
+  every initial thread its bill, and its node if it is not crashed (`docs/adequacy.md`, §5).
 - **Example.**  `LantanaTest/Crash/` verifies a worker with any number of obligations, a killer
-  that crashes it or gives up, and a reviver, end to end (`docs/adequacy.md`).
+  that crashes it or gives up, and a reviver, end to end (`docs/adequacy.md`, §7).

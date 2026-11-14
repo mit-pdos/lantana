@@ -185,6 +185,9 @@ All documents live in `docs/`:
   and the differences with the Rocq development.
 - [`docs/program-logic.md`](docs/program-logic.md): configurations, thread steps and activity,
   `lWP` and its step, the lifting lemmas, HeapLang's laws and the step tactics.
+- [`docs/adequacy.md`](docs/adequacy.md): the registry and the temporal formulas, guarantees
+  and records, the rules that discharge untils (one, a set, a forest), the structure of the
+  adequacy proof, and the crash test.
 - [`docs/activity.md`](docs/activity.md): overview of crashed threads: how a language declares
   them, the node of a thread in three pieces, and what a step that crashes a thread must do.
 - [`docs/performance.md`](docs/performance.md): where the build time goes, by layer, module and
