@@ -10,11 +10,12 @@ public import LantanaTest.Crash.Kill
 
 The worker (thread `0`) keeps privately its bill (`{k}`, or `∅` once it has stepped crashed) and
 the fuel of `k`. Each step it sees the state: alive, it pays its bill and works; alive at `work 0`
-it opens the shared invariant (with a later credit of its own) and, in the physical round, at the
-new configuration where it has finished, discharges `k'` and `k` with the first disjunct of their
-formulas and ends its thread; crashed, it takes its silent step for free (the crashed branch of
-`lwp_step`) and gets its bill back empty. The loop is a Löb induction, each step giving the later
-credit that strips the later of the induction hypothesis.
+it opens the shared invariant (with a later credit of its own) and the obligation invariants of
+all of `S` and, in the physical round, at the new configuration where it has finished, discharges
+the whole forest with the first disjunct of their formulas and ends its thread; crashed, it takes
+its silent step for free (the crashed branch of `lwp_step`) and gets its bill back empty. The
+loop is a Löb induction, each step giving the later credit that strips the later of the induction
+hypothesis.
 -/
 
 @[expose] public noncomputable section
@@ -82,8 +83,8 @@ theorem worker_pay (k : Oid) (B : Oids) (hB : B = ∅ ∨ B = {k}) (tp : ThreadP
 
 /-- The worker: from `work m`, with its bill `B` and the fuel of `k` for `m + 1` steps, it works
 until it finishes, or loops for ever while crashed. -/
-theorem worker_spec (k k' : Oid) :
-    inv Ninv (crashInv (GF := GF) k k') ⊢ ∀ (m : Nat) (B : Oids), £ₙ 1 -∗ thCarriers 0 B -∗
+theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow {k} S kids) :
+    inv Ninv (crashInv (GF := GF) k S kids) ⊢ ∀ (m : Nat) (B : Oids), £ₙ 1 -∗ thCarriers 0 B -∗
       ⌜B = ∅ ∨ B = {k}⌝ -∗ oblFuels {k} ((m + 1 : Nat) : Measure) -∗
       lWP (Exp.work m) @ 0; ⊤ {{ fun _ => Th.done 0 }} := by
   iintro #HI
@@ -173,12 +174,12 @@ theorem worker_spec (k k' : Oid) :
       icombine Hs Hv gives %⟨-, hbf⟩
       obtain ⟨rfl, rfl⟩ : true = b ∧ false = f := Prod.mk.inj hbf
       simp only [crashProto]
-      icases HC with (HW | ⟨Ha0, Hk0, #Dk, #Dk'⟩)
-      · -- with its obligations: the invariants of `k'` and `k` are opened before the step
+      icases HC with (HW | ⟨Ha0, Hk0, -⟩)
+      · -- with its obligations: the invariants of all of `S` are opened before the step
         iunfold workerObls at HW
-        icases HW with ⟨Ha0, Hk0, HU, Hkk, HU', Hkk'⟩
-        imod finallyI_acc_assigned Nk'_subseteq $$ HU' with ⟨>Oa', Hcl'⟩
-        imod finallyI_acc_assigned Nk_subseteq $$ HU with ⟨>Oa, Hcl⟩
+        icases HW with ⟨Ha0, Hk0, HW⟩
+        icases BigSepS.bigSepS_sep.1 $$ HW with ⟨HU, Hkk⟩
+        imod finallyI_acc_assigned_set_ndot Nobl_subseteq $$ HU with ⟨Oa, Hcl⟩
         iapply fupd_mask_intro Std.LawfulSet.empty_subset
         iintro Hcl₀
         isplitr
@@ -199,22 +200,21 @@ theorem worker_spec (k k' : Oid) :
             exact hS' _ (.inr rfl)
           iintro HG
           iapply ALC_intro
-          imod finallyI_discharge_opened ∅ (.obl k) {k'} (mem_singleton k')
-            (stVar_doneOrCrashed_fin (Qp.half 1) true) $$ Oa' Hkk Hkk' Hv with ⟨Hv, Hkk, -, V'⟩
-          rw [erase_singleton]
-          imod finallyI_discharge_opened ∅ (.thread 0) {k} (mem_singleton k)
-            (stVar_doneOrCrashed_fin (Qp.half 1) true) $$ Oa Hk0 Hkk Hv with ⟨Hv, Hk0, -, V⟩
-          rw [erase_singleton]
+          imod finallyI_discharge_opened_forest_threads ∅ [0] (fun _ => {k}) kids hF.roots
+            hF.2.1 hF.covered (fun _ _ => stVar_doneOrCrashed_fin (Qp.half 1) true)
+            $$ [Hk0] [Oa Hkk] Hv with ⟨Hv, Hk0, HD⟩
+          · iapply BigSepL.bigSepL_singleton.2
+            iexact Hk0
+          · iapply BigSepS.bigSepS_sep.2
+            iframe Oa Hkk
+          icases BigSepL.bigSepL_singleton.1 $$ Hk0 with Hk0
+          icases BigSepS.bigSepS_sep.1 $$ HD with ⟨-, HV⟩
           imod Th.terminate ∅ 0 $$ Ha0 Hk0 with #Hd
           imodintro
           iapply Th.nodes_unchanged _ (hkeep _ _ .finish)
           imod Hcl₀ with -
-          imod Hcl $$ [V] with -
-          · inext
-            iexact V
-          imod Hcl' $$ [V'] with -
-          · inext
-            iexact V'
+          imod Hcl $$ [HV] with -
+          · iapply BigSepS.bigSepS_mono_of_forall (fun _ => later_intro) $$ HV
           imod Hclose $$ [Hv] with -
           · inext
             iunfold crashInv

@@ -27,8 +27,8 @@ variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 
 /-- The reviver: from any state of the protocol it revives; reviving a crashed worker receives
 its node from the model and puts it back in the shared invariant. -/
-theorem reviver_spec (k k' : Oid) :
-    inv Ninv (crashInv (GF := GF) k k') ⊢ £ₙ 1 -∗ thActive 2 -∗ thKids 2 ∅ -∗ thCarriers 2 ∅ -∗
+theorem reviver_spec (k : Oid) (S : Oids) (kids : Oid → Oids) :
+    inv Ninv (crashInv (GF := GF) k S kids) ⊢ £ₙ 1 -∗ thActive 2 -∗ thKids 2 ∅ -∗ thCarriers 2 ∅ -∗
       lWP Exp.revive @ 2; ⊤ {{ fun _ => Th.done 2 }} := by
   iintro #HI Hc Ha2 Hk2 HG
   iapply lwp_step (rfl : toVal Exp.revive = none)
