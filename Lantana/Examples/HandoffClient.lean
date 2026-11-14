@@ -443,6 +443,7 @@ theorem handoffClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior �
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HK, HG⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
@@ -477,6 +478,7 @@ theorem handoffClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBeh
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HK, HG⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT

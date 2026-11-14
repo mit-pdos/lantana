@@ -528,6 +528,7 @@ theorem taskQueueClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior
   isplitl [Hσ]
   · iexact Hσ
   iintro - HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   imod taskQueueClient_init hs $$ HT HG with ⟨%μ, HP, Hwp⟩
   imodintro
   iexists mainRes 0 μ
@@ -555,6 +556,7 @@ theorem taskQueueClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsB
   isplitl [Hσ]
   · iexact Hσ
   iintro - HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   imod taskQueueClient_init hs $$ HT HG with ⟨%μ, HP, Hwp⟩
   iapply Hwp $$ HP
 

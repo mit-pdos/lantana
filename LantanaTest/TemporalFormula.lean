@@ -16,7 +16,7 @@ open Iris.ProgramLogic (Language)
 open scoped Lantana.TrProp Lantana.TrSpec
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
-  [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+  [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- `iinv` opens an `alwaysI` like an invariant. -/
 example (N : Namespace) (P : IProp GF) [Persistent P] : alwaysI N P ⊢ |={⊤}=> ▷ P := by

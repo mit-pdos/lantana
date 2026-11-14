@@ -334,6 +334,7 @@ theorem main_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
@@ -368,6 +369,7 @@ theorem main_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT

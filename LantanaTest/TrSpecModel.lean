@@ -99,32 +99,36 @@ noncomputable instance : TemporalGpreS Exp State TestGF where
 /-! Allocation: the model (with its `ModelGS`), and with the ghost names in the existential:
 world satisfaction, the model, and everything adequacy allocates. -/
 
-example : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
-    (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 :=
-  modelInterp_alloc 0
+example (X : ThreadId → Prop) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
+    (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 X :=
+  modelInterp_alloc 0 X
 
 example : ⊢@{IProp TestGF} |==> ∃ γ : InvNames, letI := InvGS.ofNames (GF := TestGF) γ
     iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤) :=
   invGS_alloc_names
 
-example : ⊢@{IProp TestGF} |==> ∃ γ : ModelNames, letI := ModelGS.ofNames (GF := TestGF) γ
-    iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0) :=
-  modelInterp_alloc_names 0
+example (X : ThreadId → Prop) :
+    ⊢@{IProp TestGF} |==> ∃ γ : ModelNames, letI := ModelGS.ofNames (GF := TestGF) γ
+      iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 X) :=
+  modelInterp_alloc_names 0 X
 
-example (σ : State) (tp : ThreadPool Exp) :
+example (σ : State) (tp : ThreadPool Exp) (X : ThreadId → Prop) :
     ⊢@{IProp TestGF} |==> ∃ γ : ModelNames × TemporalNames,
       letI := ModelGS.ofNames (GF := TestGF) γ.1
       letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
       iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
-        modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length ∗
-        ([∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) ∗
+        modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length X ∗
+        ([∗list] j ∈ List.range tp.length,
+          (⌜¬X j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ∗
         (∀ _ : StateInterp Exp State TestGF,
           stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp) ∗
         regAuth []) :=
-  adequacy_alloc_names σ tp
+  adequacy_alloc_names σ tp X
 
-/-- The extraction of the names, as in adequacy: the instances are rebuilt from them, then the
-state interpretation is chosen (here a trivial one) and the registry gets its interpretation. -/
+/-- The extraction of the names, as in adequacy (the model at the crashed threads of the initial
+configuration): the instances are rebuilt from them, then the state interpretation is chosen
+(here a trivial one), the registry gets its interpretation, and, no thread of HeapLang being
+crashed, every initial thread gets its pieces (`Examples.initThreads`). -/
 example (σ : State) (tp : ThreadPool Exp) : ∃ γ : ModelNames × TemporalNames,
     letI := ModelGS.ofNames (GF := TestGF) γ.1
     letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
@@ -132,11 +136,14 @@ example (σ : State) (tp : ThreadPool Exp) : ∃ γ : ModelNames × TemporalName
     (iPropSat (GF := TestGF)).sat iprop(wsat ∗ ownE ⊤ ∗ |==> (historyInterp [(σ, tp)] 0 σ tp ∗
       regStateWith (fun _ => iprop(True)) ∗
       [∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅)) := by
-  obtain ⟨γ, h⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := TestGF) σ tp)
+  obtain ⟨γ, h⟩ :=
+    iPropSat.sat_alloc (adequacy_alloc_names (GF := TestGF) σ tp (Cfg.crashed (tp, σ)))
   refine ⟨γ, iPropSat.mono ?_ h⟩
+  letI := ModelGS.ofNames (GF := TestGF) γ.1
   letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
   letI : StateInterp Exp State TestGF := ⟨fun _ _ => iprop(True)⟩
   iintro ⟨-, Hw, HE, -, Hk, HH, HR⟩
+  ihave Hk := Lantana.Examples.initThreads σ tp $$ Hk
   iframe Hw HE
   have hs : ⊢@{IProp TestGF} stateInterp σ tp := true_intro
   ihave Hs := hs
