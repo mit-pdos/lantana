@@ -200,7 +200,8 @@ and the empty sets of children of those not crashed, `initThreads_of_not_crashed
 that guarantees `G` together with `lWP`s for the initial threads, then every fair behavior from
 the initial configuration satisfies `R`.
 Fairness is the strong fairness of every thread's scheduling action (`fairScheduling`, a trace
-property); the proof chooses a schedule as its instrument (`exists_fair_schedule_schedCounters`). -/
+property), enabled where the thread is active (`Cfg.active`, which a crashed thread is not); the
+proof chooses a schedule as its instrument (`exists_fair_schedule_schedCounters`). -/
 @[lantana_alias lwp_adequacy_temporal]
 theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val]
     [EvContext Expr Ectx] [Crash Expr State Obs Val] {GF : BundledGFunctors}
