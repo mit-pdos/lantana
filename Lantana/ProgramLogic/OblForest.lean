@@ -21,7 +21,11 @@ public import Lantana.BaseLogic.Model.OPreds
 The core of the logic (Rocq `lantana/program_logic/obl_forest.v`): the obligation predicates,
 the model update `|={E₁,E₂}=>m P`, the physical-step modalities, and their rules. Every live
 obligation is a child of one parent, a thread or an obligation (`Par.kids p K`: the children of
-`p` are exactly `K`).
+`p` are exactly `K`). A thread also has its running handle `Th.active i`, by which it
+terminates, and its bill `Th.carriers i B`, an upper bound of its children: what a step of the
+thread pays for (`step_progress`). Adding a child under `p` adds it to the bill `Par.bill p B`
+(nothing for an obligation); removing one leaves the bill stale until `Th.carriers_resync` or
+`Th.carriers_erase_discharged`.
 
 Design: this is a *sealed API module*, not a class. The predicates are defined by the
 model (`Lantana.BaseLogic`) and re-exported here as irreducible definitions; the rules are
@@ -34,7 +38,7 @@ is the corresponding model lemma (`Lantana.BaseLogic.Model.OPreds`, `OPredsBase`
 through these unfoldings; the model updates of the forest operations are lifted from the base
 model update `|=[n,tc]=>m` to `|={E}=>m` by `mupd_of_base`. The predicates take the ghost state
 of the model, `[ModelGS GF]`. The last section exposes what the adequacy proofs read of the
-model: the children predicates of new threads and the runs of `|=[n,tc]=>m`, `mprog`, `mphys`
+model: the predicates of new threads and the runs of `|=[n,tc]=>m`, `mprog`, `mphys`
 and `|={E₁,E₂}=>m` against the model interpretation `Model.modelInterp`.
 
 `Obl.fuel_eq` is unprovable as stated (it lacks the hypothesis `ℓ₁ = ℓ₂` of Rocq
@@ -58,10 +62,18 @@ variable {GF : BundledGFunctors} [ModelGS GF]
 
 Each predicate is an irreducible definition over the model, unfolded only in this file. -/
 
-/-- `Par.kids p K`: the children of `p` are exactly `K`. For a thread, it is also running;
-for an obligation, it exists exactly while the obligation is live and in the forest. -/
+/-- `Par.kids p K`: the children of `p` are exactly `K`. For an obligation, it exists exactly
+while the obligation is live and in the forest. -/
 @[lantana_alias oblf.parP_kids, irreducible]
 def Par.kids (p : Parent) (K : Oids) : IProp GF := Model.OPreds.parKids p K
+
+/-- Thread `i` is running: the handle by which it terminates. -/
+@[irreducible]
+def Th.active (i : ThreadId) : IProp GF := Model.OPreds.thActive i
+
+/-- The bill of thread `i`: an upper bound `B` of its children, what a step of `i` pays for. -/
+@[irreducible]
+def Th.carriers (i : ThreadId) (B : Oids) : IProp GF := Model.OForest.bill i B
 
 /-- Thread `i` has terminated. -/
 @[lantana_alias oblf.thP_done, irreducible]
@@ -117,6 +129,10 @@ def mphys (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) : IProp GF := Model.mphys
 
 private theorem Par.kids_unfold : Par.kids (GF := GF) = Model.OPreds.parKids := by
   funext p K; exact Par.kids.eq_1 p K
+private theorem Th.active_unfold : Th.active (GF := GF) = Model.OPreds.thActive := by
+  funext i; exact Th.active.eq_1 i
+private theorem Th.carriers_unfold : Th.carriers (GF := GF) = Model.OForest.bill := by
+  funext i B; exact Th.carriers.eq_1 i B
 private theorem Th.done_unfold : Th.done (GF := GF) = Model.OPreds.thDone := by
   funext i; exact Th.done.eq_1 i
 private theorem Obl.assigned_unfold : Obl.assigned (GF := GF) = Model.OPreds.oblAssigned := by
@@ -189,10 +205,25 @@ scoped macro_rules
 scoped notation:max "thKids " i:max K:max => Par.kids (Parent.thread i) K
 /-- `oblKids k K`: the children of obligation `k` are `K`. -/
 scoped notation:max "oblKids " k:max K:max => Par.kids (Parent.obl k) K
+/-- `thActive i`: thread `i` is running. -/
+scoped notation:max "thActive " i:max => Th.active i
+/-- `thCarriers i B`: the bill of thread `i` is `B`. -/
+scoped notation:max "thCarriers " i:max B:max => Th.carriers i B
 
 section Rules
 
 variable {Expr : Type} {State : Type} {GF : BundledGFunctors} [ModelGS GF]
+
+/-- The bill of a parent: the bill of a thread, nothing for an obligation. -/
+abbrev Par.bill : Parent → Oids → IProp GF
+  | .thread i, B => Th.carriers i B
+  | .obl _, _ => iprop(emp)
+
+private theorem Par.bill_unfold : Par.bill (GF := GF) = Model.OForest.parBill := by
+  funext p B
+  cases p with
+  | thread i => exact congrFun (congrFun Th.carriers_unfold i) B
+  | obl q => rfl
 
 /-- One unit of fuel at layer `ℓ` is enough to hang below `p`: always below a thread; below
 an obligation `q`, `ℓ` must be above a witness layer of `q`. -/
@@ -237,6 +268,13 @@ private theorem parBelow_eq (p : Parent) (ℓ : Layer) :
 
 instance Par.kids_timeless (p : Parent) (K : Oids) : Timeless (Par.kids (GF := GF) p K) := by
   rw [Par.kids_unfold]; infer_instance
+instance Th.active_timeless (i : ThreadId) : Timeless (Th.active (GF := GF) i) := by
+  rw [Th.active_unfold]; infer_instance
+instance Th.carriers_timeless (i : ThreadId) (B : Oids) :
+    Timeless (Th.carriers (GF := GF) i B) := by
+  rw [Th.carriers_unfold]; infer_instance
+instance Par.bill_timeless (p : Parent) (B : Oids) : Timeless (Par.bill (GF := GF) p B) := by
+  cases p <;> infer_instance
 instance Th.done_timeless (i : ThreadId) : Timeless (Th.done (GF := GF) i) := by
   rw [Th.done_unfold]; infer_instance
 instance Th.done_persistent (i : ThreadId) : Persistent (Th.done (GF := GF) i) := by
@@ -416,6 +454,10 @@ theorem Par.kids_discharged (k : Oid) (p : Parent) (K : Oids) :
   rw [Par.kids_unfold, Obl.discharged_unfold]
   exact Model.OPreds.parKids_discharged k p K
 
+theorem Th.active_done_false (i : ThreadId) : Th.active (GF := GF) i ⊢ Th.done i -∗ False := by
+  rw [Th.active_unfold, Th.done_unfold]
+  exact Model.OPreds.thActive_done_false i
+
 /-- Fuels at one layer with equal interpretations are equal (Rocq `oblP_fuel_proper`, whose
 hypothesis `ℓ1 == ℓ2` is the shared layer here). Across layers the statement would be unsound:
 `rep ℓ 1 = rep ℓ' 1`, and `Obl.fuel_extend` with `Obl.fuel_add` would duplicate fuel. -/
@@ -535,23 +577,24 @@ variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 @[lantana_alias oblf.thread_terminate]
 theorem Th.terminate (E : CoPset) (i : ThreadId) :
-    thKids i ∅ ⊢ |={E}=>m Th.done (GF := GF) i := by
-  rw [Par.kids_unfold, Th.done_unfold]
-  iintro H
+    Th.active (GF := GF) i ⊢ thKids i ∅ -∗ |={E}=>m Th.done i := by
+  rw [Th.active_unfold, Par.kids_unfold, Th.done_unfold]
+  iintro Ha H
   iapply mupd_of_base
   iintro %n %tc
-  iapply Model.OPreds.thread_terminate_mupd n tc i $$ H
+  iapply Model.OPreds.thread_terminate_mupd n tc i $$ Ha H
 
 @[lantana_alias oblf.obl_new]
-theorem Obl.new (E : CoPset) (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗
-      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ oblKids k ∅ ∗
-        Obl.assigned k 1 ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ := by
-  rw [Par.kids_unfold, Obl.assigned_unfold, Obl.fuel_unfold, Wit.layer_unfold, parLe_eq]
-  iintro Hb Hp
+theorem Obl.new (E : CoPset) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
+    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+      |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
+        oblKids k ∅ ∗ Obl.assigned k 1 ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ := by
+  rw [Par.kids_unfold, Par.bill_unfold, Obl.assigned_unfold, Obl.fuel_unfold, Wit.layer_unfold,
+    parLe_eq]
+  iintro Hb Hp HB
   iapply mupd_of_base
   iintro %n %tc
-  iapply Model.OPreds.obl_new_mupd n tc p K ℓ μ $$ Hb Hp
+  iapply Model.OPreds.obl_new_mupd n tc p K B ℓ μ $$ Hb Hp HB
 
 @[lantana_alias oblf.obl_new_discharged]
 theorem Obl.new_discharged (E : CoPset) (ℓ : Layer) :
@@ -562,26 +605,57 @@ theorem Obl.new_discharged (E : CoPset) (ℓ : Layer) :
   iapply Model.OPreds.obl_new_discharged_mupd n tc ℓ
 
 @[lantana_alias oblf.obl_move]
-theorem Obl.move (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ : Oids) (k : Oid) (ℓ : Layer)
+theorem Obl.move (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k : Oid) (ℓ : Layer)
     (hk : k ∈ K₁) :
-    parBelow (GF := GF) p₂ ℓ ⊢ Par.kids p₁ K₁ -∗ Par.kids p₂ K₂ -∗ Obl.fuel k ℓ 1 -∗
-      |={E}=>m ⌜k ∉ K₂⌝ ∗ Par.kids p₁ (K₁.erase k) ∗ Par.kids p₂ (K₂.insert k) := by
-  rw [Par.kids_unfold, Obl.fuel_unfold, parBelow_eq]
-  iintro Hb H₁ H₂ Hf
+    parBelow (GF := GF) p₂ ℓ ⊢ Par.kids p₁ K₁ -∗ Par.kids p₂ K₂ -∗ Par.bill p₂ B₂ -∗
+      Obl.fuel k ℓ 1 -∗ |={E}=>m ⌜k ∉ K₂⌝ ∗ Par.kids p₁ (K₁.erase k) ∗
+        Par.kids p₂ (K₂.insert k) ∗ Par.bill p₂ (B₂.insert k) := by
+  rw [Par.kids_unfold, Par.bill_unfold, Obl.fuel_unfold, parBelow_eq]
+  iintro Hb H₁ H₂ HB Hf
   iapply mupd_of_base
   iintro %n %tc
-  iapply Model.OPreds.obl_move_mupd n tc p₁ p₂ K₁ K₂ k ℓ hk $$ Hb H₁ H₂ Hf
+  iapply Model.OPreds.obl_move_mupd n tc p₁ p₂ K₁ K₂ B₂ k ℓ hk $$ Hb H₁ H₂ HB Hf
 
 @[lantana_alias oblf.obl_move_up]
-theorem Obl.move_up (E : CoPset) (p : Parent) (K : Oids) (k : Oid) (Kk : Oids) (x : Oid)
+theorem Obl.move_up (E : CoPset) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oids) (x : Oid)
     (hk : k ∈ K) (hx : x ∈ Kk) :
-    Par.kids (GF := GF) p K ⊢ oblKids k Kk -∗
-      |={E}=>m ⌜x ∉ K⌝ ∗ Par.kids p (K.insert x) ∗ oblKids k (Kk.erase x) := by
-  rw [Par.kids_unfold]
-  iintro Hp Hk
+    Par.kids (GF := GF) p K ⊢ Par.bill p B -∗ oblKids k Kk -∗
+      |={E}=>m ⌜x ∉ K⌝ ∗ Par.kids p (K.insert x) ∗ Par.bill p (B.insert x) ∗
+        oblKids k (Kk.erase x) := by
+  rw [Par.kids_unfold, Par.bill_unfold]
+  iintro Hp HB Hk
   iapply mupd_of_base
   iintro %n %tc
-  iapply Model.OPreds.obl_move_up_mupd n tc p K k Kk x hk hx $$ Hp Hk
+  iapply Model.OPreds.obl_move_up_mupd n tc p K B k Kk x hk hx $$ Hp HB Hk
+
+/-! ## The bill of a thread -/
+
+/-- The bill of thread `i` contains its children. -/
+theorem Th.carriers_kids_subset (E : CoPset) (i : ThreadId) (B K : Oids) :
+    Th.carriers (GF := GF) i B ⊢ thKids i K -∗ |={E}=>m ⌜K ⊆ B⌝ ∗ thCarriers i B ∗ thKids i K := by
+  rw [Th.carriers_unfold, Par.kids_unfold]
+  iintro Hb Hk
+  iapply mupd_of_base
+  iintro %n %tc
+  iapply Model.OPreds.bill_kids_subset_mupd n tc i B K $$ Hb Hk
+
+/-- The bill of thread `i` becomes its children. -/
+theorem Th.carriers_resync (E : CoPset) (i : ThreadId) (B K : Oids) :
+    Th.carriers (GF := GF) i B ⊢ thKids i K -∗ |={E}=>m thCarriers i K ∗ thKids i K := by
+  rw [Th.carriers_unfold, Par.kids_unfold]
+  iintro Hb Hk
+  iapply mupd_of_base
+  iintro %n %tc
+  iapply Model.OPreds.bill_resync_mupd n tc i B K $$ Hb Hk
+
+/-- A discharged obligation leaves the bill of thread `i`. -/
+theorem Th.carriers_erase_discharged (E : CoPset) (i : ThreadId) (B : Oids) (k : Oid) :
+    Th.carriers (GF := GF) i B ⊢ Obl.discharged k -∗ |={E}=>m thCarriers i (B.erase k) := by
+  rw [Th.carriers_unfold, Obl.discharged_unfold]
+  iintro Hb Hd
+  iapply mupd_of_base
+  iintro %n %tc
+  iapply Model.OPreds.bill_erase_discharged_mupd n tc i B k $$ Hb Hd
 
 @[lantana_alias oblf.obl_check_witness]
 theorem Obl.check_witness (E : CoPset) (r : Oid) (ℓ : Layer) :
@@ -610,24 +684,24 @@ end ModelUpdate
 
 section Physical
 
-/-- A step of thread `i` burns one unit of fuel of each child of `i` and gives one credit for
-each live witness in `R`. -/
+/-- A step of thread `i` burns one unit of fuel of each obligation of the bill of `i` and gives
+one credit for each live witness in `R`. -/
 @[lantana_alias oblf.step_progress]
-theorem step_progress (n tc : Nat) (i : ThreadId) (K R : Oids) (P : IProp GF) :
-    thKids i K ⊢ oblFuels K 1 -∗ witLayers R -∗
-      (thKids i K -∗ witCreds R ={∅}=∗ P) -∗ mprog n tc i P := by
+theorem step_progress (n tc : Nat) (i : ThreadId) (B R : Oids) (P : IProp GF) :
+    thCarriers i B ⊢ oblFuels B 1 -∗ witLayers R -∗
+      (thCarriers i B -∗ witCreds R ={∅}=∗ P) -∗ mprog n tc i P := by
   unfold oblFuels witLayers witCreds
-  rw [Par.kids_unfold, Obl.fuel_unfold, Wit.layer_unfold, Wit.cred_unfold,
+  rw [Th.carriers_unfold, Obl.fuel_unfold, Wit.layer_unfold, Wit.cred_unfold,
     Obl.discharged_unfold, mprog_unfold]
-  exact Model.OPreds.mprog_step_kids n tc i K R P
+  exact Model.OPreds.mprog_step_kids n tc i B R P
 
-/-- A step that forks the threads `tc₁, …, tc₂ - 1` gives each of them an empty set of
-children. -/
+/-- A step that forks the threads `tc₁, …, tc₂ - 1`: each of them is running and gets an empty
+set of children and an empty bill. -/
 @[lantana_alias oblf.step_fork]
 theorem step_fork (n₁ n₂ tc₁ tc₂ : Nat) (P : IProp GF) (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) :
-    (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thKids j ∅) ={∅}=∗ P) ⊢
-      mphys n₁ n₂ tc₁ tc₂ P := by
-  rw [Par.kids_unfold, mphys_unfold]
+    (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thActive j ∗ thKids j ∅ ∗ thCarriers j ∅)
+      ={∅}=∗ P) ⊢ mphys n₁ n₂ tc₁ tc₂ P := by
+  rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold, mphys_unfold]
   exact Model.OPreds.mphys_step_kids n₁ n₂ tc₁ tc₂ P hn htc
 
 end Physical
@@ -635,18 +709,18 @@ end Physical
 /-! ## Running the model (for adequacy)
 
 What the adequacy proofs read of the model (Rocq `obl_forest_instance.v`, "Facts about the
-model at the instance"): the children predicates of new threads, and the base model update and
+model at the instance"): the predicates of new threads, and the base model update and
 the two rounds of a step against the model interpretation `Model.modelInterp`. -/
 
 section Adequacy
 
-/-- The children predicates of new threads `tc, …, tc + m - 1` (Rocq
+/-- The running handles, children predicates and bills of new threads `tc, …, tc + m - 1` (Rocq
 `thP_kids_alloc_threads`). -/
 @[lantana_alias thP_kids_alloc_threads]
 theorem thKids_alloc_threads (Ω : Model.Obls) (tc m : Nat) :
     Model.oforest Ω tc ⊢@{IProp GF} |==> (Model.oforest Ω (tc + m) ∗
-      [∗list] j ∈ List.range' tc m, thKids j ∅) := by
-  rw [Par.kids_unfold]
+      [∗list] j ∈ List.range' tc m, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) := by
+  rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold]
   exact Model.OPreds.thKids_alloc_threads Ω tc m
 
 /-- Running a base model update against the model: the rounds compose into `Obls.le` and keep
