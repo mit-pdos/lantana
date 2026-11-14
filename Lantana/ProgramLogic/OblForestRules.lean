@@ -12,9 +12,9 @@ Rocq `lantana/program_logic/obl_forest_rules.v`: the usual rules of the model up
 `|={E₁,E₂}=>m P` and its proof-mode instances, derived from the three core rules of the
 interface (`mupd_ne`, `fupd_mupd`, `mupd_bind`); the rules of obligation invariants, witness
 induction, parents, fuel and credits; the model updates (with the bills of the parents) and the
-physical steps in their usual shapes. Everything here is derived from the statements of
-`Lantana.ProgramLogic.OblForest`. This file also holds the rules of the base model update
-`|=[n]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
+physical steps in their usual shapes, with the nodes they hand in and out. Everything here is
+derived from the statements of `Lantana.ProgramLogic.OblForest`. This file also holds the rules
+of the base model update `|=[n]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
 
 Porting notes:
 * The union of `OidMap = Std.ExtTreeMap` takes the values of its *right* argument, so Rocq's
@@ -1303,6 +1303,56 @@ theorem mphys_step (n₁ n₂ tc₁ tc₂ : Nat) (X : ThreadId → Prop) (P : IP
       ={∅}=∗ ALC (|=[n₂]=>m P)) ⊢
       mphys n₁ n₂ tc₁ tc₂ X X P :=
   (fupd_mono (step_fork n₁ n₂ tc₁ tc₂ X P hn htc hX)).trans (fupd_mphys n₁ n₂ tc₁ tc₂ X X P)
+
+/-! ### The nodes handed in and out -/
+
+omit [ModelGS GF] in
+private theorem mem_range_of_getElem? {tc k j : Nat} (h : (List.range tc)[k]? = some j) :
+    k = j ∧ j < tc := by
+  obtain ⟨hk, rfl⟩ := List.getElem?_eq_some_iff.mp h
+  exact ⟨(List.getElem_range hk).symm, by simpa using hk⟩
+
+/-- No thread `< tc` satisfies `φ`: there is no node to hand. -/
+theorem Th.nodes_none (tc : Nat) {φ : ThreadId → Prop} (hφ : ∀ j, j < tc → ¬φ j) :
+    ⊢@{IProp GF} Th.nodes tc φ :=
+  BigSepL.bigSepL_intro fun _ j hj => by
+    iintro - %h
+    exact (hφ j (mem_range_of_getElem? hj).2 h).elim
+
+/-- Only thread `i` may satisfy `φ`: the nodes are the node of `i`. -/
+theorem Th.nodes_single (tc : Nat) {φ : ThreadId → Prop} {i : ThreadId}
+    (hφ : ∀ j, j < tc → φ j → j = i) :
+    thActive i ∗ thKids i ∅ ⊢@{IProp GF} Th.nodes tc φ := by
+  by_cases hi : i < tc
+  · refine Entails.trans ?_ (BigSepL.bigSepL_delete_cond
+      (Φ := fun _ j => iprop(⌜φ j⌝ -∗ thActive j ∗ thKids j ∅)) (List.getElem?_range hi)).2
+    refine sep_emp.2.trans (sep_mono (wand_intro sep_elim_left)
+      (BigSepL.bigSepL_intro fun k j hj => ?_))
+    obtain ⟨rfl, hk⟩ := mem_range_of_getElem? hj
+    by_cases hki : k = i
+    · simp only [hki, ite_true]
+      exact .rfl
+    · simp only [hki, ite_false]
+      iintro - %h
+      exact (hki (hφ k hk h)).elim
+  · iintro -
+    iapply Th.nodes_none tc fun j hj h => hi (hφ j hj h ▸ hj)
+
+/-- Thread `i < tc` satisfies `φ`: its node is among the nodes. -/
+theorem Th.nodes_elim {tc : Nat} {φ : ThreadId → Prop} {i : ThreadId} (hi : i < tc) (hφ : φ i) :
+    Th.nodes tc φ ⊢@{IProp GF} thActive i ∗ thKids i ∅ := by
+  refine (BigSepL.bigSepL_lookup (List.getElem?_range hi)).trans ?_
+  iintro H
+  iapply H
+  ipureintro
+  exact hφ
+
+/-- When the crashed bits do not change (`Y = X`), no node goes in and none comes out. -/
+theorem Th.nodes_unchanged (tc : Nat) {X Y : ThreadId → Prop} (hXY : Y = X) (P : IProp GF) :
+    P ⊢ Th.nodes tc (fun j => ¬X j ∧ Y j) ∗ (Th.nodes tc (fun j => X j ∧ ¬Y j) -∗ P) := by
+  subst hXY
+  exact emp_sep.2.trans (sep_mono (Th.nodes_none tc fun _ _ h => h.1 h.2)
+    (wand_intro sep_elim_left))
 
 end Steps
 

@@ -84,7 +84,9 @@ One step of `lWP` for thread `i` (`lwpStep`), from the configuration `ρ₁` to 
    - a model update at `n + 1`, with the bits of `ρ₁`;
    - the bits change: the nodes of the threads crashed in `ρ₂` and not in `ρ₁` go in, the nodes
      of the threads crashed in `ρ₁` and not in `ρ₂` come out (`step_physical`; `step_fork`
-     when the bits are the same);
+     when the bits are the same).  `Th.nodes tc φ` is the list of the nodes of the threads
+     `< tc` that satisfy `φ`; `Th.nodes_none`, `Th.nodes_single` and `Th.nodes_elim` build and
+     read it, and `Th.nodes_unchanged` hands nothing when the bits do not change;
 4. a model update at `n + 1`;
 5. the invariants are closed.
 
@@ -105,9 +107,16 @@ A step that recovers a thread receives its node, and can put obligations under i
   `KeepsCrashed.of_never`.
 - `lwp_lift_step_crashed` is the same for a thread that is crashed in the current
   configuration: it takes its bill, pays nothing, and gets the bill back empty.
+- `lwp_lift_step_or_crashed` covers both for a thread that learns only at the step whether it
+  is crashed (another thread may crash it): having seen the configuration, it pays its bill or
+  steps for free.
 - `lwp_lift_step_gen` is the general one: the stepping thread pays its bill or is crashed, and
   after the step it hands in the nodes of the threads the step crashes and receives those of
-  the threads it recovers.
+  the threads it recovers.  `lwp_lift_step_gen_si` is its form over the state interpretation:
+  the update that hands the nodes is a model update at the empty mask, run against the history
+  of the new configuration, so a thread can discharge obligations there with their invariants
+  open (`untilIGuar_acc_assigned`, `untilIGuar_discharge_opened` and their `untilI` and
+  `finallyI` forms).
 
 ## 6. Adequacy
 

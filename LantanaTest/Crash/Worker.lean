@@ -125,7 +125,7 @@ theorem worker_spec (k k' : Oid) :
       iapply ALC_intro
       iintro Hc₁
       imodintro
-      iapply nodes_keep _ (hkeep _ _ (.idle m))
+      iapply Th.nodes_unchanged _ (hkeep _ _ (.idle m))
       imod Hcl with -
       imodintro
       imodintro
@@ -157,7 +157,7 @@ theorem worker_spec (k k' : Oid) :
         iapply ALC_intro
         iintro Hc₁
         imodintro
-        iapply nodes_keep _ (hkeep _ _ (.work m))
+        iapply Th.nodes_unchanged _ (hkeep _ _ (.work m))
         imod Hcl with -
         imodintro
         imodintro
@@ -177,17 +177,8 @@ theorem worker_spec (k k' : Oid) :
       · -- with its obligations: the invariants of `k'` and `k` are opened before the step
         iunfold workerObls at HW
         icases HW with ⟨Ha0, Hk0, HU, Hkk, HU', Hkk'⟩
-        simp only [finallyI, untilI_unfold]
-        icases HU with ⟨Oa, #U⟩
-        icases HU' with ⟨Oa', #U'⟩
-        ihave #OI := untilIPers_inv Nk k _ _ $$ U
-        ihave #OI' := untilIPers_inv Nk' k' _ _ $$ U'
-        imod Obl.inv_acc_assigned (⊤ \ ↑Ninv) Nk' k' _ _ Nk'_subseteq $$ OI' with H'
-        icases H' $$ %(Qp.half 1) Oa' with ⟨H', Hcl'⟩
-        imod H' with ⟨Oa', Ob', -⟩
-        imod Obl.inv_acc_assigned ((⊤ \ ↑Ninv) \ ↑Nk') Nk k _ _ Nk_subseteq $$ OI with H
-        icases H $$ %(Qp.half 1) Oa with ⟨H, Hcl⟩
-        imod H with ⟨Oa, Ob, -⟩
+        imod finallyI_acc_assigned Nk'_subseteq $$ HU' with ⟨>Oa', Hcl'⟩
+        imod finallyI_acc_assigned Nk_subseteq $$ HU with ⟨>Oa, Hcl⟩
         iapply fupd_mask_intro Std.LawfulSet.empty_subset
         iintro Hcl₀
         isplitr
@@ -208,19 +199,15 @@ theorem worker_spec (k k' : Oid) :
             exact hS' _ (.inr rfl)
           iintro HG
           iapply ALC_intro
-          ihave Oa := (Obl.assigned_halves k).mpr $$ [Oa Ob]
-          · iframe Oa Ob
-          ihave Oa' := (Obl.assigned_halves k').mpr $$ [Oa' Ob']
-          · iframe Oa' Ob'
-          imod finallyI_discharge_opened k' (stVar_doneOrCrashed_fin (Qp.half 1) true) (.obl k)
-            {k'} (mem_singleton k') $$ Oa' Hkk Hkk' Hv with ⟨Hv, Hkk, -, V'⟩
+          imod finallyI_discharge_opened ∅ (.obl k) {k'} (mem_singleton k')
+            (stVar_doneOrCrashed_fin (Qp.half 1) true) $$ Oa' Hkk Hkk' Hv with ⟨Hv, Hkk, -, V'⟩
           rw [erase_singleton]
-          imod finallyI_discharge_opened k (stVar_doneOrCrashed_fin (Qp.half 1) true)
-            (.thread 0) {k} (mem_singleton k) $$ Oa Hk0 Hkk Hv with ⟨Hv, Hk0, -, V⟩
+          imod finallyI_discharge_opened ∅ (.thread 0) {k} (mem_singleton k)
+            (stVar_doneOrCrashed_fin (Qp.half 1) true) $$ Oa Hk0 Hkk Hv with ⟨Hv, Hk0, -, V⟩
           rw [erase_singleton]
           imod Th.terminate ∅ 0 $$ Ha0 Hk0 with #Hd
           imodintro
-          iapply nodes_keep _ (hkeep _ _ .finish)
+          iapply Th.nodes_unchanged _ (hkeep _ _ .finish)
           imod Hcl₀ with -
           imod Hcl $$ [V] with -
           · inext
@@ -262,7 +249,7 @@ theorem worker_spec (k k' : Oid) :
           iapply ALC_intro
           imod Th.terminate ∅ 0 $$ Ha0 Hk0 with #Hd
           imodintro
-          iapply nodes_keep _ (hkeep _ _ .finish)
+          iapply Th.nodes_unchanged _ (hkeep _ _ .finish)
           imod Hcl with -
           imod Hclose $$ [Hv] with -
           · inext

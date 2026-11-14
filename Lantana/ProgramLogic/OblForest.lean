@@ -34,8 +34,8 @@ no obligation (`Th.crashed_modelInterp_not_owner`) and steps for free
 (`step_progress_crashed`). The physical round `mphys` runs in three stages: the step index and
 the thread count change, the forked threads get their pieces and the step's later credits are
 granted; a base model update at the new index; the bits change, the nodes of the newly crashed
-threads going in and those of the recovered ones coming out (`step_physical`; `step_fork` when
-the bits do not change).
+threads going in and those of the recovered ones coming out (`Th.nodes`, `step_physical`;
+`step_fork` when the bits do not change).
 
 Design: this is a *sealed API module*, not a class. The predicates are defined by the
 model (`Lantana.BaseLogic`) and re-exported here as irreducible definitions; the rules are
@@ -267,6 +267,11 @@ def witLayers (R : Oids) : IProp GF := iprop([∗set] r ∈ R, ∃ ℓ : Layer, 
 
 /-- One credit for each witness of `R`, or its discharge (what a step gives back). -/
 def witCreds (R : Oids) : IProp GF := iprop([∗set] r ∈ R, Wit.cred r 1 ∨ Obl.discharged r)
+
+/-- The nodes, open and empty, of the threads `< tc` that satisfy `φ`: what the physical round
+hands in and out when the crashed bits change. -/
+abbrev Th.nodes (tc : Nat) (φ : ThreadId → Prop) : IProp GF :=
+  iprop([∗list] j ∈ List.range tc, ⌜φ j⌝ -∗ thActive j ∗ thKids j ∅)
 
 private theorem parLe_eq (p : Parent) (ℓ : Layer) :
     parLe (GF := GF) p ℓ = Model.OPreds.parLe p ℓ := by
@@ -730,9 +735,10 @@ newly crashed threads go in and the nodes of the recovered ones come out. -/
 theorem step_physical (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF)
     (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) ={∅}=∗
-      ALC (|=[n₂]=>m ([∗list] j ∈ List.range tc₂, ⌜¬X₁ j ∧ X₂ j⌝ -∗ thActive j ∗ thKids j ∅) ∗
-        (([∗list] j ∈ List.range tc₂, ⌜X₁ j ∧ ¬X₂ j⌝ -∗ thActive j ∗ thKids j ∅) -∗ P))) ⊢
+      ALC (|=[n₂]=>m Th.nodes tc₂ (fun j => ¬X₁ j ∧ X₂ j) ∗
+        (Th.nodes tc₂ (fun j => X₁ j ∧ ¬X₂ j) -∗ P))) ⊢
       mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
+  dsimp only [Th.nodes]
   rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold, mupdBase_unfold, mphys_unfold]
   exact Model.OPreds.mphys_step_kids n₁ n₂ tc₁ tc₂ X₁ X₂ P hn htc hX₁
 
