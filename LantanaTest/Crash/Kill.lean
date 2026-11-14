@@ -8,21 +8,23 @@ public import LantanaTest.Crash.Step
 
 /-! # A language whose threads crash: the shared invariant and the killer
 
-The worker (thread `0`) owes two nested obligations, `k` under its thread and `k'` under `k`,
-each a `finallyI` of `doneOrCrashed` ("the worker has finished, or it is crashed"). The shared
-invariant `crashInv` holds half of the ghost variable of the state and, by its value: while the
-worker is alive and unfinished, its node and both finallies with their children, or (after a
-revival) its empty node and the discharges; while it is crashed, the discharges (the model holds
-the node); once it has finished, nothing.
+The worker (thread `0`) owes a forest of obligations `S` with their children `kids`: one
+obligation `k` under its thread and, below it, the others (a chain of any length, allocated in
+`Adequacy.lean`), each a `finallyI` of `doneOrCrashed` ("the worker has finished, or it is
+crashed") in the namespace `Nobl.@j` of its obligation `j`. The shared invariant `crashInv` holds
+half of the ghost variable of the state and, by its value: while the worker is alive and
+unfinished, its node and every finally with its children, or (after a revival) its empty node and
+the discharges; while it is crashed, the discharges (the model holds the node); once it has
+finished, nothing.
 
 The killer's step from an alive, unfinished worker with its obligations crashes it, so it must
 hand the worker's emptied node to the model. Before the step it opens the shared invariant (with a
-later credit of its own) and the obligation invariants of `k'` and `k` (whose contents, `True`
-and halves of the assignments, are timeless), then goes to the empty mask. Inside the physical
-round, at the new configuration (the state already `false`), it discharges `k'` and then `k` with
-the crash disjunct (`finallyI_discharge_opened`), which empties the node, and hands it in; the
-invariants, opened by `finallyI_acc_assigned`, are closed after the round. The killer's other
-steps keep the statuses.
+later credit of its own) and the obligation invariants of all of `S` at once
+(`finallyI_acc_assigned_set_ndot`; their contents are timeless), then goes to the empty mask.
+Inside the physical round, at the new configuration (the state already `false`), it discharges
+the whole forest with the crash disjunct (`finallyI_discharge_opened_forest_threads`), which
+empties the node, and hands it in; the invariants are closed after the round. When it gives up,
+the closing rebuilds every finally. The killer's other steps keep the statuses.
 -/
 
 @[expose] public noncomputable section
@@ -35,47 +37,78 @@ open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 
 /-! ## Namespaces -/
 
-/-- The namespaces of the shared invariant and of the two finallies. -/
+/-- The namespaces of the shared invariant and of the finallies: the finally on `j` is in
+`Nobl.@j`. -/
 def Ncr : Namespace := nroot.@"crash"
 def Ninv : Namespace := Ncr.@"inv"
-def Nk : Namespace := Ncr.@"k"
-def Nk' : Namespace := Ncr.@"k'"
+def Nobl : Namespace := Ncr.@"obl"
 
 theorem Ninv_subseteq : (↑Ninv : CoPset) ⊆ ⊤ := fun _ _ => CoPset.mem_full
 
-theorem Nk'_subseteq : (↑Nk' : CoPset) ⊆ ⊤ \ ↑Ninv := by
+theorem Nobl_subseteq : (↑Nobl : CoPset) ⊆ ⊤ \ ↑Ninv := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
-  exact ndot_ne_disjoint Ncr (by decide : "k'" ≠ "inv") p ⟨hp, h'⟩
+  exact ndot_ne_disjoint Ncr (by decide : "obl" ≠ "inv") p ⟨hp, h'⟩
 
-theorem Nk_subseteq : (↑Nk : CoPset) ⊆ (⊤ \ ↑Ninv) \ ↑Nk' := by
-  intro p hp
-  refine Iris.Std.LawfulSet.mem_diff.mpr ⟨?_, fun h' => ?_⟩
-  · refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
-    exact ndot_ne_disjoint Ncr (by decide : "k" ≠ "inv") p ⟨hp, h'⟩
-  · exact ndot_ne_disjoint Ncr (by decide : "k" ≠ "k'") p ⟨hp, h'⟩
+/-! ## The forest of the worker -/
+
+/-- The obligations `T`, with their children `kids`, hang below the children `c` of a parent:
+`c ⊆ T`, `T` is closed under children, and each of `T` is in `c` or a child of one of `T`. -/
+def HangsBelow (c T : Oids) (kids : Oid → Oids) : Prop :=
+  c ⊆ T ∧ (∀ j, j ∈ T → kids j ⊆ T) ∧ ∀ x, x ∈ T → x ∈ c ∨ ∃ j, j ∈ T ∧ x ∈ kids j
+
+/-- A new obligation `k` above the obligations `T` hanging below `c`, with the children `c`. -/
+theorem HangsBelow.insert {k : Oid} {c T : Oids} {kids : Oid → Oids} (h : HangsBelow c T kids)
+    (hk : k ∉ T) : HangsBelow {k} ({k} ∪ T) (fun j => if j = k then c else kids j) := by
+  obtain ⟨hc, hcl, hcov⟩ := h
+  have hin : ∀ {x}, x ∈ T → x ∈ ({k} ∪ T : Oids) := fun hx => mem_union.2 (.inr hx)
+  refine ⟨fun x hx => mem_union.2 (.inl hx), fun j hj x hx => ?_, fun x hx => ?_⟩
+  · by_cases hjk : j = k
+    · simp only [hjk, ↓reduceIte] at hx
+      exact hin (hc x hx)
+    · simp only [hjk, ↓reduceIte] at hx
+      rcases mem_union.1 hj with hj | hj
+      · exact (hjk (mem_singleton.1 hj)).elim
+      · exact hin (hcl j hj x hx)
+  · rcases mem_union.1 hx with hx | hx
+    · exact .inl hx
+    · refine .inr ?_
+      rcases hcov x hx with hxc | ⟨j, hj, hxj⟩
+      · exact ⟨k, mem_union.2 (.inl (mem_singleton.2 rfl)), by simpa using hxc⟩
+      · have hjk : j ≠ k := fun h => hk (h ▸ hj)
+        exact ⟨j, hin hj, by simpa [hjk] using hxj⟩
+
+/-- The worker's thread is the only root of a forest hanging below `{k}`. -/
+theorem HangsBelow.roots {k : Oid} {S : Oids} {kids : Oid → Oids} (h : HangsBelow {k} S kids) :
+    ∀ j, j ∈ ([0] : List ThreadId) → ({k} : Oids) ⊆ S :=
+  fun _ _ => h.1
+
+theorem HangsBelow.covered {k : Oid} {S : Oids} {kids : Oid → Oids} (h : HangsBelow {k} S kids) :
+    ∀ x, x ∈ S → (∃ j, j ∈ ([0] : List ThreadId) ∧ x ∈ ({k} : Oids)) ∨
+      ∃ j, j ∈ S ∧ x ∈ kids j :=
+  fun x hx => (h.2.2 x hx).imp_left fun hxk => ⟨_, List.mem_singleton_self _, hxk⟩
 
 /-! ## The shared invariant -/
 
 section Inv
 variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 
-/-- The worker's obligations while it runs: its node holding `k`, the finally on `k` (which
-holds `k'`) and the finally on `k'`. -/
-def workerObls (k k' : Oid) : IProp GF :=
-  iprop(thActive 0 ∗ thKids 0 {k} ∗ finallyI Nk k 1 doneOrCrashed ∗ oblKids k {k'} ∗
-    finallyI Nk' k' 1 doneOrCrashed ∗ oblKids k' ∅)
+/-- The worker's obligations while it runs: its node holding `k`, and for each obligation of `S`
+its finally and its children. -/
+def workerObls (k : Oid) (S : Oids) (kids : Oid → Oids) : IProp GF :=
+  iprop(thActive 0 ∗ thKids 0 {k} ∗
+    [∗set] j ∈ S, finallyI (Nobl.@j) j 1 doneOrCrashed ∗ oblKids j (kids j))
 
 /-- The protocol, by the state `b` and "the worker has finished" `f`. -/
-def crashProto (k k' : Oid) : Bool → Bool → IProp GF
+def crashProto (k : Oid) (S : Oids) (kids : Oid → Oids) : Bool → Bool → IProp GF
   | _, true => iprop(True)
-  | false, false => iprop(Obl.discharged k ∗ Obl.discharged k')
-  | true, false => iprop(workerObls k k' ∨
-      (thActive 0 ∗ thKids 0 ∅ ∗ Obl.discharged k ∗ Obl.discharged k'))
+  | false, false => iprop([∗set] j ∈ S, Obl.discharged j)
+  | true, false => iprop(workerObls k S kids ∨
+      (thActive 0 ∗ thKids 0 ∅ ∗ [∗set] j ∈ S, Obl.discharged j))
 
 /-- The shared invariant: half of the ghost variable of the state, and the protocol. -/
-def crashInv (k k' : Oid) : IProp GF :=
-  iprop(∃ b f : Bool, stVar (Qp.half 1) b f ∗ crashProto k k' b f)
+def crashInv (k : Oid) (S : Oids) (kids : Oid → Oids) : IProp GF :=
+  iprop(∃ b f : Bool, stVar (Qp.half 1) b f ∗ crashProto k S kids b f)
 
 end Inv
 
@@ -108,10 +141,15 @@ end
 section Killer
 variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 
-theorem erase_singleton (k : Oid) : ({k} : Oids).erase k = ∅ :=
-  Std.ExtTreeSet.ext_mem fun _ => by simp
-
-theorem mem_singleton (k : Oid) : k ∈ ({k} : Oids) := by simp
+omit [CrashGS GF] in
+/-- Half of the assignment of `j` closes its invariant as it was. -/
+theorem variant_half (j : Oid) (R : IProp GF) :
+    Obl.assigned j (Qp.half 1) ⊢ ▷ Obl.variant j iprop(True) R := by
+  iintro Oa
+  inext
+  iapply (Obl.variant_unfold j _ _).2
+  ileft
+  iframe Oa
 
 omit [CrashGS GF] in
 /-- A thread that pays nothing: its bill is empty. -/
@@ -135,9 +173,9 @@ theorem ret_done (E : CoPset) (i : ThreadId) :
 
 /-- The killer: from any state of the protocol it kills or gives up; killing an alive, unfinished
 worker discharges the worker's obligations inside the physical round and hands its node in. -/
-theorem killer_spec (k k' : Oid) :
-    inv Ninv (crashInv (GF := GF) k k') ⊢ £ₙ 1 -∗ thActive 1 -∗ thKids 1 ∅ -∗ thCarriers 1 ∅ -∗
-      lWP Exp.kill @ 1; ⊤ {{ fun _ => Th.done 1 }} := by
+theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow {k} S kids) :
+    inv Ninv (crashInv (GF := GF) k S kids) ⊢ £ₙ 1 -∗ thActive 1 -∗ thKids 1 ∅ -∗
+      thCarriers 1 ∅ -∗ lWP Exp.kill @ 1; ⊤ {{ fun _ => Th.done 1 }} := by
   iintro #HI Hc Ha1 Hk1 HG
   iapply lwp_step (rfl : toVal Exp.kill = none)
   simp only [stateInterp_eq]
@@ -194,12 +232,12 @@ theorem killer_spec (k k' : Oid) :
     iapply ret_done ⊤ 1 $$ Ha1 Hk1
   · -- alive and unfinished: with its obligations, or revived without
     simp only [crashProto]
-    icases HC with (HW | ⟨Ha0, Hk0, #Dk, #Dk'⟩)
-    · -- its obligations: the invariants of `k'` and `k` are opened before the step
+    icases HC with (HW | ⟨Ha0, Hk0, #HD⟩)
+    · -- its obligations: the invariants of all of `S` are opened before the step
       iunfold workerObls at HW
-      icases HW with ⟨Ha0, Hk0, HU, Hkk, HU', Hkk'⟩
-      imod finallyI_acc_assigned Nk'_subseteq $$ HU' with ⟨>Oa', Hcl'⟩
-      imod finallyI_acc_assigned Nk_subseteq $$ HU with ⟨>Oa, Hcl⟩
+      icases HW with ⟨Ha0, Hk0, HW⟩
+      icases BigSepS.bigSepS_sep.1 $$ HW with ⟨HU, Hkk⟩
+      imod finallyI_acc_assigned_set_ndot Nobl_subseteq $$ HU with ⟨Oa, Hcl⟩
       iapply fupd_mask_intro Std.LawfulSet.empty_subset
       iintro Hcl₀
       isplitr
@@ -212,7 +250,7 @@ theorem killer_spec (k k' : Oid) :
       iintro %e₂ %σ₂ %hst
       cases hst with
       | kill =>
-        -- the step crashes the worker: discharge `k'` and `k`, hand the node in
+        -- the step crashes the worker: discharge the forest, hand the node in
         imod ghost_var_update_halves (false, false) _ _ _ $$ Hs Hv with ⟨Hs, Hv⟩
         imodintro
         isplitl [Hs]
@@ -222,34 +260,33 @@ theorem killer_spec (k k' : Oid) :
           exact hS'
         iintro HG
         iapply ALC_intro
-        imod finallyI_discharge_opened ∅ (.obl k) {k'} (mem_singleton k')
-          (stVar_doneOrCrashed (Qp.half 1) false) $$ Oa' Hkk Hkk' Hv with ⟨Hv, Hkk, #Dk', V'⟩
-        rw [erase_singleton]
-        imod finallyI_discharge_opened ∅ (.thread 0) {k} (mem_singleton k)
-          (stVar_doneOrCrashed (Qp.half 1) false) $$ Oa Hk0 Hkk Hv with ⟨Hv, Hk0, #Dk, V⟩
-        rw [erase_singleton]
+        imod finallyI_discharge_opened_forest_threads ∅ [0] (fun _ => {k}) kids hF.roots
+          hF.2.1 hF.covered (fun _ _ => stVar_doneOrCrashed (Qp.half 1) false)
+          $$ [Hk0] [Oa Hkk] Hv with ⟨Hv, Hk0, HD⟩
+        · iapply BigSepL.bigSepL_singleton.2
+          iexact Hk0
+        · iapply BigSepS.bigSepS_sep.2
+          iframe Oa Hkk
+        icases BigSepL.bigSepL_singleton.1 $$ Hk0 with Hk0
+        icases BigSepS.bigSepS_sep.1 $$ HD with ⟨#HD, HV⟩
         imodintro
         isplitl [Ha0 Hk0]
         · iapply Th.nodes_single _ fun j _ => hφ j
           iframe Ha0 Hk0
         iintro -
         imod Hcl₀ with -
-        imod Hcl $$ [V] with -
-        · inext
-          iexact V
-        imod Hcl' $$ [V'] with -
-        · inext
-          iexact V'
+        imod Hcl $$ [HV] with -
+        · iapply BigSepS.bigSepS_mono_of_forall (fun _ => later_intro) $$ HV
         imod Hclose $$ [Hv] with -
         · inext
           iunfold crashInv
           iexists false, false
           iframe Hv
           simp only [crashProto]
-          iframe Dk Dk'
+          iexact HD
         iapply ret_done ⊤ 1 $$ Ha1 Hk1
       | giveUp =>
-        -- the statuses do not change: everything is closed as it was
+        -- the statuses do not change: the closing rebuilds every finally
         imodintro
         isplitl [Hs]
         · rw [hfin]
@@ -260,22 +297,13 @@ theorem killer_spec (k k' : Oid) :
         iapply ALC_intro
         imodintro
         iapply Th.nodes_unchanged _ (hkeep true)
-        icases (Obl.assigned_halves k).mp $$ Oa with ⟨Oa, Ob⟩
-        icases (Obl.assigned_halves k').mp $$ Oa' with ⟨Oa', Ob'⟩
+        icases BigSepS.bigSepS_sep.1 $$ [Oa] with ⟨Oa, Ob⟩
+        · iapply BigSepS.bigSepS_mono_of_forall (fun j => (Obl.assigned_halves j).1) $$ Oa
         imod Hcl₀ with -
         imod Hcl $$ [Oa] with HU
-        · inext
-          iapply (Obl.variant_unfold k _ _).2
-          ileft
-          iframe Oa
-        imod Hcl' $$ [Oa'] with HU'
-        · inext
-          iapply (Obl.variant_unfold k' _ _).2
-          ileft
-          iframe Oa'
-        ispecialize HU $$ Ob
-        ispecialize HU' $$ Ob'
-        imod Hclose $$ [Hv Ha0 Hk0 HU Hkk HU' Hkk'] with -
+        · iapply BigSepS.bigSepS_mono_of_forall (fun j => variant_half j _) $$ Oa
+        ihave HU := BigSepS.bigSepS_wand $$ Ob HU
+        imod Hclose $$ [Hv Ha0 Hk0 HU Hkk] with -
         · inext
           iunfold crashInv
           iexists true, false
@@ -283,7 +311,9 @@ theorem killer_spec (k k' : Oid) :
           simp only [crashProto]
           ileft
           iunfold workerObls
-          iframe Ha0 Hk0 HU Hkk HU' Hkk'
+          iframe Ha0 Hk0
+          iapply BigSepS.bigSepS_sep.2
+          iframe HU Hkk
         iapply ret_done ⊤ 1 $$ Ha1 Hk1
     · -- revived: its empty node, no obligations
       iapply fupd_mask_intro Std.LawfulSet.empty_subset
@@ -319,7 +349,7 @@ theorem killer_spec (k k' : Oid) :
           iexists false, false
           iframe Hv
           simp only [crashProto]
-          iframe Dk Dk'
+          iexact HD
         iapply ret_done ⊤ 1 $$ Ha1 Hk1
       | giveUp =>
         imodintro
@@ -340,7 +370,7 @@ theorem killer_spec (k k' : Oid) :
           iframe Hv
           simp only [crashProto]
           iright
-          iframe Ha0 Hk0 Dk Dk'
+          iframe Ha0 Hk0 HD
         iapply ret_done ⊤ 1 $$ Ha1 Hk1
   all_goals
     -- finished: no thread is crashed, before or after

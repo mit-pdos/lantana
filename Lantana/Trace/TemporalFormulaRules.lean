@@ -641,7 +641,8 @@ theorem untilI_discharge (hN : ↑N ⊆ E) :
 
 A finite set `S` of untils held in full opens at once, to a mask `E'` that their pairwise
 disjoint namespaces avoid; the records of a set of discharged obligations come from one
-resource that implies all their right formulas. -/
+resource that implies all their right formulas; and a forest of opened untils is discharged in one
+model update, with those records. -/
 
 section Sets
 open BigSepS LawfulSet
@@ -807,6 +808,159 @@ theorem finallyI_record_discharged_set (E : CoPset) {X : IProp GF}
       Obl.variant k iprop(True)
         (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
   untilI_record_discharged_set E hX
+
+/-- The discharge of a forest of untils whose invariants are open, in one model update at any
+mask: every obligation of `S`, closed under children and hanging below the roots `ps`, is
+discharged with a resource `X` that implies all their right formulas, which is given back with
+the contents that close their invariants. -/
+theorem untilIGuar_discharge_opened_forest {G₂ : Oid → TrSpec Expr State GF} (E : CoPset)
+    (ps : List Parent) (K : Parent → Oids) (kids : Oid → Oids)
+    (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
+      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p (K p \ S)) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
+  iintro Hps HS HX
+  icases bigSepS_sep.1 $$ HS with ⟨#HG, HS⟩
+  imod obl_discharge_forest E ps K S kids hclosed hcovered $$ Hps [HS] with ⟨Hps, #HD⟩
+  · iapply bigSepS_mono_of_forall (fun _ => sep_comm.1) $$ HS
+  imod untilIGuar_record_discharged_set (P := P) E hX $$ [] HX with ⟨HX, HV⟩
+  · iapply bigSepS_sep.2
+    iframe HG HD
+  imodintro
+  iframe HX Hps
+  iapply bigSepS_sep.2
+  iframe HD HV
+
+/-- The same, where the roots end without children. -/
+theorem untilIGuar_discharge_opened_forest_all {G₂ : Oid → TrSpec Expr State GF} (E : CoPset)
+    (ps : List Parent) (K : Parent → Oids) (kids : Oid → Oids) (hK : ∀ p, p ∈ ps → K p ⊆ S)
+    (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
+      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p ∅) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
+  iintro Hps HS HX
+  imod untilIGuar_discharge_opened_forest (P := P) E ps K kids hclosed hcovered hX $$ Hps HS HX
+    with ⟨HX, Hps, HV⟩
+  imodintro
+  iframe HX HV
+  iapply BigSepL.bigSepL_mono ?_ $$ Hps
+  intro _ p hp
+  have hp' := hK p (List.mem_of_getElem? hp)
+  rw [eq_empty_iff.2 fun y hy => (mem_diff.1 hy).2 (hp' y (mem_diff.1 hy).1)]
+
+/-- The same below the threads `js`, which end without children. -/
+theorem untilIGuar_discharge_opened_forest_threads {G₂ : Oid → TrSpec Expr State GF}
+    (E : CoPset) (js : List ThreadId) (K : ThreadId → Oids) (kids : Oid → Oids)
+    (hK : ∀ j, j ∈ js → K j ⊆ S) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ j, j ∈ js ∧ x ∈ K j) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] j ∈ js, thKids j (K j)) ⊢
+      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] j ∈ js, thKids j ∅) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
+  let K' : Parent → Oids := fun p => match p with
+    | .thread j => K j
+    | .obl _ => ∅
+  have h := untilIGuar_discharge_opened_forest_all (P := P) (G₂ := G₂) E (js.map .thread) K'
+    kids
+    (fun p hp => by
+      obtain ⟨j, hj, rfl⟩ := List.mem_map.1 hp
+      exact hK j hj)
+    hclosed
+    (fun x hx => (hcovered x hx).imp_left fun ⟨j, hj, hxj⟩ =>
+      ⟨.thread j, List.mem_map_of_mem hj, hxj⟩)
+    hX
+  rw [BigSepL.bigSepL_map, BigSepL.bigSepL_map] at h
+  exact h
+
+/-- The guarantees of the canonical readings, for the set `S`. -/
+private theorem bigSepS_guar_canon (kids : Oid → Oids) :
+    ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) ⊢@{IProp GF}
+      [∗set] k ∈ S, (Q k ⊨ₜ TrSpec.canon (Expr := Expr) (State := State) (Q k)) ∗
+        Obl.assigned k 1 ∗ oblKids k (kids k) :=
+  bigSepS_mono_of_forall fun k => emp_sep.2.trans (sep_mono_left (guar_canon (Q k)))
+
+theorem untilI_discharge_opened_forest (E : CoPset) (ps : List Parent) (K : Parent → Oids)
+    (kids : Oid → Oids) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p (K p \ S)) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k)
+            (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) := by
+  iintro Hps HS
+  iapply untilIGuar_discharge_opened_forest (P := P) E ps K kids hclosed hcovered hX $$ Hps
+  iapply bigSepS_guar_canon kids $$ HS
+
+theorem untilI_discharge_opened_forest_all (E : CoPset) (ps : List Parent) (K : Parent → Oids)
+    (kids : Oid → Oids) (hK : ∀ p, p ∈ ps → K p ⊆ S) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p ∅) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k)
+            (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) := by
+  iintro Hps HS
+  iapply untilIGuar_discharge_opened_forest_all (P := P) E ps K kids hK hclosed hcovered hX
+    $$ Hps
+  iapply bigSepS_guar_canon kids $$ HS
+
+theorem untilI_discharge_opened_forest_threads (E : CoPset) (js : List ThreadId)
+    (K : ThreadId → Oids) (kids : Oid → Oids) (hK : ∀ j, j ∈ js → K j ⊆ S)
+    (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ j, j ∈ js ∧ x ∈ K j) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] j ∈ js, thKids j (K j)) ⊢
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] j ∈ js, thKids j ∅) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k)
+            (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) := by
+  iintro Hjs HS
+  iapply untilIGuar_discharge_opened_forest_threads (P := P) E js K kids hK hclosed hcovered hX
+    $$ Hjs
+  iapply bigSepS_guar_canon kids $$ HS
+
+theorem finallyI_discharge_opened_forest (E : CoPset) (ps : List Parent) (K : Parent → Oids)
+    (kids : Oid → Oids) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p (K p \ S)) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k iprop(True)
+            (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
+  untilI_discharge_opened_forest E ps K kids hclosed hcovered hX
+
+theorem finallyI_discharge_opened_forest_all (E : CoPset) (ps : List Parent) (K : Parent → Oids)
+    (kids : Oid → Oids) (hK : ∀ p, p ∈ ps → K p ⊆ S) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p ∅) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k iprop(True)
+            (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
+  untilI_discharge_opened_forest_all E ps K kids hK hclosed hcovered hX
+
+theorem finallyI_discharge_opened_forest_threads (E : CoPset) (js : List ThreadId)
+    (K : ThreadId → Oids) (kids : Oid → Oids) (hK : ∀ j, j ∈ js → K j ⊆ S)
+    (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
+    (hcovered : ∀ x, x ∈ S → (∃ j, j ∈ js ∧ x ∈ K j) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
+    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    ([∗list] j ∈ js, thKids j (K j)) ⊢
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+        |={E}=>m X ∗ ([∗list] j ∈ js, thKids j ∅) ∗
+          [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k iprop(True)
+            (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
+  untilI_discharge_opened_forest_threads E js K kids hK hclosed hcovered hX
 
 end Sets
 

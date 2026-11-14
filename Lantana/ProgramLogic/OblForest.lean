@@ -476,6 +476,15 @@ theorem Par.kids_discharged (k : Oid) (p : Parent) (K : Oids) :
   rw [Par.kids_unfold, Obl.discharged_unfold]
   exact Model.OPreds.parKids_discharged k p K
 
+/-- The children predicate of a parent is exclusive. -/
+theorem Par.kids_excl (p : Parent) (K₁ K₂ : Oids) :
+    Par.kids (GF := GF) p K₁ ⊢ Par.kids p K₂ -∗ False := by
+  rw [Par.kids_unfold]
+  iintro H₁ H₂
+  icases (Model.OPreds.parKids_unfold p K₁).1 $$ H₁ with ⟨-, H₁, -⟩
+  icases (Model.OPreds.parKids_unfold p K₂).1 $$ H₂ with ⟨-, H₂, -⟩
+  iapply Model.OForest.kids_excl p K₁ K₂ $$ [$H₁ $H₂]
+
 theorem Th.active_done_false (i : ThreadId) : Th.active (GF := GF) i ⊢ Th.done i -∗ False := by
   rw [Th.active_unfold, Th.done_unfold]
   exact Model.OPreds.thActive_done_false i
