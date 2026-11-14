@@ -8,18 +8,10 @@ public import Lantana
 
 /-! # A language whose threads crash: the language, its world, its state interpretation
 
-The smallest language with a crashed thread: a worker `work n` with `n` steps of work left, a
-killer and a reviver, over a boolean state "the worker is alive". A worker steps while alive and
-finishes at `work 0`; while the state is `false` it is crashed (`Crash`) and loops silently; the
-killer sets the state to `false` or gives up; the reviver sets it to `true`. There are no forks,
-no observations, one value (`ret`) and trivial evaluation contexts.
-
-The closed world `CrashGF` holds the ghost state of the temporal layer (slots 0–16, as in
-`LantanaTest.TrSpecModel`) and a ghost variable of the state and of "the worker has finished"
-(slot 17). The state interpretation (`crashInterp`) holds half of that variable and the shape of
-the pool (thread `0` is a worker until it finishes, and no other thread is one);
-`doneOrCrashed`, a fraction of the variable that says "finished or crashed", is the state fact
-`σ = false ∨ fin tp`.
+A worker `work n` with `n` steps of work left, a killer and a reviver, over a boolean state "the
+worker is alive"; the worker is crashed while the state is `false` (`instCrash`). The closed
+world `CrashGF`, the state interpretation `crashInterp` and the state fact `doneOrCrashed`.
+See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section

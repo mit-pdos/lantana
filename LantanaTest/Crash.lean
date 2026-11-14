@@ -11,9 +11,6 @@ public import LantanaTest.Crash.Worker
 public import LantanaTest.Crash.Reviver
 public import LantanaTest.Crash.Adequacy
 
-/-! A language whose threads crash, verified end to end: the language and its world
-(`LantanaTest.Crash.Lang`), the step rule and the facts about the pool (`LantanaTest.Crash.Step`),
-the shared invariant and the killer, whose step crashes the worker (`LantanaTest.Crash.Kill`), the
-worker, which finishes or loops while crashed (`LantanaTest.Crash.Worker`), the reviver, whose
-step recovers it (`LantanaTest.Crash.Reviver`), and the liveness of the closed systems by
-`lwp_adequacy_temporal` (`LantanaTest.Crash.Adequacy`). -/
+/-! A language whose threads crash, verified end to end: the language (`Lang`), the step rule
+(`Step`), the killer (`Kill`), the worker (`Worker`), the reviver (`Reviver`) and the liveness of
+the closed systems (`Adequacy`). See `docs/adequacy.md`, §7. -/

@@ -9,16 +9,10 @@ public import Lantana.ProgramLogic.OblForest
 
 /-! # Adequacy: allocating the ghost state
 
-What the adequacy theorems allocate before the user's resources (Rocq
-`lantana/trace/adequacy_temporal.v`, the proof of `lwp_adequacy_temporal`: `model_interp_alloc 0`,
-`history_interp_init`, `reg_alloc`, `thP_kids_alloc_threads`), with one change: the
-existential is over the ghost *names* (`ModelNames × TemporalNames`, small enough for the
-existential property of satisfiability), and the instances are rebuilt from the world's
-cameras and the names (`ModelGS.ofNames`, `TemporalGS.ofNames`). The instance records themselves
-(`ModelGS GF`, `TemporalGS Expr State GF`) are in `Type 4`, too large for `sat_exists`.
-
-`iPropSat.sat_bupd_exists` extracts the names from the satisfiability of an allocation;
-`iPropSat.sat_alloc` from an allocation lemma directly.
+`adequacy_alloc_names`: the ghost state that the adequacy theorems allocate before the user's
+resources, at ghost names from which the instances are rebuilt; `iPropSat.sat_alloc` extracts
+the names from an allocation lemma. See `docs/adequacy.md`, §5.2.
+Rocq: `lantana/trace/adequacy_temporal.v`.
 -/
 
 @[expose] public noncomputable section
@@ -35,7 +29,7 @@ section Sat
 
 variable {GF : BundledGFunctors.{u}} {X : Type v} [SIdxLarge SI X] {Φ : X → IProp GF}
 
-/-- The ghost names of a satisfiable allocation: `sat_bupd`, then `sat_exists`. -/
+/-- The ghost names of a satisfiable allocation. -/
 theorem iPropSat.sat_bupd_exists (h : iPropSat.sat iprop(|==> ∃ x, Φ x)) :
     ∃ x, iPropSat.sat (Φ x) :=
   iPropSat.sat_exists (iPropSat.sat_bupd h)
@@ -53,13 +47,9 @@ section Alloc
 variable {Expr State : Type} {GF : BundledGFunctors} [ModelGpreS GF] [RegGpreS Expr State GF]
   [MonoListG GF (HistEntry Expr State)]
 
-/-- Allocation of the ghost state of adequacy for the initial configuration `(tp, σ)` whose
-crashed threads are `X`, at names `γ` (small enough for the existential property of
-satisfiability; the world's cameras are those of `TemporalGpreS`): the credit supply, world
-satisfaction and the full mask; the model at step `0` with no obligation and no witness, at the
-view `tp.length`, `X`; the empty bills of the initial threads, and the running handles and the
-empty children of those not crashed; the history with its first entry, for every state
-interpretation (chosen after the allocation); the empty registry. -/
+/-- The ghost state of adequacy for the initial configuration `(tp, σ)` whose crashed threads
+are `X`, at names `γ`: the credits, world satisfaction, the model at step `0`, the pieces of the
+initial threads, the history for any state interpretation, and the empty registry. -/
 theorem adequacy_alloc_names (σ : State) (tp : ThreadPool Expr) (X : ThreadId → Prop) :
     ⊢@{IProp GF} |==> ∃ γ : ModelNames × TemporalNames,
       letI := ModelGS.ofNames (GF := GF) γ.1

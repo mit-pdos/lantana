@@ -8,17 +8,11 @@ public import Lantana.Trace.TemporalFormulaRun
 
 /-! # Rules for the temporal formulas `alwaysI`, `untilI`, `finallyI`, `untilIDone`
 
-Rocq `lantana/trace/temporal_formula_rules.v`: access, allocation (registration), discharge
-and fractions, with the proof-mode instances for `iinv`, and the guarantees: a registered
-invariant guarantees an always (`guar_alwaysI`), a registered obligation invariant an until
-(`guar_untilI`), a done until an until with any left reading (`guar_untilIDone`). Each rule is
-stated for the readings `G` (`_guar`/`_as` forms) and for the canonical readings. The
-guarantees inferred from the shape of a formula (`GuarOf`) close the file.
-
-The guarantee of an until has the rank `succ (succ (fairMeasureUb fu))` for the fuel `fu` of
-its obligation where the guarantee is used: after the step the obligation, read with a credit
-allocated by the step (`ALC_credits`), has a fuel `fu' ≤ fu`, whose measure is below
-`fairMeasureUb fu`, and `untilRun` continues from there.
+Access (with the instances for `iinv`), allocation, discharge and fractions, for given and for
+canonical readings; the discharge of untils with their invariants open, one or a forest
+(`untilIGuar_discharge_opened_forest`); the guarantees `guar_alwaysI`, `guar_untilI`,
+`guar_untilIDone`; the instances of `GuarOf`. See `docs/adequacy.md`, §3 and §4.
+Rocq: `lantana/trace/temporal_formula_rules.v`.
 -/
 
 @[expose] public noncomputable section
@@ -32,19 +26,14 @@ open Iris.Std LawfulPartialMap
 open scoped Lantana.TrSpec Lantana.TrProp
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
--- Named, to be passed explicitly to `TrSpec.canon_le` (see "Always" below).
+-- Named, to be passed explicitly to `TrSpec.canon_le` (see `docs/adequacy.md`, §4.3).
 variable [Crash Expr State Obs Val] [instM : ModelGS GF] [instT : TemporalGS Expr State GF]
   [StateInterp Expr State GF]
 
 section Rules
 variable {E : CoPset} {N : Namespace} {k : Oid} {q : Qp} {P Q : IProp GF}
 
-/-! ## Always
-
-A `⊑ₛ` premise is given as `@TrSpec.canon_le _ _ _ _ _ _ _ instM instT _ _ _ hG`, with the ambient
-instances explicit: elaborated against the expected `⊑ₛ`, the application would get the
-instances bound by `⊑ₛ` for its own instance arguments (as noted in `LantanaTest.Guarantee`;
-holes do not suffice under a `⊑ₛ` rule such as `TrSpec.always_mono`). -/
+/-! ## Always -/
 
 @[lantana_alias alwaysI_guar_acc]
 theorem alwaysIGuar_acc {G : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
@@ -115,8 +104,7 @@ instance intoAcc_alwaysI (N : Namespace) (P : IProp GF) E :
 
 /-! ### Registration and allocation -/
 
-/-- Registering an existing invariant, with a later-guarded guarantee of its content
-(Rocq `alwaysI_register_guar`). -/
+/-- Registering an existing invariant, with a later-guarded guarantee of its content. -/
 @[lantana_alias alwaysI_register_guar]
 theorem alwaysIGuar_register {G : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
     inv N P ⊢ ▷ (P ⊨ₜ G) -∗ |={E}=>m alwaysIGuar N P G := by
@@ -151,8 +139,7 @@ theorem alwaysIGuar_register {G : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
   iframe Hj HE Hγ Hinv HG
   iexact C
 
-/-- Registering an existing invariant, read as a consequence `V` of its content
-(Rocq `alwaysI_register`). -/
+/-- Registering an existing invariant, read as a consequence `V` of its content. -/
 @[lantana_alias alwaysI_register]
 theorem alwaysI_register {V : IProp GF} (hN : ↑N ⊆ E) :
     inv N P ⊢ □ (P -∗ V) -∗ |={E}=>m alwaysIAs (Expr := Expr) (State := State) N P V := by
@@ -203,8 +190,7 @@ theorem alwaysI_alloc : ▷ P ⊢ |={E}=>m alwaysI N P := by
 
 /-! ### Guarantees -/
 
-/-- A registered always guarantees the always of its reading (Rocq `guar_alwaysI_guar`): the
-certificate at `n` from the bundle, then the loop from `n + 1`. -/
+/-- A registered always guarantees the always of its reading. -/
 @[lantana_alias guar_alwaysI_guar]
 theorem guar_alwaysIGuar {G : TrSpec Expr State GF} :
     ⊢@{IProp GF} alwaysIGuar N P G ⊨ₜ □ₛ G := by
@@ -291,8 +277,8 @@ theorem untilI_frac_add {q₁ q₂ : Qp} {P' Q' : IProp GF} (h : q = q₁ + q₂
 
 /-! ### Allocation -/
 
-/-- A strong until registers, with later-guarded guarantees of its formulas, and records the
-left formula at the current position (Rocq `untilI_guar_init`). -/
+/-- An until on the obligation `k`, held in full, registered with later-guarded guarantees of
+its formulas. -/
 @[lantana_alias untilI_guar_init]
 theorem untilIGuar_init {G₁ G₂ : TrSpec Expr State GF} :
     Obl.assigned k 1 ⊢ ▷ (P ⊨ₜ G₁) -∗ ▷ (Q ⊨ₜ G₂) -∗ ▷ P -∗
@@ -343,8 +329,8 @@ theorem untilI_init : Obl.assigned k 1 ⊢ ▷ P -∗ |={E}=>m untilI N k 1 P Q 
   · inext
     iapply guar_canon
 
-/-- The obligation and the strong until at once: `k` is a new child of `p`, added to the bill
-of `p`, and the formulas are chosen once `k` is known (Rocq `untilI_guar_alloc`). -/
+/-- The obligation and the until at once: `k` is a new child of `p`, added to the bill of `p`,
+and the formulas are chosen once `k` is known. -/
 @[lantana_alias untilI_guar_alloc]
 theorem untilIGuar_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
     parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
@@ -389,7 +375,7 @@ theorem untilI_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
 /-! ### Done untils -/
 
 /-- A done until from a fresh obligation: `k`, a childless child of `p`, is discharged at once
-with `Q` at hand (Rocq `untilI_done_guar_init`). -/
+with `Q` at hand. -/
 @[lantana_alias untilI_done_guar_init]
 theorem untilIDoneGuar_init {G₂ : TrSpec Expr State GF} (p : Parent) (K : Oids) (hk : k ∈ K) :
     Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ ▷ (Q ⊨ₜ G₂) -∗ Q -∗
@@ -424,8 +410,7 @@ theorem untilIDoneGuar_elim {G₂ : TrSpec Expr State GF} :
 theorem untilIDone_elim : untilIDone k Q ⊢ Q ∗ Obl.discharged k := by
   rw [untilIDone_eq]; exact untilIDoneGuar_elim
 
-/-- A done until guarantees the until of any left reading, from its right formula: no run is
-needed (Rocq `guar_untilI_done_guar`). -/
+/-- A done until guarantees the until of any left reading. -/
 @[lantana_alias guar_untilI_done_guar]
 theorem guar_untilIDoneGuar (G₁ G₂ : TrSpec Expr State GF) :
     ⊢@{IProp GF} untilIDoneGuar k Q G₂ ⊨ₜ (G₁ Uₛ G₂) := by
@@ -457,9 +442,8 @@ theorem guar_untilIDone_valid (G₁ : TrSpec Expr State GF) {G₂ : TrSpec Expr 
 
 /-! ### Discharge -/
 
-/-- Opening the obligation invariant of an until held in full: its content with the whole
-assignment of `k`, and the closing that takes the content back, discharged or not, after which
-the half of the assignment kept rebuilds the until. -/
+/-- Opening the invariant of an until held in full: its content with the whole assignment of
+`k`; after the closing, the half of the assignment kept rebuilds the until. -/
 theorem untilIGuar_acc_assigned {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
     untilIGuar N k 1 P Q G₁ G₂ ⊢ |={E, E \ ↑N}=> ▷ (Obl.assigned k 1 ∗ P) ∗ ▷ (Q ⊨ₜ G₂) ∗
       (▷ Obl.variant k P (untilDischarged k G₂) ={E \ ↑N, E}=∗
@@ -506,9 +490,8 @@ theorem untilIGuar_record_discharged {G₂ : TrSpec Expr State GF} (E : CoPset) 
   iframe EF
   iexact TQ
 
-/-- The discharge of an until whose invariant is open, at any mask: `k`, a childless child of
-`p`, is discharged with a resource `X` that implies `Q`, which is given back with the content
-that closes the invariant (the record of `G₂` at the discharge). -/
+/-- The discharge of an until whose invariant is open, at any mask, with a resource `X` that
+implies `Q`; `X` is given back with the content that closes the invariant. -/
 theorem untilIGuar_discharge_opened {G₂ : TrSpec Expr State GF} (E : CoPset) (p : Parent)
     (K : Oids) (hk : k ∈ K) {X : IProp GF} (hX : X ⊢ Q) :
     (Q ⊨ₜ G₂) ⊢ Obl.assigned k 1 -∗ Par.kids p K -∗ oblKids k ∅ -∗ X -∗
@@ -569,9 +552,7 @@ theorem finallyI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k �
           (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q)) :=
   untilI_discharge_opened E p K hk hX
 
-/-- Discharge: `P` is taken out; once `Q` holds, `k` (a childless child of `p`) is discharged,
-the record of `G₂` at the discharge is left in the invariant, and the until becomes a done
-until (Rocq `untilI_guar_discharge_done`). -/
+/-- Discharge: `P` is taken out, and once `Q` holds the until becomes a done until. -/
 @[lantana_alias untilI_guar_discharge_done]
 theorem untilIGuar_discharge_done {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
     untilIGuar N k 1 P Q G₁ G₂ ⊢ |={E, E \ ↑N}=> ▷ (P ∗
@@ -607,7 +588,7 @@ theorem untilI_discharge_done (hN : ↑N ⊆ E) :
         ∀ E' : CoPset, |={E'}=>m |={E \ ↑N, E}=> (untilIDone k Q ∗ Par.kids p (K.erase k))) := by
   rw [untilI_eq, untilIDone_eq]; exact untilIGuar_discharge_done hN
 
-/-- The same, with the done until taken apart (Rocq `untilI_guar_discharge`). -/
+/-- The same, with the done until taken apart. -/
 @[lantana_alias untilI_guar_discharge]
 theorem untilIGuar_discharge {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
     untilIGuar N k 1 P Q G₁ G₂ ⊢ |={E, E \ ↑N}=> ▷ (P ∗
@@ -639,18 +620,14 @@ theorem untilI_discharge (hN : ↑N ⊆ E) :
 
 /-! ### Sets of untils
 
-A finite set `S` of untils held in full opens at once, to a mask `E'` that their pairwise
-disjoint namespaces avoid; the records of a set of discharged obligations come from one
-resource that implies all their right formulas; and a forest of opened untils is discharged in one
-model update, with those records. -/
+A set of untils opened at once, and a forest of them discharged in one model update. -/
 
 section Sets
 open BigSepS LawfulSet
 variable {S : Oids} {E' : CoPset} {N : Oid → Namespace} {P Q : Oid → IProp GF}
 
-/-- Opening the obligation invariants of a finite set of untils held in full, whose namespaces
-are pairwise disjoint and outside `E'`: each content with the whole assignment under one later,
-and the closing that takes the contents back and rebuilds each until from the half kept. -/
+/-- Opening the invariants of a finite set of untils held in full, whose namespaces are pairwise
+disjoint and outside `E'`, with one closing for all. -/
 theorem untilIGuar_acc_assigned_set {G₁ G₂ : Oid → TrSpec Expr State GF} (hE' : E' ⊆ E)
     (hN : ∀ k, k ∈ S → ↑(N k) ⊆ E \ E')
     (hdisj : ∀ k k', k ∈ S → k' ∈ S → k ≠ k' → (↑(N k) : CoPset) ## ↑(N k')) :
@@ -721,7 +698,7 @@ theorem untilIGuar_acc_assigned_set_ndot {G₁ G₂ : Oid → TrSpec Expr State 
   untilIGuar_acc_assigned_set hE' (fun k _ => hNk k) fun k k' _ _ => hdisj k k'
 
 /-- The records of the right formulas of a set of discharged obligations, from one resource `X`
-that implies all of them, which is given back: the contents that close their invariants. -/
+that implies all of them. -/
 theorem untilIGuar_record_discharged_set {G₂ : Oid → TrSpec Expr State GF} (E : CoPset)
     {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
     ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.discharged k) ⊢ X -∗
@@ -810,9 +787,7 @@ theorem finallyI_record_discharged_set (E : CoPset) {X : IProp GF}
   untilI_record_discharged_set E hX
 
 /-- The discharge of a forest of untils whose invariants are open, in one model update at any
-mask: every obligation of `S`, closed under children and hanging below the roots `ps`, is
-discharged with a resource `X` that implies all their right formulas, which is given back with
-the contents that close their invariants. -/
+mask, with one resource `X` that implies all their right formulas. -/
 theorem untilIGuar_discharge_opened_forest {G₂ : Oid → TrSpec Expr State GF} (E : CoPset)
     (ps : List Parent) (K : Parent → Oids) (kids : Oid → Oids)
     (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
@@ -1005,8 +980,7 @@ theorem untilI_acc (hN : ↑N ⊆ E) :
     untilI N k q P Q ⊢ |={E, E \ ↑N}=> ▷ (P ∗ (▷ P ={E \ ↑N, E}=∗ untilI N k q P Q)) := by
   rw [untilI_eq]; exact untilIGuar_acc hN
 
-/-- Discharge with the right formula at hand, using a later credit
-(Rocq `untilI_guar_discharge_lc`). -/
+/-- Discharge with the right formula at hand, using a later credit. -/
 @[lantana_alias untilI_guar_discharge_lc]
 theorem untilIGuar_discharge_lc {G₁ G₂ : TrSpec Expr State GF} (p : Parent) (K : Oids)
     (hN : ↑N ⊆ E) (hk : k ∈ K) :
@@ -1032,10 +1006,7 @@ theorem finallyI_discharge (p : Parent) (K : Oids) (hN : ↑N ⊆ E) (hk : k ∈
 
 /-! ### Guarantees -/
 
-/-- A registered until guarantees the until of its readings (Rocq `guar_untilI_guar`), with
-the rank `succ (succ (fairMeasureUb fu))` for the fuel `fu` of `k` now: the certificate decides
-which content holds now; if the left one, a credit of the step opens the obligation invariant
-after the step, and the loop continues from the new state of `k`. -/
+/-- A registered until guarantees the until of its readings. -/
 @[lantana_alias guar_untilI_guar]
 theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     ⊢@{IProp GF} untilIGuar N k q P Q G₁ G₂ ⊨ₜ (G₁ Uₛ G₂) := by
@@ -1092,7 +1063,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
   iintro LC
   imod Hcl with -
   icases C with ((#TrecP | #TrecQ) | ⟨%n', %i', %Ω'', %hn', #EF, #TQ'⟩)
-  · -- `P` holds at `n`: the obligation at `n + 1` decides
+  · -- `P` holds at `n`
     imod Obl.inv_acc ⊤ N k P _ CoPset.subseteq_top $$ OI with ⟨Var, Hclose⟩
     imod lc_fupd_elim_later $$ LC Var with Var
     icases (Obl.variant_unfold k P _).1 $$ Var with (⟨Oa', HP'⟩ | ⟨#Of, #R⟩)
@@ -1126,7 +1097,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
             %v' %Ω' %W' %τf %sched %γ %fu' %o' %⟨by omega, hsch, hfs, hlb, hht, hk'⟩
             [HI' MI' Sy']
           iframe HI' MI' Sy'
-    · -- discharged during the step: at `n` (before the step) or at `n + 1` (after)
+    · -- discharged during the step
       iunfold untilDischarged at R
       icases R with ⟨%n', %i', %Ω'', #EF, #TQ'⟩
       icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ'))
@@ -1167,7 +1138,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     ileft
     iapply record_elim G₂ $$ TrecQ ST %⟨hsch, hfs, hlb, hht⟩ B [HI' MI' Sy']
     iframe HI' MI' Sy'
-  · -- discharged before the check: the discharge was at `n`
+  · -- discharged before the check
     icases eventObl_assigned_discharged_le $$ [EA EF] with %hn₂
     · iframe EA EF
     have hnn : n' = n := by omega

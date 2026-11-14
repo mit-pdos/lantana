@@ -8,29 +8,10 @@ public import Lantana.Trace.GuaranteeRules
 
 /-! # Temporal formulas: `alwaysI`, `untilI`, `finallyI`, `untilIDone`
 
-Rocq `lantana/trace/temporal_formula.v`: the interpretation of the temporal layer becomes the
-registry state (`regTemporalInterp`), whose entries hold the invariants of the registered
-formulas and the guarantees of their contents (`regEntryInterp`). Temporal formulas are
-`IProp`s:
-
-* `alwaysI N P` is an invariant `inv N P` registered with the guarantee of its content and the
-  record of the content at its registration (`alwaysIGuar N P G`, read as `G`; `alwaysI` reads
-  it as `TrSpec.canon P`);
-* `untilI N k q P Q` ("`P` until `Q`") is a registered obligation invariant over the obligation
-  `k`, which holds `P` while `k` is live and the record of `Q`'s reading at the discharge once
-  it is discharged (`untilDischarged`), with the fraction `q` of the user's half of `k`;
-* `finallyI N k q Q` is `untilI N k q True Q`;
-* `untilIDone k Q` is a fulfilled until: `Q`, the discharge of `k` and the guarantee of `Q`.
-
-Allocation reads the model under a model update (`mupd_read`). The certification of the
-registry along a run and the loops that read the formulas off a run are in
-`Lantana.Trace.TemporalFormulaRun`; the rules and the guarantees (`guar_alwaysI`,
-`guar_untilI`, `guar_untilIDone`) in `Lantana.Trace.TemporalFormulaRules`.
-
-The structures carry their trace readings `G` explicitly (`alwaysIGuar`, `untilIGuar`,
-`untilIDoneGuar`), and are contractive in their contents for fixed readings (Rocq
-`alwaysI_guar_contractive`, `untilI_guar_contractive_l/r`): the canonical forms are not, as
-`TrSpec.canon P` is not a non-expansive function of `P`.
+The registry state as the interpretation of the temporal layer (`regTemporalInterp`); the
+temporal formulas as `IProp`s, with explicit readings (`alwaysIGuar`, `untilIGuar`,
+`untilIDoneGuar`) and with the canonical ones; `mupd_read`, a model update that reads the model.
+See `docs/adequacy.md`, §1. Rocq: `lantana/trace/temporal_formula.v`.
 -/
 
 @[expose] public noncomputable section
@@ -48,8 +29,8 @@ variable [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF]
 
 /-! ## The registry and the registered structures -/
 
-/-- Once discharged, the obligation invariant of an until keeps the record of its right
-reading at the discharge event (Rocq notation `until_discharged`). -/
+/-- What the obligation invariant of an until holds once discharged: the record of its right
+reading at the discharge. -/
 @[lantana_alias until_discharged]
 def untilDischarged (k : Oid) (G₂ : TrSpec Expr State GF) : IProp GF :=
   iprop(∃ (n' i' : Nat) (Ω' : Obls), eventObl i' (n', Ω') k .discharged ∗ record G₂ n')
@@ -59,7 +40,7 @@ instance untilDischarged_persistent (k : Oid) (G₂ : TrSpec Expr State GF) :
   unfold untilDischarged; infer_instance
 
 /-- The interpretation of a registry entry: its saved readings, its invariant and the
-later-guarded guarantee of its content, which the check opens at every position. -/
+later-guarded guarantee of its content. -/
 @[lantana_alias reg_entry_interp]
 def regEntryInterp : RegEntry → IProp GF
   | .mark => iprop(True)
@@ -69,11 +50,11 @@ def regEntryInterp : RegEntry → IProp GF
       savedTrI γP G₁.internal ∗ savedTrI γQ G₂.internal ∗
       Obl.inv N k P (untilDischarged k G₂) ∗ ▷ (P ⊨ₜ G₁))
 
-/-- The registry state: the interpretation of the temporal layer (Rocq `reg_state`). -/
+/-- The registry state, whose entries are interpreted by `regEntryInterp`. -/
 @[lantana_alias reg_state]
 def regState : IProp GF := regStateWith (regEntryInterp (Expr := Expr) (State := State))
 
-/-- The temporal layer is interpreted by the registry state (Rocq `reg_temporal_interp`). -/
+/-- The temporal layer is interpreted by the registry state. -/
 @[lantana_alias reg_temporal_interp]
 instance regTemporalInterp : TemporalInterp Expr State GF := ⟨regState⟩
 
@@ -91,9 +72,8 @@ instance regEntries_persistent (l : List (Nat × RegEntry)) :
 
 /-! ### `alwaysI` -/
 
-/-- An invariant `P` made trace-visible through the reading `G` of its content: registered
-at position `r` (index `j`) with `G` and a later-guarded `P ⊨ₜ G`, and the record of `G` at
-`r` (Rocq `alwaysI_guar`; sealed). -/
+/-- The invariant `P`, registered with the reading `G` of its content and a later-guarded
+`P ⊨ₜ G`, and the record of `G` at the registration. -/
 @[lantana_alias alwaysI_guar, irreducible]
 def alwaysIGuar (N : Namespace) (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF :=
   iprop(∃ (j r : Nat) (γ : GName) (st : HistEntry Expr State),
@@ -106,7 +86,7 @@ theorem alwaysIGuar_unfold (N : Namespace) (P : IProp GF) (G : TrSpec Expr State
       ▷ (P ⊨ₜ G) ∗ ▷ record G r) := by
   unfold alwaysIGuar; rfl
 
-/-- The invariant `P` read as the canonical specification of `V` (Rocq `alwaysI_as`). -/
+/-- The invariant `P` read as the canonical specification of `V`. -/
 @[lantana_alias alwaysI_as, irreducible]
 def alwaysIAs (N : Namespace) (P V : IProp GF) : IProp GF :=
   alwaysIGuar (Expr := Expr) (State := State) N P (TrSpec.canon V)
@@ -126,9 +106,9 @@ theorem alwaysI_eq (N : Namespace) (P : IProp GF) :
 
 /-! ### `untilI` -/
 
-/-- The persistent part of `P` until `Q`, read as `G₁` until `G₂`: its registered obligation
-invariant, later-guarded `P ⊨ₜ G₁` and `Q ⊨ₜ G₂`, the state of `k` at the registration, and
-the record of `G₁` at the registration (Rocq `untilI_guar_pers`). -/
+/-- The persistent part of `P` until `Q` read as `G₁` until `G₂`: the registered obligation
+invariant, the guarantees of the formulas, and the state of `k` and the record of `G₁` at the
+registration. -/
 @[lantana_alias untilI_guar_pers]
 def untilIGuarPers (N : Namespace) (k : Oid) (P Q : IProp GF)
     (G₁ G₂ : TrSpec Expr State GF) : IProp GF :=
@@ -139,13 +119,13 @@ def untilIGuarPers (N : Namespace) (k : Oid) (P Q : IProp GF)
     Obl.inv N k P (untilDischarged k G₂) ∗ ▷ (P ⊨ₜ G₁) ∗ ▷ (Q ⊨ₜ G₂) ∗
     eventObl v (r, Ω) k (.assigned fu o) ∗ ▷ record G₁ r)
 
-/-- With the canonical readings (Rocq `untilI_pers`). -/
+/-- `untilIGuarPers` with the canonical readings. -/
 @[lantana_alias untilI_pers]
 def untilIPers (N : Namespace) (k : Oid) (P Q : IProp GF) : IProp GF :=
   untilIGuarPers (Expr := Expr) (State := State) N k P Q (TrSpec.canon P) (TrSpec.canon Q)
 
 /-- `P` until `Q` on `k`, read as `G₁` until `G₂`: the fraction `q` of the user's half of `k`
-and the persistent part (Rocq `untilI_guar`; sealed). -/
+and the persistent part. -/
 @[lantana_alias untilI_guar, irreducible]
 def untilIGuar (N : Namespace) (k : Oid) (q : Qp) (P Q : IProp GF)
     (G₁ G₂ : TrSpec Expr State GF) : IProp GF :=
@@ -157,7 +137,7 @@ theorem untilIGuar_unfold (N : Namespace) (k : Oid) (q : Qp) (P Q : IProp GF)
   unfold untilIGuar; rfl
 
 /-- `untilI N k q P Q`: `P` until `Q` on the obligation `k` (fraction `q`), read with the
-canonical specifications of its formulas (Rocq `untilI`; sealed). -/
+canonical specifications of its formulas. -/
 @[lantana_alias untilI, irreducible]
 def untilI (N : Namespace) (k : Oid) (q : Qp) (P Q : IProp GF) : IProp GF :=
   untilIGuar (Expr := Expr) (State := State) N k q P Q (TrSpec.canon P) (TrSpec.canon Q)
@@ -181,8 +161,7 @@ def finallyI (N : Namespace) (k : Oid) (q : Qp) (Q : IProp GF) : IProp GF :=
 
 /-! ### `untilIDone` -/
 
-/-- A done until, read with `G₂` on the right: `Q`, the discharged obligation `k` and a
-later-guarded `Q ⊨ₜ G₂` (Rocq `untilI_done_guar`; sealed). Nothing is registered. -/
+/-- A fulfilled until, read with `G₂` on the right; nothing is registered. -/
 @[lantana_alias untilI_done_guar, irreducible]
 def untilIDoneGuar (k : Oid) (Q : IProp GF) (G₂ : TrSpec Expr State GF) : IProp GF :=
   iprop(Q ∗ Obl.discharged k ∗ ▷ (Q ⊨ₜ G₂))
@@ -191,7 +170,7 @@ theorem untilIDoneGuar_unfold (k : Oid) (Q : IProp GF) (G₂ : TrSpec Expr State
     untilIDoneGuar k Q G₂ = iprop(Q ∗ Obl.discharged k ∗ ▷ (Q ⊨ₜ G₂)) := by
   unfold untilIDoneGuar; rfl
 
-/-- A fulfilled until: `Q` holds and `k` is discharged (Rocq `untilI_done`). -/
+/-- A fulfilled until: `Q` holds and `k` is discharged. -/
 @[lantana_alias untilI_done, irreducible]
 def untilIDone (k : Oid) (Q : IProp GF) : IProp GF :=
   untilIDoneGuar (Expr := Expr) (State := State) k Q (TrSpec.canon Q)
@@ -200,16 +179,13 @@ theorem untilIDone_eq (k : Oid) (Q : IProp GF) :
     untilIDone k Q = untilIDoneGuar (Expr := Expr) (State := State) k Q (TrSpec.canon Q) := by
   unfold untilIDone; rfl
 
-/-! ## Reading the model under a model update
-
-Allocation reads the history and the model, to record the content at the current position,
-and updates the registry state. -/
+/-! ## Reading the model under a model update -/
 
 section Read
 variable {E : CoPset} {P : IProp GF}
 
 /-- A model update with fancy updates before and after reading the model, at any view, which it
-returns unchanged (Rocq `sfmupd_read_fupd`). -/
+returns unchanged. -/
 @[lantana_alias sfmupd_read_fupd]
 theorem mupd_read_fupd :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr),
@@ -231,8 +207,8 @@ theorem mupd_read_fupd :
   iframe HI
   iexact TI
 
-/-- A model update that reads the history and the model, at any view, and updates the registry
-(Rocq `sfmupd_read`). -/
+/-- A model update that reads the history and the model, at any view, and updates the
+registry. -/
 @[lantana_alias sfmupd_read]
 theorem mupd_read :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
@@ -271,8 +247,7 @@ instance alwaysI_persistent (N : Namespace) (P : IProp GF) :
     Persistent (alwaysI (Expr := Expr) (State := State) N P) := by
   rw [alwaysI_eq]; infer_instance
 
-/-- Contractive in the content, for a fixed reading: structures can be defined by guarded
-recursion (Rocq `alwaysI_guar_contractive`). -/
+/-- Contractive in the content, for a fixed reading. -/
 @[lantana_alias alwaysI_guar_contractive]
 instance alwaysIGuar_contractive (N : Namespace) (G : TrSpec Expr State GF) :
     OFE.Contractive (fun P : IProp GF => alwaysIGuar N P G) where
@@ -335,7 +310,7 @@ instance untilIDone_persistent (k : Oid) (Q : IProp GF) [Persistent Q] :
     Persistent (untilIDone (Expr := Expr) (State := State) k Q) := by
   rw [untilIDone_eq]; infer_instance
 
-/-- Contractive in the left formula, for fixed readings (Rocq `untilI_guar_contractive_l`). -/
+/-- Contractive in the left formula, for fixed readings. -/
 @[lantana_alias untilI_guar_contractive_l]
 instance untilIGuar_contractive_left (N : Namespace) (k : Oid) (q : Qp) (Q : IProp GF)
     (G₁ G₂ : TrSpec Expr State GF) :
@@ -351,7 +326,7 @@ instance untilIGuar_contractive_left (N : Namespace) (k : Oid) (q : Qp) (Q : IPr
     · exact OFE.Contractive.distLater_dist (f := BIBase.later) fun m hm =>
         OFE.NonExpansive.ne (f := fun P : IProp GF => P ⊨ₜ G₁) (h m hm)
 
-/-- Contractive in the right formula, for fixed readings (Rocq `untilI_guar_contractive_r`). -/
+/-- Contractive in the right formula, for fixed readings. -/
 @[lantana_alias untilI_guar_contractive_r]
 instance untilIGuar_contractive_right (N : Namespace) (k : Oid) (q : Qp) (P : IProp GF)
     (G₁ G₂ : TrSpec Expr State GF) :

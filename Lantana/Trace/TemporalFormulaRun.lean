@@ -8,21 +8,10 @@ public import Lantana.Trace.TemporalFormula
 
 /-! # The run: certification of the temporal formulas, and the loops that read them off a run
 
-Rocq `lantana/trace/temporal_formula_run.v`.
-
-**Certification.** At every position the adequacy proof runs the check `regCheck`: it appends
-a marker to the registry, opens every registered invariant and produces a later-guarded record
-of its content at the position, the certificate (`certOfEntry`); the contents stay in their
-invariants. The marked registry's lower bound and the certificates form the bundle.
-
-**Loops.** For any system with the one-step property (`sysStep`), a registered `alwaysI`
-(`alwaysRun`) and a registered `untilI` (`untilRun`) are read off the run position by position
-(Löb induction): each iteration (`sysStepIter`) takes the certificate of its entry from the
-bundle of the position (`bundleAlwaysCert`, `bundleUntilCert`), whose later the deferred shape
-strips, and after the step reads the record against the system at the next position. The
-until's rank is the successor of the fair-scheduler measure of its obligation, which drops
-across every step (`oblsDrop`); after the step a later credit opens the obligation invariant
-to decide the continuation.
+The check `regCheck`, which marks the registry and certifies every registered formula, and the
+loops `alwaysRun` and `untilRun`, which read a registered `alwaysI` or `untilI` off a run for
+any system with the one-step property. See `docs/adequacy.md`, §3.
+Rocq: `lantana/trace/temporal_formula_run.v`.
 -/
 
 @[expose] public noncomputable section
@@ -110,8 +99,7 @@ theorem untilCert_discharged (k : Oid) (P : IProp GF) (G₂ : TrSpec Expr State 
     ipureintro
     exact hn
 
-/-- The certificate of one registered item (Rocq `cert_of_entry`): open its invariant, take
-a later-guarded record of its content, and close it. -/
+/-- The certificate of one registered entry, from its interpretation. -/
 @[lantana_alias cert_of_entry]
 theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (σ : State)
     (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
@@ -173,7 +161,7 @@ theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (
     iunfold record at C
     iexact C
 
-/-- The certificates of all the registered items (Rocq `certify_entries`). -/
+/-- The certificates of all the registered entries. -/
 @[lantana_alias certify_entries]
 theorem certifyEntries (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr State))
     (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
@@ -206,7 +194,7 @@ theorem certifyEntries (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEnt
     · iexact C
     · iexact Cs
 
-/-- The check at `n` appends the marker (Rocq `reg_mark`). -/
+/-- The check at `n` appends the marker. -/
 @[lantana_alias reg_mark]
 theorem regMark (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr State))
     (σ : State) (tp : ThreadPool Expr) :
@@ -247,8 +235,7 @@ theorem bundleIntro (n : Nat) (l : List (Nat × RegEntry)) (hlast : l.getLast? =
     exact hlast
   · iexact Cs
 
-/-- The check as a whole (Rocq `reg_check`): the bundle for `n`, and the registry state
-back. -/
+/-- The check at `n`: the bundle for `n`, and the registry state back. -/
 @[lantana_alias reg_check]
 theorem regCheck (n : Nat) (h : List (HistEntry Expr State)) (σ : State) (tp : ThreadPool Expr)
     (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
@@ -278,8 +265,7 @@ end Certification
 section Loops
 
 /-- The certificate of a registered always at a position `n` after its registration
-position `r`: from the bundle, or, at `r` itself, the allocation record
-(Rocq `bundle_always_cert`). -/
+position `r`: from the bundle, or, at `r` itself, the allocation record. -/
 @[lantana_alias bundle_always_cert]
 theorem bundleAlwaysCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespace) (γ : GName)
     (G : TrSpec Expr State GF) (hrn : r ≤ n) :
@@ -303,7 +289,7 @@ theorem bundleAlwaysCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespa
     ipureintro
     omega
 
-/-- The same for an until (Rocq `bundle_until_cert`). -/
+/-- The same for an until. -/
 @[lantana_alias bundle_until_cert]
 theorem bundleUntilCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespace) (k : Oid)
     (γP γQ : GName) (G₁ G₂ : TrSpec Expr State GF) (hrn : r ≤ n) :
@@ -352,9 +338,8 @@ theorem bundleUntilCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespac
     ipureintro
     omega
 
-/-- One iteration of a loop, in the deferred shape (Rocq `sys_step_iter`): the check gives the
-bundle and the certificate `C`, whose later the shape's later strips; the step gives the
-system at `n + 1`, the facts about the step and `c` later credits. -/
+/-- One iteration of a loop, in the deferred shape: the certificate `C` from the bundle loses
+its later, and the step gives the system at `n + 1` and `c` later credits. -/
 @[lantana_alias sys_step_iter]
 theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Expr State))
     (n : Nat) (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls)
@@ -397,7 +382,7 @@ theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Ex
 
 /-! ### The always loop -/
 
-/-- A registered always, read off a run after its registration (Rocq `always_run`). -/
+/-- A registered always, read off a run after its registration. -/
 @[lantana_alias always_run]
 theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
     (G : TrSpec Expr State GF) (j r : Nat) :
@@ -435,8 +420,7 @@ theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
 
 /-! ### The until loop -/
 
-/-- With the record of the right reading at hand, one iteration proves the until at once
-(Rocq `until_run_discharged`). -/
+/-- With the record of the right reading at hand, one iteration proves the until at once. -/
 @[lantana_alias until_run_discharged]
 theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State GF)
     (G₂ : TrSpec Expr State GF) (a : Fuel) (h : List (HistEntry Expr State)) (n : Nat)
@@ -467,9 +451,7 @@ theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State G
     iapply record_elim G₂ $$ TQ ST %⟨hf.1, hf.2.1, hlb', hht'⟩ B HS'
 
 /-- A registered until whose obligation is assigned at `n`, read off a run after its
-registration, with the rank of the obligation's measure at `n` (Rocq `until_run`). The bundle
-decides which content holds at `n`; the obligation at `n + 1`, read with a credit of the step,
-decides the continuation. -/
+registration, with the rank of the obligation's measure at `n`. -/
 @[lantana_alias until_run]
 theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ : GName)
     (j r : Nat) (P : IProp GF) (G₁ G₂ : TrSpec Expr State GF) :
@@ -523,7 +505,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
   iintro %l %σ' %tp' %g' %v' %Ω' %W' %⟨hlb', hht', hdrop⟩ #B #C LC
     ⟨HI', MI', Sy'⟩
   icases C with ((#TrecP | #TrecQ) | ⟨%n', %i', %Ω'', %hn', #EF, #TQ'⟩)
-  · -- `P` holds at `n`: the obligation at `n + 1` decides
+  · -- `P` holds at `n`
     imod Obl.inv_acc ⊤ N k P _ CoPset.subseteq_top $$ OI with ⟨Var, Hclose⟩
     imod lc_fupd_elim_later $$ LC Var with Var
     icases (Obl.variant_unfold k P _).1 $$ Var with (⟨Oa', HP'⟩ | ⟨#Of, #R⟩)
@@ -548,7 +530,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
         · iapply IH $$ %(h ++ [(σ', tp')]) %(n + 1) %σ' %tp' %g' %v' %Ω' %W' %τf %sched %γ
             %fu' %o' %⟨by omega, hsch, hfs, hlb', hht', hk'⟩ [HI' MI' Sy']
           iframe HI' MI' Sy'
-    · -- discharged during the step: at `n` (before the step) or at `n + 1` (after)
+    · -- discharged during the step
       iunfold untilDischarged at R
       icases R with ⟨%n', %i', %Ω'', #EF, #TQ'⟩
       icases modelInterp_eventObl_lookup g' v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) i'
@@ -588,7 +570,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
     ileft
     iapply record_elim G₂ $$ TrecQ ST %⟨hsch, hfs, hlb', hht'⟩ B [HI' MI' Sy']
     iframe HI' MI' Sy'
-  · -- discharged before the check: the discharge was at `n`
+  · -- discharged before the check
     icases eventObl_assigned_discharged_le $$ [EA EF] with %hn₂
     · iframe EA EF
     have hnn : n' = n := by omega

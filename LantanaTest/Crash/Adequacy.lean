@@ -9,16 +9,10 @@ public import LantanaTest.Crash.Reviver
 
 /-! # A language whose threads crash: the closed systems and their liveness
 
-The pools `[work N, kill]` and `[work N, kill, revive]`, started alive, in the world `CrashGF`.
-The worker's obligations are allocated from the initial pieces of thread `0`: `k` at layer `0`
-with the fuel of `N + 1` steps and, below it, a chain of `m` obligations allocated by induction on
-`m` (`chain_alloc`; the closed systems take `m = N`), all finallies of `doneOrCrashed` in the
-namespaces of their obligations; the finally on `k` is the resource whose guarantee adequacy reads
-(`◇ₛ` of the state fact of `doneOrCrashed`), then goes with the rest into the shared invariant.
-By `lwp_adequacy_temporal`: on every behavior from the initial configuration on which the active
-threads are fairly scheduled, eventually the worker has finished or is crashed. The killer may
-give up, so the worker's obligation is needed; with the reviver, a crashed worker may recover and
-finish later.
+`crash_adequacy` and `crash_revive_adequacy`: on every fairly scheduled behavior of
+`[work N, kill]` and of `[work N, kill, revive]`, started alive, eventually the worker has
+finished or is crashed. The worker's obligations, `k` and a chain of any length below it, are
+allocated by `worker_obls_alloc` and `chain_alloc`. See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section
@@ -83,9 +77,8 @@ theorem obls_insert {k : Oid} {c T : Oids} {kids : Oid → Oids} (hk : k ∉ T) 
   sep_assoc.2.trans (BigSepS.bigSepS_fn_insert (Ψ := fun j K =>
     iprop(finallyI (Nobl.@j) j 1 doneOrCrashed ∗ oblKids j K)) hk).2
 
-/-- A chain of `m` obligations below the obligation `q`, each a finally of `doneOrCrashed` in the
-namespace of its obligation: the new children `c` of `q` (none, or the head of the chain), and the
-chain `T` with its children `kids`, hanging below `c`. -/
+/-- A chain of `m` obligations below `q`, each a finally of `doneOrCrashed` in the namespace of
+its obligation: the new children `c` of `q`, and the chain `T` hanging below `c`. -/
 theorem chain_alloc (m : Nat) (q : Oid) :
     Wit.layer q 0 ⊢@{IProp GF} oblKids q ∅ -∗ |={⊤}=>m ∃ (c T : Oids) (kids : Oid → Oids),
       ⌜HangsBelow c T kids⌝ ∗ oblKids q c ∗
@@ -195,9 +188,8 @@ theorem crashInterp_init (N : Nat) (rest : List Exp)
   · rw [List.getElem?_cons_succ] at hj
     exact (hrest j n hj).elim
 
-/-- The worker's side of the initial resources: from half of the ghost variable of the state, a
-later credit and thread `0`'s pieces, the worker's obligations (`k` and a chain of `m` below it)
-and the finally on `k` for adequacy, then the shared invariant and the worker's `lWP`. -/
+/-- The worker's side of the initial resources: its obligations, the finally on `k` for
+adequacy, the shared invariant and the worker's `lWP`. -/
 theorem worker_init (N m : Nat) :
     stVar (GF := GF) (Qp.half 1) true false ⊢ £ₙ 1 -∗ thActive 0 -∗ thKids 0 ∅ -∗
       thCarriers 0 ∅ -∗ |={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ gCrash) ∗ P ∗
