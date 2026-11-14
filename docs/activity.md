@@ -103,6 +103,27 @@ pairwise disjoint: `untilIGuar_acc_assigned` opens one and gives the whole assig
 obligation, `untilIGuar_discharge_opened` discharges it at any mask and gives the emptied
 parent and the content that closes the invariant.
 
+The number of obligations below a node need not be known.  A *forest* is a list of roots
+with their children, a finite set `S` of obligations closed under children, each hanging below
+a root or below another obligation of `S`, and the children predicate of each.
+
+- `obl_discharge_forest` discharges every obligation of a forest in one model update, given
+  the whole assignment of each, and leaves each root with its children outside `S`
+  (`obl_discharge_forest_threads` for thread roots, which end at `thKids j ∅`).  It takes the
+  leaves first; the order is read from the model, where a child has more fuel than its
+  parent (`Obl.kids_rank`), so the proof supplies none.
+- `untilIGuar_acc_assigned_set` opens the invariants of a whole set of untils, whose
+  namespaces may depend on the obligation, and gives one closing for all; it opens to a mask
+  that the namespaces avoid (`untilIGuar_acc_assigned_set_ndot` for the namespaces `N₀.@k`).
+- `untilIGuar_discharge_opened_forest` is the forest rule for untils with their invariants
+  open: one resource that implies every right formula (at a crash, the fact that the thread
+  is crashed) is read for all of them and given back, and the contents that close the
+  invariants come out (`…_forest_threads` for thread roots).
+- `Th.nodes_list` hands in, or receives, the nodes of a list of threads at once.
+
+The `untilI` and `finallyI` forms need no later credit; with a guarantee `Q ⊨ₜ G₂` or a left
+formula that is not timeless, one credit serves the whole set.
+
 A step that recovers a thread receives its node, and can put obligations under it again.
 
 ## 5. Lifting lemmas
@@ -137,13 +158,15 @@ plain list when no thread is.
 ## 7. A worked example
 
 `LantanaTest/Crash/` verifies a small language end to end: a worker that counts down and
-finishes, a killer that crashes it or gives up, and a reviver.  The worker owes two nested
-obligations whose formulas say "the worker has finished, or it is crashed"; their tokens and
-the worker's children sit in an invariant shared with the killer, and the worker keeps its
-bill and the fuel.
+finishes, a killer that crashes it or gives up, and a reviver.  The worker owes one obligation
+under its thread and a chain of `m` more below it, for any `m`, whose formulas say "the worker
+has finished, or it is crashed", in namespaces indexed by the obligation; their tokens and the
+worker's children sit in an invariant shared with the killer, and the worker keeps its bill
+and the fuel.
 
-- The killer's step that crashes the worker discharges both obligations with the crash
-  disjunct inside the physical round and hands in the worker's node (`Kill.lean`).
+- The killer's step that crashes the worker opens the invariants of all the obligations
+  before the step, discharges the whole forest with the crash disjunct inside the physical
+  round, hands in the worker's node, and closes the invariants after the step (`Kill.lean`).
 - The worker pays its bill while it is alive, discharges its obligations and ends its thread
   when it finishes, and steps for free for ever while it is crashed (`Worker.lean`).
 - The reviver's step receives the worker's node and puts it back in the invariant
