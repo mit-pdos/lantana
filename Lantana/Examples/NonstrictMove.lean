@@ -59,21 +59,26 @@ section Spec
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [OblMoveNonstrict GF]
 
 /-- Each iteration moves the thread's obligation below a fresh one of the same layer, paying
-its last unit of fuel, and pays the step with the fresh one. -/
+its last unit of fuel, and pays the step with the fresh one (the bill of the thread follows its
+children). -/
 @[lantana_alias nonstrict_move.loop_spec]
 theorem loop_spec (i : ThreadId) (r : Oid) (C : List ECtxItem) (Φ : Val → IProp GF) :
-    threadExpr i C hl(v(&loop) #()) ⊢ thKids i {r} -∗ Obl.fuel r 0 1 -∗
+    threadExpr i C hl(v(&loop) #()) ⊢ thKids i {r} -∗ thCarriers i {r} -∗ Obl.fuel r 0 1 -∗
       lWP hl(v(&loop) #()) @ i {{ Φ }} := by
-  iintro HT HG Hr
+  iintro HT HK HG Hr
   iloeb as IH generalizing %r
-  imod Obl.new ⊤ (.thread i) {r} 0 (1 + 1) $$ [] HG with ⟨%r', %hr', HG, Kr', -, Fr', #Wr'⟩
+  imod Obl.new ⊤ (.thread i) {r} {r} 0 (1 + 1) $$ [] HK HG with
+    ⟨%r', %hr', HK, HG, Kr', -, Fr', #Wr'⟩
   · iapply parLe_thread
   imod OblMoveNonstrict.move_le ⊤ (.thread i) r' (({r} : Oids).insert r') ∅ r 0 0
-    (by simp) (Ordinals.Ordinal.le_refl _) $$ Wr' HG Kr' Hr with ⟨-, HG, -⟩
-  ihave HG := Par.kids_congr (B := {r'}) ?_ $$ HG
-  · intro z
+    (by simp) (Ordinals.Ordinal.le_refl _) $$ Wr' HK Kr' Hr with ⟨-, HK, -⟩
+  imod Th.carriers_resync ⊤ i _ _ $$ HG HK with ⟨HG, HK⟩
+  have hr : ∀ z, z ∈ (({r} : Oids).insert r').erase r ↔ z ∈ ({r'} : Oids) := by
+    intro z
     simp at hr' ⊢
     grind
+  ihave HG := Th.carriers_congr hr $$ HG
+  ihave HK := Par.kids_congr hr $$ HK
   icases (Obl.fuel_add r' 0 1 1).mp $$ Fr' with ⟨HF, Fr'⟩
   ihave HF := oblFuels_init {r'} 1 0 $$ [HF]
   · iapply BigSepS.bigSepS_singleton.mpr
@@ -83,7 +88,7 @@ theorem loop_spec (i : ThreadId) (r : Oid) (C : List ECtxItem) (Φ : Val → IPr
   lwp_expr_simp
   iapply lwp_credit_later $$ Hc
   inext
-  iapply IH $$ HT HG Fr'
+  iapply IH $$ HT HK HG Fr'
 
 end Spec
 
@@ -103,7 +108,8 @@ def N : Namespace := nroot.@"nonstrict"
 /-- The commitment of thread `0` to `True U False`, and its obligation with one unit of fuel
 (Rocq `Φ_P`). -/
 def mainRes {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] : IProp GF :=
-  iprop(∃ x : Oid, untilI N x 1 iprop(True) iprop(False) ∗ (thKids 0 {x} ∗ Obl.fuel x 0 1))
+  iprop(∃ x : Oid, untilI N x 1 iprop(True) iprop(False) ∗
+    (thKids 0 {x} ∗ thCarriers 0 {x} ∗ Obl.fuel x 0 1))
 
 /-- What it guarantees (Rocq `G_main`, inferred): `True U False`. -/
 def gMain {GF : BundledGFunctors} : TrSpec Exp State GF := (⌜True⌝ₛ Uₛ ⌜False⌝ₛ) ∧ₛ TrSpec.true
@@ -138,9 +144,10 @@ theorem nonstrictMove_unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNo
   · iexact Hσ
   iintro Hc HG
   rw [show List.range (List.length tp0) = [0] from rfl]
-  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨-, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
-  imod untilI_alloc (E := ⊤) (.thread 0) ∅ 0 1 $$ [] HG with ⟨%x, -, HG, -, Fx, -, Ax⟩
+  imod untilI_alloc (E := ⊤) (.thread 0) ∅ ∅ 0 1 $$ [] HG HB with
+    ⟨%x, -, HG, HB, -, Fx, -, Ax⟩
   · iapply parLe_thread
   imod Ax $$ %⊤ %N %iprop(True) %iprop(False) [] with Ux
   · inext
@@ -150,19 +157,22 @@ theorem nonstrictMove_unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNo
   iexists mainRes
   isplitr
   · iapply guar_mainRes
-  isplitl [Ux HG Fx]
+  have hx : ∀ z, z ∈ (∅ : Oids).insert x ↔ z ∈ ({x} : Oids) := by
+    intro z
+    simp
+  isplitl [Ux HG HB Fx]
   · unfold mainRes
     iexists x
     iframe Ux Fx
-    iapply Par.kids_congr _ $$ HG
-    intro z
-    simp
+    isplitl [HG]
+    · iapply Par.kids_congr hx $$ HG
+    · iapply Th.carriers_congr hx $$ HB
   iintro HP
   unfold mainRes
-  icases HP with ⟨%x, -, HG, Fx⟩
+  icases HP with ⟨%x, -, HG, HB, Fx⟩
   imodintro
   iapply BigSepL.bigSepL_singleton.mpr
-  iapply loop_spec 0 x [] $$ HT HG Fx
+  iapply loop_spec 0 x [] $$ HT HG HB Fx
 
 /-! ## The run of the loop -/
 
