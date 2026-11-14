@@ -69,9 +69,9 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 /-- The main proof. Besides returning, the main thread commits to creating a flag. -/
 @[lantana_alias FlagFork_main_spec]
 theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
-    ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #()) ∗ thKids i {kr, kc} ∗
-          ([∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g 1 μ) ∗ ⌜kr ≠ kc⌝ ∗ oblKids kr ∅ ∗
-          oblKids kc ∅ ∗ finallyI Nr kr 1 (exits v42 @ i) ∗
+    ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #()) ∗ thActive i ∗ thKids i {kr, kc} ∗
+          thCarriers i {kr, kc} ∗ ([∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g 1 μ) ∗ ⌜kr ≠ kc⌝ ∗
+          oblKids kr ∅ ∗ oblKids kc ∅ ∗ finallyI Nr kr 1 (exits v42 @ i) ∗
           finallyI Nc kc 1 iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) }}}
         hl(v(&main) #()) @ i
       l{{{ (v : Val), RET v; threadExpr i [] hl(&v) ∗ ⌜v = v42⌝ ∗
@@ -80,7 +80,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   obtain ⟨μfs, hfs⟩ := Flag.set_thread_spec (GF := GF)
   obtain ⟨μfw, hfw⟩ := Flag.wait_spec (GF := GF)
   refine ⟨10 + μfi + μfw, fun i kr kc => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, %hne, Hkr, Hkc, HFr, HFc⟩ HΦ
+  iintro %Φ !> ⟨HT, HA, HK, HG, HF, %hne, Hkr, Hkc, HFr, HFc⟩ HΦ
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfw⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfi⟩
   ihave HF := oblFuels_init _ _ _ $$ HF
@@ -92,21 +92,24 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   imod Obl.fuel_layer_mono_set _ (ℓ₁ := 0) μfi (Ordinals.Ordinal.zero_le _) $$ Hfi with Hfi
   -- The flag's obligation `k` pays the steps until the fork, its move to the forked thread,
   -- and the forked thread.
-  iapply hfi 0 i {kr, kc} 0 (((3 : Nat) : Measure) + (1 + μfs)) _ $$ [HT HG Hfi]
+  iapply hfi 0 i {kr, kc} 0 (((3 : Nat) : Measure) + (1 + μfs)) _ $$ [HT HK HG Hfi]
   · iframe
-  iintro %x %k ⟨HT, -, %hk, HG, Hkk, Hf, Htk, #Hflag⟩
+  iintro %x %k ⟨HT, -, %hk, HK, HG, Hkk, Hf, Htk, #Hflag⟩
   ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
   lwp_expr_simp
   -- Keep the commitment: the flag exists.
   ihave Hc1 := tlc_one_nat.mpr $$ Hc1
   imod finallyI_discharge (E := ⊤) (.thread i) (({kr, kc} : Oids).insert k)
-    (fun _ _ => CoPset.mem_full) (by simp) $$ Hc1 HG Hkc HFc [] with ⟨-, HG, -⟩
+    (fun _ _ => CoPset.mem_full) (by simp) $$ Hc1 HK Hkc HFc [] with ⟨-, HK, #Dc⟩
   · iexists x, k, 0
     iexact Hflag
-  ihave HG := Par.kids_congr (B := ({kr} : Oids).insert k) ?_ $$ HG
-  · intro z
+  imod Th.carriers_erase_discharged ⊤ i _ kc $$ HG Dc with HG
+  have hkc : ∀ z, z ∈ (({kr, kc} : Oids).insert k).erase kc ↔ z ∈ ({kr} : Oids).insert k := by
+    intro z
     simp at hk ⊢
     grind
+  ihave HG := Th.carriers_congr hkc $$ HG
+  ihave HK := Par.kids_congr hkc $$ HK
   ihave HF := oblFuels_subset _ (B := {kr}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   icases (Obl.fuel_add k _ _ _).mp $$ Hf with ⟨Hf, Hfr⟩
   icases (Obl.fuel_add k _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
@@ -122,12 +125,12 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     exact Std.ExtTreeSet.mem_insert_self
   iapply lwp_fork (o := 0) (G := ({kr} : Oids).insert k) (R := ∅) {k}
     iprop(oblKids k ∅ ∗ Obl.fuel k 0 μfs ∗ flagTk x k)
-    hl(v(&Flag.set) #x) hsub $$ [] [HT HG Hf₃ Hmv Hkk Hfj Htk]
+    hl(v(&Flag.set) #x) hsub $$ [] [HT HK HG Hf₃ Hmv Hkk Hfj Htk]
   · -- The forked thread sets the flag and terminates.
-    iintro %j %Φ' !> ⟨HTj, HGj, Hkk, Hfj, Htk⟩ HΦ'
+    iintro %j %Φ' !> ⟨HTj, HAj, HKj, HGj, Hkk, Hfj, Htk⟩ HΦ'
     iapply lwp_mupd
-    iapply hfs 0 j x {k} k 0 [] $$ [HTj HGj Hkk Htk Hfj]
-    · iframe HTj HGj Hkk Htk
+    iapply hfs 0 j x {k} k 0 [] $$ [HTj HKj HGj Hkk Htk Hfj]
+    · iframe HTj HKj HGj Hkk Htk
       isplitl [Hfj]
       · iapply BigSepS.bigSepS_singleton.mpr
         iexact Hfj
@@ -135,9 +138,9 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
       · ipureintro
         exact Iris.Std.LawfulSet.mem_singleton.mpr rfl
       · iexact Hflag
-    iintro ⟨-, -, HGj, -⟩
-    imod Th.terminate ⊤ j $$ [HGj] with #Hdone
-    · iapply Par.kids_congr _ $$ HGj
+    iintro ⟨-, -, HKj, -, -⟩
+    imod Th.terminate ⊤ j $$ HAj [HKj] with #Hdone
+    · iapply Par.kids_congr _ $$ HKj
       intro z
       simp only [Std.ExtTreeSet.mem_erase, Iris.Std.LawfulSet.mem_singleton,
         Std.ExtTreeSet.not_mem_empty]
@@ -149,18 +152,20 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     · iexact Hdone
     · ipureintro
       trivial
-  · iframe HT Hkk Hfj Htk
+  · iframe HT HK Hkk Hfj Htk
     isplitl [HG Hf₃]
     · iapply stepPre_nil $$ HG Hf₃
     · unfold oblFuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact Hmv
-  iintro ⟨HT, -, HG, -⟩
-  ihave HG := Par.kids_congr (B := {kr}) ?_ $$ HG
-  · intro z
+  iintro ⟨HT, ⟨-, HG, -⟩, HK⟩
+  have hdiff : ∀ z, z ∈ ({kr} : Oids).insert k \ {k} ↔ z ∈ ({kr} : Oids) := by
+    intro z
     simp at hk ⊢
     grind
+  ihave HG := Th.carriers_congr hdiff $$ HG
+  ihave HK := Par.kids_congr hdiff $$ HK
   ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF
@@ -186,7 +191,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   iapply lwp_value_mupd'.mpr
   ihave Hc2 := tlc_one_nat.mpr $$ Hc2
   imod threadExpr_terminate_finally i ⊤ v42 kr Nr (fun _ _ => CoPset.mem_full)
-    $$ HT Hc2 HG Hkr HFr with ⟨HT, #Hd⟩
+    $$ HT Hc2 HA HK Hkr HFr with ⟨HT, #Hd⟩
   imodintro
   iapply HΦ
   iframe HT
@@ -203,30 +208,30 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
 def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
   iprop(∃ kr kc : Oid, finallyI Nr kr 1 (exits v42 @ i) ∗
     finallyI Nc kc 1 iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ∗
-    (thKids i {kr, kc} ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ ⌜kr ≠ kc⌝ ∗
+    (thKids i {kr, kc} ∗ thCarriers i {kr, kc} ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ ⌜kr ≠ kc⌝ ∗
       [∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g 1 μ))
 
 /-- The postcondition of the main thread. -/
 abbrev mainPost : ThreadId → Val → IProp GF := fun _ v => iprop(⌜v = v42⌝)
 
-/-- From the main thread's token and its empty set of children: its commitments, and its
-`lWP` from them. -/
+/-- From the main thread's token, its running handle, its empty set of children and its empty
+bill: its commitments, and its `lWP` from them. -/
 @[lantana_alias flag_fork.main_pre]
 theorem main_pre (i : ThreadId) :
-    threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thKids i ∅ -∗
+    threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thActive i -∗ thKids i ∅ -∗ thCarriers i ∅ -∗
       |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
         (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
   obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
-  iintro HT HG
-  imod untilI_alloc (E := ⊤) (.thread i) ∅ 1 μ $$ [] HG with
-    ⟨%kr, -, HG, Hkr, Fkr, -, Akr⟩
+  iintro HT HA HG HB
+  imod untilI_alloc (E := ⊤) (.thread i) ∅ ∅ 1 μ $$ [] HG HB with
+    ⟨%kr, -, HG, HB, Hkr, Fkr, -, Akr⟩
   · iapply parLe_thread
   imod Akr $$ %⊤ %Nr %iprop(True) %(exits v42 @ i) [] with Ur
   · inext
     ipureintro
     trivial
-  imod untilI_alloc (E := ⊤) (.thread i) _ 1 μ $$ [] HG with
-    ⟨%kc, %hkc, HG, Hkc, Fkc, -, Akc⟩
+  imod untilI_alloc (E := ⊤) (.thread i) _ _ 1 μ $$ [] HG HB with
+    ⟨%kc, %hkc, HG, HB, Hkc, Fkc, -, Akc⟩
   · iapply parLe_thread
   imod Akc $$ %⊤ %Nc %iprop(True) %iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) []
     with Uc
@@ -236,17 +241,20 @@ theorem main_pre (i : ThreadId) :
   have hne : kr ≠ kc := by
     rintro rfl
     exact hkc Std.ExtTreeSet.mem_insert_self
+  have hG : ∀ z, z ∈ ((∅ : Oids).insert kr).insert kc ↔ z ∈ ({kr, kc} : Oids) := by
+    intro z
+    simp
+    grind
   imodintro
   iexists μ
-  isplitl [Ur Uc HG Hkr Hkc Fkr Fkc]
+  isplitl [Ur Uc HG HB Hkr Hkc Fkr Fkc]
   · unfold mainRes finallyI
     iexists kr, kc
     iframe Ur Uc Hkr Hkc
     isplitl [HG]
-    · iapply Par.kids_congr _ $$ HG
-      intro z
-      simp
-      grind
+    · iapply Par.kids_congr hG $$ HG
+    isplitl [HB]
+    · iapply Th.carriers_congr hG $$ HB
     isplitr
     · ipureintro
       exact hne
@@ -254,9 +262,9 @@ theorem main_pre (i : ThreadId) :
     iframe
   iintro HP
   unfold mainRes
-  icases HP with ⟨%kr, %kc, HFr, HFc, HG, Hkr, Hkc, %hne, HF⟩
+  icases HP with ⟨%kr, %kc, HFr, HFc, HG, HB, Hkr, Hkc, %hne, HF⟩
   imodintro
-  iapply hmain i kr kc $$ [HT HG HF Hkr Hkc HFr HFc]
+  iapply hmain i kr kc $$ [HT HA HG HB HF Hkr Hkc HFr HFc]
   · iframe
     ipureintro
     exact hne
@@ -327,9 +335,9 @@ theorem main_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair
   · iexact Hσ
   iintro Hc HG
   rw [show List.range (List.length tp0) = [0] from rfl]
-  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
-  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imod main_pre 0 $$ HT HA HG HB with ⟨%μ, HP, Hwp⟩
   imodintro
   iexists mainRes 0 μ
   isplitr
@@ -361,9 +369,9 @@ theorem main_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
   · iexact Hσ
   iintro Hc HG
   rw [show List.range (List.length tp0) = [0] from rfl]
-  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
-  imod main_pre 0 $$ HT HG with ⟨%μ, HP, Hwp⟩
+  imod main_pre 0 $$ HT HA HG HB with ⟨%μ, HP, Hwp⟩
   imod Hwp $$ HP with Hwp
   imodintro
   iapply BigSepL.bigSepL_singleton.mpr

@@ -80,15 +80,15 @@ theorem guar_cdQ (x y : Loc) (kf : Oid) : ⊢@{IProp GF} cdQ x y kf ⊨ₜ cdQSp
 it. -/
 @[lantana_alias cert_discharge.main_spec]
 theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Loc),
-    ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #x #y) ∗ thKids i {kq, kf} ∗
-          ([∗set] g ∈ ({kq, kf} : Oids), Obl.fuel g 0 μ) ∗ ⌜kq ≠ kf⌝ ∗ oblKids kq ∅ ∗
-          oblKids kf ∅ ∗ x ↦ some v0 ∗ y ↦ some v7 ∗
+    ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #x #y) ∗ thActive i ∗ thKids i {kq, kf} ∗
+          thCarriers i {kq, kf} ∗ ([∗set] g ∈ ({kq, kf} : Oids), Obl.fuel g 0 μ) ∗ ⌜kq ≠ kf⌝ ∗
+          oblKids kq ∅ ∗ oblKids kf ∅ ∗ x ↦ some v0 ∗ y ↦ some v7 ∗
           finallyI Nq kq 1 (cdQ x y kf) ∗ finallyI Nf kf 1 iprop(x ↦ some v2) }}}
         hl(v(&main) #x #y) @ i
       l{{{ RET hl_val(#()); threadExpr i [] hl(#()) ∗
         liftTerm i (fun _ _ => iprop(True)) hl_val(#()) }}} := by
   refine ⟨10, fun i kq kf x y => ?_⟩
-  iintro %Φ !> ⟨HT, HG, HF, %hne, Hkq, Hkf, Hx, Hy, HQ, HFf⟩ HΦ
+  iintro %Φ !> ⟨HT, Hact, HK, HG, HF, %hne, Hkq, Hkf, Hx, Hy, HQ, HFf⟩ HΦ
   ihave HF := oblFuels_init _ 10 0 $$ HF
   unfold main
   lwp_step HT HG HF with Hlc : 1 +ₕ 1
@@ -118,14 +118,17 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
     iexact Hy
   ihave Hc1 := tlc_one_nat.mpr $$ Hc1
   imod finallyI_discharge (E := ⊤) (.thread i) {kq, kf} (fun _ _ => CoPset.mem_full) (by simp)
-    $$ Hc1 HG Hkq HQ [Hx HFf] with ⟨HQ, HG, -⟩
+    $$ Hc1 HK Hkq HQ [Hx HFf] with ⟨HQ, HK, #Dq⟩
   · unfold cdQ
     iframe Hx HFf
     iexact HA
-  ihave HG := Par.kids_congr (B := {kf}) ?_ $$ HG
-  · intro z
+  imod Th.carriers_erase_discharged ⊤ i _ kq $$ HG Dq with HG
+  have hdiff : ∀ z, z ∈ ({kq, kf} : Oids).erase kq ↔ z ∈ ({kf} : Oids) := by
+    intro z
     simp
     grind
+  ihave HG := Th.carriers_congr hdiff $$ HG
+  ihave HK := Par.kids_congr hdiff $$ HK
   ihave HF := oblFuels_subset _ (B := {kf}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   unfold cdQ
   icases HQ with ⟨Hx, -, HFf⟩
@@ -144,9 +147,9 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
   iapply lwp_value_mupd'.mpr
   ihave Hc2 := tlc_one_nat.mpr $$ Hc2
   imod finallyI_discharge (E := ⊤) (.thread i) {kf} (fun _ _ => CoPset.mem_full) (by simp)
-    $$ Hc2 HG Hkf HFf Hx with ⟨-, HG, -⟩
-  imod Th.terminate ⊤ i $$ [HG] with #Hd
-  · iapply Par.kids_congr _ $$ HG
+    $$ Hc2 HK Hkf HFf Hx with ⟨-, HK, -⟩
+  imod Th.terminate ⊤ i $$ Hact [HK] with #Hd
+  · iapply Par.kids_congr _ $$ HK
     intro z
     simp
   imodintro
@@ -162,33 +165,33 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
 def mainRes (x y : Loc) (i : ThreadId) (μ : Measure) : IProp GF :=
   iprop(∃ kq kf : Oid, finallyI Nq kq 1 (cdQ x y kf) ∗ finallyI Nf kf 1 iprop(x ↦ some v2) ∗
     x ↦ some v0 ∗ y ↦ some v7 ∗
-    (thKids i {kq, kf} ∗ oblKids kq ∅ ∗ oblKids kf ∅ ∗ ⌜kq ≠ kf⌝ ∗
+    (thKids i {kq, kf} ∗ thCarriers i {kq, kf} ∗ oblKids kq ∅ ∗ oblKids kf ∅ ∗ ⌜kq ≠ kf⌝ ∗
       [∗set] g ∈ ({kq, kf} : Oids), Obl.fuel g 0 μ))
 
 /-- The postcondition of the main thread. -/
 abbrev mainPost : ThreadId → Val → IProp GF := fun _ v => iprop(⌜v = hl_val(#())⌝)
 
-/-- From the main thread's token, the initial heap and the thread's empty set of children: the
-commitments, and the `lWP` of the thread from them. The obligation `kf` is allocated first, as
-the right formula of `kq` mentions it. -/
+/-- From the main thread's token, the initial heap and the thread's running handle, empty set of
+children and empty bill: the commitments, and the `lWP` of the thread from them. The obligation
+`kf` is allocated first, as the right formula of `kq` mentions it. -/
 @[lantana_alias cert_discharge.main_pre]
 theorem main_pre (i : ThreadId) (x y : Loc) :
     threadExpr (GF := GF) i [] hl(v(&main) #x #y) ⊢ x ↦ some v0 -∗ y ↦ some v7 -∗
-      thKids i ∅ -∗
+      thActive i -∗ thKids i ∅ -∗ thCarriers i ∅ -∗
       |={⊤}=>m ∃ μ : Measure, mainRes x y i μ ∗
         (mainRes x y i μ -∗
           |={⊤}=>m lWP hl(v(&main) #x #y) @ i; ⊤ {{ liftTerm i mainPost }}) := by
   obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
-  iintro HT Hx Hy HG
-  imod untilI_alloc (E := ⊤) (.thread i) ∅ 0 μ $$ [] HG with
-    ⟨%kf, -, HG, Hkf, Fkf, -, Akf⟩
+  iintro HT Hx Hy HA HG HB
+  imod untilI_alloc (E := ⊤) (.thread i) ∅ ∅ 0 μ $$ [] HG HB with
+    ⟨%kf, -, HG, HB, Hkf, Fkf, -, Akf⟩
   · iapply parLe_thread
   imod Akf $$ %⊤ %Nf %iprop(True) %iprop(x ↦ some v2) [] with Uf
   · inext
     ipureintro
     trivial
-  imod untilI_alloc (E := ⊤) (.thread i) _ 0 μ $$ [] HG with
-    ⟨%kq, %hkq, HG, Hkq, Fkq, -, Akq⟩
+  imod untilI_alloc (E := ⊤) (.thread i) _ _ 0 μ $$ [] HG HB with
+    ⟨%kq, %hkq, HG, HB, Hkq, Fkq, -, Akq⟩
   · iapply parLe_thread
   imod Akq $$ %⊤ %Nq %iprop(True) %(cdQ x y kf) [] with Uq
   · inext
@@ -197,16 +200,19 @@ theorem main_pre (i : ThreadId) (x y : Loc) :
   have hne : kq ≠ kf := by
     rintro rfl
     exact hkq Std.ExtTreeSet.mem_insert_self
+  have hG : ∀ z, z ∈ ((∅ : Oids).insert kf).insert kq ↔ z ∈ ({kq, kf} : Oids) := by
+    intro z
+    simp
   imodintro
   iexists μ
-  isplitl [Uq Uf Hx Hy HG Hkq Hkf Fkq Fkf]
+  isplitl [Uq Uf Hx Hy HG HB Hkq Hkf Fkq Fkf]
   · unfold mainRes finallyI
     iexists kq, kf
     iframe Uq Uf Hx Hy Hkq Hkf
     isplitl [HG]
-    · iapply Par.kids_congr _ $$ HG
-      intro z
-      simp
+    · iapply Par.kids_congr hG $$ HG
+    isplitl [HB]
+    · iapply Th.carriers_congr hG $$ HB
     isplitr
     · ipureintro
       exact hne
@@ -214,9 +220,9 @@ theorem main_pre (i : ThreadId) (x y : Loc) :
     iframe
   iintro HP
   unfold mainRes
-  icases HP with ⟨%kq, %kf, HQ, HFf, Hx, Hy, HG, Hkq, Hkf, %hne, HF⟩
+  icases HP with ⟨%kq, %kf, HQ, HFf, Hx, Hy, HG, HB, Hkq, Hkf, %hne, HF⟩
   imodintro
-  iapply hmain i kq kf x y $$ [HT HG HF Hkq Hkf Hx Hy HQ HFf]
+  iapply hmain i kq kf x y $$ [HT HA HG HB HF Hkq Hkf Hx Hy HQ HFf]
   · iframe
     ipureintro
     exact hne
@@ -302,10 +308,10 @@ theorem certDischarge_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior �
   · iexact Hσ
   iintro Hc HG
   rw [show List.range (List.length tp0) = [0] from rfl]
-  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
   icases heap0_pointsTo $$ Hh with ⟨Hx, Hy⟩
-  imod main_pre 0 x0 y0 $$ HT Hx Hy HG with ⟨%μ, HP, Hwp⟩
+  imod main_pre 0 x0 y0 $$ HT Hx Hy HA HG HB with ⟨%μ, HP, Hwp⟩
   imodintro
   iexists mainRes x0 y0 0 μ
   isplitr
@@ -337,10 +343,10 @@ theorem certDischarge_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBeh
   · iexact Hσ
   iintro Hc HG
   rw [show List.range (List.length tp0) = [0] from rfl]
-  ihave HG := BigSepL.bigSepL_singleton.mp $$ HG
+  icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
   icases heap0_pointsTo $$ Hh with ⟨Hx, Hy⟩
-  imod main_pre 0 x0 y0 $$ HT Hx Hy HG with ⟨%μ, HP, Hwp⟩
+  imod main_pre 0 x0 y0 $$ HT Hx Hy HA HG HB with ⟨%μ, HP, Hwp⟩
   imod Hwp $$ HP with Hwp
   imodintro
   iapply BigSepL.bigSepL_singleton.mpr
