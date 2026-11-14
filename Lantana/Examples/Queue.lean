@@ -223,14 +223,15 @@ container `g` of its obligations, a child of the thread. Rocq's `{[ng]} ∪ G` i
 def dequeueRes (m : Measure) (b : Bool) (wg : Oid) (i : ThreadId) (G : Oids)
     (φ : Val → Oids → IProp GF) (γ : QueueName) (ℓ : Layer) : Val → IProp GF
   | .injL (.lit .unit) =>
-    if b then iprop(∃ ng : Oid, thKids i (G.insert ng) ∗ ⌜ng ∉ G⌝ ∗ worker γ ng ∗
-      oblKids wg ∅ ∗ Obl.assigned wg 1 ∗ Obl.fuel ng ℓ m)
-    else thKids i G
+    if b then iprop(∃ ng : Oid, thKids i (G.insert ng) ∗ thCarriers i (G.insert ng) ∗
+      ⌜ng ∉ G⌝ ∗ worker γ ng ∗ oblKids wg ∅ ∗ Obl.assigned wg 1 ∗ Obl.fuel ng ℓ m)
+    else iprop(thKids i G ∗ thCarriers i G)
   | .injR v => iprop(∃ (g : Oid) (B : Oids), φ v B ∗ oblKids g B ∗ Obl.assigned g 1 ∗
       Obl.fuel g ℓ m ∗ ⌜g ∉ G⌝ ∗
-      if b then iprop(∃ ng : Oid, thKids i ((G.insert g).insert ng) ∗ ⌜ng ∉ G ∧ g ≠ ng⌝ ∗
+      if b then iprop(∃ ng : Oid, thKids i ((G.insert g).insert ng) ∗
+        thCarriers i ((G.insert g).insert ng) ∗ ⌜ng ∉ G ∧ g ≠ ng⌝ ∗
         worker γ ng ∗ oblKids wg ∅ ∗ Obl.assigned wg 1 ∗ Obl.fuel ng ℓ m)
-      else thKids i (G.insert g))
+      else iprop(thKids i (G.insert g) ∗ thCarriers i (G.insert g)))
   | _ => iprop(False)
 
 omit [HeapGS GF] [TicketLockG GF] in
@@ -319,11 +320,11 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TicketLockG GF] [Queu
 @[lantana_alias queue.Queue_init_spec]
 theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (φ : Val → Oids → IProp GF) (i : ThreadId)
     (G : Oids) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g 0 μ) }}}
         hl(v(&init) #()) @ i
-      l{{{ (ql : Val) (γ : QueueName), RET ql; threadExpr i C hl(&ql) ∗ £ₒ lc ∗ thKids i G ∗
-        isQueueInit ql γ φ }}} := by
+      l{{{ (ql : Val) (γ : QueueName), RET ql; threadExpr i C hl(&ql) ∗ £ₒ lc ∗
+        thCarriers i G ∗ isQueueInit ql γ φ }}} := by
   obtain ⟨μi, hi⟩ := TicketLock.init_spec (GF := GF)
   refine ⟨20 + μi, fun lc φ i G C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
@@ -437,16 +438,16 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
     (K B : Oids) (φ : Val → Oids → IProp GF) (γ : QueueName) (ℓ : Layer) (ql x : Val)
     (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&enqueue) v(&ql) v(&x)) ∗ thKids i G ∗
-          ([∗set] g ∈ G, Obl.fuel g 1 μ) ∗ Par.kids p K ∗ ⌜B ⊆ K⌝ ∗
+          thCarriers i G ∗ ([∗set] g ∈ G, Obl.fuel g 1 μ) ∗ Par.kids p K ∗ ⌜B ⊆ K⌝ ∗
           ([∗set] b ∈ B, Obl.fuel b ℓ.succ.succ 1) ∗ φ x B ∗ isQueue ql γ ℓ φ }}}
         hl(v(&enqueue) v(&ql) v(&x)) @ i
-      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗
+      l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i G ∗ thCarriers i G ∗
         Par.kids p (K \ B) }}} := by
   obtain ⟨μa, ha⟩ := TicketLock.acquire_spec (GF := GF)
   obtain ⟨μr, hr⟩ := TicketLock.release_spec (GF := GF)
   refine ⟨100 + μa + μr, fun lc i G p K B φ γ ℓ ql x C => ?_⟩
   rw [Ordinals.Ordinal.one_eq_succ_zero]
-  iintro %Φ !> ⟨HT, HG, HF, HK, %hBK, HFB, Hφ, #IQ⟩ HΦ
+  iintro %Φ !> ⟨HT, HKi, HG, HF, HK, %hBK, HFB, Hφ, #IQ⟩ HΦ
   icases (Obl.fuel_add_set G _ (100 + μa) μr).mp $$ HF with ⟨HF, Fr⟩
   icases (Obl.fuel_add_set G _ 100 μa).mp $$ HF with ⟨HF, Fa⟩
   ihave HF := oblFuels_init G 100 _ $$ HF
@@ -468,9 +469,9 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   -- Take the lock: the unlock obligation `κu` gets fuel for the critical section and release.
   lwp_bind hl(v(&TicketLock.acquire) v(&tl)) HT
   iapply ha 0 (((94 : Nat) : Measure) + μr) i G tl γ.tl .discard .discard 0
-    (queueLock φ γ.γq lhptr ltptr) ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HG Fa]
-  · iframe HT HG Fa AL CF IFL
-  iintro %κu ⟨HT, -, %hκu, HG, Kκ, Fκ, -, -, LT, HR⟩
+    (queueLock φ γ.γq lhptr ltptr) ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HKi HG Fa]
+  · iframe HT HKi HG Fa AL CF IFL
+  iintro %κu ⟨HT, -, %hκu, HKi, HG, Kκ, Fκ, -, -, LT, HR⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add κu 0 _ _).mp $$ Fκ with ⟨Fκ, Fκr⟩
@@ -592,21 +593,24 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   ihave Fr := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g 0 μr) hκu).mpr $$ [Fκr Fr]
   · iframe Fκr Fr
   iapply hr 0 i (G.insert κu) tl γ.tl .discard (queueLock φ γ.γq lhptr ltptr) κu ⊤
-    (fun _ _ => CoPset.mem_full) C $$ [HT HG Fr Kκ LT Plh Plt Q QC]
+    (fun _ _ => CoPset.mem_full) C $$ [HT HKi HG Fr Kκ LT Plh Plt Q QC]
   · unfold queueLock
-    iframe HT HG Fr Kκ LT AL IFL
+    iframe HT HKi HG Fr Kκ LT AL IFL
     isplitr
     · ipureintro
       simp
     iexists lh, newt, vs ++ [(x, B)]
     iframe
-  iintro ⟨HT, -, HG, -⟩
+  iintro ⟨HT, -, HKi, HG, -⟩
+  have hG : ∀ z, z ∈ (G.insert κu).erase κu ↔ z ∈ G := by
+    intro z
+    simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
+    grind
   iapply HΦ
   iframe HT Hlc HK
-  iapply Par.kids_congr _ $$ HG
-  intro z
-  simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
-  grind
+  isplitl [HKi]
+  · iapply Par.kids_congr hG $$ HKi
+  · iapply Th.carriers_congr hG $$ HG
 
 /-- Dequeuing. The worker (`b = true`, with its inbox `wg`) gets a fresh inbox `ng` (with fuel
 `m`), into which the obligations of the remaining elements move, and gets back `wg` without
@@ -616,7 +620,7 @@ below the thread (Rocq `Queue_dequeue_spec`). -/
 theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool) (wg : Oid)
     (i : ThreadId) (G : Oids) (φ : Val → Oids → IProp GF) (γ : QueueName) (ℓ : Layer)
     (ql : Val) (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&dequeue) v(&ql)) ∗ thKids i G ∗
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&dequeue) v(&ql)) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g 1 μ) ∗ (if b then worker γ wg else iprop(True)) ∗
           isQueue ql γ ℓ φ }}}
         hl(v(&dequeue) v(&ql)) @ i
@@ -626,7 +630,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
   obtain ⟨μr, hr⟩ := TicketLock.release_spec (GF := GF)
   refine ⟨100 + μa + μr, fun lc m b wg i G φ γ ℓ ql C => ?_⟩
   rw [Ordinals.Ordinal.one_eq_succ_zero]
-  iintro %Φ !> ⟨HT, HG, HF, HW, #IQ⟩ HΦ
+  iintro %Φ !> ⟨HT, HK, HG, HF, HW, #IQ⟩ HΦ
   icases (Obl.fuel_add_set G _ (100 + μa) μr).mp $$ HF with ⟨HF, Fr⟩
   icases (Obl.fuel_add_set G _ 100 μa).mp $$ HF with ⟨HF, Fa⟩
   ihave HF := oblFuels_init G 100 _ $$ HF
@@ -648,9 +652,9 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
   -- Take the lock: the unlock obligation `κu` gets fuel for the critical section and release.
   lwp_bind hl(v(&TicketLock.acquire) v(&tl)) HT
   iapply ha 0 (((96 : Nat) : Measure) + μr) i G tl γ.tl .discard .discard 0
-    (queueLock φ γ.γq lhptr ltptr) ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HG Fa]
-  · iframe HT HG Fa AL CF IFL
-  iintro %κu ⟨HT, -, %hκu, HG, Kκ, Fκ, -, -, LT, HR⟩
+    (queueLock φ γ.γq lhptr ltptr) ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HK HG Fa]
+  · iframe HT HK HG Fa AL CF IFL
+  iintro %κu ⟨HT, -, %hκu, HK, HG, Kκ, Fκ, -, -, LT, HR⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add κu 0 _ _).mp $$ Fκ with ⟨Fκ, Fκr⟩
@@ -698,9 +702,9 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     cases b with
     | false =>
       iapply hr 0 i (G.insert κu) tl γ.tl .discard (queueLock φ γ.γq lhptr ltptr) κu ⊤
-        (fun _ _ => CoPset.mem_full) _ $$ [HT HG Fr Kκ LT Plh Plt Q Pl]
+        (fun _ _ => CoPset.mem_full) _ $$ [HT HK HG Fr Kκ LT Plh Plt Q Pl]
       · unfold queueLock
-        iframe HT HG Fr Kκ LT AL IFL
+        iframe HT HK HG Fr Kκ LT AL IFL
         isplitr
         · ipureintro
           simp
@@ -710,13 +714,15 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         iframe Pl
         ipureintro
         rfl
-      iintro ⟨HT, -, HG, -⟩
+      iintro ⟨HT, -, HK, HG, -⟩
       ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
       lwp_expr_simp
-      ihave HG := Par.kids_congr (B := G) ?_ $$ HG
-      · intro z
+      have hG : ∀ z, z ∈ (G.insert κu).erase κu ↔ z ∈ G := by
+        intro z
         simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
         grind
+      ihave HK := Par.kids_congr hG $$ HK
+      ihave HG := Th.carriers_congr hG $$ HG
       ihave HF := oblFuels_subset (B := G) _
         (fun z hz => Std.ExtTreeSet.mem_insert.mpr (.inr hz)) $$ HF
       lwp_step HT HG HF
@@ -727,17 +733,17 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       iapply HΦ
       iframe HT Hlc
       simp only [dequeueRes, Bool.false_eq_true, ite_false]
-      iexact HG
+      iframe HK HG
     | true =>
       -- The worker renews its inbox: the old one `wg` has no children.
       simp only [↓reduceIte]
       unfold worker
       icases HW with ⟨Gw, Aw⟩
       ihave Hup : |={⊤}=>m (∃ ng : Oid, ⌜ng ∉ G.insert κu⌝ ∗
-          thKids i ((G.insert κu).insert ng) ∗ oblKids wg ∅ ∗
-          (γ.γd ↪VAR{.own (1 : Qp).half} ng) ∗ Obl.assigned ng 1 ∗
+          thKids i ((G.insert κu).insert ng) ∗ thCarriers i ((G.insert κu).insert ng) ∗
+          oblKids wg ∅ ∗ (γ.γd ↪VAR{.own (1 : Qp).half} ng) ∗ Obl.assigned ng 1 ∗
           Obl.fuel ng ℓ (m + ((83 : Nat) : Measure) + μr) ∗ qgQueue γ.γq [] (1 : Qp).half) $$
-          [HG Gw Q Hc1]
+          [HK HG Gw Q Hc1]
       · ihave Hacc := inv_acc (E := ⊤) (N := Ni) (P := queueInv ℓ γ.γq γ.γd)
           (fun _ _ => CoPset.mem_full) $$ IQ
         ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -752,8 +758,9 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         subst vs0
         ihave %h := ghost_var_agree γ.γd wg _ g _ $$ Gw Gd
         subst g
-        imod Obl.new (⊤ \ ↑Ni) (.thread i) (G.insert κu) ℓ (m + ((83 : Nat) : Measure) + μr)
-          $$ [] HG with ⟨%ng, %hng, HG, Kng, Ang, Fng, #Wng⟩
+        imod Obl.new (⊤ \ ↑Ni) (.thread i) (G.insert κu) (G.insert κu) ℓ
+          (m + ((83 : Nat) : Measure) + μr) $$ [] HK HG with
+          ⟨%ng, %hng, HK, HG, Kng, Ang, Fng, #Wng⟩
         · iapply parLe_thread
         imod ghost_var_update_halves ng γ.γd wg wg $$ Gw Gd with ⟨Gw, Gd⟩
         imod Hclose $$ [Q0 Gd Kng Fq] with -
@@ -768,14 +775,14 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
           exact Iff.rfl
         imodintro
         iexists ng
-        iframe HG Gw Ang Fng Q
+        iframe HK HG Gw Ang Fng Q
         isplitr
         · ipureintro
           exact hng
         iapply Par.kids_congr _ $$ Kg
         intro z
         exact Iff.rfl
-      imod Hup with ⟨%ng, %hng, HG, Kwg, Gw, Ang, Fng, Q⟩
+      imod Hup with ⟨%ng, %hng, HK, HG, Kwg, Gw, Ang, Fng, Q⟩
       icases (Obl.fuel_add ng ℓ _ μr).mp $$ Fng with ⟨Fng, Fngr⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng83⟩
       ihave HF := oblFuels_add_obl (G.insert κu) ng ℓ _ $$ Fng83 HF
@@ -783,9 +790,9 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       ihave Fr := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g 0 μr) hng).mpr $$ [Fngr Fr]
       · iframe Fngr Fr
       iapply hr 0 i ((G.insert κu).insert ng) tl γ.tl .discard (queueLock φ γ.γq lhptr ltptr)
-        κu ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HG Fr Kκ LT Plh Plt Q Pl]
+        κu ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HK HG Fr Kκ LT Plh Plt Q Pl]
       · unfold queueLock
-        iframe HT HG Fr Kκ LT AL IFL
+        iframe HT HK HG Fr Kκ LT AL IFL
         isplitr
         · ipureintro
           simp
@@ -795,13 +802,15 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         iframe Pl
         ipureintro
         rfl
-      iintro ⟨HT, -, HG, -⟩
+      iintro ⟨HT, -, HK, HG, -⟩
       ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
       lwp_expr_simp
-      ihave HG := Par.kids_congr (B := G.insert ng) ?_ $$ HG
-      · intro z
+      have hG : ∀ z, z ∈ ((G.insert κu).insert ng).erase κu ↔ z ∈ G.insert ng := by
+        intro z
         simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
         grind
+      ihave HK := Par.kids_congr hG $$ HK
+      ihave HG := Th.carriers_congr hG $$ HG
       ihave HF := oblFuels_subset (B := G.insert ng) _
         (fun z hz => by simp only [Std.ExtTreeSet.mem_insert] at hz ⊢; grind) $$ HF
       lwp_step HT HG HF
@@ -814,7 +823,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       simp only [dequeueRes, ↓reduceIte]
       iexists ng
       unfold worker
-      iframe HG Gw Ang Kwg Aw Fng
+      iframe HK HG Gw Ang Kwg Aw Fng
       ipureintro
       intro h
       exact hng (Std.ExtTreeSet.mem_insert.mpr (.inr h))
@@ -861,9 +870,10 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     -- into a fresh container `g` below the thread, and the other elements move up one position
     -- (one unit of fuel each is left for a move to a new inbox).
     ihave Hup : |={⊤}=>m (∃ g : Oid, ⌜g ∉ G.insert κu⌝ ∗ thKids i ((G.insert κu).insert g) ∗
+        thCarriers i ((G.insert κu).insert g) ∗
         oblKids g B ∗ Obl.assigned g 1 ∗ Obl.fuel g ℓ (m + ((76 : Nat) : Measure) + μr) ∗
         qgQueue γ.γq vs (1 : Qp).half ∗
-        ([∗list] B' ∈ vs.map Prod.snd, [∗set] b ∈ B', Obl.fuel b ℓ.succ 1)) $$ [HG Q Hc1]
+        ([∗list] B' ∈ vs.map Prod.snd, [∗set] b ∈ B', Obl.fuel b ℓ.succ 1)) $$ [HK HG Q Hc1]
     · ihave Hacc := inv_acc (E := ⊤) (N := Ni) (P := queueInv ℓ γ.γq γ.γd)
         (fun _ _ => CoPset.mem_full) $$ IQ
       ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -878,8 +888,8 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       subst vs0
       obtain ⟨hdisB, hdis⟩ := disjointList_cons.mp hdis
       imod ghost_var_update_halves vs γ.γq _ _ $$ Q Q0 with ⟨Q, Q0⟩
-      imod Obl.new (⊤ \ ↑Ni) (.thread i) (G.insert κu) ℓ (m + ((76 : Nat) : Measure) + μr)
-        $$ [] HG with ⟨%g, %hg, HG, Kg, Ag, Fg, #Wg⟩
+      imod Obl.new (⊤ \ ↑Ni) (.thread i) (G.insert κu) (G.insert κu) ℓ
+        (m + ((76 : Nat) : Measure) + μr) $$ [] HK HG with ⟨%g, %hg, HK, HG, Kg, Ag, Fg, #Wg⟩
       · iapply parLe_thread
       simp only [List.map_cons, unionList_cons]
       icases BigSepL.bigSepL_cons.mp $$ Fq with ⟨FB, Fq⟩
@@ -912,14 +922,14 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
           exact ⟨.inr h, fun hB => hdisB z ⟨hB, h⟩⟩
       imodintro
       iexists g
-      iframe HG Ag Fg Q F1
+      iframe HK HG Ag Fg Q F1
       isplitr
       · ipureintro
         exact hg
       iapply Par.kids_congr _ $$ Kg
       intro z
       rw [LawfulSet.union_empty_right]
-    imod Hup with ⟨%g, %hg, HG, Kg, Ag, Fg, Q, F1⟩
+    imod Hup with ⟨%g, %hg, HK, HG, Kg, Ag, Fg, Q, F1⟩
     icases (Obl.fuel_add g ℓ _ μr).mp $$ Fg with ⟨Fg, Fgr⟩
     icases (Obl.fuel_add g ℓ m _).mp $$ Fg with ⟨Fg, Fg76⟩
     ihave HF := oblFuels_add_obl (G.insert κu) g ℓ _ $$ Fg76 HF
@@ -930,21 +940,23 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     cases b with
     | false =>
       iapply hr 0 i ((G.insert κu).insert g) tl γ.tl .discard (queueLock φ γ.γq lhptr ltptr)
-        κu ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HG Fr Kκ LT Plh Plt Q QC]
+        κu ⊤ (fun _ _ => CoPset.mem_full) _ $$ [HT HK HG Fr Kκ LT Plh Plt Q QC]
       · unfold queueLock
-        iframe HT HG Fr Kκ LT AL IFL
+        iframe HT HK HG Fr Kκ LT AL IFL
         isplitr
         · ipureintro
           simp
         iexists ln, lt, vs
         iframe Plh Plt Q QC
-      iintro ⟨HT, -, HG, -⟩
+      iintro ⟨HT, -, HK, HG, -⟩
       ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
       lwp_expr_simp
-      ihave HG := Par.kids_congr (B := G.insert g) ?_ $$ HG
-      · intro z
+      have hG : ∀ z, z ∈ ((G.insert κu).insert g).erase κu ↔ z ∈ G.insert g := by
+        intro z
         simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
         grind
+      ihave HK := Par.kids_congr hG $$ HK
+      ihave HG := Th.carriers_congr hG $$ HG
       ihave HF := oblFuels_subset (B := G.insert g) _
         (fun z hz => by simp only [Std.ExtTreeSet.mem_insert] at hz ⊢; grind) $$ HF
       lwp_step HT HG HF
@@ -958,7 +970,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       iframe HT Hlc
       simp only [dequeueRes, Bool.false_eq_true, ↓reduceIte]
       iexists g, B
-      iframe Hφ Kg Ag Fg HG
+      iframe Hφ Kg Ag Fg HK HG
       ipureintro
       intro h
       exact hg (Std.ExtTreeSet.mem_insert.mpr (.inr h))
@@ -969,10 +981,11 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       unfold worker
       icases HW with ⟨Gw, Aw⟩
       ihave Hup : |={⊤}=>m (∃ ng : Oid, ⌜ng ∉ (G.insert κu).insert g⌝ ∗
-          thKids i (((G.insert κu).insert g).insert ng) ∗ oblKids wg ∅ ∗
+          thKids i (((G.insert κu).insert g).insert ng) ∗
+          thCarriers i (((G.insert κu).insert g).insert ng) ∗ oblKids wg ∅ ∗
           (γ.γd ↪VAR{.own (1 : Qp).half} ng) ∗ Obl.assigned ng 1 ∗
           Obl.fuel ng ℓ (m + ((76 : Nat) : Measure) + μr) ∗ qgQueue γ.γq vs (1 : Qp).half) $$
-          [HG Gw Q Hc2 F1]
+          [HK HG Gw Q Hc2 F1]
       · ihave Hacc := inv_acc (E := ⊤) (N := Ni) (P := queueInv ℓ γ.γq γ.γd)
           (fun _ _ => CoPset.mem_full) $$ IQ
         ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -987,8 +1000,9 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         subst vs0
         ihave %h := ghost_var_agree γ.γd wg _ g0 _ $$ Gw Gd
         subst g0
-        imod Obl.new (⊤ \ ↑Ni) (.thread i) ((G.insert κu).insert g) ℓ
-          (m + ((76 : Nat) : Measure) + μr) $$ [] HG with ⟨%ng, %hng, HG, Kng, Ang, Fng, #Wng⟩
+        imod Obl.new (⊤ \ ↑Ni) (.thread i) ((G.insert κu).insert g) ((G.insert κu).insert g) ℓ
+          (m + ((76 : Nat) : Measure) + μr) $$ [] HK HG with
+          ⟨%ng, %hng, HK, HG, Kng, Ang, Fng, #Wng⟩
         · iapply parLe_thread
         ihave F1 := bigSepL_bigSepS_unionList (vs.map Prod.snd)
           (fun b => Obl.fuel b ℓ.succ 1) $$ F1
@@ -1016,14 +1030,14 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
           rw [LawfulSet.union_empty_right]
         imodintro
         iexists ng
-        iframe HG Gw Ang Fng Q
+        iframe HK HG Gw Ang Fng Q
         isplitr
         · ipureintro
           exact hng
         iapply Par.kids_congr _ $$ Kg0
         intro z
         rw [LawfulSet.diff_all]
-      imod Hup with ⟨%ng, %hng, HG, Kwg, Gw, Ang, Fng, Q⟩
+      imod Hup with ⟨%ng, %hng, HK, HG, Kwg, Gw, Ang, Fng, Q⟩
       icases (Obl.fuel_add ng ℓ _ μr).mp $$ Fng with ⟨Fng, Fngr⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng76⟩
       ihave HF := oblFuels_add_obl ((G.insert κu).insert g) ng ℓ _ $$ Fng76 HF
@@ -1032,21 +1046,24 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       · iframe Fngr Fr
       iapply hr 0 i (((G.insert κu).insert g).insert ng) tl γ.tl .discard
         (queueLock φ γ.γq lhptr ltptr) κu ⊤ (fun _ _ => CoPset.mem_full) _ $$
-        [HT HG Fr Kκ LT Plh Plt Q QC]
+        [HT HK HG Fr Kκ LT Plh Plt Q QC]
       · unfold queueLock
-        iframe HT HG Fr Kκ LT AL IFL
+        iframe HT HK HG Fr Kκ LT AL IFL
         isplitr
         · ipureintro
           simp
         iexists ln, lt, vs
         iframe Plh Plt Q QC
-      iintro ⟨HT, -, HG, -⟩
+      iintro ⟨HT, -, HK, HG, -⟩
       ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
       lwp_expr_simp
-      ihave HG := Par.kids_congr (B := (G.insert g).insert ng) ?_ $$ HG
-      · intro z
+      have hG : ∀ z, z ∈ (((G.insert κu).insert g).insert ng).erase κu ↔
+          z ∈ (G.insert g).insert ng := by
+        intro z
         simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert]
         grind
+      ihave HK := Par.kids_congr hG $$ HK
+      ihave HG := Th.carriers_congr hG $$ HG
       ihave HF := oblFuels_subset (B := (G.insert g).insert ng) _
         (fun z hz => by simp only [Std.ExtTreeSet.mem_insert] at hz ⊢; grind) $$ HF
       lwp_step HT HG HF
@@ -1067,7 +1084,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         exact hg (Std.ExtTreeSet.mem_insert.mpr (.inr h))
       iexists ng
       unfold worker
-      iframe HG Gw Ang Kwg Aw Fng
+      iframe HK HG Gw Ang Kwg Aw Fng
       ipureintro
       simp only [Std.ExtTreeSet.mem_insert] at hng
       grind
