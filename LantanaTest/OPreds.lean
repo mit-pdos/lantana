@@ -143,17 +143,18 @@ example (E : CoPset) (ℓ : Layer) :
   · iexact Hd
   · iexact Hw
 
-/-- Running `Obl.new` against the model, with the lower bound `γ i a := a` of the witnesses. -/
+/-- Running `Obl.new` against the model at any thread count, with the lower bound
+`γ i a := a` of the witnesses. -/
 example (E : CoPset) (ℓ : Layer) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
-    (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+    (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat)
     (hLb : owitInvLb (fun _ a => a) Ω W) :
-    thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length
+    thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tc
       ⊢@{IProp TestGF} |={E}=> ∃ k : Oid, Obl.assigned k 1 ∗ historyTInterp h n σ tp := by
   iintro ⟨Hk, HB, HT, HM⟩
   ihave #Hb := parLe_thread (GF := TestGF) 0 ℓ
   ihave H := Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
   imod mupd_modelInterp_steps (fun _ a => a) ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
-    E E h n σ tp g v Ω W _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, -, Ha, -⟩, HT, -⟩
+    E E h n σ tp g v Ω W tc _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, -, Ha, -⟩, HT, -⟩
   imodintro
   iexists k
   iframe Ha HT

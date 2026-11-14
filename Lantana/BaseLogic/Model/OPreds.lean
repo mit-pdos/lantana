@@ -296,19 +296,20 @@ section Rounds
 
 variable [ModelGS GF]
 
-/-- A round that may change the obligations without discharge, keeping their domain (Rocq
-`mupd_model_round`): the witnesses chosen by the environment are then below the old ones. -/
+/-- A round that may change the obligations without discharge, keeping their domain, on the
+forest at any thread count (Rocq `mupd_model_round`): the witnesses chosen by the environment are
+then below the old ones. -/
 @[lantana_alias omodel.mupd_model_round]
-theorem mupd_model_round (n tc : Nat) (P : IProp GF) :
-    (∀ Ω : Obls, osat Ω ∗ oforest Ω tc ==∗ ∃ Ω' : Obls,
+theorem mupd_model_round (n : Nat) (P : IProp GF) :
+    (∀ (Ω : Obls) (tc : Nat), osat Ω ∗ oforest Ω tc ==∗ ∃ Ω' : Obls,
         ⌜Obls.ndf Ω Ω' ∧ ∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome⌝ ∗
-        osat Ω' ∗ oforest Ω' tc ∗ P) ⊢ mupd n tc P := by
+        osat Ω' ∗ oforest Ω' tc ∗ P) ⊢ mupd n P := by
   iintro H
   iapply mupd_nd_step
-  iintro %h %i %Ω₁ %W₁ HM
+  iintro %h %i %Ω₁ %W₁ %tc HM
   unfold modelInterp
   icases HM with ⟨HH, Hs, Hf, Hw, %hI₁⟩
-  imod H $$ %Ω₁ [$Hs $Hf] with ⟨%Ω₂, %⟨hnd, hdom⟩, Hs, Hf, HP⟩
+  imod H $$ %Ω₁ %tc [$Hs $Hf] with ⟨%Ω₂, %⟨hnd, hdom⟩, Hs, Hf, HP⟩
   imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.lef.le $$ HH with HH
   imodintro
   iexists Ω₂
@@ -328,24 +329,26 @@ theorem mupd_model_round (n tc : Nat) (P : IProp GF) :
   · iapply mupd_intro
     iexact HP
 
-/-- A round that changes only ghost state (Rocq `mupd_ghost_round`). -/
+/-- A round that changes only ghost state, on the forest at any thread count (Rocq
+`mupd_ghost_round`). -/
 @[lantana_alias omodel.mupd_ghost_round]
-theorem mupd_ghost_round (n tc : Nat) (P : IProp GF) :
-    (∀ Ω : Obls, osat Ω ∗ oforest Ω tc ==∗ osat Ω ∗ oforest Ω tc ∗ P) ⊢ mupd n tc P := by
+theorem mupd_ghost_round (n : Nat) (P : IProp GF) :
+    (∀ (Ω : Obls) (tc : Nat), osat Ω ∗ oforest Ω tc ==∗ osat Ω ∗ oforest Ω tc ∗ P) ⊢
+      mupd n P := by
   iintro H
   iapply mupd_model_round
-  iintro %Ω HΩ
-  imod H $$ %Ω HΩ with ⟨Hs, Hf, HP⟩
+  iintro %Ω %tc HΩ
+  imod H $$ %Ω %tc HΩ with ⟨Hs, Hf, HP⟩
   imodintro
   iexists Ω
   iframe Hs Hf HP
   ipureintro
   exact ⟨Obls.ndf_refl Ω, fun _ => Iff.rfl⟩
 
-private theorem mupd_mono_of {n tc : Nat} {P Q : IProp GF} (h : P ⊢ Q) :
-    mupd n tc P ⊢ mupd n tc Q := by
+private theorem mupd_mono_of {n : Nat} {P Q : IProp GF} (h : P ⊢ Q) :
+    mupd n P ⊢ mupd n Q := by
   iintro H
-  iapply mupd_bind n tc P Q $$ [] H
+  iapply mupd_bind n P Q $$ [] H
   iintro HP
   iapply mupd_intro
   iapply h $$ HP
@@ -360,12 +363,12 @@ variable [ModelGS GF]
 
 /-- A running thread without children terminates (Rocq `thread_terminate_mupd`). -/
 @[lantana_alias omodel.thread_terminate_mupd]
-theorem thread_terminate_mupd (n tc : Nat) (i : ThreadId) :
-    thActive (GF := GF) i ⊢ parKids (.thread i) ∅ -∗ mupd n tc (thDone i) := by
+theorem thread_terminate_mupd (n : Nat) (i : ThreadId) :
+    thActive (GF := GF) i ⊢ parKids (.thread i) ∅ -∗ mupd n (thDone i) := by
   unfold thActive parKids thDone
   iintro He ⟨-, Hk, -⟩
   iapply mupd_ghost_round
-  iintro %Ω ⟨Hs, Hf⟩
+  iintro %Ω %tc ⟨Hs, Hf⟩
   imod oforest_exec_to_done Ω tc i $$ [$Hf $He $Hk] with ⟨Hf, Hd⟩
   imodintro
   iframe Hs Hf Hd
@@ -433,15 +436,15 @@ private theorem get?_none_wits {Ω : Obls} {W : Witnesses} {k : Oid} (hI : owitI
 the owner of `p`, its model fuel is the user's fuel, an extra `▽` and its piece above the fuel of
 the parent. -/
 @[lantana_alias omodel.obl_new_mupd]
-theorem obl_new_mupd (n tc : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
+theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
     parLe (GF := GF) p ℓ ⊢ parKids p K -∗ OForest.parBill p B -∗
-      mupd n tc iprop(∃ k : Oid, ⌜k ∉ K⌝ ∗ parKids p (K.insert k) ∗
+      mupd n iprop(∃ k : Oid, ⌜k ∉ K⌝ ∗ parKids p (K.insert k) ∗
         OForest.parBill p (B.insert k) ∗ parKids (.obl k) ∅ ∗ oblAssigned k 1 ∗ oblFuel k ℓ μ ∗
         witLayer k ℓ) := by
   unfold parKids
   iintro Hb ⟨Hx, Hk, Hs⟩ HB
   iapply mupd_nd_step
-  iintro %h %i %Ω₁ %W₁ HM
+  iintro %h %i %Ω₁ %W₁ %tc HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   icases parLe_owner Ω₁ tc p K ℓ $$ [$Hf $Hk $Hb] with %⟨t, ν, hpt⟩
@@ -523,10 +526,10 @@ theorem obl_new_mupd (n tc : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : 
 
 /-- A new discharged obligation (Rocq `obl_new_discharged_mupd`): it is outside the forest. -/
 @[lantana_alias omodel.obl_new_discharged_mupd]
-theorem obl_new_discharged_mupd (n tc : Nat) (ℓ : Layer) :
-    ⊢@{IProp GF} mupd n tc iprop(∃ k : Oid, oblDischarged k ∗ witLayer k ℓ) := by
+theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
+    ⊢@{IProp GF} mupd n iprop(∃ k : Oid, oblDischarged k ∗ witLayer k ℓ) := by
   iapply mupd_nd_step
-  iintro %h %i %Ω₁ %W₁ HM
+  iintro %h %i %Ω₁ %W₁ %tc HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   have hk := Obls.get?_fresh Ω₁
@@ -623,11 +626,11 @@ theorem oforest_move {Ω : Obls} {tc : Nat} {p₁ p₂ : Parent} {K₁ K₂ B₂
 burning one unit at a layer that dominates `p₂` (Rocq `obl_move_mupd`): the unit splits into `1`,
 burnt by `k` if its owner changes, and `▽`, its new piece below an obligation. -/
 @[lantana_alias omodel.obl_move_mupd]
-theorem obl_move_mupd (n tc : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k : Oid) (ℓ : Layer)
+theorem obl_move_mupd (n : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k : Oid) (ℓ : Layer)
     (hk : k ∈ K₁) :
     parBelow (GF := GF) p₂ ℓ ⊢ parKids p₁ K₁ -∗ parKids p₂ K₂ -∗ OForest.parBill p₂ B₂ -∗
       oblFuel k ℓ 1 -∗
-      mupd n tc iprop(⌜k ∉ K₂⌝ ∗ parKids p₁ (K₁.erase k) ∗ parKids p₂ (K₂.insert k) ∗
+      mupd n iprop(⌜k ∉ K₂⌝ ∗ parKids p₁ (K₁.erase k) ∗ parKids p₂ (K₂.insert k) ∗
         OForest.parBill p₂ (B₂.insert k)) := by
   unfold parKids oblFuel oblFuelVal
   rw [modelFuel_one]
@@ -635,7 +638,7 @@ theorem obl_move_mupd (n tc : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) 
   icases (bigSepS_oids_erase hk).mp $$ Hs₁ with ⟨Hsk, Hs₁⟩
   icases (OSat.fuel_split k _ _).mp $$ Hfk with ⟨Hu, Hπ⟩
   iapply mupd_model_round
-  iintro %Ω ⟨Hs, Hf⟩
+  iintro %Ω %tc ⟨Hs, Hf⟩
   icases parBelow_owner Ω tc p₂ K₂ ℓ $$ [$Hf $Hk₂ $Hb] with %⟨j, hj⟩
   imod oforest_move hk zero_lt_one hj $$ [$Hs $Hf $Hk₁ $Hk₂ $HB $Hu $Hπ]
     with ⟨%Ω', %⟨hnd, hdom, hkK⟩, Hs, Hf, Hk₁, Hk₂, HB⟩
@@ -665,16 +668,16 @@ theorem obl_move_mupd (n tc : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) 
 /-- A grandchild `x`, child of `k`, moves up to the parent `p` of `k`, added to the bill of `p`
 (Rocq `obl_move_up_mupd`): a ghost round. -/
 @[lantana_alias omodel.obl_move_up_mupd]
-theorem obl_move_up_mupd (n tc : Nat) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oids) (x : Oid)
+theorem obl_move_up_mupd (n : Nat) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oids) (x : Oid)
     (hk : k ∈ K) (hx : x ∈ Kk) :
     parKids (GF := GF) p K ⊢ OForest.parBill p B -∗ parKids (.obl k) Kk -∗
-      mupd n tc iprop(⌜x ∉ K⌝ ∗ parKids p (K.insert x) ∗ OForest.parBill p (B.insert x) ∗
+      mupd n iprop(⌜x ∉ K⌝ ∗ parKids p (K.insert x) ∗ OForest.parBill p (B.insert x) ∗
         parKids (.obl k) (Kk.erase x)) := by
   unfold parKids
   iintro ⟨Hx, Hp, Hs⟩ HB ⟨Hxk, Hk, Hsk⟩
   icases (bigSepS_oids_erase hx).mp $$ Hsk with ⟨Hsx, Hsk⟩
   iapply mupd_ghost_round
-  iintro %Ω ⟨Hos, Hf⟩
+  iintro %Ω %tc ⟨Hos, Hf⟩
   imod oforest_move_up hk hx B $$ [$Hf $Hp $HB $Hk] with ⟨%hxK, Hf, Hp, HB, Hk⟩
   imodintro
   iframe Hos Hf
@@ -698,13 +701,13 @@ theorem obl_move_up_mupd (n tc : Nat) (p : Parent) (K B : Oids) (k : Oid) (Kk : 
 /-! ### Bills -/
 
 /-- The bill of thread `i` contains its children. -/
-theorem bill_kids_subset_mupd (n tc : Nat) (i : ThreadId) (B K : Oids) :
+theorem bill_kids_subset_mupd (n : Nat) (i : ThreadId) (B K : Oids) :
     OForest.bill (GF := GF) i B ⊢ parKids (.thread i) K -∗
-      mupd n tc iprop(⌜K ⊆ B⌝ ∗ OForest.bill i B ∗ parKids (.thread i) K) := by
+      mupd n iprop(⌜K ⊆ B⌝ ∗ OForest.bill i B ∗ parKids (.thread i) K) := by
   unfold parKids
   iintro Hb ⟨Hx, Hk, Hs⟩
   iapply mupd_ghost_round
-  iintro %Ω ⟨Hos, Hf⟩
+  iintro %Ω %tc ⟨Hos, Hf⟩
   icases oforest_bill_kids Ω tc i B K $$ [$Hf $Hb $Hk] with %h
   imodintro
   iframe Hos Hf Hb Hx Hk Hs
@@ -712,25 +715,25 @@ theorem bill_kids_subset_mupd (n tc : Nat) (i : ThreadId) (B K : Oids) :
   exact h
 
 /-- The bill of thread `i` becomes its children. -/
-theorem bill_resync_mupd (n tc : Nat) (i : ThreadId) (B K : Oids) :
+theorem bill_resync_mupd (n : Nat) (i : ThreadId) (B K : Oids) :
     OForest.bill (GF := GF) i B ⊢ parKids (.thread i) K -∗
-      mupd n tc iprop(OForest.bill i K ∗ parKids (.thread i) K) := by
+      mupd n iprop(OForest.bill i K ∗ parKids (.thread i) K) := by
   unfold parKids
   iintro Hb ⟨Hx, Hk, Hs⟩
   iapply mupd_ghost_round
-  iintro %Ω ⟨Hos, Hf⟩
+  iintro %Ω %tc ⟨Hos, Hf⟩
   imod oforest_bill_resync Ω tc i B K $$ [$Hf $Hb $Hk] with ⟨Hf, Hb, Hk⟩
   imodintro
   iframe Hos Hf Hb Hx Hk Hs
 
 /-- A discharged obligation leaves the bill of thread `i`. -/
-theorem bill_erase_discharged_mupd (n tc : Nat) (i : ThreadId) (B : Oids) (k : Oid) :
+theorem bill_erase_discharged_mupd (n : Nat) (i : ThreadId) (B : Oids) (k : Oid) :
     OForest.bill (GF := GF) i B ⊢ oblDischarged k -∗
-      mupd n tc iprop(OForest.bill i (B.erase k)) := by
+      mupd n iprop(OForest.bill i (B.erase k)) := by
   unfold oblDischarged
   iintro Hb ⟨-, Hd⟩
   iapply mupd_ghost_round
-  iintro %Ω ⟨Hos, Hf⟩
+  iintro %Ω %tc ⟨Hos, Hf⟩
   icases osat_lookup_discharged Ω k $$ [$Hos $Hd] with %hk
   have hlive : ¬Ω.live k := fun ⟨_, _, h⟩ => by
     rw [hk] at h
@@ -765,12 +768,12 @@ private theorem witLayers_creds (R : Oids) (a : Fuel) :
 
 /-- The witnesses of `R` get zero credits or are discharged (Rocq `obl_check_witnesses_mupd`). -/
 @[lantana_alias omodel.obl_check_witnesses_mupd]
-theorem obl_check_witnesses_mupd (n tc : Nat) (R : Oids) :
+theorem obl_check_witnesses_mupd (n : Nat) (R : Oids) :
     ([∗set] r ∈ R, ∃ ℓ, witLayer (GF := GF) r ℓ) ⊢
-      mupd n tc iprop([∗set] r ∈ R, witCred r 0 ∨ oblDischarged r) := by
+      mupd n iprop([∗set] r ∈ R, witCred r 0 ∨ oblDischarged r) := by
   iintro #HR
   iapply mupd_nd_step
-  iintro %h %i %Ω₁ %W₁ HM
+  iintro %h %i %Ω₁ %W₁ %tc HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   icases osat_elems Ω₁ R $$ [$Hos $HR] with %hR
@@ -804,31 +807,31 @@ theorem obl_check_witnesses_mupd (n tc : Nat) (R : Oids) :
 
 /-- The witness `r` gets zero credits or is discharged (Rocq `obl_check_witnesses_mupd` for one
 witness). -/
-theorem obl_check_witness_mupd (n tc : Nat) (r : Oid) (ℓ : Layer) :
-    witLayer (GF := GF) r ℓ ⊢ mupd n tc iprop(witCred r 0 ∨ oblDischarged r) := by
+theorem obl_check_witness_mupd (n : Nat) (r : Oid) (ℓ : Layer) :
+    witLayer (GF := GF) r ℓ ⊢ mupd n iprop(witCred r 0 ∨ oblDischarged r) := by
   have h₁ : ([∗set] x ∈ ({r} : Oids), witCred (GF := GF) x 0 ∨ oblDischarged x) ⊢
       witCred r 0 ∨ oblDischarged r :=
     (BigSepS.bigSepS_singleton (Φ := fun x => iprop(witCred (GF := GF) x 0 ∨ oblDischarged x))).mp
   have h₂ : witLayer (GF := GF) r ℓ ⊢ [∗set] x ∈ ({r} : Oids), ∃ ℓ, witLayer x ℓ :=
     (BI.exists_intro (Ψ := fun ℓ => witLayer (GF := GF) r ℓ) ℓ).trans
       (BigSepS.bigSepS_singleton (Φ := fun x => iprop(∃ ℓ, witLayer (GF := GF) x ℓ))).mpr
-  exact h₂.trans ((obl_check_witnesses_mupd n tc {r}).trans (mupd_mono_of h₁))
+  exact h₂.trans ((obl_check_witnesses_mupd n {r}).trans (mupd_mono_of h₁))
 
 /-- Discharge of a leaf `k` below `p` (Rocq `obl_discharge_mupd`): the round with `Obls.lef`,
 through `mupd_unfold`. The children predicates of `p` and `k` give the two children shares of
 `k`, with the user's half the full assignment. -/
 @[lantana_alias omodel.obl_discharge_mupd]
-theorem obl_discharge_mupd (n tc : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k ∈ K) :
+theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k ∈ K) :
     parKids (GF := GF) p K ⊢ parKids (.obl k) ∅ -∗ oblAssigned k 1 -∗
-      mupd n tc iprop(parKids p (K.erase k) ∗ oblDischarged k) := by
+      mupd n iprop(parKids p (K.erase k) ∗ oblDischarged k) := by
   unfold parKids
   iintro ⟨Hx, Hp, Hs⟩ ⟨Hsh₁, Hkk, -⟩ Ha
   icases (bigSepS_oids_erase hk).mp $$ Hs with ⟨Hsh₂, Hs⟩
   icases (oblAssigned_shares k).mpr $$ [$Ha $Hsh₁ $Hsh₂] with ⟨#He, Ha⟩
-  iapply (mupd_unfold n tc _).2
+  iapply (mupd_unfold n _).2
   unfold mupdPre
   iright
-  iintro %h %i %Ω₁ %W₁ HM
+  iintro %h %i %Ω₁ %W₁ %tc HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   imod osat_discharge Ω₁ k $$ [$Hos $Ha] with ⟨Hos, #Hd, %⟨a, t, hk₁⟩⟩

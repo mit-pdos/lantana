@@ -202,7 +202,7 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
   · unfold historyTInterp
     iframe HH HTI
   imod mupd_modelInterp_steps (fairMeasure (γc 0)) (owitInvLbMonoFair_fairMeasure _) ⊤ ⊤
-    [(σ, tp)] 0 σ tp [(0, ∅)] 0 ∅ ∅ _ hLb₀ $$ Hwp HHT HM
+    [(σ, tp)] 0 σ tp [(0, ∅)] 0 ∅ ∅ tp.length _ hLb₀ $$ Hwp HHT HM
     with ⟨HT, HHT, %g', %v', %Ω', %W', %⟨-, hLb'⟩, HM⟩
   have hfacts : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γc ⟨0, τf⟩ ∧
       owitInvLb (fairMeasure (γc 0)) Ω' W' ∧ histTrace [(σ, tp)] τf ∧ j < tp.length ∧

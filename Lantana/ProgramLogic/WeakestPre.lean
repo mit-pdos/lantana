@@ -63,13 +63,13 @@ def lwpStep (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
     (tp : ThreadPool Expr),
     ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
     historyTInterp h n σ₁ tp ={E,∅}=∗
-    |=[n, tp.length]=>m
+    |=[n]=>m
     ⌜s.maybeReducible e₁ σ₁⌝ ∗
     ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
       ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ -∗
       mprog n tp.length i
         (mphys n (n + 1) tp.length (tp.length + efs.length)
-          (ALC (|=[n + 1, tp.length + efs.length]=>m |={∅,E}=>
+          (ALC (|=[n + 1]=>m |={∅,E}=>
             historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
               (tp.set i (fill K e₂) ++ efs) ∗
             ν e₂ tp.length efs))))
@@ -110,9 +110,9 @@ theorem lwpStep_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr} {n 
   unfold lwpStep
   refine forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ =>
     forall_ne fun tp => imp_ne.ne .rfl <| imp_ne.ne .rfl <| wand_ne.ne .rfl <| fupd_ne.ne <|
-    (mupdBase_ne _ _).ne <| sep_ne.ne .rfl <| forall_ne fun _ => forall_ne fun e₂ =>
+    (mupdBase_ne _).ne <| sep_ne.ne .rfl <| forall_ne fun _ => forall_ne fun e₂ =>
     forall_ne fun _ => forall_ne fun efs => wand_ne.ne .rfl <| (mprog_ne _ _ _).ne <|
-    (mphys_ne _ _ _ _).ne <| ALC_ne.ne <| (mupdBase_ne _ _).ne <| fupd_ne.ne <|
+    (mphys_ne _ _ _ _).ne <| ALC_ne.ne <| (mupdBase_ne _).ne <| fupd_ne.ne <|
     sep_ne.ne .rfl (h e₂ tp.length efs)
 
 /-- The postcondition of a forked thread `j` with postcondition `Φ`: it has terminated. -/
@@ -429,15 +429,15 @@ theorem getElem?_set_append {tp efs : List Expr} {i : ThreadId} {e e' : Expr}
 
 /-- The value case of `lwp_atomic_mupd`. -/
 private theorem lwp_atomic_value {e₂ : Expr} {v₂ : Val} (he₂ : toVal e₂ = some v₂)
-    {h : List (HistEntry Expr State)} {n : Nat} {σ : State} {tp : ThreadPool Expr} {L : Nat}
-    (hL : tp.length = L) {X : IProp GF} :
+    {h : List (HistEntry Expr State)} {n : Nat} {σ : State} {tp : ThreadPool Expr}
+    {X : IProp GF} :
     lWP e₂ @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }} ⊢ historyTInterp h n σ tp -∗ X -∗
-      |={E₂,∅}=> |=[n, L]=>m |={∅,E₁}=>
+      |={E₂,∅}=> |=[n]=>m |={∅,E₁}=>
         (historyTInterp h n σ tp ∗ (lWP e₂ @ s; i; E₁ {{ Φ }} ∗ X)) := by
   iintro H Hσ HX
   ihave H := (lwp_value_mupd_of_toVal he₂).mp $$ H
   ihave H := mupd_trans $$ H
-  imod mupd_elim L hL $$ H Hσ with H
+  imod mupd_elim $$ H Hσ with H
   imodintro
   imod H with H
   imodintro
@@ -460,7 +460,7 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic ↑s e] :
   | none =>
     unfold lwpStep
     iintro %K %h %n %σ₁ %tp %hK %hi Hσ
-    imod mupd_elim tp.length rfl $$ H Hσ with H
+    imod mupd_elim $$ H Hσ with H
     imodintro
     imod H with H
     iapply fupd_mupdBase_elim
@@ -483,22 +483,20 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic ↑s e] :
     imod H with H
     iapply fupd_mupdBase_elim
     imod H with ⟨Hσ, H, Hefs⟩
-    have hlen : (tp.set i (fill K e₂) ++ efs).length = tp.length + efs.length := by simp
     have hat := hatom.atomic hstep
     cases s with
     | NotStuck =>
       cases he₂ : toVal e₂ with
-      | some v₂ => iapply lwp_atomic_value he₂ hlen $$ H Hσ Hefs
+      | some v₂ => iapply lwp_atomic_value he₂ $$ H Hσ Hefs
       | none =>
         isimp only [(lwp_unfold (e := e₂)).to_eq, lwpPre, he₂, lwpStep] at H
-        rw [← hlen]
         imod H $$ %K %_ %_ %_ %_ %hK %(getElem?_set_append hi) Hσ with H
         imodintro
         imod H with ⟨%hred₂, -⟩
         exact (Language.not_reducible_iff_irreducible.mpr hat hred₂).elim
     | MaybeStuck =>
       obtain ⟨v₂, he₂⟩ := Option.isSome_iff_exists.mp hat
-      iapply lwp_atomic_value he₂ hlen $$ H Hσ Hefs
+      iapply lwp_atomic_value he₂ $$ H Hσ Hefs
 
 @[lantana_alias lwp_bind]
 theorem lwp_bind (K : Ectx) [hK : Language.Context (fill (Expr := Expr) K)] :

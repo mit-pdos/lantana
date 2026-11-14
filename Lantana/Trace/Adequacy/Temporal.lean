@@ -130,10 +130,11 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
     (mupd_mono (lwps_threadsRun tp Ψ)).trans mupd_trans
   ihave #ST := sysStep_lwp (Expr := Expr) (State := State) (Obs := Obs) (Val := Val) (GF := GF)
   iintro ⟨HH, MI, HW⟩
-  imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp g v Ω W _ hLb $$ HW HH MI
+  imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp g v Ω W tp.length _ hLb
+    $$ HW HH MI
     with ⟨⟨%P, #HG, HP, HW⟩, HH, %g₁, %v₁, %Ω₁, %W₁, %⟨-, hLb₁⟩, MI⟩
   icases (historyTInterp_reg _ _ _ _).mp $$ HH with ⟨HI, HR⟩
-  icases persistent_entails_left (wand_elim (guar_elim P G h n σ tp _ _ Ω₁ W₁)) $$
+  icases persistent_entails_left (wand_elim (guar_elim P G h n σ tp _ _ Ω₁ W₁ tp.length)) $$
     [HI MI HP] with ⟨⟨-, HI, MI, HP⟩, #TF⟩
   · isplitl []
     · iexact HG
@@ -142,7 +143,8 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
   ihave HW := hrun $$ HW
   ihave HH := (historyTInterp_reg h n σ tp).mpr $$ [HI HR]
   · iframe HI HR
-  imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp _ _ Ω₁ W₁ _ hLb₁ $$ HW HH MI
+  imod mupd_modelInterp_steps (fairMeasure (γ n)) hγ ⊤ ⊤ h n σ tp _ _ Ω₁ W₁ tp.length _ hLb₁
+    $$ HW HH MI
     with ⟨HT, HH, %g₂, %v₂, %Ω₂, %W₂, %⟨-, hLb₂⟩, MI⟩
   icases (historyTInterp_reg _ _ _ _).mp $$ HH with ⟨HI, HR⟩
   -- the check at `n`

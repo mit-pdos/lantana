@@ -73,7 +73,7 @@ theorem untilCert_assigned (k : Oid) (P R : IProp GF) (G₁ G₂ : TrSpec Expr S
   inext
   icases (Obl.variant_unfold k P R).1 $$ Var with (⟨-, HP⟩ | ⟨D, -⟩)
   · ileft
-    iapply guar_elim P G₁ h n σ tp g v Ω W $$ HG
+    iapply guar_elim P G₁ h n σ tp g v Ω W tp.length $$ HG
     iframe HI MI HP
   · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length $$ [D MI] with %hd
     · iframe D MI
@@ -126,7 +126,7 @@ theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (
     iintro #⟨%P, %G, #SP, #Hinv, #HG⟩ HI MI
     imod inv_acc (E := ⊤) CoPset.subseteq_top $$ Hinv with ⟨HP, Hclose⟩
     ihave #C : ▷ record G n $$ [HP HI MI]
-    · iapply guar_elim_later_guar P G h n σ tp g v Ω W $$ HG
+    · iapply guar_elim_later_guar P G h n σ tp g v Ω W tp.length $$ HG
       iframe HP HI MI
     imod Hclose $$ HP with -
     imodintro

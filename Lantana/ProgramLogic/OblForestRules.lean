@@ -14,7 +14,7 @@ interface (`mupd_ne`, `fupd_mupd`, `mupd_bind`); the rules of obligation invaria
 induction, parents, fuel and credits; the model updates (with the bills of the parents) and the
 physical steps in their usual shapes. Everything here is derived from the statements of
 `Lantana.ProgramLogic.OblForest`. This file also holds the rules of the base model update
-`|=[n,tc]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
+`|=[n]=>m P` that the program logic uses (Rocq `base_logic/mupd.v`).
 
 Porting notes:
 * The union of `OidMap = Std.ExtTreeMap` takes the values of its *right* argument, so Rocq's
@@ -43,27 +43,27 @@ theorem Oids.erase_eq_diff (K : Oids) (k : Oid) : K.erase k = K \ {k} :=
 
 /-! ## The base model update
 
-The rules of `|=[n,tc]=>m P` (Rocq `base_logic/mupd.v`) used by the program logic, derived from
+The rules of `|=[n]=>m P` (Rocq `base_logic/mupd.v`) used by the program logic, derived from
 the structural rules of the interface. -/
 
 section Base
 
-variable {GF : BundledGFunctors} [ModelGS GF] {n tc : Nat} {P Q R : IProp GF}
+variable {GF : BundledGFunctors} [ModelGS GF] {n : Nat} {P Q R : IProp GF}
 
 @[lantana_alias mupd_wand_l]
-theorem mupdBase_wand : (P -∗ Q) ⊢ (|=[n,tc]=>m P) -∗ |=[n,tc]=>m Q :=
-  (wand_mono_right (mupdBase_intro n tc Q)).trans (mupdBase_bind n tc P Q)
+theorem mupdBase_wand : (P -∗ Q) ⊢ (|=[n]=>m P) -∗ |=[n]=>m Q :=
+  (wand_mono_right (mupdBase_intro n Q)).trans (mupdBase_bind n P Q)
 
 @[lantana_alias mupd_mono]
-theorem mupdBase_mono (h : P ⊢ Q) : (|=[n,tc]=>m P) ⊢ |=[n,tc]=>m Q :=
+theorem mupdBase_mono (h : P ⊢ Q) : (|=[n]=>m P) ⊢ |=[n]=>m Q :=
   wand_entails ((entails_wand h).trans mupdBase_wand)
 
 @[lantana_alias mupd_trans]
-theorem mupdBase_trans : (|=[n,tc]=>m |=[n,tc]=>m P) ⊢ |=[n,tc]=>m P :=
-  wand_entails (wand_rfl.trans (mupdBase_bind n tc _ P))
+theorem mupdBase_trans : (|=[n]=>m |=[n]=>m P) ⊢ |=[n]=>m P :=
+  wand_entails (wand_rfl.trans (mupdBase_bind n _ P))
 
 @[lantana_alias mupd_frame_r]
-theorem mupdBase_frame_right : (|=[n,tc]=>m P) ∗ R ⊢ |=[n,tc]=>m (P ∗ R) := by
+theorem mupdBase_frame_right : (|=[n]=>m P) ∗ R ⊢ |=[n]=>m (P ∗ R) := by
   iintro ⟨HP, HR⟩
   iapply mupdBase_wand $$ [HR] HP
   iintro HP
@@ -72,22 +72,22 @@ theorem mupdBase_frame_right : (|=[n,tc]=>m P) ∗ R ⊢ |=[n,tc]=>m (P ∗ R) :
   · iexact HR
 
 @[lantana_alias fupd_mupd]
-theorem fupd_mupdBase : (|={∅}=> P) ⊢ |=[n,tc]=>m P :=
-  (fupd_mono (mupdBase_intro n tc P)).trans (fupd_mupdBase_elim n tc P)
+theorem fupd_mupdBase : (|={∅}=> P) ⊢ |=[n]=>m P :=
+  (fupd_mono (mupdBase_intro n P)).trans (fupd_mupdBase_elim n P)
 
-instance fromModal_mupdBase {io} : FromModal io modality_id True (|=[n,tc]=>m P)
-    (|=[n,tc]=>m P) P where
-  from_modal _ := mupdBase_intro n tc P
+instance fromModal_mupdBase {io} : FromModal io modality_id True (|=[n]=>m P)
+    (|=[n]=>m P) P where
+  from_modal _ := mupdBase_intro n P
 
 instance elimModal_mupdBase {p io} :
-    ElimModal True p io false (|=[n,tc]=>m P) P (|=[n,tc]=>m Q) (|=[n,tc]=>m Q) where
+    ElimModal True p io false (|=[n]=>m P) P (|=[n]=>m Q) (|=[n]=>m Q) where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
-    sep_comm.mp.trans <| wand_elim_left_trans (mupdBase_bind n tc P Q)
+    sep_comm.mp.trans <| wand_elim_left_trans (mupdBase_bind n P Q)
 
 instance elimModal_fupd_mupdBase {p io} :
-    ElimModal True p io false iprop(|={∅}=> P) P (|=[n,tc]=>m Q) (|=[n,tc]=>m Q) where
+    ElimModal True p io false iprop(|={∅}=> P) P (|=[n]=>m Q) (|=[n]=>m Q) where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
-    fupd_frame_right.trans <| (fupd_mono wand_elim_right).trans (fupd_mupdBase_elim n tc Q)
+    fupd_frame_right.trans <| (fupd_mono wand_elim_right).trans (fupd_mupdBase_elim n Q)
 
 end Base
 
@@ -168,11 +168,9 @@ theorem mupd_idemp : (|={E}=>m |={E}=>m P) ⊣⊢ |={E}=>m P :=
   ⟨mupd_trans, mupd_intro⟩
 
 /-- The model update `|={E₁,E₂}=>m P` applied to the history interpretation. -/
-theorem mupd_elim {h : List (HistEntry Expr State)} {n : Nat} {σ : State} {tp : ThreadPool Expr}
-    (L : Nat) (hL : tp.length = L) :
+theorem mupd_elim {h : List (HistEntry Expr State)} {n : Nat} {σ : State} {tp : ThreadPool Expr} :
     (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗
-      |={E₁,∅}=> |=[n, L]=>m |={∅,E₂}=> (historyTInterp h n σ tp ∗ P) := by
-  subst hL
+      |={E₁,∅}=> |=[n]=>m |={∅,E₂}=> (historyTInterp h n σ tp ∗ P) := by
   unfold mupd mupdFancy
   iintro H Hσ
   iapply H $$ %h %n %σ %tp Hσ
