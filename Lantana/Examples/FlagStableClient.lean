@@ -336,6 +336,7 @@ theorem flagClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
   isplitl [Hσ]
   · iexact Hσ
   iintro - HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   imod flagClient_init hs $$ [Hl HT] HG with ⟨%μ₁, %μ₂, HP, Hwp⟩
   · iframe
   imodintro
@@ -368,6 +369,7 @@ theorem flagClient_safety_of (j : ThreadId) (hj : j < tp0.length) (Φ : ThreadId
   isplitl [Hσ]
   · iexact Hσ
   iintro - HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   imod flagClient_init hs $$ [Hl HT] HG with ⟨%μ₁, %μ₂, HP, Hwp⟩
   · iframe
   iapply Hwp $$ HP

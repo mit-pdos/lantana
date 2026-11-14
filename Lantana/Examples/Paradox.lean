@@ -601,6 +601,7 @@ theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
+  ihave HG := initThreads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0, 1] from rfl]
   icases BigSepL.bigSepL_cons.mp $$ HG with ⟨⟨-, HG0, HB0⟩, HG⟩
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨-, HG1, HB1⟩

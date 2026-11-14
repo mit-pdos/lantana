@@ -12,7 +12,7 @@ with all the ghost state of the model — world satisfaction and transfinite lat
 forest (slots 8, 9 and 13, as in `LantanaTest.OForest`), witnesses (slots 10 and 11, as in
 `LantanaTest.OWit`) and the model history (slot 12, a `MonoList` of events in `Type 2`) — with
 its `ModelGpreS` instance (the universe check); the allocation of the model; a fork of thread `0`
-through the interface (`step_fork`, run against the model with `mphys_modelInterp`); and
+through the interface (`step_fork`, run against the model with `mphys_modelInterp_run`); and
 `Obl.new` through the interface, alone, followed by `Obl.discharge_leaf` and
 `Th.carriers_erase_discharged`, and run against the model (`mupd_modelInterp_steps`). -/
 
@@ -77,32 +77,41 @@ noncomputable instance : ModelGpreS TestGF := {}
 
 /-! Allocation of the model. -/
 
-example : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
-    (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 :=
-  modelInterp_alloc 0
+example (X : ThreadId → Prop) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
+    (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 X :=
+  modelInterp_alloc 0 X
 
-/-- Allocate the model and fork thread `0` (a physical round of the interface, run against the
-model): thread `0` runs, without children and with an empty bill. -/
-example : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
-    |={∅}=> (modelInterp ([(0, ∅)] ++ [(0, ∅)]) (0 + 1) ∅ ∅ 0 1 ∗
-      (thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅)) := by
-  imod modelInterp_alloc (GF := TestGF) 0 with ⟨%G, -, -, -, HM⟩
+/-- Allocate the model with no crashed thread and fork thread `0` (a physical round of the
+interface, run against the model with the lower bound `γ i a := a` of the witnesses): under the
+step's later credits, thread `0` runs, without children and with an empty bill, and the model is
+at one thread. -/
+example (X : ThreadId → Prop) (hX : ∀ j, ¬X j) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
+    |={∅}=> ALC iprop(|={∅}=> (thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) ∗
+      ∃ h' a' Ω' W', ⌜Obls.le ∅ Ω' ∧ owitInvLb (fun _ a => a) Ω' W'⌝ ∗
+        modelInterp ([(0, ∅)] ++ h') (0 + a') Ω' W' 0 1 X) := by
+  have hγ : owitInvLbMonoFair (fun _ a => a) :=
+    ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
+  have hLb : owitInvLb (fun _ a => a) (∅ : Obls) (∅ : Witnesses) := mapForall2_empty
+  imod modelInterp_alloc (GF := TestGF) 0 X with ⟨%G, -, -, -, HM⟩
   imodintro
   iexists G
   have hfork : ⊢@{IProp TestGF}
-      Lantana.mphys 0 0 0 1 iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) := by
-    refine (?_ : ⊢ _).trans (step_fork 0 0 0 1 _ (Nat.le_refl 0) (Nat.zero_le 1))
+      Lantana.mphys 0 0 0 1 X X iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) := by
+    refine (?_ : ⊢ _).trans
+      (step_fork 0 0 0 1 X _ (Nat.le_refl 0) (Nat.zero_le 1) fun j _ => hX j)
     rw [show List.range' 0 (1 - 0) = [0] from rfl]
     iintro Hl
     imodintro
+    iapply ALC_intro
+    iapply mupdBase_intro
     icases BigSepL.bigSepL_cons.mp $$ Hl with ⟨Hk, -⟩
     iexact Hk
-  ihave Hrun := hfork.trans
-    (mphys_modelInterp 0 0 0 1 iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅))
-  imod Hrun $$ [] %([(0, ∅)] : List MEvent) %0 %(∅ : Obls) %(∅ : Witnesses) HM with ⟨HM, Hk⟩
+  ihave Hrun := hfork.trans (mphys_modelInterp_run 0 0 0 1 X X (fun _ a => a) hγ
+    iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅))
+  imod Hrun $$ [] %([(0, ∅)] : List MEvent) %0 %(∅ : Obls) %(∅ : Witnesses) %hLb HM with H
   · iempintro
   imodintro
-  iframe HM Hk
+  iexact H
 
 section Interface
 
@@ -143,18 +152,18 @@ example (E : CoPset) (ℓ : Layer) :
   · iexact Hd
   · iexact Hw
 
-/-- Running `Obl.new` against the model at any thread count, with the lower bound
+/-- Running `Obl.new` against the model at any view, with the lower bound
 `γ i a := a` of the witnesses. -/
 example (E : CoPset) (ℓ : Layer) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
     (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat)
-    (hLb : owitInvLb (fun _ a => a) Ω W) :
-    thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tc
+    (X : ThreadId → Prop) (hLb : owitInvLb (fun _ a => a) Ω W) :
+    thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tc X
       ⊢@{IProp TestGF} |={E}=> ∃ k : Oid, Obl.assigned k 1 ∗ historyTInterp h n σ tp := by
   iintro ⟨Hk, HB, HT, HM⟩
   ihave #Hb := parLe_thread (GF := TestGF) 0 ℓ
   ihave H := Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
   imod mupd_modelInterp_steps (fun _ a => a) ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
-    E E h n σ tp g v Ω W tc _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, -, Ha, -⟩, HT, -⟩
+    E E h n σ tp g v Ω W tc X _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, -, Ha, -⟩, HT, -⟩
   imodintro
   iexists k
   iframe Ha HT

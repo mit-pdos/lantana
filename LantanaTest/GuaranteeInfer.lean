@@ -17,7 +17,7 @@ open Iris.ProgramLogic (Language)
 open scoped Lantana.TrProp Lantana.TrSpec
 
 variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr State Obs Val]
-  [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
+  [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- An existential over `Fuel : Type 2` whose body depends on the witness is trace-visible. -/
 example (N : Namespace) (f : Fuel → Prop) :
