@@ -6,30 +6,13 @@ module
 
 public import Lantana.HeapLang.PrimitiveLaws
 
-/-! # Proof-mode support for HeapLang: paid pure steps
+/-! # Proof-mode support for HeapLang: the step tactics
 
-Rocq `lantana_heap_lang/proofmode.v` (`tac_lwp_pure_simple`, `lwp_pure`). A pure step of
-thread `i` needs its token `threadExpr i C e`, its bill `thCarriers i G` with one unit of fuel of
-each obligation of the bill per step, and the witness layers; it gives back the bill, the
-witnesses' credits and later credits.
-
-* `PureExecCtx φ n e e'`: `e` reaches `e'` by `n` pure steps of the redex of `e` (in its
-  evaluation context), found by instance search through the context items (Rocq
-  `reshape_expr` and `PureExec` search) — the instances follow the right-to-left evaluation
-  order, and the redex is found by the `PureExec` instances of `Instances`.
-* `tac_lwp_pure`: the pure step of the redex of the goal's expression, with fuel `n + m` of the
-  bill `G`, of which `m` units are left.
-* `lwp_pure H`: applies `tac_lwp_pure` with the token `H`, proves the side conditions it can
-  (the pure condition and `0 < n`), and leaves the goal
-  `∃ G m R o, (thCarriers i G ∗ oblFuels G (n + m) ∗ witLayers R) ∗ (thCarriers i G -∗
-  oblFuels G m -∗ witCreds R -∗ £ₒ o -∗ threadExpr i C e' -∗ |={E}=>m lWP e' …)`, as Rocq's
-  `lwp_pure` does.
-* `PureExec` instances for the common operations with their results computed (`~#b`, `+`, `-`,
-  `≤`, `<` on integers), which the generic ones of `Instances` cannot provide to instance search.
-* `stepPre_nil`, `stepPre_wit`, `witLayers_empty`, `witCreds_singleton`: the bookkeeping of the
-  witnesses of a step.
-* `lwp_step`, `lwp_pure`, `lwp_bind e'` without hypothesis names, `lwp_expr_eval` and
-  `lwp_pures` (the last section): the token, the bill and the fuel found by their shape.
+The instance searches `PureExecCtx` (the pure redex of an expression) and `InCtx` (a
+subexpression in evaluation position), `PureExec` instances with computed results, the lemmas
+`tac_lwp_pure`, `tac_lwp_step` and `tac_lwp_bind`, and the tactics `lwp_pure`, `lwp_step`,
+`lwp_bind`, `lwp_expr_simp`, `lwp_expr_eval` and `lwp_pures`.
+See `docs/program-logic.md`, §5.  Rocq: `lantana_heap_lang/proofmode.v`.
 -/
 
 @[expose] public noncomputable section
@@ -136,16 +119,13 @@ end PureExecCtx
 
 /-! ### Operations with a computed result
 
-The generic `instPureExecUnOp` and `instPureExecBinOp` of `Instances` leave the result `v'` of
-the operation to their pure condition `op.eval v = some v'`, so instance search cannot use them
-(the result of `PureExec` is an `outParam`). These instances give the result of the common
-operations directly. -/
+The instances that `PureExecCtx` finds for the common operations. -/
 
 section Ops
 
 variable {b : Bool} {n₁ n₂ : Int}
 
-/-- `~#b` (Rocq `pure_unop` for booleans). -/
+/-- `~#b`. -/
 instance instPureExecNegBool :
     PureExec True 1 (Exp.unop .neg (.ofVal (.lit (.bool b)))) (.ofVal (.lit (.bool !b))) :=
   ⟨fun _ => (instPureExecUnOp (op := .neg) (v := .lit (.bool b))
@@ -181,8 +161,8 @@ instance instPureExecLtInt :
 
 end Ops
 
-/-- `e'` is a subexpression of `e` in evaluation position: `e = fill K e'`. The context is found
-by instance search through the context items of `e`, outermost first. -/
+/-- `e'` is a subexpression of `e` in evaluation position, `e = fill K e'`, found by instance
+search. -/
 class InCtx (e' : Exp) (e : Exp) (K : outParam (List ECtxItem)) : Prop where
   eq_fill : fill K e' = e
 
@@ -276,9 +256,8 @@ theorem oblFuels_add (G : Oids) (n m : Nat) :
   · iexists ℓ
     iexact H2
 
-/-- The pure step of the redex of `e` (Rocq `tac_lwp_pure_simple`): the token, then the
-bill `G` with `n + m` units of fuel, of which `m` are left, the witnesses `R`, and the later
-credits `o`. -/
+/-- The `n` pure steps of the redex of `e`, paid with `n` of the `n + m` units of fuel of the
+bill `G`. -/
 @[lantana_alias heap_lang.tac_lwp_pure_simple]
 theorem tac_lwp_pure {e e' : Exp} {φ : Prop} {n : Nat} [hpe : PureExecCtx φ n e e'] (hφ : φ)
     (hn : 0 < n) (Φ : Val → IProp GF) :
@@ -296,8 +275,7 @@ theorem tac_lwp_pure {e e' : Exp} {φ : Prop} {n : Nat} [hpe : PureExecCtx φ n 
   iintro HT HG HW Ho
   iapply H $$ HG HFm HW Ho HT
 
-/-- Binding the subexpression `e'` of `e` (Rocq `tac_lwp_bind_gen`): the token moves its context
-`K` from the expression to the context of the token. -/
+/-- Binding the subexpression `e'` of `e = fill K e'`: the token moves `K` into its context. -/
 @[lantana_alias heap_lang.tac_lwp_bind_gen]
 theorem tac_lwp_bind (e' : Exp) {e : Exp} {K : List ECtxItem} [h : InCtx e' e K]
     (Φ : Val → IProp GF) :
@@ -354,8 +332,8 @@ theorem witCreds_singleton [ModelGS GF] (k : Oid) :
 variable [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem}
 
-/-- A pure step of the redex of `e` that observes no witness (`tac_lwp_pure` with `R = ∅`),
-paid with one of the `m + 1` units of fuel of the bill `G`; it gives back `£ₒ o`. -/
+/-- One pure step of the redex of `e` that observes no witness, paid with one of the `m + 1`
+units of fuel of the bill `G`. -/
 theorem tac_lwp_step {e e' : Exp} {φ : Prop} [PureExecCtx φ 1 e e'] (hφ : φ) (o : Fuel)
     (Φ : Val → IProp GF) {G : Oids} {m : Nat} :
     threadExpr i C e ⊢ thCarriers i G -∗ oblFuels G ((m + 1 : Nat) : Measure) -∗
@@ -374,10 +352,9 @@ theorem tac_lwp_step {e e' : Exp} {φ : Prop} [PureExecCtx φ 1 e e'] (hφ : φ)
 
 end Steps
 
-/-- `lwp_pure H`: a pure step of the redex of the goal `lWP e @ s; i; E {{ Φ }}`, paid with the
-token `H : threadExpr i C e` (Rocq `lwp_pure`). The pure condition is tried with `trivial`
-and `decide`, and is left as the first goal if they fail; the goal left is the existential of
-`tac_lwp_pure`. -/
+/-- `lwp_pure H`: a pure step of the redex of the goal `lWP e @ s; i; E {{ Φ }}`, with the token
+`H : threadExpr i C e`.  The pure condition is tried with `trivial` and `decide`, else left as
+the first goal; the goal left is the existential premise of `tac_lwp_pure`. -/
 syntax (name := lwpPure) "lwp_pure " colGt ident : tactic
 
 macro_rules
@@ -385,13 +362,10 @@ macro_rules
     `(tactic| (iapply tac_lwp_pure ?hφ (by decide) $$ $H:ident
                try case hφ => first | trivial | decide))
 
-/-- `lwp_step H HG HF`: a one-step pure reduction of the redex of the goal
-`lWP e @ s; i; E {{ Φ }}` that observes no witness (`tac_lwp_step`), with the token
-`H : threadExpr i C e`, the bill `HG : thCarriers i G` and its fuel
-`HF : oblFuels G ((m + 1 : Nat) : Measure)` (a numeral `oblFuels G 5` unifies too); the three
-hypotheses are given back (`HF` with `m` units of fuel, `H` for the new expression) and the
-goal is `lWP e' @ s; i; E {{ Φ }}`. `lwp_step H HG HF with Hc : o` also gives the later
-credits `Hc : £ₒ o`. The pure condition is handled as by `lwp_pure`. -/
+/-- `lwp_step H HG HF`: one pure step, observing no witness, of the redex of the goal
+`lWP e @ s; i; E {{ Φ }}`, with the token `H : threadExpr i C e`, the bill `HG : thCarriers i G`
+and its fuel `HF : oblFuels G ((m + 1 : Nat) : Measure)` (or a numeral), which come back under
+their names, `HF` with `m` units.  `lwp_step H HG HF with Hc : o` also gives `Hc : £ₒ o`. -/
 syntax (name := lwpStep) "lwp_step " colGt ident ppSpace colGt ident ppSpace colGt ident
   (" with " ident " : " term)? : tactic
 
@@ -407,19 +381,16 @@ macro_rules
                iintro $HG:ident $HF:ident $Hc:ident $H:ident
                imodintro))
 
-/-- `lwp_bind e' H`: focus on the subexpression `e'` of the goal `lWP e @ s; i; E {{ Φ }}`
-(Rocq `lwp_bind`); the token `H : threadExpr i C e` becomes `H : threadExpr i (K ++ C) e'`. -/
+/-- `lwp_bind e' H`: focus on the subexpression `e'` of the goal `lWP e @ s; i; E {{ Φ }}`; the
+token `H : threadExpr i C e` becomes `H : threadExpr i (K ++ C) e'`. -/
 syntax (name := lwpBind) "lwp_bind " colGt term:max ppSpace colGt ident : tactic
 
 macro_rules
   | `(tactic| lwp_bind $e $H:ident) =>
     `(tactic| (iapply tac_lwp_bind $e $$ $H:ident; iintro $H:ident))
 
-/-- `lwp_expr_simp`: compute the substitutions, the contexts `fill K e` and the negations `!b` of
-the goal (after `lwp_pure` of a `rec` application or of `~#b`, or after `lwp_bind`, Rocq
-`lwp_expr_simpl`). The values are then written back as `Exp.ofVal v` (`val_to_ofVal`), the
-form that the instances of `PureExecCtx`, `InCtx` and `Atomic` expect, so that `lwp_pure`,
-`lwp_bind` and the opening of invariants around atomic expressions apply afterwards. -/
+/-- `lwp_expr_simp`: computes the substitutions, the contexts `fill K e` and the negations `!b` of
+the goal, and writes its values as `Exp.ofVal v`, the form that the step tactics expect. -/
 macro "lwp_expr_simp" : tactic =>
   `(tactic| (
     simp (config := {decide := true}) only
@@ -430,31 +401,10 @@ macro "lwp_expr_simp" : tactic =>
 
 /-! ## Finding the hypotheses of a step
 
-The tactics above take the token, the bill and the fuel by name. The variants below find them
-in the proof-mode context by their shape, for the thread `i` and the expression `e` of the goal
-`lWP e @ s; i; E {{ Φ }}`: the token is the spatial hypothesis `threadExpr i C e` (with the
-goal's expression), the bill the spatial hypothesis `thCarriers i G`, and the fuel the spatial
-hypothesis `oblFuels G n` of the same `G`; the most recent such hypothesis is taken.
+The tactics above without hypothesis names, which find the token, the bill and the fuel in the
+context by their shape, and `lwp_pures`. -/
 
-* `lwp_step`, `lwp_step with Hc : o`, `lwp_pure` and `lwp_bind e'` are `lwp_step H HG HF`,
-  `lwp_step H HG HF with Hc : o`, `lwp_pure H` and `lwp_bind e' H` with the hypotheses found.
-  Before applying a step, `lwp_step` checks that the expression is not a value and finds the
-  redex (`PureExecCtx φ 1 e e'`) itself, after `lwp_expr_eval` if there is none and the
-  expression has something to compute. (The named tactic, applied to a value or to an
-  unsimplified `Exp.subst`, fails its instance search with an error that elaboration recovers
-  from; the search for a proof of the then unknown pure condition by `trivial` exceeds the
-  maximum recursion depth, an exception that `try` and `repeat` do not catch.)
-* `lwp_expr_eval` is `lwp_expr_simp` that also computes the comparisons `v₁ == v₂` of closed
-  values (`reduceValBEq`; the result of `instPureExecEqOp`), `decide` of decided propositions
-  (the results of `≤` and `<` on integer literals) and the arithmetic of integer literals.
-* `lwp_pures` repeats `lwp_step`, giving back the token, the bill and the fuel under their
-  names and computing the expression with `lwp_expr_eval` when it has something to compute,
-  until the expression is a value, has no one-step pure redex, or has one whose pure condition
-  `trivial` and `decide` do not prove. It fails if it takes no step; a missing hypothesis or a
-  lack of fuel is an error. The `lWP` of a value is left to the caller (`lwp_value'`).
--/
-
-/-- Computes `v₁ == v₂` on closed values (the result of `instPureExecEqOp`), by evaluation. -/
+/-- Computes `v₁ == v₂` on closed values by evaluation. -/
 simproc_decl reduceValBEq (@BEq.beq Val _ _ _) := fun e => do
   unless e.isAppOfArity ``BEq.beq 4 do return .continue
   if e.hasFVar || e.hasMVar then return .continue
@@ -462,9 +412,8 @@ simproc_decl reduceValBEq (@BEq.beq Val _ _ _) := fun e => do
   if r.isConstOf ``true || r.isConstOf ``false then return .done { expr := r }
   return .continue
 
-/-- `lwp_expr_eval`: `lwp_expr_simp`, which also computes the comparisons `v₁ == v₂` of closed
-values, `decide` of decided propositions (`decide (1 < 2)`) and the arithmetic of integer
-literals (`2 + 1`). -/
+/-- `lwp_expr_eval`: `lwp_expr_simp` that also computes the comparisons `v₁ == v₂` of closed
+values, `decide` of decided propositions and the arithmetic of integer literals. -/
 macro "lwp_expr_eval" : tactic =>
   `(tactic| (
     simp (config := {decide := true}) only
@@ -644,8 +593,8 @@ meta def findGoalToken (tac : String) : TacticM (TSyntax `ident) := withMainCont
 
 /-- `lwp_step`: `lwp_step H HG HF` with the token `H : threadExpr i C e` of the goal's thread and
 expression, the bill `HG : thCarriers i G` and its fuel `HF : oblFuels G n` found in the
-context; `lwp_step with Hc : o` also gives the later credits `Hc : £ₒ o`. It fails with an error
-on a value, or on an expression without a one-step pure redex (after `lwp_expr_eval`). -/
+context; `lwp_step with Hc : o` also gives `Hc : £ₒ o`.  It fails on a value and on an
+expression without a one-step pure redex, even after `lwp_expr_eval`. -/
 syntax (name := lwpStepAuto) "lwp_step" (" with " ident " : " term)? : tactic
 
 elab_rules : tactic
@@ -668,9 +617,9 @@ elab_rules : tactic
     let H ← findGoalToken "lwp_bind"
     evalTactic (← `(tactic| lwp_bind $e' $H))
 
-/-- `lwp_pures`: `lwp_step` repeated (with `lwp_expr_eval` when the expression has something to
-compute) until the expression is a value, has no one-step pure redex, or has one whose pure
-condition `trivial` and `decide` do not prove; it fails if no step is taken. -/
+/-- `lwp_pures`: `lwp_step` repeated, with `lwp_expr_eval` between steps, until the expression is
+a value, has no one-step pure redex, or has one whose pure condition `trivial` and `decide` do
+not prove; it fails if no step is taken. -/
 syntax (name := lwpPures) "lwp_pures" : tactic
 
 elab_rules : tactic

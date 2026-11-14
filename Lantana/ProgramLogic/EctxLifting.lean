@@ -14,11 +14,9 @@ public import Lantana.ProgramLogic.Lifting
 
 /-! # Lifting lemmas for languages with evaluation contexts
 
-Rocq `lantana/program_logic/ectx_lifting.v`, after Iris-Lean's `Iris.ProgramLogic.EctxLifting`:
-the lifting lemmas of `Lantana.ProgramLogic.Lifting` with base steps and base reducibility, for
-the language of an Iris-Lean `EctxLanguage` and a step that keeps the statuses (`KeepsCrashed`).
-Every evaluation context is a context of that language (`EctxLanguage.instContextFill`), so the
-lemmas quantify over `K : Ectx` without the hypothesis `Language.Context (fill K)`.
+The lifting lemmas of `Lantana.ProgramLogic.Lifting` with base steps and base reducibility, for
+an Iris-Lean `EctxLanguage`.  After Iris-Lean's `Iris.ProgramLogic.EctxLifting`; see
+`docs/program-logic.md`, §3.  Rocq: `lantana/program_logic/ectx_lifting.v`.
 -/
 
 @[expose] public noncomputable section
