@@ -178,8 +178,7 @@ its base step ignores the observation argument, which can only be `[]` (`obs_eq_
 thread of HeapLang is ever crashed (`instCrash`, `HeapLang.not_crashed`), so its steps keep the
 statuses (`HeapLang.keepsCrashed`) and crashing is permanent (`HeapLang.staysCrashed`).  The
 fields of the instance are what Rocq states as separate lemmas and packages into
-`heap_lang_mixin`; `fillItem_no_val_inj` is proved by `cases` on the equation, because
-`simp_all` on the 729 pairs of items takes 6.5 s.
+`heap_lang_mixin`.
 
 The class instances are adapted from Iris-Lean's, for the labels and `chooseNat` of Lantana's
 HeapLang and without prophecies: `Atomic` for each operation on values (by
