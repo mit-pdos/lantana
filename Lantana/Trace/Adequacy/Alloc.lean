@@ -56,16 +56,16 @@ variable {Expr State : Type} {GF : BundledGFunctors} [ModelGpreS GF] [RegGpreS E
 /-- Allocation of the ghost state of adequacy for the initial configuration `(tp, σ)`, at
 names `γ` (small enough for the existential property of satisfiability; the world's cameras are
 those of `TemporalGpreS`): the credit supply, world satisfaction and the full mask; the model at
-step `0` with no obligation and no witness, over the threads of `tp`; the empty children of the
-initial threads; the history with its first entry, for every state interpretation (chosen after
-the allocation); the empty registry. -/
+step `0` with no obligation and no witness, over the threads of `tp`; the running handles, the
+empty children and the empty bills of the initial threads; the history with its first entry,
+for every state interpretation (chosen after the allocation); the empty registry. -/
 theorem adequacy_alloc_names (σ : State) (tp : ThreadPool Expr) :
     ⊢@{IProp GF} |==> ∃ γ : ModelNames × TemporalNames,
       letI := ModelGS.ofNames (GF := GF) γ.1
       letI := TemporalGS.ofNames (Expr := Expr) (State := State) (GF := GF) γ.2
       iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
         Model.modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length ∗
-        ([∗list] j ∈ List.range tp.length, thKids j ∅) ∗
+        ([∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) ∗
         (∀ _ : StateInterp Expr State GF,
           stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp) ∗
         regAuth []) := by

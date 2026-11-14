@@ -400,15 +400,16 @@ theorem ex_trSpec_of_eq :
   rfl
 
 /-- A done until, allocated with its right formula at hand, exports the until of any left
-formula in the form the adequacy takes: a formula, its guarantee, and the formula back. -/
+formula in the form the adequacy takes: a formula, its guarantee, and the formula back. The
+bill of `p` becomes its children. -/
 @[lantana_alias ex_until_done_export]
-theorem ex_until_done_export (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure) (Q : IProp GF)
+theorem ex_until_done_export (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) (Q : IProp GF)
     (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] (G₁ : TrSpec Expr State GF) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Q -∗
-      |={E}=>m Par.kids p K ∗
+    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗ Q -∗
+      |={E}=>m Par.kids p K ∗ Par.bill p K ∗
         ∃ P : IProp GF, (P ⊨ₜ (G₁ Uₛ TrSpec.state φ)) ∗ P ∗ (P -∗ Q) := by
-  iintro B Kp HQ
-  imod Obl.new E p K ℓ μ $$ B Kp with ⟨%k, %hk, Kp, Kk, Oa, -, -⟩
+  iintro Hl Kp HB HQ
+  imod Obl.new E p K B ℓ μ $$ Hl Kp HB with ⟨%k, %hk, Kp, HB, Kk, Oa, -, -⟩
   have hmem : k ∈ K.insert k := Std.ExtTreeSet.mem_insert_self
   have heq : (K.insert k).erase k = K := Std.ExtTreeSet.ext_mem fun a => by
     simp only [Std.ExtTreeSet.mem_erase, Std.ExtTreeSet.mem_insert, ne_eq,
@@ -423,8 +424,9 @@ theorem ex_until_done_export (p : Parent) (K : Oids) (ℓ : Layer) (μ : Measure
     (K.insert k) hmem
   rw [heq] at hinit
   imod hinit $$ Oa Kp Kk HQ with ⟨U, Kp⟩
+  imod Par.bill_resync E p K (B.insert k) $$ Kp HB with ⟨Kp, HB⟩
   imodintro
-  iframe Kp
+  iframe Kp HB
   iexists untilIDone (Expr := Expr) (State := State) k Q
   iframe U
   isplitl []

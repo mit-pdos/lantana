@@ -149,7 +149,8 @@ theorem lwp_adequacy_safety {GF : BundledGFunctors} [TemporalGpreS Expr State GF
           let _ : LantanaGS Expr State Obs Val GF :=
             { toTemporalGS := inferInstance, toStateInterp := SI, forkPost := forkPost }
           iprop(⌜∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ ∧ stateInterp σ tp ∗
-            (£ₒ c -∗ ([∗list] j ∈ List.range tp.length, thKids j ∅) -∗
+            (£ₒ c -∗
+              ([∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
               |={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }}))) :
     safetyIris j Φ τ := by
   obtain ⟨n, τf⟩ := τ

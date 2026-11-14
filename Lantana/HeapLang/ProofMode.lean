@@ -9,25 +9,27 @@ public import Lantana.HeapLang.PrimitiveLaws
 /-! # Proof-mode support for HeapLang: paid pure steps
 
 Rocq `lantana_heap_lang/proofmode.v` (`tac_lwp_pure_simple`, `lwp_pure`). A pure step of
-thread `i` needs its token `threadExpr i C e`, one unit of fuel of each child of the thread per
-step, and the witness layers; it gives back the witnesses' credits and later credits.
+thread `i` needs its token `threadExpr i C e`, its bill `thCarriers i G` with one unit of fuel of
+each obligation of the bill per step, and the witness layers; it gives back the bill, the
+witnesses' credits and later credits.
 
 * `PureExecCtx φ n e e'`: `e` reaches `e'` by `n` pure steps of the redex of `e` (in its
   evaluation context), found by instance search through the context items (Rocq
   `reshape_expr` and `PureExec` search) — the instances follow the right-to-left evaluation
   order, and the redex is found by the `PureExec` instances of `Instances`.
 * `tac_lwp_pure`: the pure step of the redex of the goal's expression, with fuel `n + m` of the
-  children `G`, of which `m` units are left.
+  bill `G`, of which `m` units are left.
 * `lwp_pure H`: applies `tac_lwp_pure` with the token `H`, proves the side conditions it can
   (the pure condition and `0 < n`), and leaves the goal
-  `∃ G m R o, (thKids i G ∗ oblFuels G (n + m) ∗ witLayers R) ∗ (thKids i G -∗ oblFuels G m -∗
-  witCreds R -∗ £ₒ o -∗ threadExpr i C e' -∗ |={E}=>m lWP e' …)`, as Rocq's `lwp_pure` does.
+  `∃ G m R o, (thCarriers i G ∗ oblFuels G (n + m) ∗ witLayers R) ∗ (thCarriers i G -∗
+  oblFuels G m -∗ witCreds R -∗ £ₒ o -∗ threadExpr i C e' -∗ |={E}=>m lWP e' …)`, as Rocq's
+  `lwp_pure` does.
 * `PureExec` instances for the common operations with their results computed (`~#b`, `+`, `-`,
   `≤`, `<` on integers), which the generic ones of `Instances` cannot provide to instance search.
 * `stepPre_nil`, `stepPre_wit`, `witLayers_empty`, `witCreds_singleton`: the bookkeeping of the
   witnesses of a step.
 * `lwp_step`, `lwp_pure`, `lwp_bind e'` without hypothesis names, `lwp_expr_eval` and
-  `lwp_pures` (the last section): the token, the children and the fuel found by their shape.
+  `lwp_pures` (the last section): the token, the bill and the fuel found by their shape.
 -/
 
 @[expose] public noncomputable section
@@ -275,16 +277,16 @@ theorem oblFuels_add (G : Oids) (n m : Nat) :
     iexact H2
 
 /-- The pure step of the redex of `e` (Rocq `tac_lwp_pure_simple`): the token, then the
-children `G` with `n + m` units of fuel, of which `m` are left, the witnesses `R`, and the
-later credits `o`. -/
+bill `G` with `n + m` units of fuel, of which `m` are left, the witnesses `R`, and the later
+credits `o`. -/
 @[lantana_alias heap_lang.tac_lwp_pure_simple]
 theorem tac_lwp_pure {e e' : Exp} {φ : Prop} {n : Nat} [hpe : PureExecCtx φ n e e'] (hφ : φ)
     (hn : 0 < n) (Φ : Val → IProp GF) :
     threadExpr i C e ⊢
       (∃ (G : Oids) (m : Nat) (R : Oids) (o : Fuel),
-        (thKids i G ∗ oblFuels G ((n + m : Nat) : Measure) ∗ witLayers R) ∗
-        (thKids i G -∗ oblFuels G (m : Measure) -∗ witCreds R -∗ £ₒ o -∗ threadExpr i C e' -∗
-          |={E}=>m lWP e' @ s; i; E {{ Φ }})) -∗
+        (thCarriers i G ∗ oblFuels G ((n + m : Nat) : Measure) ∗ witLayers R) ∗
+        (thCarriers i G -∗ oblFuels G (m : Measure) -∗ witCreds R -∗ £ₒ o -∗
+          threadExpr i C e' -∗ |={E}=>m lWP e' @ s; i; E {{ Φ }})) -∗
       lWP e @ s; i; E {{ Φ }} := by
   haveI := hpe.pureExecCtx
   iintro HT ⟨%G, %m, %R, %o, ⟨HG, HF, HR⟩, H⟩
@@ -325,7 +327,7 @@ theorem witLayers_empty [ModelGS GF] : ⊢ witLayers (GF := GF) ∅ := by
 
 /-- The precondition of a step without witnesses. -/
 theorem stepPre_nil [ModelGS GF] (i : ThreadId) (G : Oids) :
-    thKids i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ stepPre (GF := GF) i G ∅ := by
+    thCarriers i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ stepPre (GF := GF) i G ∅ := by
   iintro HG HF
   simp only [stepPre]
   iframe HG HF
@@ -333,7 +335,7 @@ theorem stepPre_nil [ModelGS GF] (i : ThreadId) (G : Oids) :
 
 /-- The precondition of a step that observes the witness `k` (of layer `ℓ`). -/
 theorem stepPre_wit [ModelGS GF] (i : ThreadId) (G : Oids) (k : Oid) (ℓ : Layer) :
-    thKids i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ Wit.layer k ℓ -∗
+    thCarriers i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ Wit.layer k ℓ -∗
       stepPre (GF := GF) i G {k} := by
   iintro HG HF Hk
   simp only [stepPre]
@@ -353,11 +355,11 @@ variable [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem}
 
 /-- A pure step of the redex of `e` that observes no witness (`tac_lwp_pure` with `R = ∅`),
-paid with one of the `m + 1` units of fuel of the children `G`; it gives back `£ₒ o`. -/
+paid with one of the `m + 1` units of fuel of the bill `G`; it gives back `£ₒ o`. -/
 theorem tac_lwp_step {e e' : Exp} {φ : Prop} [PureExecCtx φ 1 e e'] (hφ : φ) (o : Fuel)
     (Φ : Val → IProp GF) {G : Oids} {m : Nat} :
-    threadExpr i C e ⊢ thKids i G -∗ oblFuels G ((m + 1 : Nat) : Measure) -∗
-      (thKids i G -∗ oblFuels G (m : Measure) -∗ £ₒ o -∗ threadExpr i C e' -∗
+    threadExpr i C e ⊢ thCarriers i G -∗ oblFuels G ((m + 1 : Nat) : Measure) -∗
+      (thCarriers i G -∗ oblFuels G (m : Measure) -∗ £ₒ o -∗ threadExpr i C e' -∗
         |={E}=>m lWP e' @ s; i; E {{ Φ }}) -∗
       lWP e @ s; i; E {{ Φ }} := by
   iintro HT HG HF H
@@ -385,7 +387,7 @@ macro_rules
 
 /-- `lwp_step H HG HF`: a one-step pure reduction of the redex of the goal
 `lWP e @ s; i; E {{ Φ }}` that observes no witness (`tac_lwp_step`), with the token
-`H : threadExpr i C e`, the children `HG : thKids i G` and their fuel
+`H : threadExpr i C e`, the bill `HG : thCarriers i G` and its fuel
 `HF : oblFuels G ((m + 1 : Nat) : Measure)` (a numeral `oblFuels G 5` unifies too); the three
 hypotheses are given back (`HF` with `m` units of fuel, `H` for the new expression) and the
 goal is `lWP e' @ s; i; E {{ Φ }}`. `lwp_step H HG HF with Hc : o` also gives the later
@@ -426,12 +428,12 @@ macro "lwp_expr_simp" : tactic =>
         EctxItemLanguage.fill_cons, fillItem_eq, ECtxItem.fill, Bool.not_true, Bool.not_false]
     try simp only [val_to_ofVal]))
 
-/-! ## Finding the hypotheses of a step (M10)
+/-! ## Finding the hypotheses of a step
 
-The tactics above take the token, the children and the fuel by name. The variants below find
-them in the proof-mode context by their shape, for the thread `i` and the expression `e` of the
-goal `lWP e @ s; i; E {{ Φ }}`: the token is the spatial hypothesis `threadExpr i C e` (with the
-goal's expression), the children the spatial hypothesis `thKids i G`, and the fuel the spatial
+The tactics above take the token, the bill and the fuel by name. The variants below find them
+in the proof-mode context by their shape, for the thread `i` and the expression `e` of the goal
+`lWP e @ s; i; E {{ Φ }}`: the token is the spatial hypothesis `threadExpr i C e` (with the
+goal's expression), the bill the spatial hypothesis `thCarriers i G`, and the fuel the spatial
 hypothesis `oblFuels G n` of the same `G`; the most recent such hypothesis is taken.
 
 * `lwp_step`, `lwp_step with Hc : o`, `lwp_pure` and `lwp_bind e'` are `lwp_step H HG HF`,
@@ -445,7 +447,7 @@ hypothesis `oblFuels G n` of the same `G`; the most recent such hypothesis is ta
 * `lwp_expr_eval` is `lwp_expr_simp` that also computes the comparisons `v₁ == v₂` of closed
   values (`reduceValBEq`; the result of `instPureExecEqOp`), `decide` of decided propositions
   (the results of `≤` and `<` on integer literals) and the arithmetic of integer literals.
-* `lwp_pures` repeats `lwp_step`, giving back the token, the children and the fuel under their
+* `lwp_pures` repeats `lwp_step`, giving back the token, the bill and the fuel under their
   names and computing the expression with `lwp_expr_eval` when it has something to compute,
   until the expression is a value, has no one-step pure redex, or has one whose pure condition
   `trivial` and `decide` do not prove. It fails if it takes no step; a missing hypothesis or a
@@ -512,25 +514,25 @@ meta def findToken (tac : String) {u : Level} {prop bi e₀ : Expr} (hyps : @Hyp
     | throwError "{tac}: no hypothesis threadExpr {i} _{indentExpr e}\n(the token of the thread)"
   return n
 
-/-- The children `thKids i G` of the thread `i` and their fuel `oblFuels G n`. -/
-meta def findKidsFuel (tac : String) {u : Level} {prop bi e₀ : Expr}
+/-- The bill `thCarriers i G` of the thread `i` (also written `Par.bill (.thread i) G`) and its
+fuel `oblFuels G n`. -/
+meta def findBillFuel (tac : String) {u : Level} {prop bi e₀ : Expr}
     (hyps : @Hyps u prop bi e₀) (i : Expr) : MetaM (Name × Name) := do
   let some (nG, tyG) ← findSpatialHyp hyps fun ty => do
-      let some #[p, _] := lastArgs? ty ``Par.kids 2 | return false
-      let some #[i'] := lastArgs? p ``Parent.thread 1 | return false
+      let some #[i', _] := lastArgs? (← whnfR ty) ``Th.carriers 2 | return false
       eqReducible i' i
-    | throwError "{tac}: no hypothesis thKids {i} _ (the children of the thread)"
-  let G := tyG.getAppArgs.back!
+    | throwError "{tac}: no hypothesis thCarriers {i} _ (the bill of the thread)"
+  let G := (← whnfR tyG).getAppArgs.back!
   let some (nF, _) ← findSpatialHyp hyps fun ty => do
       let some #[G', _] := lastArgs? ty ``oblFuels 2 | return false
       eqReducible G' G
-    | throwError "{tac}: no hypothesis oblFuels {G} _ (the fuel of the children of the thread)"
+    | throwError "{tac}: no hypothesis oblFuels {G} _ (the fuel of the bill of the thread)"
   return (nG, nF)
 
-/-- The names of the hypotheses of a step: the token, the children and their fuel. -/
+/-- The names of the hypotheses of a step: the token, the bill and its fuel. -/
 structure StepHyps where
   token : Name
-  kids : Name
+  bill : Name
   fuel : Name
 
 /-- `e` is a value: `Exp.val v` (`Exp.ofVal v`) up to instance unfolding. -/
@@ -586,8 +588,8 @@ meta partial def stepView (tac : String) (eval : Bool := true) : TacticM StepVie
   match ← findPureRedex? e with
   | some φ =>
     let token ← findToken tac ig.hyps i e
-    let (kids, fuel) ← findKidsFuel tac ig.hyps i
-    return .step φ { token, kids, fuel }
+    let (bill, fuel) ← findBillFuel tac ig.hyps i
+    return .step φ { token, bill, fuel }
   | none =>
     if eval && needsEval e then
       let done ← try
@@ -600,7 +602,7 @@ meta partial def stepView (tac : String) (eval : Bool := true) : TacticM StepVie
 /-- The named `lwp_step` with the hypotheses `h`, raising the errors of its elaboration. -/
 meta def runStep (tac : String) (h : StepHyps) (with? : Option (TSyntax `ident × Term)) :
     TacticM Unit := do
-  let (H, HG, HF) := (mkIdent h.token, mkIdent h.kids, mkIdent h.fuel)
+  let (H, HG, HF) := (mkIdent h.token, mkIdent h.bill, mkIdent h.fuel)
   let stx ← match with? with
     | none => `(tactic| lwp_step $H $HG $HF)
     | some (Hc, o) => `(tactic| lwp_step $H $HG $HF with $Hc : $o)
@@ -641,7 +643,7 @@ meta def findGoalToken (tac : String) : TacticM (TSyntax `ident) := withMainCont
 
 
 /-- `lwp_step`: `lwp_step H HG HF` with the token `H : threadExpr i C e` of the goal's thread and
-expression, the children `HG : thKids i G` and their fuel `HF : oblFuels G n` found in the
+expression, the bill `HG : thCarriers i G` and its fuel `HF : oblFuels G n` found in the
 context; `lwp_step with Hc : o` also gives the later credits `Hc : £ₒ o`. It fails with an error
 on a value, or on an expression without a one-step pure redex (after `lwp_expr_eval`). -/
 syntax (name := lwpStepAuto) "lwp_step" (" with " ident " : " term)? : tactic
