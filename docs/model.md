@@ -127,7 +127,7 @@ thread).  Every other lemma keeps the bits.
 
 So the owners of obligations are active: a finished thread owns nothing by its `thDone`, a
 crashed one by its bit in the model.  Adequacy needs this at the view of the current
-configuration (`docs/activity.md`, §6).
+configuration (`docs/activity.md`, §4).
 
 ## 5. The model update and the two rounds of a step
 
@@ -166,7 +166,7 @@ The two rounds of a physical step alone read or change the view:
 
 The update of the second stage runs after the step, at the new position and with the old bits:
 there a thread can discharge the obligations below a node before handing the node in at the
-third stage (`docs/activity.md`, §4).
+third stage (`docs/activity.md`, §3).
 
 ## 6. The rank of a forest
 

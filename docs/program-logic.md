@@ -4,7 +4,7 @@ The program logic of Lantana is a weakest precondition `lWP` for one thread of a
 thread pool, in which every step pays for the obligations of the thread.  This note describes
 the configurations and their steps, one step of `lWP`, the lifting lemmas, HeapLang's laws, and
 the tactics that take HeapLang's steps.  What a step does to the obligation model (the rounds,
-the nodes of crashed threads) is described in `docs/activity.md`.
+the nodes of crashed threads) is described in `docs/model.md`, §4–§5.
 
 | module | contents |
 |---|---|
@@ -42,7 +42,7 @@ never takes a stuck step.
 Thread `i` is crashed at `ρ` (`Cfg.crashed ρ i`) when it is in the pool and the language declares
 its expression crashed in the state of `ρ`.  The configuration comes first so that
 `Cfg.crashed ρ : ThreadId → Prop` is the set of crashed threads that the obligation model keeps
-as its view of the pool (`docs/activity.md`, §3).  A step *keeps the statuses* when
+as its view of the pool (`docs/model.md`, §4).  A step *keeps the statuses* when
 `Cfg.crashed ρ₂ = Cfg.crashed ρ₁`, which `Cfg.crashed_eq_of_iff` proves pointwise; in a language
 that never crashes every step does (`Cfg.crashed_eq_of_never`).
 
@@ -92,7 +92,7 @@ a state `σ₁`, the step runs in phases:
 6. the invariants are closed with the history extended by the new configuration, and
    `ν e₂ tp.length efs` holds: the forked threads have the ids `tp.length`, `tp.length + 1`, ….
 
-What the rounds do to the model is in `docs/activity.md`, §3 and §4.  Compared with Iris-Lean's
+What the rounds do to the model is in `docs/model.md`, §5.  Compared with Iris-Lean's
 weakest preconditions, `lWP` thus has a thread id, sees the history, quantifies over the context
 of the thread, runs the rounds of the obligation model between model updates, and ignores
 observations.
@@ -145,7 +145,7 @@ Which lemma to use:
   receives those of the threads it recovers.  In `lwp_lift_step_gen_si` this happens in a model
   update at the empty mask inside the physical round, run against the history of the new
   configuration, where a thread can discharge obligations whose formulas hold only after the
-  step, with their invariants opened before it (`docs/activity.md`, §4).
+  step, with their invariants opened before it (`docs/activity.md`, §3).
 - A stuck thread, for `MaybeStuck`: `lwp_lift_stuck`, `lwp_lift_pure_stuck`.
 - Pure steps: `lwp_lift_pure_step_no_fork`, `lwp_lift_pure_det_step_no_fork`, `lwp_pure_step`,
   `lwp_pure_step_simple` (below).
