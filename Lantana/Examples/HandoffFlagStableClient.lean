@@ -225,7 +225,8 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
       iframe Htk Hkk
       iexists μfs
       unfold taskAt
-      iintro %lc' %i' %G' %p' %K'' %C' %Φ'' !> ⟨HT', HG', HF', HK', %hK', Htk', Hkk'⟩ HΦ''
+      iintro %lc' %i' %G' %p' %K'' %C' %Φ'' !>
+        ⟨HT', HKi', HG', HF', HK', %hK', Htk', Hkk'⟩ HΦ''
       iapply hfs lc' i' x G' p' K'' k 1 C' $$ [HT' HG' HF' HK' Hkk' Htk']
       · iframe
         isplitl

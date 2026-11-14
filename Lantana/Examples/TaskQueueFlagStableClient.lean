@@ -36,7 +36,8 @@ open Lantana.Examples.Flag (v1)
 open Lantana.Examples.FlagStable (flagTk isFlag isFlagTr flagTrSpec)
 open Lantana.Examples.TicketLock (TicketLockG releaseProgress)
 open Lantana.Examples.Queue (QueueG QueueName)
-open Lantana.Examples.TaskQueue (isTaskQueue taskQueueTrSpec isTask taskAt)
+open Lantana.Examples.TaskQueue (isTaskQueue taskQueueTrSpec)
+open Lantana.Examples.Handoff (isTask taskAt)
 open Lantana.Examples.TaskQueueClient (decrReentrant main vArg Nl Nc ℓq ℓf ℓq_cond one_le_ℓf
   one_le_ℓf_succ mainPost rQueue guar_exTaskQueue tp0 σ0)
 open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal

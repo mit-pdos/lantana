@@ -52,7 +52,8 @@ open Iris Iris.BI Iris.Std Lantana Lantana.HeapLang Lantana.Language
 open Lantana.Examples.Flag (flagTk isFlag isFlagTr flagTrSpec v1)
 open Lantana.Examples.TicketLock (TicketLockG releaseProgress)
 open Lantana.Examples.Queue (QueueG QueueName)
-open Lantana.Examples.TaskQueue (isTaskQueue taskQueueTrSpec isTask taskAt)
+open Lantana.Examples.TaskQueue (isTaskQueue taskQueueTrSpec)
+open Lantana.Examples.Handoff (isTask taskAt)
 open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 
 /-! ## The program -/

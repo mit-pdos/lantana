@@ -129,15 +129,17 @@ end GhostVar
 section Invariant
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [HandoffG GF]
 
-/-- A task `f a` that discharges the obligations `K`, using fuel at layer `ℓt` for the bill
-of the running thread. The obligations `K` are children of some parent `p`. -/
+/-- A task `f a` that discharges the obligations `K`. It receives the node and the bill `G` of
+the running thread, with fuel at layer `ℓt` for each obligation of the bill, and gives both
+back: a task may create and discharge children of the thread that runs it. The obligations `K`
+are children of some parent `p`. -/
 @[lantana_alias task_at]
 def taskAt (ℓt : Layer) (μ : Measure) (P : IProp GF) (f a : Val) (K : Oids) : IProp GF :=
   iprop(∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent) (K' : Oids) (C : List ECtxItem),
-    l{{{ threadExpr i C hl(v(&f) v(&a)) ∗ thCarriers i G ∗ ([∗set] g ∈ G, Obl.fuel g ℓt μ) ∗
-          Par.kids p K' ∗ ⌜K ⊆ K'⌝ ∗ P }}}
+    l{{{ threadExpr i C hl(v(&f) v(&a)) ∗ thKids i G ∗ thCarriers i G ∗
+          ([∗set] g ∈ G, Obl.fuel g ℓt μ) ∗ Par.kids p K' ∗ ⌜K ⊆ K'⌝ ∗ P }}}
         hl(v(&f) v(&a)) @ i
-      l{{{ (rv : Val), RET rv; threadExpr i C hl(&rv) ∗ £ₒ lc ∗ thCarriers i G ∗
+      l{{{ (rv : Val), RET rv; threadExpr i C hl(&rv) ∗ £ₒ lc ∗ thKids i G ∗ thCarriers i G ∗
         Par.kids p (K' \ K) }}})
 
 instance taskAt_persistent (ℓt : Layer) (μ : Measure) (P : IProp GF) (f a : Val) (K : Oids) :
@@ -471,14 +473,14 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     lwp_expr_simp
     iapply lwp_mupd
     unfold taskAt
-    iapply Task $$ %(0 : Fuel) %i %({c} : Oids) %(Parent.obl c) %K %C [HT HG Fμ Kc HP]
-    · iframe HT HG Kc HP
+    iapply Task $$ %(0 : Fuel) %i %({c} : Oids) %(Parent.obl c) %K %C [HT HK HG Fμ Kc HP]
+    · iframe HT HK HG Kc HP
       isplitl [Fμ]
       · iapply BigSepS.bigSepS_singleton.mpr
         iexact Fμ
       · ipureintro
         exact fun _ h => h
-    iintro %rv ⟨HT, -, HG, Kc⟩
+    iintro %rv ⟨HT, -, HK, HG, Kc⟩
     imod Obl.discharge_leaf ⊤ (.thread i) {c} c (Iris.Std.LawfulSet.mem_singleton.mpr rfl)
       $$ HK [Kc] Ac with ⟨HK, #Dc⟩
     · iapply Par.kids_congr _ $$ Kc

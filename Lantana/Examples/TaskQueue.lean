@@ -10,10 +10,9 @@ public import Lantana.Examples.Queue
 /-! # A task queue, run by a forked worker thread
 
 Rocq `examples/task_queue.v` (§7.3 of the paper): a queue (`Lantana.Examples.Queue`) of tasks
-`f a` as in the handoff (`isTask`, the handoff's `Handoff.isTask` with the node of the running
-thread besides its bill), with `putTask q f a` (enqueue the pair `(f, a)`), `runTask q`
-(dequeue and run a task, if any) and a worker thread running `runTask` forever, forked by
-`init`.
+`f a` as in the handoff (`Handoff.isTask`), with `putTask q f a` (enqueue the pair `(f, a)`),
+`runTask q` (dequeue and run a task, if any) and a worker thread running `runTask` forever,
+forked by `init`.
 
 The task's obligations are those of the queued element: while the task waits in the queue
 they are children of the worker's inbox, and `runTask` runs the task with the fuel of the
@@ -51,6 +50,7 @@ namespace Lantana.Examples.TaskQueue
 open Iris Iris.BI Iris.Std Lantana Lantana.HeapLang Lantana.Language
 open Lantana.Examples.TicketLock (TicketLockG vLock releaseProgress)
 open Lantana.Examples.Queue (QueueG QueueName isQueue isQueueInit queueTrSpec dequeueRes vQueue)
+open Lantana.Examples.Handoff (isTask taskAt)
 open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 
 /-! ## The program -/
@@ -71,38 +71,6 @@ def worker : Val := hl_val(rec loop q := v(&runTask) q; loop q)
 /-- `λ _, let q := Queue.init (); fork (worker q); q`. -/
 @[lantana_alias task_queue.TaskQueue.init]
 def init : Val := hl_val(λ _, let q := v(&Queue.init) #(); fork(v(&worker) q); q)
-
-/-! ## Tasks
-
-The tasks of the handoff (`Handoff.taskAt`, `Handoff.isTask`), with the node of the running
-thread besides its bill: a queued task may create and discharge children of the thread that runs
-it (a task that puts a task acquires the queue's lock, whose obligation is a child of the
-thread). -/
-
-section Tasks
-variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
-
-/-- A task `f a` that discharges the obligations `K`, using fuel at layer `ℓt` for the bill
-of the running thread, whose children it gives back. The obligations `K` are children of some
-parent `p`. -/
-def taskAt (ℓt : Layer) (μ : Measure) (P : IProp GF) (f a : Val) (K : Oids) : IProp GF :=
-  iprop(∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent) (K' : Oids) (C : List ECtxItem),
-    l{{{ threadExpr i C hl(v(&f) v(&a)) ∗ thKids i G ∗ thCarriers i G ∗
-          ([∗set] g ∈ G, Obl.fuel g ℓt μ) ∗ Par.kids p K' ∗ ⌜K ⊆ K'⌝ ∗ P }}}
-        hl(v(&f) v(&a)) @ i
-      l{{{ (rv : Val), RET rv; threadExpr i C hl(&rv) ∗ £ₒ lc ∗ thKids i G ∗ thCarriers i G ∗
-        Par.kids p (K' \ K) }}})
-
-instance taskAt_persistent (ℓt : Layer) (μ : Measure) (P : IProp GF) (f a : Val) (K : Oids) :
-    Persistent (taskAt ℓt μ P f a K) := by
-  unfold taskAt; infer_instance
-
-/-- A task below the layer `ℓ`: its fuel is at a layer `ℓt < ℓ`, and it needs the resource
-`P`. -/
-def isTask (ℓ : Layer) (f a : Val) (K : Oids) : IProp GF :=
-  iprop(∃ (ℓt : Layer) (P : IProp GF), ⌜ℓt < ℓ⌝ ∧ (P ∗ ∃ μ : Measure, taskAt ℓt μ P f a K))
-
-end Tasks
 
 /-! ## The task queue -/
 
