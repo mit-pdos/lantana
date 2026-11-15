@@ -114,7 +114,7 @@ example (Hd : RegEntry → IProp TestGF) (e : RegEntry) (h : List (HistEntry Exp
     regStateWith Hd ∗ historyInterp h n σ tp ⊢@{IProp TestGF}
       |==> (historyInterp h n σ tp ∗ regStateWith Hd ∗ ∃ j, regIdx j n e) := by
   iintro ⟨Hs, HI⟩
-  iapply regRegister Hd e h n σ tp $$ Hs [] HI
+  iapply reg_register Hd e h n σ tp $$ Hs [] HI
   iintro %st -
   iapply He
 

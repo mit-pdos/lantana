@@ -34,137 +34,137 @@ open Ordinals
 
 /-! ## Reading the model -/
 
-namespace Obls
+namespace Obligations
 
 /-- `x` is a live (assigned) obligation. -/
-def live (Ω : Obls) (x : Oid) : Prop :=
+def Live (Ω : Obligations) (x : Oid) : Prop :=
   ∃ a t, get? Ω x = some (.assigned a t)
 
 /-- The fuel of `x` (`0` if `x` is not assigned). -/
 @[lantana_alias obl_fuel_of]
-def fuelOf (Ω : Obls) (x : Oid) : Fuel :=
+def fuelOf (Ω : Obligations) (x : Oid) : Fuel :=
   match get? Ω x with
   | some (.assigned a _) => a
   | _ => 0
 
 /-- The owner of `x`, if it is assigned. -/
 @[lantana_alias obl_owner_of]
-def ownerOf (Ω : Obls) (x : Oid) : Option ThreadId :=
+def ownerOf (Ω : Obligations) (x : Oid) : Option ThreadId :=
   match get? Ω x with
   | some (.assigned _ t) => some t
   | _ => none
 
-theorem fuelOf_eq {Ω : Obls} {x : Oid} {a : Fuel} {t : ThreadId}
+theorem fuelOf_eq {Ω : Obligations} {x : Oid} {a : Fuel} {t : ThreadId}
     (h : get? Ω x = some (.assigned a t)) : Ω.fuelOf x = a := by
   simp [fuelOf, h]
 
-theorem ownerOf_eq {Ω : Obls} {x : Oid} {a : Fuel} {t : ThreadId}
+theorem ownerOf_eq {Ω : Obligations} {x : Oid} {a : Fuel} {t : ThreadId}
     (h : get? Ω x = some (.assigned a t)) : Ω.ownerOf x = some t := by
   simp [ownerOf, h]
 
-theorem ownerOf_eq_some {Ω : Obls} {x : Oid} {t : ThreadId} :
+theorem ownerOf_eq_some {Ω : Obligations} {x : Oid} {t : ThreadId} :
     Ω.ownerOf x = some t ↔ ∃ a, get? Ω x = some (.assigned a t) := by
   unfold ownerOf
   cases get? Ω x with
   | none => simp
   | some g => cases g <;> simp
 
-theorem live_iff_ownerOf {Ω : Obls} {x : Oid} : Ω.live x ↔ (Ω.ownerOf x).isSome := by
-  unfold live ownerOf
+theorem live_iff_ownerOf {Ω : Obligations} {x : Oid} : Ω.Live x ↔ (Ω.ownerOf x).isSome := by
+  unfold Live ownerOf
   cases get? Ω x with
   | none => simp
   | some g => cases g <;> simp
 
-theorem live_of_ownerOf {Ω : Obls} {x : Oid} {t : ThreadId} (h : Ω.ownerOf x = some t) :
-    Ω.live x :=
+theorem live_of_ownerOf {Ω : Obligations} {x : Oid} {t : ThreadId} (h : Ω.ownerOf x = some t) :
+    Ω.Live x :=
   live_iff_ownerOf.2 (by simp [h])
 
-theorem ownerOf_of_live {Ω : Obls} {x : Oid} (h : Ω.live x) : ∃ t, Ω.ownerOf x = some t := by
+theorem ownerOf_of_live {Ω : Obligations} {x : Oid} (h : Ω.Live x) : ∃ t, Ω.ownerOf x = some t := by
   have h' := live_iff_ownerOf.1 h
   cases e : Ω.ownerOf x with
   | none => simp [e] at h'
   | some t => exact ⟨t, rfl⟩
 
-theorem not_live_of_none {Ω : Obls} {x : Oid} (h : get? Ω x = none) : ¬Ω.live x := by
+theorem not_live_of_none {Ω : Obligations} {x : Oid} (h : get? Ω x = none) : ¬Ω.Live x := by
   rintro ⟨a, t, h'⟩
   simp [h] at h'
 
 @[lantana_alias obl_fuel_of_insert_ne]
-theorem fuelOf_insert_ne {Ω : Obls} {k x : Oid} {g : Obl} (h : k ≠ x) :
+theorem fuelOf_insert_ne {Ω : Obligations} {k x : Oid} {g : Obligation} (h : k ≠ x) :
     fuelOf (insert Ω k g) x = Ω.fuelOf x := by
   simp only [fuelOf, get?_insert_ne h]
 
 @[lantana_alias obl_owner_of_insert_ne]
-theorem ownerOf_insert_ne {Ω : Obls} {k x : Oid} {g : Obl} (h : k ≠ x) :
+theorem ownerOf_insert_ne {Ω : Obligations} {k x : Oid} {g : Obligation} (h : k ≠ x) :
     ownerOf (insert Ω k g) x = Ω.ownerOf x := by
   simp only [ownerOf, get?_insert_ne h]
 
-theorem live_insert_ne {Ω : Obls} {k x : Oid} {g : Obl} (h : k ≠ x) :
-    live (insert Ω k g) x ↔ Ω.live x := by
-  simp only [live, get?_insert_ne h]
+theorem live_insert_ne {Ω : Obligations} {k x : Oid} {g : Obligation} (h : k ≠ x) :
+    Live (insert Ω k g) x ↔ Ω.Live x := by
+  simp only [Live, get?_insert_ne h]
 
 @[lantana_alias obl_fuel_of_insert_eq]
-theorem fuelOf_insert_assigned {Ω : Obls} {k : Oid} {a : Fuel} {i : ThreadId} :
+theorem fuelOf_insert_assigned {Ω : Obligations} {k : Oid} {a : Fuel} {i : ThreadId} :
     fuelOf (insert Ω k (.assigned a i)) k = a :=
   fuelOf_eq (get?_insert_eq rfl)
 
 @[lantana_alias obl_owner_of_insert_eq]
-theorem ownerOf_insert_assigned {Ω : Obls} {k : Oid} {a : Fuel} {i : ThreadId} :
+theorem ownerOf_insert_assigned {Ω : Obligations} {k : Oid} {a : Fuel} {i : ThreadId} :
     ownerOf (insert Ω k (.assigned a i)) k = some i :=
   ownerOf_eq (get?_insert_eq rfl)
 
-theorem live_insert_assigned {Ω : Obls} {k : Oid} {a : Fuel} {i : ThreadId} :
-    live (insert Ω k (.assigned a i)) k :=
+theorem live_insert_assigned {Ω : Obligations} {k : Oid} {a : Fuel} {i : ThreadId} :
+    Live (insert Ω k (.assigned a i)) k :=
   ⟨a, i, get?_insert_eq rfl⟩
 
-theorem fuelOf_insert_discharged {Ω : Obls} {k : Oid} :
+theorem fuelOf_insert_discharged {Ω : Obligations} {k : Oid} :
     fuelOf (insert Ω k .discharged) k = 0 := by
   simp only [fuelOf, get?_insert_eq]
 
-theorem ownerOf_insert_discharged {Ω : Obls} {k : Oid} :
+theorem ownerOf_insert_discharged {Ω : Obligations} {k : Oid} :
     ownerOf (insert Ω k .discharged) k = none := by
   simp only [ownerOf, get?_insert_eq]
 
-theorem not_live_insert_discharged {Ω : Obls} {k : Oid} :
-    ¬live (insert Ω k .discharged) k := by
+theorem not_live_insert_discharged {Ω : Obligations} {k : Oid} :
+    ¬Live (insert Ω k .discharged) k := by
   rintro ⟨a, t, h⟩
   simp [get?_insert_eq] at h
 
-end Obls
+end Obligations
 
 /-! ## Physical steps of a thread -/
 
 section Prog
 
-variable {Ω Ω' : Obls} {i : ThreadId}
+variable {Ω Ω' : Obligations} {i : ThreadId}
 
 /-- After a progress round of thread `i`, the obligations of `i` have less fuel. -/
 @[lantana_alias prog_owned]
-theorem prog_owned (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') {x : Oid} {a : Fuel}
+theorem prog_owned (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid} {a : Fuel}
     (hx : get? Ω x = some (.assigned a i)) :
     ∃ a' t', get? Ω' x = some (.assigned a' t') ∧ a' < a := by
-  obtain ⟨g', e', hr⟩ := mapForall2.lookup_left hp.1 hx
-  have hkeep : Obl.keep (.assigned a i) g' := mapForall2.lookup hp.2 hx e'
+  obtain ⟨g', e', hr⟩ := MapForall2.lookup_left hp.1 hx
+  have hkeep : Obligation.Keep (.assigned a i) g' := MapForall2.lookup hp.2 hx e'
   rcases hr with ⟨_, hs | hs⟩ | ⟨hn, _⟩
   · cases g' with
     | assigned a' t' => exact ⟨a', t', e', hs⟩
     | discharged => simp at hs
-  · cases g' <;> simp_all [Obl.keep]
+  · cases g' <;> simp_all [Obligation.Keep]
   · exact absurd rfl hn
 
 /-- After a progress round of thread `i`, the other obligations are unchanged. -/
 @[lantana_alias prog_other]
-theorem prog_other (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') {x : Oid} {g : Obl}
-    (hx : get? Ω x = some g) (hn : ¬Obl.condOwner i x g) : get? Ω' x = some g := by
-  obtain ⟨g', e', hr⟩ := mapForall2.lookup_left hp.1 hx
+theorem prog_other (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid} {g : Obligation}
+    (hx : get? Ω x = some g) (hn : ¬Obligation.CondOwner i x g) : get? Ω' x = some g := by
+  obtain ⟨g', e', hr⟩ := MapForall2.lookup_left hp.1 hx
   rcases hr with ⟨hc, _⟩ | ⟨_, rfl⟩
   · exact absurd hc hn
   · exact e'
 
 /-- A progress round keeps the live obligations. -/
 @[lantana_alias prog_live]
-theorem prog_live (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') (x : Oid) :
-    Ω.live x ↔ Ω'.live x := by
+theorem prog_live (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') (x : Oid) :
+    Ω.Live x ↔ Ω'.Live x := by
   constructor
   · rintro ⟨a, t, hx⟩
     by_cases ht : t = i
@@ -173,35 +173,35 @@ theorem prog_live (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') (x : Oid) :
       exact ⟨a', t', hx'⟩
     · exact ⟨a, t, prog_other hp hx ht⟩
   · rintro ⟨a', t', hx'⟩
-    obtain ⟨g, e, hkeep⟩ := mapForall2.lookup_right hp.2 hx'
+    obtain ⟨g, e, hkeep⟩ := MapForall2.lookup_right hp.2 hx'
     cases g with
     | assigned a t => exact ⟨a, t, e⟩
-    | discharged => simp [Obl.keep] at hkeep
+    | discharged => simp [Obligation.Keep] at hkeep
 
-theorem prog_fuelOf_lt (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') {x : Oid}
+theorem prog_fuelOf_lt (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid}
     (hx : Ω.ownerOf x = some i) : Ω'.fuelOf x < Ω.fuelOf x := by
-  obtain ⟨a, ha⟩ := Obls.ownerOf_eq_some.1 hx
+  obtain ⟨a, ha⟩ := Obligations.ownerOf_eq_some.1 hx
   obtain ⟨a', t', ha', hlt⟩ := prog_owned hp ha
-  rw [Obls.fuelOf_eq ha, Obls.fuelOf_eq ha']
+  rw [Obligations.fuelOf_eq ha, Obligations.fuelOf_eq ha']
   exact hlt
 
-theorem prog_get?_of_ne (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') {x : Oid}
+theorem prog_get?_of_ne (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid}
     (hx : Ω.ownerOf x ≠ some i) : get? Ω' x = get? Ω x := by
   cases e : get? Ω x with
-  | none => exact mapForall2.none_left hp.1 e
+  | none => exact MapForall2.none_left hp.1 e
   | some g =>
     refine prog_other hp e ?_
     cases g with
-    | assigned a t => exact fun h => hx (Obls.ownerOf_eq (h ▸ e))
+    | assigned a t => exact fun h => hx (Obligations.ownerOf_eq (h ▸ e))
     | discharged => exact id
 
-theorem prog_fuelOf_of_ne (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') {x : Oid}
+theorem prog_fuelOf_of_ne (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid}
     (hx : Ω.ownerOf x ≠ some i) : Ω'.fuelOf x = Ω.fuelOf x := by
-  simp only [Obls.fuelOf, prog_get?_of_ne hp hx]
+  simp only [Obligations.fuelOf, prog_get?_of_ne hp hx]
 
-theorem prog_ownerOf_of_ne (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') {x : Oid}
+theorem prog_ownerOf_of_ne (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid}
     (hx : Ω.ownerOf x ≠ some i) : Ω'.ownerOf x = Ω.ownerOf x := by
-  simp only [Obls.ownerOf, prog_get?_of_ne hp hx]
+  simp only [Obligations.ownerOf, prog_get?_of_ne hp hx]
 
 end Prog
 
@@ -215,7 +215,7 @@ def kids (Par : OidMap Parent) (p : Parent) : Oids :=
 
 /-- The nodes owned by thread `i` (Rocq `forest_owned Ω (dom Par) i`). -/
 @[lantana_alias forest_owned]
-def owned (Ω : Obls) (Par : OidMap Parent) (i : ThreadId) : Oids :=
+def owned (Ω : Obligations) (Par : OidMap Parent) (i : ThreadId) : Oids :=
   FiniteMap.dom_set (PartialMap.filter (fun x _ => decide (Ω.ownerOf x = some i)) Par)
 
 /-- `x` is a child of the obligation `c`. -/
@@ -249,7 +249,7 @@ noncomputable def subtree (Par : OidMap Parent) (k : Oid) : Oids :=
   rw [kids, LawfulFiniteMap.mem_dom_set, get?_filter]
   cases get? Par x <;> simp
 
-@[simp] theorem mem_owned {Ω : Obls} {Par : OidMap Parent} {i : ThreadId} {x : Oid} :
+@[simp] theorem mem_owned {Ω : Obligations} {Par : OidMap Parent} {i : ThreadId} {x : Oid} :
     x ∈ owned Ω Par i ↔ (get? Par x).isSome ∧ Ω.ownerOf x = some i := by
   rw [owned, LawfulFiniteMap.mem_dom_set, get?_filter]
   cases get? Par x <;> simp
@@ -319,7 +319,7 @@ theorem kids_delete {Par : OidMap Parent} {k : Oid} {q : Parent} :
 
 /-- The owned nodes depend only on the owners of the nodes. -/
 @[lantana_alias forest_owned_ext]
-theorem owned_ext {Ω Ω' : Obls} {Par : OidMap Parent} {i : ThreadId}
+theorem owned_ext {Ω Ω' : Obligations} {Par : OidMap Parent} {i : ThreadId}
     (h : ∀ x, (get? Par x).isSome → Ω'.ownerOf x = Ω.ownerOf x) :
     owned Ω' Par i = owned Ω Par i :=
   LawfulSet.ext fun x => by
@@ -327,7 +327,7 @@ theorem owned_ext {Ω Ω' : Obls} {Par : OidMap Parent} {i : ThreadId}
     exact ⟨fun ⟨h₁, h₂⟩ => ⟨h₁, h x h₁ ▸ h₂⟩, fun ⟨h₁, h₂⟩ => ⟨h₁, (h x h₁).symm ▸ h₂⟩⟩
 
 /-- The owned nodes depend only on the domain of `Par`. -/
-theorem owned_insert_of_isSome {Ω : Obls} {Par : OidMap Parent} {k : Oid} {p : Parent}
+theorem owned_insert_of_isSome {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {p : Parent}
     {i : ThreadId} (hk : (get? Par k).isSome) : owned Ω (insert Par k p) i = owned Ω Par i :=
   LawfulSet.ext fun x => by
     rw [mem_owned, mem_owned]
@@ -336,35 +336,35 @@ theorem owned_insert_of_isSome {Ω : Obls} {Par : OidMap Parent} {k : Oid} {p : 
     · rw [get?_insert_ne h]
 
 @[lantana_alias forest_owned_insert_same]
-theorem owned_insert_same {Ω : Obls} {Par : OidMap Parent} {k : Oid} {p : Parent} {a : Fuel}
+theorem owned_insert_same {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {p : Parent} {a : Fuel}
     {i : ThreadId} :
     owned (insert Ω k (.assigned a i)) (insert Par k p) i = {k} ∪ owned Ω Par i :=
   LawfulSet.ext fun x => by
     rw [mem_owned, LawfulSet.mem_union, LawfulSet.mem_singleton, mem_owned]
     by_cases h : k = x
-    · subst h; simp [get?_insert_eq, Obls.ownerOf_insert_assigned]
-    · rw [get?_insert_ne h, Obls.ownerOf_insert_ne h]
+    · subst h; simp [get?_insert_eq, Obligations.ownerOf_insert_assigned]
+    · rw [get?_insert_ne h, Obligations.ownerOf_insert_ne h]
       exact ⟨.inr, fun h' => h'.elim (fun e => (h e.symm).elim) id⟩
 
 @[lantana_alias forest_owned_insert_other]
-theorem owned_insert_other {Ω : Obls} {Par : OidMap Parent} {k : Oid} {p : Parent} {a : Fuel}
+theorem owned_insert_other {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {p : Parent} {a : Fuel}
     {i j : ThreadId} (hk : get? Par k = none) (hj : j ≠ i) :
     owned (insert Ω k (.assigned a i)) (insert Par k p) j = owned Ω Par j :=
   LawfulSet.ext fun x => by
     rw [mem_owned, mem_owned]
     by_cases h : k = x
-    · subst h; simp [Obls.ownerOf_insert_assigned, hk, Ne.symm hj]
-    · rw [get?_insert_ne h, Obls.ownerOf_insert_ne h]
+    · subst h; simp [Obligations.ownerOf_insert_assigned, hk, Ne.symm hj]
+    · rw [get?_insert_ne h, Obligations.ownerOf_insert_ne h]
 
 /-- Removing a node (discharge). -/
 @[lantana_alias forest_owned_remove]
-theorem owned_remove {Ω : Obls} {Par : OidMap Parent} {k : Oid} {g : Obl} {j : ThreadId} :
+theorem owned_remove {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {g : Obligation} {j : ThreadId} :
     owned (insert Ω k g) (delete Par k) j = owned Ω Par j \ {k} :=
   LawfulSet.ext fun x => by
     rw [mem_owned, LawfulSet.mem_diff, LawfulSet.mem_singleton, mem_owned]
     by_cases h : k = x
     · subst h; simp [get?_delete_eq]
-    · rw [get?_delete_ne h, Obls.ownerOf_insert_ne h]
+    · rw [get?_delete_ne h, Obligations.ownerOf_insert_ne h]
       exact ⟨fun h' => ⟨h', fun e => h e.symm⟩, And.left⟩
 
 /-! ### Subtrees -/
@@ -410,9 +410,9 @@ end Forest
 `forest_wf`; the fields `fwf_kids_dom` and `fwf_par_kids` hold by definition of
 `Forest.kids`). -/
 @[lantana_alias forest_wf]
-structure ForestWf (Ω : Obls) (tc : Nat) (Par : OidMap Parent) : Prop where
+structure ForestWf (Ω : Obligations) (tc : Nat) (Par : OidMap Parent) : Prop where
   /-- The nodes are the live obligations. -/
-  par_live : ∀ x, (get? Par x).isSome ↔ Ω.live x
+  par_live : ∀ x, (get? Par x).isSome ↔ Ω.Live x
   /-- A node below a thread is owned by it. -/
   thread : ∀ x i, get? Par x = some (.thread i) → Ω.ownerOf x = some i
   /-- A node below an obligation has its owner and strictly more fuel. -/
@@ -431,27 +431,27 @@ attribute [lantana_alias fwf_owner] ForestWf.owner
 
 namespace ForestWf
 
-variable {Ω Ω' : Obls} {tc : Nat} {Par : OidMap Parent}
+variable {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent}
 
 open Forest
 
 theorem live_of_isSome (wf : ForestWf Ω tc Par) {x : Oid} (hx : (get? Par x).isSome) :
-    Ω.live x :=
+    Ω.Live x :=
   (wf.par_live x).1 hx
 
-theorem isSome_of_live (wf : ForestWf Ω tc Par) {x : Oid} (hx : Ω.live x) :
+theorem isSome_of_live (wf : ForestWf Ω tc Par) {x : Oid} (hx : Ω.Live x) :
     (get? Par x).isSome :=
   (wf.par_live x).2 hx
 
 theorem isSome_of_ownerOf (wf : ForestWf Ω tc Par) {x : Oid} {t : ThreadId}
     (hx : Ω.ownerOf x = some t) : (get? Par x).isSome :=
-  wf.isSome_of_live (Obls.live_of_ownerOf hx)
+  wf.isSome_of_live (Obligations.live_of_ownerOf hx)
 
 theorem none_of_none (wf : ForestWf Ω tc Par) {x : Oid} (hx : get? Ω x = none) :
     get? Par x = none := by
   cases e : get? Par x with
   | none => rfl
-  | some p => exact absurd (wf.live_of_isSome (by simp [e])) (Obls.not_live_of_none hx)
+  | some p => exact absurd (wf.live_of_isSome (by simp [e])) (Obligations.not_live_of_none hx)
 
 /-- A parent that is a thread is a thread of the pool. -/
 theorem thread_lt (wf : ForestWf Ω tc Par) {x : Oid} {i : ThreadId}
@@ -461,11 +461,11 @@ theorem thread_lt (wf : ForestWf Ω tc Par) {x : Oid} {i : ThreadId}
 /-- A parent that is an obligation is itself a node. -/
 theorem par_obl (wf : ForestWf Ω tc Par) {x c : Oid} (hx : get? Par x = some (.obl c)) :
     (get? Par c).isSome := by
-  obtain ⟨t, ht⟩ := Obls.ownerOf_of_live (wf.live_of_isSome (x := x) (by simp [hx]))
+  obtain ⟨t, ht⟩ := Obligations.ownerOf_of_live (wf.live_of_isSome (x := x) (by simp [hx]))
   exact wf.isSome_of_ownerOf ((wf.obl x c hx).1.trans ht)
 
 theorem kids_live (wf : ForestWf Ω tc Par) {p : Parent} {x : Oid} (hx : x ∈ kids Par p) :
-    Ω.live x :=
+    Ω.Live x :=
   wf.live_of_isSome (by rw [mem_kids] at hx; simp [hx])
 
 /-- An obligation that is not a node has no children. -/
@@ -475,10 +475,10 @@ theorem kids_obl_of_none (wf : ForestWf Ω tc Par) {k : Oid} (hk : get? Par k = 
 
 @[lantana_alias forest_wf_empty]
 theorem empty (tc : Nat) : ForestWf ∅ tc ∅ where
-  par_live x := by simp [get?_empty, Obls.not_live_of_none (get?_empty x)]
+  par_live x := by simp [get?_empty, Obligations.not_live_of_none (get?_empty x)]
   thread x i h := by simp [get?_empty] at h
   obl x c h := by simp [get?_empty] at h
-  owner x i h := by simp [Obls.ownerOf, get?_empty] at h
+  owner x i h := by simp [Obligations.ownerOf, get?_empty] at h
 
 /-- More threads. -/
 theorem mono_tc (wf : ForestWf Ω tc Par) {tc' : Nat} (h : tc ≤ tc') : ForestWf Ω tc' Par where
@@ -537,7 +537,7 @@ theorem owned_empty (wf : ForestWf Ω tc Par) {i : ThreadId} (hi : kids Par (.th
 theorem congr (wf : ForestWf Ω tc Par) (hown : ∀ x, Ω'.ownerOf x = Ω.ownerOf x)
     (hfuel : ∀ x, Ω'.fuelOf x = Ω.fuelOf x) : ForestWf Ω' tc Par where
   par_live x := by
-    rw [wf.par_live, Obls.live_iff_ownerOf, Obls.live_iff_ownerOf, hown]
+    rw [wf.par_live, Obligations.live_iff_ownerOf, Obligations.live_iff_ownerOf, hown]
   thread x i hx := (hown x).trans (wf.thread x i hx)
   obl x c hx := by rw [hown, hown, hfuel, hfuel]; exact wf.obl x c hx
   owner x i hx := wf.owner x i ((hown x).symm.trans hx)
@@ -545,14 +545,14 @@ theorem congr (wf : ForestWf Ω tc Par) (hown : ∀ x, Ω'.ownerOf x = Ω.ownerO
 /-- A discharged obligation outside the forest. -/
 theorem alloc_discharged (wf : ForestWf Ω tc Par) {k : Oid} (hk : get? Ω k = none) :
     ForestWf (insert Ω k .discharged) tc Par := by
-  have hown : ∀ x, Obls.ownerOf (insert Ω k .discharged) x = Ω.ownerOf x := fun x => by
+  have hown : ∀ x, Obligations.ownerOf (insert Ω k .discharged) x = Ω.ownerOf x := fun x => by
     by_cases h : k = x
-    · subst h; rw [Obls.ownerOf_insert_discharged]; simp [Obls.ownerOf, hk]
-    · exact Obls.ownerOf_insert_ne h
-  have hfuel : ∀ x, Obls.fuelOf (insert Ω k .discharged) x = Ω.fuelOf x := fun x => by
+    · subst h; rw [Obligations.ownerOf_insert_discharged]; simp [Obligations.ownerOf, hk]
+    · exact Obligations.ownerOf_insert_ne h
+  have hfuel : ∀ x, Obligations.fuelOf (insert Ω k .discharged) x = Ω.fuelOf x := fun x => by
     by_cases h : k = x
-    · subst h; rw [Obls.fuelOf_insert_discharged]; simp [Obls.fuelOf, hk]
-    · exact Obls.fuelOf_insert_ne h
+    · subst h; rw [Obligations.fuelOf_insert_discharged]; simp [Obligations.fuelOf, hk]
+    · exact Obligations.fuelOf_insert_ne h
   exact wf.congr hown hfuel
 
 /-- A new leaf `k` below `p`, owned by `i`. -/
@@ -574,16 +574,16 @@ theorem alloc_obl (wf : ForestWf Ω tc Par) {k : Oid} {p : Parent} {a : Fuel} {i
   constructor
   · intro x
     by_cases h : k = x
-    · subst h; simp [get?_insert_eq, Obls.live_insert_assigned]
-    · rw [get?_insert_ne h, Obls.live_insert_ne h]; exact wf.par_live x
+    · subst h; simp [get?_insert_eq, Obligations.live_insert_assigned]
+    · rw [get?_insert_ne h, Obligations.live_insert_ne h]; exact wf.par_live x
   · intro x j hx
     by_cases h : k = x
     · subst h
       rw [get?_insert_eq rfl] at hx
       cases hx
-      rw [Obls.ownerOf_insert_assigned, hp.1]
+      rw [Obligations.ownerOf_insert_assigned, hp.1]
     · rw [get?_insert_ne h] at hx
-      rw [Obls.ownerOf_insert_ne h]
+      rw [Obligations.ownerOf_insert_ne h]
       exact wf.thread x j hx
   · intro x c hx
     by_cases h : k = x
@@ -591,21 +591,21 @@ theorem alloc_obl (wf : ForestWf Ω tc Par) {k : Oid} {p : Parent} {a : Fuel} {i
       rw [get?_insert_eq rfl] at hx
       cases hx
       have hc : k ≠ c := hne c (wf.isSome_of_ownerOf hp.1)
-      rw [Obls.ownerOf_insert_ne hc, Obls.fuelOf_insert_ne hc, Obls.ownerOf_insert_assigned,
-        Obls.fuelOf_insert_assigned]
+      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc, Obligations.ownerOf_insert_assigned,
+        Obligations.fuelOf_insert_assigned]
       exact hp
     · rw [get?_insert_ne h] at hx
       have hc : k ≠ c := hne c (wf.par_obl hx)
-      rw [Obls.ownerOf_insert_ne hc, Obls.fuelOf_insert_ne hc, Obls.ownerOf_insert_ne h,
-        Obls.fuelOf_insert_ne h]
+      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc, Obligations.ownerOf_insert_ne h,
+        Obligations.fuelOf_insert_ne h]
       exact wf.obl x c hx
   · intro x j hx
     by_cases h : k = x
     · subst h
-      rw [Obls.ownerOf_insert_assigned] at hx
+      rw [Obligations.ownerOf_insert_assigned] at hx
       cases hx
       exact hi
-    · rw [Obls.ownerOf_insert_ne h] at hx
+    · rw [Obligations.ownerOf_insert_ne h] at hx
       exact wf.owner x j hx
 
 /-- Removing a childless node `k` (it is about to be discharged). -/
@@ -616,26 +616,26 @@ theorem discharge (wf : ForestWf Ω tc Par) {k : Oid} (hk : kids Par (.obl k) = 
   constructor
   · intro x
     by_cases h : k = x
-    · subst h; simp [get?_delete_eq, Obls.not_live_insert_discharged]
-    · rw [get?_delete_ne h, Obls.live_insert_ne h]; exact wf.par_live x
+    · subst h; simp [get?_delete_eq, Obligations.not_live_insert_discharged]
+    · rw [get?_delete_ne h, Obligations.live_insert_ne h]; exact wf.par_live x
   · intro x j hx
     by_cases h : k = x
     · subst h; simp [get?_delete_eq] at hx
     · rw [get?_delete_ne h] at hx
-      rw [Obls.ownerOf_insert_ne h]
+      rw [Obligations.ownerOf_insert_ne h]
       exact wf.thread x j hx
   · intro x c hx
     by_cases h : k = x
     · subst h; simp [get?_delete_eq] at hx
     · rw [get?_delete_ne h] at hx
       have hc : k ≠ c := fun e => by subst e; exact hk x hx
-      rw [Obls.ownerOf_insert_ne hc, Obls.fuelOf_insert_ne hc, Obls.ownerOf_insert_ne h,
-        Obls.fuelOf_insert_ne h]
+      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc, Obligations.ownerOf_insert_ne h,
+        Obligations.fuelOf_insert_ne h]
       exact wf.obl x c hx
   · intro x j hx
     by_cases h : k = x
-    · subst h; simp [Obls.ownerOf_insert_discharged] at hx
-    · rw [Obls.ownerOf_insert_ne h] at hx
+    · subst h; simp [Obligations.ownerOf_insert_discharged] at hx
+    · rw [Obligations.ownerOf_insert_ne h] at hx
       exact wf.owner x j hx
 
 theorem ownerOf_of_transGen (wf : ForestWf Ω tc Par) {k x : Oid}
@@ -659,7 +659,7 @@ theorem subtree_owner (wf : ForestWf Ω tc Par) {k x : Oid} (hk : (get? Par k).i
 provided the owners of the nodes do not change and every node `x` of `i` below an obligation
 `c` keeps more fuel than the new fuel of `c`. -/
 theorem prog (wf : ForestWf Ω tc Par) {i : ThreadId}
-    (hp : Obls.condProgress (Obl.condOwner i) Ω Ω')
+    (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω')
     (hown : ∀ x, (get? Par x).isSome → Ω'.ownerOf x = Ω.ownerOf x)
     (hpiece : ∀ x c, get? Par x = some (.obl c) → Ω.ownerOf x = some i →
       Ω'.fuelOf c < Ω'.fuelOf x) :
@@ -677,13 +677,13 @@ theorem prog (wf : ForestWf Ω tc Par) {i : ThreadId}
       exact hlt
   owner x j hx := by
     have hxs : (get? Par x).isSome :=
-      wf.isSome_of_live ((prog_live hp x).2 (Obls.live_of_ownerOf hx))
+      wf.isSome_of_live ((prog_live hp x).2 (Obligations.live_of_ownerOf hx))
     exact wf.owner x j ((hown x hxs).symm.trans hx)
 
 /-- `prog` in the form used by the forest invariant: the piece of a node `x` of `i` below `c`
 is the old fuel of `c`, and it is at most the new fuel of `x`. -/
 theorem prog_piece (wf : ForestWf Ω tc Par) {i : ThreadId}
-    (hp : Obls.condProgress (Obl.condOwner i) Ω Ω')
+    (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω')
     (hown : ∀ x, (get? Par x).isSome → Ω'.ownerOf x = Ω.ownerOf x)
     (hpiece : ∀ x c, get? Par x = some (.obl c) → Ω.ownerOf x = some i →
       Ω.fuelOf c ≤ Ω'.fuelOf x) :
@@ -703,7 +703,7 @@ theorem owned_prog {j : ThreadId}
 set, provided the new parent relation satisfies the conditions of `ForestWf`. -/
 @[lantana_alias forest_wf_reparent]
 theorem reparent (wf : ForestWf Ω tc Par) {k : Oid} {p₂ : Parent} (hk : (get? Par k).isSome)
-    (hlive : ∀ x, Ω.live x ↔ Ω'.live x)
+    (hlive : ∀ x, Ω.Live x ↔ Ω'.Live x)
     (hthread : ∀ x i, get? (insert Par k p₂) x = some (.thread i) → Ω'.ownerOf x = some i)
     (hobl : ∀ x c, get? (insert Par k p₂) x = some (.obl c) →
       Ω'.ownerOf c = Ω'.ownerOf x ∧ Ω'.fuelOf c < Ω'.fuelOf x)
@@ -752,23 +752,23 @@ end ForestWf
 /-- `Ω'` is `Ω` where all obligations of `S`, owned by `t`, have the new owner `j` and less
 fuel. -/
 @[lantana_alias chown_rel]
-def chownRel (S : Oids) (t j : ThreadId) (Ω Ω' : Obls) : Prop :=
+def ChownRel (S : Oids) (t j : ThreadId) (Ω Ω' : Obligations) : Prop :=
   (∀ x, x ∉ S → get? Ω' x = get? Ω x) ∧
   ∀ x, x ∈ S → ∃ a a', get? Ω x = some (.assigned a t) ∧ get? Ω' x = some (.assigned a' j) ∧
     a' < a
 
-namespace chownRel
+namespace ChownRel
 
-variable {S : Oids} {t j : ThreadId} {Ω Ω' : Obls}
+variable {S : Oids} {t j : ThreadId} {Ω Ω' : Obligations}
 
 @[lantana_alias chown_rel_empty]
-theorem empty (t j : ThreadId) (Ω : Obls) : chownRel ∅ t j Ω Ω :=
+theorem empty (t j : ThreadId) (Ω : Obligations) : ChownRel ∅ t j Ω Ω :=
   ⟨fun _ _ => rfl, fun _ hx => (LawfulSet.mem_empty hx).elim⟩
 
 @[lantana_alias chown_rel_insert]
-theorem insert {x : Oid} {a a' : Fuel} (hx : x ∉ S) (h : chownRel S t j Ω Ω')
+theorem insert {x : Oid} {a a' : Fuel} (hx : x ∉ S) (h : ChownRel S t j Ω Ω')
     (hxa : get? Ω' x = some (.assigned a t)) (hlt : a' < a) :
-    chownRel ({x} ∪ S) t j Ω (Iris.Std.insert Ω' x (.assigned a' j)) := by
+    ChownRel ({x} ∪ S) t j Ω (Iris.Std.insert Ω' x (.assigned a' j)) := by
   refine ⟨fun y hy => ?_, fun y hy => ?_⟩
   · rw [LawfulSet.mem_union, LawfulSet.mem_singleton, not_or] at hy
     rw [get?_insert_ne (Ne.symm hy.1)]
@@ -781,7 +781,7 @@ theorem insert {x : Oid} {a a' : Fuel} (hx : x ∉ S) (h : chownRel S t j Ω Ω'
       exact ⟨b, b', hb, by rw [get?_insert_ne hne]; exact hb', hlt'⟩
 
 @[lantana_alias chown_rel_ndf]
-theorem ndf (h : chownRel S t j Ω Ω') : Ω.ndf Ω' := by
+theorem noDischarge (h : ChownRel S t j Ω Ω') : Ω.NoDischarge Ω' := by
   intro x g hx
   by_cases hS : x ∈ S
   · obtain ⟨a, a', ha, ha', hlt⟩ := h.2 x hS
@@ -791,48 +791,48 @@ theorem ndf (h : chownRel S t j Ω Ω') : Ω.ndf Ω' := by
   · exact ⟨g, (h.1 x hS).trans hx, .inl rfl⟩
 
 @[lantana_alias chown_rel_live]
-theorem live (h : chownRel S t j Ω Ω') (x : Oid) : Ω.live x ↔ Ω'.live x := by
+theorem live (h : ChownRel S t j Ω Ω') (x : Oid) : Ω.Live x ↔ Ω'.Live x := by
   by_cases hS : x ∈ S
   · obtain ⟨a, a', ha, ha', _⟩ := h.2 x hS
     exact ⟨fun _ => ⟨a', j, ha'⟩, fun _ => ⟨a, t, ha⟩⟩
-  · simp only [Obls.live, h.1 x hS]
+  · simp only [Obligations.Live, h.1 x hS]
 
-theorem owner_of_mem (h : chownRel S t j Ω Ω') {x : Oid} (hx : x ∈ S) :
+theorem owner_of_mem (h : ChownRel S t j Ω Ω') {x : Oid} (hx : x ∈ S) :
     Ω'.ownerOf x = some j := by
   obtain ⟨a, a', _, ha', _⟩ := h.2 x hx
-  exact Obls.ownerOf_eq ha'
+  exact Obligations.ownerOf_eq ha'
 
-theorem owner_of_not_mem (h : chownRel S t j Ω Ω') {x : Oid} (hx : x ∉ S) :
+theorem owner_of_not_mem (h : ChownRel S t j Ω Ω') {x : Oid} (hx : x ∉ S) :
     Ω'.ownerOf x = Ω.ownerOf x := by
-  simp only [Obls.ownerOf, h.1 x hx]
+  simp only [Obligations.ownerOf, h.1 x hx]
 
 @[lantana_alias chown_rel_owner]
-theorem owner (h : chownRel S t j Ω Ω') (x : Oid) :
+theorem owner (h : ChownRel S t j Ω Ω') (x : Oid) :
     Ω'.ownerOf x = if x ∈ S then some j else Ω.ownerOf x := by
   split
   · exact h.owner_of_mem ‹_›
   · exact h.owner_of_not_mem ‹_›
 
 @[lantana_alias chown_rel_fuel_out]
-theorem fuel_out (h : chownRel S t j Ω Ω') {x : Oid} (hx : x ∉ S) :
+theorem fuel_out (h : ChownRel S t j Ω Ω') {x : Oid} (hx : x ∉ S) :
     Ω'.fuelOf x = Ω.fuelOf x := by
-  simp only [Obls.fuelOf, h.1 x hx]
+  simp only [Obligations.fuelOf, h.1 x hx]
 
 @[lantana_alias chown_rel_fuel_in]
-theorem fuel_in (h : chownRel S t j Ω Ω') {x : Oid} (hx : x ∈ S) :
+theorem fuel_in (h : ChownRel S t j Ω Ω') {x : Oid} (hx : x ∈ S) :
     Ω.ownerOf x = some t ∧ Ω'.fuelOf x < Ω.fuelOf x := by
   obtain ⟨a, a', ha, ha', hlt⟩ := h.2 x hx
-  rw [Obls.ownerOf_eq ha, Obls.fuelOf_eq ha, Obls.fuelOf_eq ha']
+  rw [Obligations.ownerOf_eq ha, Obligations.fuelOf_eq ha, Obligations.fuelOf_eq ha']
   exact ⟨rfl, hlt⟩
 
-end chownRel
+end ChownRel
 
 namespace Forest
 
 /-- The owned nodes after a change of owner of the nodes `S` from `t` to `j`. -/
 @[lantana_alias forest_owned_chown]
-theorem owned_chown {S : Oids} {t j : ThreadId} {Ω Ω' : Obls} {Par : OidMap Parent}
-    (h : chownRel S t j Ω Ω') (hS : ∀ x, x ∈ S → (get? Par x).isSome) (i : ThreadId) :
+theorem owned_chown {S : Oids} {t j : ThreadId} {Ω Ω' : Obligations} {Par : OidMap Parent}
+    (h : ChownRel S t j Ω Ω') (hS : ∀ x, x ∈ S → (get? Par x).isSome) (i : ThreadId) :
     owned Ω' Par i =
       if i = j then S ∪ owned Ω Par i
       else if i = t then owned Ω Par i \ S
@@ -863,7 +863,7 @@ end Forest
 
 namespace ForestWf
 
-variable {Ω Ω' : Obls} {tc : Nat} {Par : OidMap Parent}
+variable {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent}
 
 open Forest
 
@@ -875,7 +875,7 @@ theorem move_cross (wf : ForestWf Ω tc Par) {k : Oid} {p₂ : Parent} {t j : Th
     (hp₂ : match p₂ with
       | .thread j' => j' = j ∧ j < tc
       | .obl q => Ω.ownerOf q = some j)
-    (hrel : chownRel (subtree Par k) t j Ω Ω')
+    (hrel : ChownRel (subtree Par k) t j Ω Ω')
     (hpk : ∀ q, p₂ = .obl q → Ω.fuelOf q < Ω'.fuelOf k)
     (hpx : ∀ x c, x ∈ subtree Par k → x ≠ k → get? Par x = some (.obl c) →
       Ω.fuelOf c ≤ Ω'.fuelOf x) :
@@ -938,7 +938,7 @@ end ForestWf
 
 namespace ForestWf
 
-variable {Ω : Obls} {tc : Nat} {Par : OidMap Parent}
+variable {Ω : Obligations} {tc : Nat} {Par : OidMap Parent}
 
 open Forest
 
@@ -959,12 +959,12 @@ theorem kids_obl_isSome (wf : ForestWf Ω tc Par) {q : Oid} {x : Oid}
 
 end ForestWf
 
-namespace chownRel
+namespace ChownRel
 
-variable {S : Oids} {t j : ThreadId} {Ω Ω' : Obls}
+variable {S : Oids} {t j : ThreadId} {Ω Ω' : Obligations}
 
 /-- An owner change keeps the domain. -/
-theorem isSome_iff (h : chownRel S t j Ω Ω') (x : Oid) :
+theorem isSome_iff (h : ChownRel S t j Ω Ω') (x : Oid) :
     (get? Ω' x).isSome ↔ (get? Ω x).isSome := by
   by_cases hS : x ∈ S
   · obtain ⟨a, a', ha, ha', _⟩ := h.2 x hS
@@ -972,7 +972,7 @@ theorem isSome_iff (h : chownRel S t j Ω Ω') (x : Oid) :
   · rw [h.1 x hS]
 
 /-- An owner change to the same owner keeps the owners. -/
-theorem ownerOf_self {i : ThreadId} (h : chownRel S i i Ω Ω') (x : Oid) :
+theorem ownerOf_self {i : ThreadId} (h : ChownRel S i i Ω Ω') (x : Oid) :
     Ω'.ownerOf x = Ω.ownerOf x := by
   by_cases hS : x ∈ S
   · rw [h.owner_of_mem hS, (h.fuel_in hS).1]
@@ -980,13 +980,13 @@ theorem ownerOf_self {i : ThreadId} (h : chownRel S i i Ω Ω') (x : Oid) :
 
 /-- An owner change to the same owner `i` of all the obligations of `i` is a progress round of
 `i`. -/
-theorem condProgress {i : ThreadId} (h : chownRel S i i Ω Ω')
+theorem condProgress {i : ThreadId} (h : ChownRel S i i Ω Ω')
     (hS : ∀ x, Ω.ownerOf x = some i → x ∈ S) :
-    Obls.condProgress (Obl.condOwner i) Ω Ω' := by
+    Obligations.CondProgress (Obligation.CondOwner i) Ω Ω' := by
   have hrel : ∀ x, (get? Ω x = none ∧ get? Ω' x = none) ∨ ∃ g g', get? Ω x = some g ∧
       get? Ω' x = some g' ∧
-        ((Obl.condOwner i x g ∧ Obl.step g g') ∨ (¬Obl.condOwner i x g ∧ g = g')) ∧
-        Obl.keep g g' := by
+        ((Obligation.CondOwner i x g ∧ Obligation.Step g g') ∨ (¬Obligation.CondOwner i x g ∧ g = g')) ∧
+        Obligation.Keep g g' := by
     intro x
     by_cases hxS : x ∈ S
     · obtain ⟨a, a', ha, ha', hlt⟩ := h.2 x hxS
@@ -995,9 +995,9 @@ theorem condProgress {i : ThreadId} (h : chownRel S i i Ω Ω')
       cases e : get? Ω x with
       | none => exact .inl ⟨rfl, rfl⟩
       | some g =>
-        refine .inr ⟨g, g, rfl, rfl, .inr ⟨fun hc => hxS (hS x ?_), rfl⟩, Obl.keep_refl g⟩
+        refine .inr ⟨g, g, rfl, rfl, .inr ⟨fun hc => hxS (hS x ?_), rfl⟩, Obligation.keep_refl g⟩
         cases g with
-        | assigned a t => cases hc; exact Obls.ownerOf_eq e
+        | assigned a t => cases hc; exact Obligations.ownerOf_eq e
         | discharged => exact hc.elim
   refine ⟨mapForall2_intro fun x => ?_, mapForall2_intro fun x => ?_⟩
   · rcases hrel x with h₀ | ⟨g, g', e, e', hr, _⟩
@@ -1007,11 +1007,11 @@ theorem condProgress {i : ThreadId} (h : chownRel S i i Ω Ω')
     · exact .inl h₀
     · exact .inr ⟨g, g', e, e', hk⟩
 
-end chownRel
+end ChownRel
 
 /-- A progress round of `i` does not increase any fuel. -/
-theorem prog_fuelOf_le {Ω Ω' : Obls} {i : ThreadId}
-    (hp : Obls.condProgress (Obl.condOwner i) Ω Ω') (x : Oid) : Ω'.fuelOf x ≤ Ω.fuelOf x := by
+theorem prog_fuelOf_le {Ω Ω' : Obligations} {i : ThreadId}
+    (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') (x : Oid) : Ω'.fuelOf x ≤ Ω.fuelOf x := by
   by_cases ho : Ω.ownerOf x = some i
   · exact Ordinal.le_of_lt (prog_fuelOf_lt hp ho)
   · exact Ordinal.le_of_eq (prog_fuelOf_of_ne hp ho)

@@ -38,7 +38,7 @@ installs the queue's invariant with it, and `lwp_fork` moves it to the worker (a
 
 `taskQueueTrSpec ql := Queue.queueTrSpec ql` (the tasks are Hoare triples with ghost
 resources; that every task runs is expressed by obligations), `guar_isTaskQueue`, and
-`taskQueue_release_progress`.
+`release_progress`.
 
 Everything here is proved.
 -/
@@ -440,7 +440,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   -- to the worker. It pays the fork step, its move, and the worker.
   imod Obl.new ⊤ (.thread i) G G ℓ (((1 : Nat) : Measure) + (((1 : Nat) : Measure) + μw))
     $$ [] HK HG with ⟨%gj, %hgj, HK, HG, Kgj, Agj, Fgj, #Wgj⟩
-  · iapply parLe_thread
+  · iapply Par.le_thread
   imod Queue.isQueue_initialize ⊤ ql γ ℓ (taskElem ℓ) gj $$ IQI Kgj Wgj Agj with ⟨#IQ, Wk⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨F1, Fgj⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨Fmv, Fw⟩
@@ -529,10 +529,10 @@ end Guarantee
 /-- Every `putTask` or `runTask` that takes the queue's lock eventually releases it (Rocq
 `task_queue_release_progress`). -/
 @[lantana_alias task_queue.task_queue_release_progress]
-theorem taskQueue_release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace (Cfg Exp State))
+theorem release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace (Cfg Exp State))
     (h : (taskQueueTrSpec (GF := GF) ql).external τ) :
     ∃ lhptr ltptr next curr : Loc,
       ql = vQueue lhptr ltptr (vLock next curr) ∧ releaseProgress next curr τ :=
-  Queue.queue_release_progress ql τ h
+  Queue.release_progress ql τ h
 
 end Lantana.Examples.TaskQueue

@@ -24,17 +24,17 @@ open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 /-! ## Namespaces -/
 
 /-- The namespaces of the shared invariant and of the finallies: the finally on `j` is in
-`Nobl.@j`. -/
-def Ncr : Namespace := nroot.@"crash"
-def Ninv : Namespace := Ncr.@"inv"
-def Nobl : Namespace := Ncr.@"obl"
+`oblN.@j`. -/
+def crashN : Namespace := nroot.@"crash"
+def invN : Namespace := crashN.@"inv"
+def oblN : Namespace := crashN.@"obl"
 
-theorem Ninv_subseteq : (↑Ninv : CoPset) ⊆ ⊤ := fun _ _ => CoPset.mem_full
+theorem invN_subseteq : (↑invN : CoPset) ⊆ ⊤ := fun _ _ => CoPset.mem_full
 
-theorem Nobl_subseteq : (↑Nobl : CoPset) ⊆ ⊤ \ ↑Ninv := by
+theorem oblN_subseteq : (↑oblN : CoPset) ⊆ ⊤ \ ↑invN := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
-  exact ndot_ne_disjoint Ncr (by decide : "obl" ≠ "inv") p ⟨hp, h'⟩
+  exact ndot_ne_disjoint crashN (by decide : "obl" ≠ "inv") p ⟨hp, h'⟩
 
 /-! ## The forest of the worker -/
 
@@ -82,7 +82,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 its finally and its children. -/
 def workerObls (k : Oid) (S : Oids) (kids : Oid → Oids) : IProp GF :=
   iprop(thActive 0 ∗ thKids 0 {k} ∗
-    [∗set] j ∈ S, finallyI (Nobl.@j) j 1 doneOrCrashed ∗ oblKids j (kids j))
+    [∗set] j ∈ S, finallyI (oblN.@j) j 1 doneOrCrashed ∗ oblKids j (kids j))
 
 /-- The protocol, by the state `b` and "the worker has finished" `f`. -/
 def crashProto (k : Oid) (S : Oids) (kids : Oid → Oids) : Bool → Bool → IProp GF
@@ -139,7 +139,7 @@ theorem variant_half (j : Oid) (R : IProp GF) :
 omit [CrashGS GF] in
 /-- A thread that pays nothing: its bill is empty. -/
 theorem bill_empty (i : ThreadId) (tp : ThreadPool Exp) (σ : St) :
-    ⊢@{IProp GF} oblFuels ∅ 1 ∗ ⌜(∅ : Oids) = ∅⌝ ∨ ⌜Cfg.crashed (tp, σ) i ∧ (∅ : Oids) = ∅⌝ := by
+    ⊢@{IProp GF} oblFuels ∅ 1 ∗ ⌜(∅ : Oids) = ∅⌝ ∨ ⌜Cfg.Crashed (tp, σ) i ∧ (∅ : Oids) = ∅⌝ := by
   ileft
   isplitl
   · iunfold oblFuels
@@ -158,26 +158,26 @@ theorem ret_done (E : CoPset) (i : ThreadId) :
 
 /-- The killer kills or gives up, from any state of the protocol. -/
 theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow {k} S kids) :
-    inv Ninv (crashInv (GF := GF) k S kids) ⊢ £ₙ 1 -∗ thActive 1 -∗ thKids 1 ∅ -∗
+    inv invN (crashInv (GF := GF) k S kids) ⊢ £ₙ 1 -∗ thActive 1 -∗ thKids 1 ∅ -∗
       thCarriers 1 ∅ -∗ lWP Exp.kill @ 1; ⊤ {{ fun _ => Th.done 1 }} := by
   iintro #HI Hc Ha1 Hk1 HG
   iapply lwp_step (rfl : toVal Exp.kill = none)
   simp only [stateInterp_eq]
   iintro %σ₁ %tp %hi ⟨%hS, Hs⟩
-  imod inv_acc Ninv_subseteq $$ HI with ⟨HC, Hclose⟩
+  imod inv_acc invN_subseteq $$ HI with ⟨HC, Hclose⟩
   imod Lantana.lc_fupd_elim_later $$ Hc HC with HC
   iunfold crashInv at HC
   icases HC with ⟨%b, %f, Hv, HC⟩
   icombine Hs Hv gives %⟨-, hbf⟩
   obtain ⟨hb, hf⟩ : σ₁ = b ∧ fin tp = f := Prod.mk.inj hbf
   subst hb
-  have hred : Stuckness.maybeReducible .NotStuck Exp.kill σ₁ :=
+  have hred : Stuckness.MaybeReducible .NotStuck (Exp.kill, σ₁) :=
     ⟨[], .ret, σ₁, [], .giveUp σ₁, rfl⟩
   have hfin : fin (tp.set 1 .ret) = fin tp := fin_set_ne (by decide) _
   have hS' : Shape (tp.set 1 .ret) := hS.set_ne (by decide) fun _ h => Exp.noConfusion h
-  have hkeep : ∀ σ, Cfg.crashed (tp.set 1 .ret, σ) = Cfg.crashed (tp, σ) := fun _ =>
+  have hkeep : ∀ σ, Cfg.Crashed (tp.set 1 .ret, σ) = Cfg.Crashed (tp, σ) := fun _ =>
     crashed_set_eq hi (fun _ h => Exp.noConfusion h) (fun _ h => Exp.noConfusion h)
-  have hφ : ∀ j, ¬Cfg.crashed (tp, true) j ∧ Cfg.crashed (tp.set 1 .ret, false) j → j = 0 :=
+  have hφ : ∀ j, ¬Cfg.Crashed (tp, true) j ∧ Cfg.Crashed (tp.set 1 .ret, false) j → j = 0 :=
     fun j ⟨_, h⟩ => by
       obtain ⟨⟨n, hn⟩, -⟩ := crashed_cfg_iff.mp h
       exact hS'.1 j n hn
@@ -204,7 +204,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       ipureintro
       exact hS'
     iintro HG
-    iapply ALC_intro
+    iapply alc_intro
     imodintro
     iapply Th.nodes_unchanged _ (hkeep false)
     imod Hcl with -
@@ -221,7 +221,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       iunfold workerObls at HW
       icases HW with ⟨Ha0, Hk0, HW⟩
       icases BigSepS.bigSepS_sep.1 $$ HW with ⟨HU, Hkk⟩
-      imod finallyI_acc_assigned_set_ndot Nobl_subseteq $$ HU with ⟨Oa, Hcl⟩
+      imod finallyI_acc_assigned_set_ndot oblN_subseteq $$ HU with ⟨Oa, Hcl⟩
       iapply fupd_mask_intro Std.LawfulSet.empty_subset
       iintro Hcl₀
       isplitr
@@ -243,7 +243,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           ipureintro
           exact hS'
         iintro HG
-        iapply ALC_intro
+        iapply alc_intro
         imod finallyI_discharge_opened_forest_threads ∅ [0] (fun _ => {k}) kids hF.roots
           hF.2.1 hF.covered (fun _ _ => stVar_doneOrCrashed (Qp.half 1) false)
           $$ [Hk0] [Oa Hkk] Hv with ⟨Hv, Hk0, HD⟩
@@ -278,7 +278,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           ipureintro
           exact hS'
         iintro HG
-        iapply ALC_intro
+        iapply alc_intro
         imodintro
         iapply Th.nodes_unchanged _ (hkeep true)
         icases BigSepS.bigSepS_sep.1 $$ [Oa] with ⟨Oa, Ob⟩
@@ -320,7 +320,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           ipureintro
           exact hS'
         iintro HG
-        iapply ALC_intro
+        iapply alc_intro
         imodintro
         isplitl [Ha0 Hk0]
         · iapply Th.nodes_single _ fun j _ => hφ j
@@ -343,7 +343,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           ipureintro
           exact hS'
         iintro HG
-        iapply ALC_intro
+        iapply alc_intro
         imodintro
         iapply Th.nodes_unchanged _ (hkeep true)
         imod Hcl with -
@@ -378,7 +378,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       ipureintro
       exact hS'
     iintro HG
-    iapply ALC_intro
+    iapply alc_intro
     imodintro
     iapply Th.nodes_unchanged _ (Cfg.crashed_eq_of_iff fun j =>
       ⟨fun h => (not_crashed_fin hS' hfin _ j h).elim,

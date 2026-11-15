@@ -49,7 +49,7 @@ are `iProp`s with guarantees `P ⊨ₜ G`, and trace specifications have two ent
   model `Model.OPreds` with unfolding lemmas, rather than a class with one instance. Derived rules
   are in `ProgramLogic/OblForestRules.lean`.
 - **Temporal formulas** `alwaysI`, `untilI`, `finallyI` are `iProp`s; a guarantee `P ⊨ₜ G`
-  (`Guar P G`) is inferred by `IntoGuar` instances, and adequacy concludes the trace reading
+  (`guar P G`) is inferred by `IntoGuar` instances, and adequacy concludes the trace reading
   `G.external` (`Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean`).
 - **Two entailments of trace specifications:** in-logic entailment `G ⊑ₛ H` (`TrSpec.le`)
   transports guarantees (`guar_weaken`) but is too weak for temporal reasoning
@@ -89,13 +89,13 @@ fuel type, and ghost names exposed by allocation.
 | STEP-PURE, STEP-PURE-LC, STEP-PURE-WIT | `lwp_pure_step`; HeapLang instance `HeapLang.lwp_pure_step` | `ProgramLogic/Lifting.lean`, `HeapLang/PrimitiveLaws.lean` |
 | STEP-REF / STEP-STORE / STEP-LOAD | `HeapLang.lwp_alloc` / `HeapLang.lwp_store` / `HeapLang.lwp_load` | `HeapLang/PrimitiveLaws.lean` |
 | FORK* | `HeapLang.lwp_fork` (the children `K ⊆ G` given to the new thread move with one unit of fuel each; the new thread starts with `thActive j ∗ thKids j K ∗ thCarriers j K`) | `HeapLang/PrimitiveLaws.lean` |
-| EXIT | `lwp_value`; `Th.terminate` turns `thActive i` and `thKids i ∅` into `Th.done i`, which forked threads owe in their postcondition (`liftTerm`) | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/OblForest.lean` |
+| EXIT | `lwp_value`; `Th.terminate` turns `thActive i` and `thKids i ∅` into `Th.done i`, which forked threads owe in their postcondition (`lwp.liftTerm`) | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/OblForest.lean` |
 | FINALLY-EXIT* | `Examples.threadExpr_terminate_finally` | `Examples/Lib.lean` |
 | FINALLY-ALLOC* | `untilI_alloc` with left formula `True` (`finallyI`) | `Trace/TemporalFormulaRules.lean` |
 | BIND | `lwp_bind` | `ProgramLogic/WeakestPre.lean` |
 | FRAME, UPD-ELIM | `lwp_strong_mono`, `fupd_lwp` / `lwp_fupd` / `mupd_lwp` / `lwp_mupd` | `ProgramLogic/WeakestPre.lean` |
 | CARRIER-ALLOC | no carriers: `Obl.new` creates an obligation below a parent | `ProgramLogic/OblForest.lean` |
-| CARRIER-DELETE | no carriers: `Obl.discharge_leaf` discharges a childless obligation; its children can first move up for free (`Obl.move_up`; both: `obl_discharge_lift_kids`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
+| CARRIER-DELETE | no carriers: `Obl.discharge_leaf` discharges a childless obligation; its children can first move up for free (`Obl.move_up`; both: `Obl.discharge_lift_kids`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | FUELS-ADD / FUELS-UNION / FUELS-EMPTY | `Obl.fuel_add`, `oblFuels_add_obls` / `oblFuels_remove_obls`; FUELS-EMPTY is the empty big-op | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | FUELS-LAYER | `Obl.fuel_extend` (and `Obl.fuel_extend_set`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | ALWAYS-ALLOC / ALWAYS-ACC | `alwaysI_alloc` / `alwaysI_acc`; guarantee `guar_alwaysI` | `Trace/TemporalFormulaRules.lean` |
@@ -107,29 +107,29 @@ fuel type, and ghost names exposed by allocation.
 | UNTIL-DONE-FALSE | `untilI_discharged_false` | `Trace/TemporalFormulaRules.lean` |
 | UNTIL-SPLIT | `untilI_frac_split`, `untilI_frac_add` | `Trace/TemporalFormulaRules.lean` |
 | WIT-IND | `Wit.layer_ind` | `ProgramLogic/OblForestRules.lean` |
-| OBLS-OFFLOAD | `Obl.move` (an obligation moves with its subtree, burning one unit of its own fuel above the new parent's witness layer, `parBelow`); set versions `obl_move_set_gen` / `obl_move_thread_set` / `obl_move_obl_set` | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
+| OBLS-OFFLOAD | `Obl.move` (an obligation moves with its subtree, burning one unit of its own fuel above the new parent's witness layer, `parBelow`); set versions `Obl.move_set_gen` / `Obl.move_thread_set` / `Obl.move_obl_set` | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 
 ## 5. Traces, temporal properties and adequacy (§6, Fig. 7)
 
 | Paper | Lean | File |
 |---|---|---|
-| `Cfg`, `TPool`, THREAD-STEP/THREAD-DONE, `Trace`, `Behavior` | `Cfg`, `ThreadPool` (a list; thread ids are positions), `ThreadStep` / `ThreadDone`, `Trace (Cfg Expr State)` (traces of any configuration type), `IsBehavior` over the thread system `ThreadSystem (Cfg Expr State)`; no observations. Additionally `ThreadStuck`: a stuck thread stutters, so stuck executions are behaviors too. Traces carry no scheduled-thread label: a behavior is a run in which some thread takes a trace step (`TraceStep i`) at every position, and the adequacy proof chooses the schedule | `Temporal/Trace.lean`, `Temporal/ThreadSystem.lean`, `ProgramLogic/Configuration.lean` |
+| `Cfg`, `TPool`, THREAD-STEP/THREAD-DONE, `Trace`, `Behavior` | `Cfg`, `ThreadPool` (a list; thread ids are positions), `ThreadStep` / `ThreadDone`, `Trace (Cfg Expr State)` (traces of any configuration type), `isBehavior` over the thread system `ThreadSystem (Cfg Expr State)`; no observations. Additionally `ThreadStuck`: a stuck thread stutters, so stuck executions are behaviors too. Traces carry no scheduled-thread label: a behavior is a run in which some thread takes a trace step (`TraceStep i`) at every position, and the adequacy proof chooses the schedule | `Temporal/Trace.lean`, `Temporal/ThreadSystem.lean`, `ProgramLogic/Configuration.lean` |
 | temporal properties `Φ, Ψ` and `⟦·⟧_t` | trace specifications `TrSpec`, trace reading `TrSpec.external` (step-indexed reading `TrSpec.internal`); `Always` = `TrSpec.always`, `Until` = `TrSpec.strongUntil`, `Finally` = `TrSpec.eventually`; trace properties `TrProp` with `□ₜ`, `Uₜ`, `◇ₜ` (`TrProp.always`, `TrProp.strongUntil`, `TrProp.eventually`) | `Trace/TrSpec.lean`, `Temporal/Trace.lean`, `Trace/StateAtom.lean` (rules: `Trace/TrSpec.lean`, `Temporal/TracePropRules.lean`, `Trace/StateAtom.lean`) |
-| `Fair` (fair scheduling) | `fairScheduling`: the strong fairness `Fairness.Sched.SF` of every thread's scheduling action (enabled where the thread is active, granted at its trace step); equal to weak fairness where activity is convex, for a thread that stays crashed once crashed (`Cfg.sched_sf_iff_wf`) | `Temporal/Fairness/Scheduling.lean`, `ProgramLogic/Configuration.lean` |
-| logical assertions `φ` and `⟦·⟧_l` | no syntax: temporal formulas are `iProp`s; guarantee `P ⊨ₜ G` (`Guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
+| `Fair` (fair scheduling) | `fairScheduling`: the strong fairness `Fairness.Sched.strongFair` of every thread's scheduling action (enabled where the thread is active, granted at its trace step); equal to weak fairness where activity is convex, for a thread that stays crashed once crashed (`Cfg.sched_sf_iff_wf`) | `Temporal/Fairness/Scheduling.lean`, `ProgramLogic/Configuration.lean` |
+| logical assertions `φ` and `⟦·⟧_l` | no syntax: temporal formulas are `iProp`s; guarantee `P ⊨ₜ G` (`guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
 | `lift` | `TrSpec.canon P`, the canonical trace specification guaranteed by `P` (`guar_canon`); `trSpecOf P`, the one inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
-| `Label s e`, `ChooseNat`, atomic property `label_i "s" v` | `HeapLang.Exp.label`, `HeapLang.Exp.chooseNat`; atomic properties are state predicates `HeapLang.pointstoSat` / `HeapLang.threadExprSat`, read as `TrSpec.state`; `l ↦ some v` and `threadExpr i C e` (`exits v @ i`) determine them through the state interpretation (`StateFact` instances, `HeapLang/TemporalLaws.lean`), so they guarantee them (`guar_state_fact`) | `HeapLang/Syntax.lean`, `HeapLang/Semantics.lean`, `Trace/GuaranteeRules.lean` |
+| `Label s e`, `ChooseNat`, atomic property `label_i "s" v` | `HeapLang.Exp.label`, `HeapLang.Exp.chooseNat`; atomic properties are state predicates `HeapLang.PointstoSat` / `HeapLang.ThreadExprSat`, read as `TrSpec.state`; `l ↦ some v` and `threadExpr i C e` (`exits v @ i`) determine them through the state interpretation (`StateFact` instances, `HeapLang/TemporalLaws.lean`), so they guarantee them (`guar_stateFact`) | `HeapLang/Syntax.lean`, `HeapLang/Semantics.lean`, `Trace/GuaranteeRules.lean` |
 | `lwp` | `Lwp.lwp`, notation `lWP e @ s; i; E {{ Φ }}`; one step `lwpStep` | `ProgramLogic/Notation.lean`, `ProgramLogic/WeakestPre.lean` |
-| obligation state `Ω`, witness state `W` | `Model.Obls`, `Model.Witnesses`; the forest is kept by `Model.oforest` | `BaseLogic/Obligation.lean`, `BaseLogic/Witness.lean`, `BaseLogic/Model/OForest.lean` |
+| obligation state `Ω`, witness state `W` | `Model.Obligations`, `Model.Witnesses`; the forest is kept by `Model.oforest` | `BaseLogic/Obligation.lean`, `BaseLogic/Witness.lean`, `BaseLogic/Model/OForest.lean` |
 | model interpretation `M` | `Model.modelInterp` (with the forest invariant and the model history `Model.modelHistoryInterp`) | `BaseLogic/Model/MUpd.lean`, `BaseLogic/Model/ModelHistory.lean` |
 | model update modality | `mupdBase` / `mupdFancy`; the `lWP`-facing form is `mupd` (`\|={E}=>m`), and the step modalities are `mprog` / `mphys` | `ProgramLogic/OblForest.lean`, `BaseLogic/Model/MUpd.lean` |
-| fair-scheduler invariant `H` | `Model.owitInv` | `BaseLogic/ModelRel.lean` |
+| fair-scheduler invariant `H` | `Model.OwitInv` | `BaseLogic/ModelRel.lean` |
 | state interpretation `S` | `HeapLang.stateInterp` (HeapLang) and `historyInterp` (its wrapper for the adequacy proof) | `HeapLang/PrimitiveLaws.lean`, `ProgramLogic/HistoryInterp.lean` |
 | Theorem 1 (Adequacy) | `lwp_adequacy_temporal`: from a guarantee `P ⊨ₜ G` of the initial resources, every fair behavior satisfies `G.external`; the weakest preconditions are `NotStuck`, which refutes the stuck behaviors. Iris-style safety `lwp_adequacy_safety`: on the same fair behaviors no thread of the pool is ever stuck, and whenever the chosen initial thread is a value, its postcondition holds | `Trace/Adequacy/Temporal.lean`, `Trace/Adequacy/Safety.lean` |
 
 As in Rocq, a guarantee turns its formula into a *record* (`record`) of what the formula holds
 at each position, and before every step the proof of Theorem 1 certifies every registered
-temporal formula (`regCheck`, `Trace/TemporalFormulaRun.lean`).
+temporal formula (`reg_check`, `Trace/TemporalFormulaRun.lean`).
 
 ## 6. Case studies (§2–§7)
 
@@ -139,7 +139,7 @@ All in `Examples/`; each file's names are in `Examples.<File>`.
 |---|---|---|
 | Flag module: `init`/`set`/`wait`; `isFlag`; `FlagObl`; SPEC-INIT/SPEC-SET/SPEC-WAIT | `init`/`set`/`wait`; `isFlag` (guarantee `guar_isFlag`, trace specification `flagTrSpec`); `flagTk`; `init_spec` / `set_spec` / `wait_spec` | `Flag.lean` |
 | `main` (§2) and its trace property | `main`, `main_spec`, end-to-end `main_adequacy` | `FlagFork.lean` |
-| `nest` / `nondet` (§4.3); SPEC-NEST/SPEC-NONDET | `nest` / `nondet`; `nest_spec` / `nondet_spec` | `Nondet.lean` |
+| `nest` / `nondet` (§4.3); SPEC-NEST/SPEC-NONDET | `nest` / `nondet`; `Nondet.nest_spec` / `Nondet.spec` | `Nondet.lean` |
 | Handoff: `send`/`receive`; `HandoffBuf`; `isHandoff`; `TaskSpec`; SPEC-SEND/SPEC-RECEIVE | `send`/`receive`; `handoffInv`; `isHandoff`; `isTask`; `send_spec` / `receive_spec` | `Handoff.lean` |
 | `handoffMain` (§5.2); SPEC-HANDOFF-MAIN | `main`, `main_spec`, `handoffClient_adequacy` | `HandoffClient.lean` |
 | Ticket lock (§7.1): `TLInv`; `TLObl`; SPEC-ACQUIRE/SPEC-RELEASE | `isFairLock`; `lockToken`; `init_spec` / `acquire_spec` / `release_spec` | `TicketLock.lean` |
@@ -151,9 +151,9 @@ All in `Examples/`; each file's names are in `Examples.<File>`.
 configuration:
 
 - `*_adequacy` instantiates `lwp_adequacy_temporal`: `FlagFork.main_adequacy`,
-  `FlagClient.flagClient_adequacy`, `HandoffClient.handoffClient_adequacy`,
-  `TaskQueueClient.taskQueueClient_adequacy`, and beyond the paper
-  `TicketLock2Client.ticketLockClient_adequacy` and `CertDischarge.certDischarge_adequacy`;
+  `FlagClient.adequacy`, `HandoffClient.adequacy`,
+  `TaskQueueClient.adequacy`, and beyond the paper
+  `TicketLock2Client.ticketLockClient_adequacy` and `CertDischarge.adequacy`;
 - `*_safety_adequacy` instantiates `lwp_adequacy_safety` (for example
   `FlagFork.main_safety_adequacy`);
 - `*_liveness_safety` states both (for example `FlagFork.main_liveness_safety`).
@@ -162,10 +162,10 @@ configuration:
 HeapLang rule for one pure step without fuel would be unsound. In Lean the unsound rule is a
 class hypothesis.
 
-**Beyond the paper.** `NonstrictMove.nonstrictMove_absurd` (moving an obligation below one of
+**Beyond the paper.** `NonstrictMove.absurd` (moving an obligation below one of
 the same layer is unsound); `TicketLock2.fairLock_starvationFree` and
 `TicketLock2Client.ticketLockClient_adequacy` (a starvation-free ticket lock);
-`CertDischarge.certDischarge_adequacy` (a discharge in the pre-step model update);
+`CertDischarge.adequacy` (a discharge in the pre-step model update);
 `FlagStable.flagTrSpec_stays` (a flag that stays set, with its clients `FlagStableClient`,
 `HandoffFlagStableClient` and `TaskQueueFlagStableClient`);
 `TicketLockMono.aliveFairLock_starvationFree` (`next` never decreases, so a lock that is not

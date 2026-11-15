@@ -127,7 +127,7 @@ def requestMapInv (γm : GName) (G : Nat → TrSpec Expr State GF) : IProp GF :=
 @[lantana_alias guar_request_map]
 theorem guar_requestMap (N : Namespace) (γm : GName) (G : Nat → TrSpec Expr State GF) :
     ⊢ alwaysI (Expr := Expr) (State := State) N (requestMapInv γm G) ⊨ₜ
-      □ₛ (TrSpec.ex fun m : RequestMap GName =>
+      □ₛ (TrSpec.exists fun m : RequestMap GName =>
         TrSpec.true ∧ₛ ∀ₛ r, ∀ₛ γr, (⌜get? m r = some γr⌝ₛ →ₛ G r)) := by
   unfold requestMapInv
   exact IntoGuar.into_guar

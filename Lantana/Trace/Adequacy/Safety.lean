@@ -28,19 +28,19 @@ variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvConte
 
 /-- If thread `j` has terminated with the value `v`, then `Φ j v`. -/
 @[lantana_alias if_term_val]
-def Cfg.ifTermVal (j : ThreadId) (Φ : ThreadId → Val → Prop) (ρ : Cfg Expr State) : Prop :=
+def Cfg.IfTermVal (j : ThreadId) (Φ : ThreadId → Val → Prop) (ρ : Cfg Expr State) : Prop :=
   ∀ e v, ρ.1[j]? = some e → toVal e = some v → Φ j v
 
 /-- The safety facts at the current position: no thread of the pool is stuck and a terminated
 thread `j` satisfies `Φ j`. -/
 def safeNow (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
-  TrProp.atomic Cfg.notStuck ∧ₜ TrProp.atomic (Cfg.ifTermVal (Val := Val) j Φ)
+  TrProp.atomic Cfg.NotStuck ∧ₜ TrProp.atomic (Cfg.IfTermVal (Val := Val) j Φ)
 
 /-- Iris-style safety: always, no thread of the pool is stuck and a terminated thread `j`
 satisfies `Φ j`. -/
 @[lantana_alias safety_iris]
 def safetyIris (j : ThreadId) (Φ : ThreadId → Val → Prop) : TrProp (Cfg Expr State) :=
-  □ₜ (TrProp.atomic Cfg.notStuck ∧ₜ TrProp.atomic (Cfg.ifTermVal (Val := Val) j Φ))
+  □ₜ (TrProp.atomic Cfg.NotStuck ∧ₜ TrProp.atomic (Cfg.IfTermVal (Val := Val) j Φ))
 
 section SafetyTrI
 
@@ -70,11 +70,11 @@ variable [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF]
 theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId)
     (γ : Nat → ThreadId → Nat) (j : ThreadId) (Φ : ThreadId → Val → Prop) :
     ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (Ψ : ThreadId → Val → IProp GF) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses),
-      ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-        owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf ∧ j < tp.length ∧
+      (Ψ : ThreadId → Val → IProp GF) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses),
+      ⌜schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+        OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf ∧ j < tp.length ∧
         ∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ -∗
-      historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+      historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
         threadsRun tp Ψ -∗
       safetyIrisTrI j Φ ⟨n, τf⟩ := by
   iloeb as IH
@@ -95,7 +95,7 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
   imod run_step 0 hsch hcnt hLb hh $$ [HH HM HT] with H
   · iframe HH HM HT
   imodintro
-  iapply ALC_wand $$ [] H
+  iapply alc_wand $$ [] H
   iintro H
   unfold runStepPost
   imod H with ⟨%σ', %tp', %Ψ', %g', %v', %Ω', %W',
@@ -105,8 +105,8 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
     refine ⟨hns, ?_⟩
     simp only [Trace.now, hnow]
     exact hval
-  have hfacts : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
+  have hfacts : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OwitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
       j < tp'.length ∧ ∀ v, Ψ' j v ⊢ ⌜Φ j v⌝ :=
     ⟨hsch, hcnt, hLb', hh', Nat.lt_of_lt_of_le hj hle, by rw [hΨ' j hj]; exact hΨ⟩
   imodintro
@@ -126,7 +126,7 @@ the initial configuration no thread is ever stuck, and `j`, once terminated, sat
 theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
     [TemporalGpreS Expr State GF]
     (σ : State) (tp : ThreadPool Expr) (j : ThreadId) (Φ : ThreadId → Val → Prop)
-    (τ : Trace (Cfg Expr State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (τ : Trace (Cfg Expr State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp, σ)) (hj : j < tp.length)
     (hwp : ∀ [ModelGS GF] [TemporalGS Expr State GF],
       ∃ c : Fuel, ⊢@{IProp GF} |={⊤}=>
@@ -137,18 +137,18 @@ theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
           iprop(⌜∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ ∧ stateInterp σ tp ∗
             (£ₒ c -∗
               ([∗list] j ∈ List.range tp.length,
-                (⌜¬Cfg.crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) -∗
-              |={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }}))) :
+                (⌜¬Cfg.Crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) -∗
+              |={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ lwp.liftTerm j Ψ }}))) :
     safetyIris j Φ τ := by
   obtain ⟨n, τf⟩ := τ
   simp only at hpos hinit
   subst hpos
   obtain ⟨sched, γc, hsch, hγc⟩ := exists_fair_schedule_schedCounters hbeh hfair
-  obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp (Cfg.crashed (tp, σ)))
+  obtain ⟨γ, hγ⟩ := iPropSat.sat_alloc (adequacy_alloc_names (GF := GF) σ tp (Cfg.Crashed (tp, σ)))
   letI : ModelGS GF := ModelGS.ofNames γ.1
   letI : TemporalGS Expr State GF := TemporalGS.ofNames γ.2
   obtain ⟨c, hc⟩ := hwp
-  have hh₀ : histTrace [(σ, tp)] τf := by
+  have hh₀ : HistTrace [(σ, tp)] τf := by
     intro n' σ' tp' hn'
     cases n' with
     | zero =>
@@ -156,7 +156,7 @@ theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
       obtain ⟨rfl, rfl⟩ := hn'
       exact hinit
     | succ n' => simp at hn'
-  have hLb₀ : owitInvLb (fairMeasure (γc 0)) ∅ ∅ := mapForall2_empty
+  have hLb₀ : OwitInvLb (fairMeasure (γc 0)) ∅ ∅ := mapForall2_empty
   refine safetyIrisTrI_trProp iprop(emp) j Φ ⟨0, τf⟩ (SatFUpd.fupd
     (S := iPropSatLcAtFrame (GF := GF) iprop(emp)) (E₁ := ⊤) (E₂ := ⊤) ?_)
   refine iPropSatLcAtFrame_sat.mpr (iPropSat.sat_bupd (iPropSat.mono ?_ hγ))
@@ -181,7 +181,7 @@ theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
     exact regStateWith_init _
   ihave HTI := hTI $$ HR
   ispecialize Hwp $$ Hc Hk
-  have hrun : (|={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }}) ⊢
+  have hrun : (|={⊤}=>m [∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ lwp.liftTerm j Ψ }}) ⊢
       |={⊤}=>m threadsRun (GF := GF) tp Ψ :=
     (mupd_mono (lwps_threadsRun tp Ψ)).trans mupd_trans
   ihave Hwp := hrun $$ Hwp
@@ -191,8 +191,8 @@ theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
   imod mupd_modelInterp_steps (fairMeasure (γc 0)) (owitInvLbMonoFair_fairMeasure _) ⊤ ⊤
     [(σ, tp)] 0 σ tp [(0, ∅)] 0 ∅ ∅ tp.length _ _ hLb₀ $$ Hwp HHT HM
     with ⟨HT, HHT, %g', %v', %Ω', %W', %⟨-, hLb'⟩, HM⟩
-  have hfacts : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γc ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γc 0)) Ω' W' ∧ histTrace [(σ, tp)] τf ∧ j < tp.length ∧
+  have hfacts : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γc ⟨0, τf⟩ ∧
+      OwitInvLb (fairMeasure (γc 0)) Ω' W' ∧ HistTrace [(σ, tp)] τf ∧ j < tp.length ∧
       ∀ v, Ψ j v ⊢ ⌜Φ j v⌝ :=
     ⟨hsch, hγc, hLb', hh₀, hj, hΨ⟩
   imodintro

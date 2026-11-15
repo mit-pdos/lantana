@@ -170,7 +170,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
         grind
       imodintro
       iapply HΦ'
-      unfold liftTerm
+      unfold lwp.liftTerm
       isplitl
       · iexact Hdone
       · ipureintro
@@ -218,7 +218,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
 /-- `nondet` terminates with `1`; the layer of `nest` depends on the chosen `n`, so the
 caller's fuel is at layer `ω`. -/
 @[lantana_alias Nondet_nondet_spec]
-theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List ECtxItem),
+theorem spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&nondet) #()) ∗ thKids i G ∗ thCarriers i G ∗
           ([∗set] g ∈ G, Obl.fuel g ω μ) }}}
         hl(v(&nondet) #()) @ i
@@ -292,7 +292,7 @@ theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List 
       grind
     imodintro
     iapply HΦ'
-    unfold liftTerm
+    unfold lwp.liftTerm
     isplitl
     · iexact Hdone
     · ipureintro

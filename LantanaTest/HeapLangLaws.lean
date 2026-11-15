@@ -36,8 +36,8 @@ credit. -/
 
 example (Φ : Val → IProp GF) :
     threadExpr i C hl(if #true then #1 else #2) ∗ thCarriers i G ∗
-      oblFuels G ((1 : Nat) : Measure) ∗ witLayers R ∗
-      (threadExpr i C hl(#1) -∗ thCarriers i G -∗ witCreds R -∗ £ₒ o -∗
+      oblFuels G ((1 : Nat) : Measure) ∗ Wit.layers R ∗
+      (threadExpr i C hl(#1) -∗ thCarriers i G -∗ Wit.creds R -∗ £ₒ o -∗
         |={E}=>m lWP hl(#1) @ s; i; E {{ Φ }})
       ⊢ lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} :=
   lwp_pure_step 1 _ _ _ Φ trivial (by omega)
@@ -99,7 +99,7 @@ example (Φ : Val → IProp GF) :
   iexists G, 2, ∅, 0
   isplitl [HG HF]
   · iframe
-    unfold witLayers
+    unfold Wit.layers
     iapply BigSepS.bigSepS_empty.mpr
     iempintro
   iintro HG HF - - HT
@@ -115,7 +115,7 @@ example (Φ : Val → IProp GF) :
   iexists G, 0, ∅, 0
   isplitl [HG HF]
   · iframe
-    unfold witLayers
+    unfold Wit.layers
     iapply BigSepS.bigSepS_empty.mpr
     iempintro
   iintro - - - - HT
@@ -143,7 +143,7 @@ example (K X : Oids) (j : ThreadId) (hX : X ⊆ K) :
       |={E}=>m (⌜X ## ∅⌝ ∗ thKids i (K \ X) ∗ thKids j (X ∪ ∅) ∗ thCarriers j (X ∪ ∅)) := by
   unfold oblFuels
   iintro ⟨Hi, Hj, HB, HF⟩
-  iapply obl_move_thread_set E (.thread i) j K ∅ ∅ X hX $$ Hi Hj HB HF
+  iapply Obl.move_thread_set E (.thread i) j K ∅ ∅ X hX $$ Hi Hj HB HF
 
 /-! Operations with a computed result, `lwp_step` (a numeral fuel unifies with `m + 1`), and
 `lwp_expr_simp` writing the values back as `Exp.ofVal`, so that `lwp_step` and `lwp_bind`

@@ -61,14 +61,14 @@ theorem guar_nu_canon (hP : ⊢ P ⊨ₜ F (TrSpec.canon P)) : ⊢ P ⊨ₜ TrSp
 
 @[lantana_alias guar_mu_rank]
 theorem guar_mu_rank (H : Fuel → TrSpec Expr State GF)
-    (hH : ∀ α, H α ⊑ₛ F (TrSpec.ex (X := { β : Fuel // β < α }) fun b => H b.1)) (α : Fuel) :
+    (hH : ∀ α, H α ⊑ₛ F (TrSpec.exists (X := { β : Fuel // β < α }) fun b => H b.1)) (α : Fuel) :
     (P ⊨ₜ H α) ⊢ P ⊨ₜ TrSpec.mu F :=
   guar_weaken (TrSpec.mu_intro F H hH α)
 
 /-- Introduction without a ranking, for a continuous body. -/
 @[lantana_alias guar_mu_fold]
 theorem guar_mu_fold [TrSpec.Cont F] : (P ⊨ₜ F (TrSpec.mu F)) ⊢ P ⊨ₜ TrSpec.mu F :=
-  guar_weaken (TrSpec.mu_unfold_r F)
+  guar_weaken (TrSpec.mu_unfold_right F)
 
 end Fixpoints
 
@@ -122,7 +122,7 @@ instance nest_persistent (N : Namespace) (Q : IProp GF) (G : TrSpec Expr State G
 @[lantana_alias guar_nest]
 theorem guar_nest : ⊢@{IProp GF} nest N Q G ⊨ₜ TrSpec.nu (nestBody G) := by
   rw [nest_unfold]
-  exact guar_alwaysIGuar.trans (guar_weaken (TrSpec.nu_unfold_r (nestBody G)))
+  exact guar_alwaysIGuar.trans (guar_weaken (TrSpec.nu_unfold_right (nestBody G)))
 
 @[lantana_alias guar_nest_content]
 theorem guar_nest_content (hQ : ⊢ Q ⊨ₜ G) :
@@ -142,7 +142,7 @@ theorem nest_alloc (hN : ↑N ⊆ E) (hQ : ⊢ Q ⊨ₜ G) : ▷ Q ⊢ |={E}=>m 
   imod inv_alloc_open N E iprop(Q ∗ nest N Q G) hN with ⟨#Hinv, Hclose⟩
   ihave #HE := historyInterp_histEvent_now h n σ tp $$ HI
   iunfold regState at TI
-  imod regRegister regEntryInterp (.always N γ) h n σ tp $$ TI [] HI with ⟨HI, TI, %j, #Hj⟩
+  imod reg_register regEntryInterp (.always N γ) h n σ tp $$ TI [] HI with ⟨HI, TI, %j, #Hj⟩
   · iintro %st -
     simp only [regEntryInterp]
     iexists iprop(Q ∗ nest N Q G), nestTrSpec G
@@ -253,9 +253,9 @@ theorem guar_renew : ⊢@{IProp GF} renew N Q G ⊨ₜ TrSpec.nu (renewBody G) :
   have h₁ : ⊢ iprop(∃ k : Oid, untilIGuar N k 1 iprop(True) iprop(Q ∗ renew N Q G) TrSpec.true
       (renewTrSpec G)) ⊨ₜ (TrSpec.true Uₛ renewTrSpec G) :=
     (forall_intro fun k => guar_untilIGuar (N := N) (k := k) (q := 1) (P := iprop(True))
-      (Q := iprop(Q ∗ renew N Q G))).trans (guar_ex_ghost _)
+      (Q := iprop(Q ∗ renew N Q G))).trans (guar_exists_ghost _)
   have h₂ : (TrSpec.true Uₛ renewTrSpec G) ⊑ₛ TrSpec.nu (renewBody G) :=
-    TrSpec.nu_unfold_r (renewBody G)
+    TrSpec.nu_unfold_right (renewBody G)
   rw [renew_unfold]
   exact h₁.trans (guar_weaken h₂)
 
@@ -267,7 +267,7 @@ theorem guar_renew_content (hQ : ⊢ Q ⊨ₜ G) :
 /-- Allocation of a link, with a fresh obligation `k` below `p`, added to the bill of `p`. -/
 @[lantana_alias renew_alloc]
 theorem renew_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) (hQ : ⊢ Q ⊨ₜ G) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+    Par.le (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
         oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ ∗
         untilIGuar N k 1 iprop(True) iprop(Q ∗ renew N Q G) TrSpec.true (renewTrSpec G) := by
@@ -338,7 +338,7 @@ theorem guar_always_finally (N' : Namespace) (q : Qp) :
       iprop(∃ k : Oid, finallyI (Expr := Expr) (State := State) N' k q Q) ⊨ₜ
       □ₛ ◇ₛ TrSpec.canon Q :=
   guar_alwaysI_valid ((forall_intro fun _ => guar_untilI_valid guar_true (guar_canon Q)).trans
-    (guar_ex_ghost _))
+    (guar_exists_ghost _))
 
 end Renew
 

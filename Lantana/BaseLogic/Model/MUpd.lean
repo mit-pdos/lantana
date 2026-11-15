@@ -63,28 +63,28 @@ variable {GF : BundledGFunctors} [ModelGS GF]
 /-- The model interpretation: the history of `i + 1` events ending at `(n, Ω)`, the obligations
 `Ω`, the forest at the view `tc`, `X`, and the witnesses `W` with their invariant. -/
 @[lantana_alias model_interp]
-def modelInterp (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (n tc : Nat)
+def modelInterp (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (n tc : Nat)
     (X : ThreadId → Prop) : IProp GF :=
   iprop(modelHistoryInterp h i n Ω ∗ osat Ω ∗ oforest Ω tc X ∗ owit W ∗
-    ⌜owitInvFair Ω W⌝)
+    ⌜OwitInvFair Ω W⌝)
 
-instance modelInterp_timeless (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses)
+instance modelInterp_timeless (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses)
     (n tc : Nat) (X : ThreadId → Prop) : Timeless (modelInterp (GF := GF) h i Ω W n tc X) := by
   unfold modelInterp; infer_instance
 
 @[lantana_alias model_interp_owit_inv]
-theorem modelInterp_owitInv (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses)
+theorem modelInterp_owitInv (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses)
     (n tc : Nat) (X : ThreadId → Prop) :
-    modelInterp (GF := GF) h i Ω W n tc X ⊢ ⌜owitInvFair Ω W⌝ := by
+    modelInterp (GF := GF) h i Ω W n tc X ⊢ ⌜OwitInvFair Ω W⌝ := by
   unfold modelInterp
   iintro ⟨-, -, -, -, %h⟩
   ipureintro
   exact h
 
-theorem modelInterp_owitInv' (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses)
+theorem modelInterp_owitInv' (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses)
     (n tc : Nat) (X : ThreadId → Prop) :
     modelInterp (GF := GF) h i Ω W n tc X ⊢
-      modelInterp h i Ω W n tc X ∗ ⌜owitInvFair Ω W⌝ := by
+      modelInterp h i Ω W n tc X ∗ ⌜OwitInvFair Ω W⌝ := by
   unfold modelInterp
   iintro ⟨HH, Hs, Hf, Hw, %hI⟩
   iframe HH Hs Hf Hw
@@ -92,17 +92,17 @@ theorem modelInterp_owitInv' (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnes
   exact ⟨hI, hI⟩
 
 /-- A trivial round: the obligations do not change, the environment may lower the witnesses. -/
-theorem modelInterp_trivial_round (h : List MEvent) (i : Nat) (Ω : Obls) (W₁ W₂ : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) (hW : W₁.lef W₂) (hI₂ : owitInvFair Ω W₂) :
+theorem modelInterp_trivial_round (h : List MEvent) (i : Nat) (Ω : Obligations) (W₁ W₂ : Witnesses)
+    (n tc : Nat) (X : ThreadId → Prop) (hW : W₁.StayOrStep W₂) (hI₂ : OwitInvFair Ω W₂) :
     modelInterp (GF := GF) h i Ω W₁ n tc X ⊢
       |==> modelInterp (h ++ [(n, Ω)]) (i + 1) Ω W₂ n tc X := by
   unfold modelInterp
   iintro ⟨HH, Hs, Hf, Hw, %hI₁⟩
-  imod modelHistoryInterp_step h i (Nat.le_refl n) (Obls.le_refl Ω) $$ HH with HH
+  imod modelHistoryInterp_step h i (Nat.le_refl n) (Obligations.le_refl Ω) $$ HH with HH
   imodintro
   iframe HH Hs Hf
   isplitl [Hw]
-  · iapply owit_mon (wits_lef_same_mono hI₁ hW hI₂) $$ Hw
+  · iapply owit_mono (Witnesses.stayOrStep_same_mono hI₁ hW hI₂) $$ Hw
   · ipureintro
     exact hI₂
 
@@ -112,10 +112,10 @@ theorem modelInterp_trivial_round (h : List MEvent) (i : Nat) (Ω : Obls) (W₁ 
 @[lantana_alias mupd_pre]
 def mupdPre (n : Nat) (mupd : IProp GF → IProp GF) (P : IProp GF) : IProp GF :=
   iprop((|={∅}=> P) ∨
-    ∀ (h : List MEvent) (i : Nat) (Ω₁ : Obls) (W₁ : Witnesses) (tc : Nat)
+    ∀ (h : List MEvent) (i : Nat) (Ω₁ : Obligations) (W₁ : Witnesses) (tc : Nat)
       (X : ThreadId → Prop),
-      modelInterp h i Ω₁ W₁ n tc X ={∅}=∗ ∃ Ω₂, ⌜Obls.lef Ω₁ Ω₂⌝ ∗
-        ∀ W₂, ⌜W₁.lef W₂ ∧ owitInvFair Ω₂ W₂⌝ ={∅}=∗
+      modelInterp h i Ω₁ W₁ n tc X ={∅}=∗ ∃ Ω₂, ⌜Obligations.StayOrStep Ω₁ Ω₂⌝ ∗
+        ∀ W₂, ⌜W₁.StayOrStep W₂ ∧ OwitInvFair Ω₂ W₂⌝ ={∅}=∗
           modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc X ∗ mupd P)
 
 @[lantana_alias mupd_pre_mono]
@@ -202,7 +202,7 @@ theorem fupd_mupd_elim (n : Nat) (P : IProp GF) :
   iexists Ω₁
   isplitr
   · ipureintro
-    exact Obls.lef_refl Ω₁
+    exact Obligations.stayOrStep_refl Ω₁
   iintro %W₂ %⟨hW, hI₂⟩
   imod modelInterp_trivial_round h i Ω₁ W₁ W₂ n tc X hW hI₂ $$ HM with HM
   imodintro
@@ -210,7 +210,7 @@ theorem fupd_mupd_elim (n : Nat) (P : IProp GF) :
 
 /-- A model update that only reads the model, which it returns unchanged. -/
 theorem mupd_read (n : Nat) (P : IProp GF) :
-    (∀ (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
+    (∀ (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
       modelInterp h i Ω W n tc X -∗ modelInterp h i Ω W n tc X ∗ P) ⊢ mupd n P := by
   iintro H
   iapply (mupd_unfold n P).2
@@ -222,7 +222,7 @@ theorem mupd_read (n : Nat) (P : IProp GF) :
   iexists Ω₁
   isplitr
   · ipureintro
-    exact Obls.lef_refl Ω₁
+    exact Obligations.stayOrStep_refl Ω₁
   iintro %W₂ %⟨hW, hI₂⟩
   imod modelInterp_trivial_round h i Ω₁ W₁ W₂ n tc X hW hI₂ $$ HM with HM
   imodintro
@@ -231,18 +231,18 @@ theorem mupd_read (n : Nat) (P : IProp GF) :
 
 /-- A snapshot of the current obligation `k`. -/
 @[lantana_alias model_interp_event_obl]
-theorem modelInterp_eventObl {h : List MEvent} {i : Nat} {Ω : Obls} {W : Witnesses}
-    {n tc : Nat} {X : ThreadId → Prop} {k : Oid} {o : Obl} (hk : get? Ω k = some o) :
+theorem modelInterp_eventObl {h : List MEvent} {i : Nat} {Ω : Obligations} {W : Witnesses}
+    {n tc : Nat} {X : ThreadId → Prop} {k : Oid} {o : Obligation} (hk : get? Ω k = some o) :
     modelInterp h i Ω W n tc X ⊢ eventObl (GF := GF) i (n, Ω) k o := by
   unfold modelInterp
   iintro ⟨HH, -, -, -, -⟩
   iapply modelHistoryInterp_eventObl_now h i n Ω hk $$ HH
 
 /-- What a snapshot says about the current model (`eventObl_modelHistoryInterp_lookup`). -/
-theorem modelInterp_eventObl_lookup (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) (j : Nat) (e : MEvent) (k : Oid) (o : Obl) :
+theorem modelInterp_eventObl_lookup (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses)
+    (n tc : Nat) (X : ThreadId → Prop) (j : Nat) (e : MEvent) (k : Oid) (o : Obligation) :
     modelInterp h i Ω W n tc X ∗ eventObl (GF := GF) j e k o ⊢
-      ⌜h[j]? = some e ∧ get? e.2 k = some o ∧ j ≤ i ∧ e.1 ≤ n ∧ Obls.le e.2 Ω⌝ := by
+      ⌜h[j]? = some e ∧ get? e.2 k = some o ∧ j ≤ i ∧ e.1 ≤ n ∧ Obligations.le e.2 Ω⌝ := by
   unfold modelInterp
   iintro ⟨⟨HH, -, -, -, -⟩, He⟩
   iapply eventObl_modelHistoryInterp_lookup h i n Ω j e k o
@@ -278,13 +278,13 @@ theorem mupd_bind (n : Nat) (P Q : IProp GF) :
     iapply HΨ $$ HPQ'
 
 
-/-- A non-discharging round: the environment's witnesses then satisfy `Witnesses.ndf`. -/
+/-- A non-discharging round: the environment's witnesses then satisfy `Witnesses.NoDischarge`. -/
 @[lantana_alias mupd_nd_step]
-theorem mupd_nd_step (n : Nat) (P : IProp GF) :
-    (∀ (h : List MEvent) (i : Nat) (Ω₁ : Obls) (W₁ : Witnesses) (tc : Nat)
+theorem mupd_noDischarge_step (n : Nat) (P : IProp GF) :
+    (∀ (h : List MEvent) (i : Nat) (Ω₁ : Obligations) (W₁ : Witnesses) (tc : Nat)
       (X : ThreadId → Prop),
-      modelInterp h i Ω₁ W₁ n tc X ={∅}=∗ ∃ Ω₂, ⌜Obls.ndf Ω₁ Ω₂⌝ ∗
-        ∀ W₂, ⌜W₁.ndf W₂ ∧ owitInvFair Ω₂ W₂⌝ ={∅}=∗
+      modelInterp h i Ω₁ W₁ n tc X ={∅}=∗ ∃ Ω₂, ⌜Obligations.NoDischarge Ω₁ Ω₂⌝ ∗
+        ∀ W₂, ⌜W₁.NoDischarge W₂ ∧ OwitInvFair Ω₂ W₂⌝ ={∅}=∗
           modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc X ∗ mupd n P)
       ⊢@{IProp GF} mupd n P := by
   iintro H
@@ -298,23 +298,23 @@ theorem mupd_nd_step (n : Nat) (P : IProp GF) :
   iexists Ω₂
   isplitr
   · ipureintro
-    exact hΩ.lef
+    exact hΩ.stayOrStep
   iintro %W₂ %⟨hW, hI₂⟩
-  iapply Hk $$ %W₂ %(⟨wits_lef_wits_ndf hI₁ hΩ hW hI₂, hI₂⟩)
+  iapply Hk $$ %W₂ %(⟨Witnesses.noDischarge_of_stayOrStep hI₁ hΩ hW hI₂, hI₂⟩)
 
-/-- Running a model update against the model: the rounds compose into `Obls.le`, and witnesses
+/-- Running a model update against the model: the rounds compose into `Obligations.le`, and witnesses
 keeping the lower bound `γ` can always be chosen. -/
 @[lantana_alias model_interp_mupd_steps]
 theorem modelInterp_mupd_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
-    (hγ : owitInvLbMonoFair γ) (P : IProp GF) :
-    mupd n P ⊢@{IProp GF} ∀ (h : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat)
-      (X : ThreadId → Prop), ⌜owitInvLb γ Ω W⌝ → modelInterp h i Ω W n tc X ={∅}=∗
-        P ∗ ∃ h' i' Ω' W', ⌜Obls.le Ω Ω' ∧ owitInvLb γ Ω' W'⌝ ∗
+    (hγ : OwitInvLbMonoFair γ) (P : IProp GF) :
+    mupd n P ⊢@{IProp GF} ∀ (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
+      (X : ThreadId → Prop), ⌜OwitInvLb γ Ω W⌝ → modelInterp h i Ω W n tc X ={∅}=∗
+        P ∗ ∃ h' i' Ω' W', ⌜Obligations.le Ω Ω' ∧ OwitInvLb γ Ω' W'⌝ ∗
           modelInterp (h ++ h') (i + i') Ω' W' n tc X := by
-  letI Ψ : IProp GF → IProp GF := fun P => iprop(∀ (h : List MEvent) (i : Nat) (Ω : Obls)
-    (W : Witnesses) (tc : Nat) (X : ThreadId → Prop), ⌜owitInvLb γ Ω W⌝ →
+  letI Ψ : IProp GF → IProp GF := fun P => iprop(∀ (h : List MEvent) (i : Nat) (Ω : Obligations)
+    (W : Witnesses) (tc : Nat) (X : ThreadId → Prop), ⌜OwitInvLb γ Ω W⌝ →
       modelInterp h i Ω W n tc X ={∅}=∗
-      P ∗ ∃ h' i' Ω' W', ⌜Obls.le Ω Ω' ∧ owitInvLb γ Ω' W'⌝ ∗
+      P ∗ ∃ h' i' Ω' W', ⌜Obligations.le Ω Ω' ∧ OwitInvLb γ Ω' W'⌝ ∗
         modelInterp (h ++ h') (i + i') Ω' W' n tc X)
   letI : OFE.NonExpansive Ψ := ⟨fun _ _ _ h => forall_ne fun _ => forall_ne fun _ =>
     forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ =>
@@ -330,7 +330,7 @@ theorem modelInterp_mupd_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
     iexists [], 0, Ω, W
     isplitr
     · ipureintro
-      exact ⟨Obls.le_refl Ω, hLb⟩
+      exact ⟨Obligations.le_refl Ω, hLb⟩
     · rw [List.append_nil, Nat.add_zero]
       iexact HM
   · icases modelInterp_owitInv' h i Ω W n tc X $$ HM with ⟨HM, %hI⟩
@@ -344,7 +344,7 @@ theorem modelInterp_mupd_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
     iexists [(n, Ω₂)] ++ h', 1 + i', Ω', W'
     isplitr
     · ipureintro
-      exact ⟨Obls.le_trans hΩ.le hle, hLb'⟩
+      exact ⟨Obligations.le_trans hΩ.le hle, hLb'⟩
     · rw [← List.append_assoc, ← Nat.add_assoc]
       iexact HM
 
@@ -417,26 +417,26 @@ variable {GF : BundledGFunctors} [ModelGS GF]
 /-- The progress round of the scheduled thread `i`: every obligation of `i` and every assigned
 witness progress strictly, the witnesses being the environment's choice. -/
 def mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) : IProp GF :=
-  iprop(∀ (h : List MEvent) (a : Nat) (Ω₁ : Obls) (W₁ : Witnesses),
+  iprop(∀ (h : List MEvent) (a : Nat) (Ω₁ : Obligations) (W₁ : Witnesses),
     modelInterp h a Ω₁ W₁ n tc X ={∅}=∗
-      ∃ Ω₂, ⌜Obls.condProgress (Obl.condOwner i) Ω₁ Ω₂⌝ ∗
-      ∀ W₂, ⌜Witnesses.condProgress Witness.condAssigned W₁ W₂ ∧
-        owitInvFair Ω₂ W₂⌝ ={∅}=∗
+      ∃ Ω₂, ⌜Obligations.CondProgress (Obligation.CondOwner i) Ω₁ Ω₂⌝ ∗
+      ∀ W₂, ⌜Witnesses.CondProgress Witness.CondAssigned W₁ W₂ ∧
+        OwitInvFair Ω₂ W₂⌝ ={∅}=∗
         modelInterp (h ++ [(n, Ω₂)]) (a + 1) Ω₂ W₂ n tc X ∗ P)
 
 /-- The last stage of the physical round: the bits change from `X₁` to `X₂`, the rest of the
 model does not. -/
 def mbits (n tc : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
-  iprop(∀ (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses),
+  iprop(∀ (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses),
     modelInterp h a Ω W n tc X₁ ={∅}=∗ modelInterp h a Ω W n tc X₂ ∗ P)
 
 /-- The physical round, in three stages: the position and the thread count change; under the
 step's later credits, a model update at `n₂`; the bits change (`mbits`). -/
 def mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
-  iprop(∀ (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses),
+  iprop(∀ (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses),
     modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
       modelInterp (h ++ [(n₂, Ω)]) (a + 1) Ω W n₂ tc₂ X₁ ∗
-      ALC (mupd n₂ (mbits n₂ tc₂ X₁ X₂ P)))
+      alc (mupd n₂ (mbits n₂ tc₂ X₁ X₂ P)))
 
 instance mprog_ne (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) :
     OFE.NonExpansive (mprog (GF := GF) n tc X i) :=
@@ -460,7 +460,7 @@ instance mphys_ne (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) 
     unfold mphys
     refine forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => ?_
     refine wand_ne.ne .rfl (OFE.NonExpansive.ne (sep_ne.ne .rfl ?_))
-    exact ALC_ne.ne ((mupd_ne n₂).ne ((mbits_ne n₂ tc₂ X₁ X₂).ne h))⟩
+    exact alc_ne.ne ((mupd_ne n₂).ne ((mbits_ne n₂ tc₂ X₁ X₂).ne h))⟩
 
 theorem mprog_wand (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P Q : IProp GF) :
     (P -∗ Q) ⊢ mprog n tc X i P -∗ mprog n tc X i Q := by
@@ -518,7 +518,7 @@ theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop)
   imod H $$ HM with ⟨HM, HP⟩
   imodintro
   iframe HM
-  iapply ALC_wand $$ [HPQ] HP
+  iapply alc_wand $$ [HPQ] HP
   iintro HP
   iapply mupd_bind n₂ _ _ $$ [HPQ] HP
   iintro HP
@@ -543,16 +543,16 @@ theorem fupd_mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop)
 
 /-- Running the physical round against the model, keeping the lower bound `γ` of the witnesses. -/
 theorem mphys_run (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (γ : ThreadId → Fuel → Fuel)
-    (hγ : owitInvLbMonoFair γ) (P : IProp GF) :
-    mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses),
-      ⌜owitInvLb γ Ω W⌝ → modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
-        ALC iprop(|={∅}=> P ∗ ∃ h' a' Ω' W', ⌜Obls.le Ω Ω' ∧ owitInvLb γ Ω' W'⌝ ∗
+    (hγ : OwitInvLbMonoFair γ) (P : IProp GF) :
+    mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses),
+      ⌜OwitInvLb γ Ω W⌝ → modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
+        alc iprop(|={∅}=> P ∗ ∃ h' a' Ω' W', ⌜Obligations.le Ω Ω' ∧ OwitInvLb γ Ω' W'⌝ ∗
           modelInterp (h ++ h') (a + a') Ω' W' n₂ tc₂ X₂) := by
   unfold mphys
   iintro H %h %a %Ω %W %hLb HM
   imod H $$ %h %a %Ω %W HM with ⟨HM, H⟩
   imodintro
-  iapply ALC_wand $$ [HM] H
+  iapply alc_wand $$ [HM] H
   iintro H
   imod modelInterp_mupd_steps n₂ γ hγ _ $$ H %(h ++ [(n₂, Ω)]) %(a + 1) %Ω %W %tc₂ %X₁ %hLb HM
     with ⟨H, %h', %a', %Ω', %W', %⟨hle, hLb'⟩, HM⟩

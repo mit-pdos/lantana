@@ -76,10 +76,10 @@ def or (P Q : TrProp C) : TrProp C := fun τ => P τ ∨ Q τ
 def imp (P Q : TrProp C) : TrProp C := fun τ => P τ → Q τ
 
 @[lantana_alias tr_forall]
-def all {A : Sort _} (P : A → TrProp C) : TrProp C := fun τ => ∀ a, P a τ
+def «forall» {A : Sort _} (P : A → TrProp C) : TrProp C := fun τ => ∀ a, P a τ
 
 @[lantana_alias tr_exist]
-def ex {A : Sort _} (P : A → TrProp C) : TrProp C := fun τ => ∃ a, P a τ
+def «exists» {A : Sort _} (P : A → TrProp C) : TrProp C := fun τ => ∃ a, P a τ
 
 /-- `□ₜ P`: `P` holds at every position from the current one on. -/
 @[lantana_alias tr_always]
@@ -107,7 +107,7 @@ def step (R : C → C → Prop) : TrProp C := fun τ => R τ.now τ.next.now
 def atPos (f : Nat → Prop) : TrProp C := fun τ => f τ.pos
 
 /-- The trace property `P` read along the run of `τ`, as a predicate on positions. -/
-def along (P : TrProp C) (τ : Trace C) (n : Nat) : Prop := P { τ with pos := n }
+def Along (P : TrProp C) (τ : Trace C) (n : Nat) : Prop := P { τ with pos := n }
 
 /-! ## Notations -/
 
@@ -129,8 +129,8 @@ scoped syntax "∃ₜ " explicitBinders ", " term : term
 
 open Lean in
 scoped macro_rules
-  | `(∀ₜ $xs, $b) => Lean.expandExplicitBinders ``TrProp.all xs b
-  | `(∃ₜ $xs, $b) => Lean.expandExplicitBinders ``TrProp.ex xs b
+  | `(∀ₜ $xs, $b) => Lean.expandExplicitBinders ``TrProp.forall xs b
+  | `(∃ₜ $xs, $b) => Lean.expandExplicitBinders ``TrProp.exists xs b
 
 /-- Negation. -/
 def not (P : TrProp C) : TrProp C := P →ₜ ⌜False⌝ₜ

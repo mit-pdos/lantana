@@ -9,6 +9,7 @@ public import Iris.BI
 public import Iris.BI.Lib.MonoList
 public import Iris.ProofMode
 public import Lantana.ProgramLogic.Configuration
+public import Lantana.Prelude.List
 
 /-! # The history of configurations and the state interpretation
 
@@ -115,12 +116,6 @@ def historyInterp (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp :
     IProp GF :=
   iprop(⌜h.length = n + 1 ∧ h.getLast? = some (σ, tp)⌝ ∗ histAuth h ∗ stateInterp σ tp)
 
-/-- The last entry of a history of length `n + 1` is its `n`-th. -/
-theorem getLast?_eq_getElem?_of_length {α : Type _} {h : List α} {n : Nat} {a : α}
-    (hlen : h.length = n + 1) (hlast : h.getLast? = some a) : h[n]? = some a := by
-  rw [List.getLast?_eq_getElem?, hlen] at hlast
-  simpa using hlast
-
 @[lantana_alias history_interp_wf]
 theorem historyInterp_wf (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
     (tp : ThreadPool Expr) :
@@ -136,7 +131,7 @@ theorem historyInterp_lookup (h : List (HistEntry Expr State)) (n : Nat) (σ : S
   unfold historyInterp
   iintro ⟨%⟨hlen, hlast⟩, -, -⟩
   ipureintro
-  exact getLast?_eq_getElem?_of_length hlen hlast
+  exact List.getLast?_eq_getElem?_of_length hlen hlast
 
 @[lantana_alias history_interp_step]
 theorem historyInterp_step (h : List (HistEntry Expr State)) (n : Nat)
@@ -155,7 +150,7 @@ theorem historyInterp_histEvent_now (h : List (HistEntry Expr State)) (n : Nat) 
     (tp : ThreadPool Expr) : historyInterp (GF := GF) h n σ tp ⊢ histEvent n (σ, tp) := by
   unfold historyInterp
   iintro ⟨%⟨hlen, hlast⟩, Ha, -⟩
-  iapply histAuth_event (getLast?_eq_getElem?_of_length hlen hlast) $$ Ha
+  iapply histAuth_event (List.getLast?_eq_getElem?_of_length hlen hlast) $$ Ha
 
 @[lantana_alias history_interp_hist_event_lookup]
 theorem historyInterp_histEvent_lookup (h : List (HistEntry Expr State)) (n : Nat) (σ : State)

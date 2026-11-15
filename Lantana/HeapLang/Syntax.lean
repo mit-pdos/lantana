@@ -120,19 +120,19 @@ instance : Zero Loc where
   zero := ⟨0⟩
 
 @[simp]
-theorem loc_add_n (l : Loc) n :
+theorem Loc.add_n (l : Loc) n :
   (l + n).n = l.n + n := by simp [HAdd.hAdd]
 
 @[lantana_alias heap_lang.Loc.add_assoc]
-theorem loc_add_assoc (l : Loc) (i j : Int) : l + i + j = l + (i + j) := by
+theorem Loc.add_assoc (l : Loc) (i j : Int) : l + i + j = l + (i + j) := by
   ext; simp [Int.add_assoc]
 
 @[simp, lantana_alias heap_lang.Loc.add_0]
-theorem loc_add_zero (l : Loc) : l + (0 : Int) = l := by ext; simp
+theorem Loc.add_zero (l : Loc) : l + (0 : Int) = l := by ext; simp
 
 @[lantana_alias heap_lang.Loc.add_inj]
-theorem loc_add_inj {l : Loc} {i j : Int} (h : l + i = l + j) : i = j := by
-  have := congrArg Loc.n h; simp only [loc_add_n] at this; omega
+theorem Loc.add_inj {l : Loc} {i j : Int} (h : l + i = l + j) : i = j := by
+  have := congrArg Loc.n h; simp only [Loc.add_n] at this; omega
 
 @[lantana_alias heap_lang.Loc.add_le_mono]
 theorem Loc.add_le_mono {l₁ l₂ : Loc} {i₁ i₂ : Int} (hl : l₁ ≤ l₂) (hi : i₁ ≤ i₂) :
@@ -148,7 +148,7 @@ def Loc.fresh (ls : List Loc) : Loc := ⟨(ls.map Loc.n).foldr max 0 + 1⟩
 theorem Loc.fresh_fresh (ls : List Loc) {i : Int} (hi : 0 ≤ i) : Loc.fresh ls + i ∉ ls :=
   fun hmem => by
     have := List.mem_le_foldr_max _ _ (List.mem_map_of_mem (f := Loc.n) hmem)
-    simp only [loc_add_n, Loc.fresh] at this; omega
+    simp only [Loc.add_n, Loc.fresh] at this; omega
 
 @[lantana_alias heap_lang.Loc.countable]
 instance : Pos.Countable Loc where

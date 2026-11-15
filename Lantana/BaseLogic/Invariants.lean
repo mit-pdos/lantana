@@ -22,8 +22,8 @@ Iris's `base_logic/lib/invariants.v` over Lantana's `invGS`). This file is Iris-
 the same declarations, names and statements, in namespace `Lantana`. The proofs differ only by
 the explicit `◇` of Lantana's fancy update.
 
-The rules that take `∗` apart under `▷` (`inv_alter`, `inv_combine`, `inv_combine_dup_l`,
-`inv_split_l/r`, `inv_split`) need finite step indices (`[SIdxFinite SI]`): they are kept with
+The rules that take `∗` apart under `▷` (`inv_alter`, `inv_combine`, `inv_combine_dup_left`,
+`inv_split_left/r`, `inv_split`) need finite step indices (`[SIdxFinite SI]`): they are kept with
 that marker, as in Iris-Lean, but cannot be used in Lantana's ordinal build. Their transfinite
 replacements are the `_timeless` variants.
 -/
@@ -50,7 +50,7 @@ def inv (N : Namespace) (P : IProp GF) : IProp GF :=
   iprop(□ ∀ E, ⌜↑N ⊆ E⌝ → |={E, E \ ↑N}=> ▷ P ∗ (▷ P ={E \ ↑N, E}=∗ True))
 
 @[lantana_alias own_inv]
-def own_inv (N : Namespace) (P : IProp GF) : IProp GF :=
+def ownInv (N : Namespace) (P : IProp GF) : IProp GF :=
   iprop(∃ i, ⌜i ∈ (↑N : CoPset)⌝ ∧ ownI i P)
 
 end InvariantDefinition
@@ -86,12 +86,12 @@ instance inv_persistent (N : Namespace) (P : IProp GF) : Persistent (inv N P) :=
   simp only [inv]
   infer_instance
 
-instance own_inv_persistent (N : Namespace) (P : IProp GF) : Persistent (own_inv N P) := by
-  simp only [own_inv]
+instance own_inv_persistent (N : Namespace) (P : IProp GF) : Persistent (ownInv N P) := by
+  simp only [ownInv]
   infer_instance
 
 @[lantana_alias except_0_inv]
-theorem except_0_inv (N : Namespace) (P : IProp GF) : ⊢ ◇ inv N P -∗ inv N P := by
+theorem except0_inv (N : Namespace) (P : IProp GF) : ⊢ ◇ inv N P -∗ inv N P := by
   simp only [inv]
   iintro #H
   imodintro
@@ -101,8 +101,8 @@ theorem except_0_inv (N : Namespace) (P : IProp GF) : ⊢ ◇ inv N P -∗ inv N
   itrivial
 
 @[lantana_alias is_except_0_inv]
-instance is_except_0_inv (N : Namespace) (P : IProp GF) : IsExcept0 (inv N P) where
-  is_except0 := by iintro H; iapply except_0_inv $$ H
+instance isExcept0_inv (N : Namespace) (P : IProp GF) : IsExcept0 (inv N P) where
+  is_except0 := by iintro H; iapply except0_inv $$ H
 
 @[lantana_alias into_inv_inv]
 instance intoInv_inv (N : Namespace) (P : IProp GF) : IntoInv (inv N P) N := {}
@@ -135,8 +135,8 @@ variable {GF : BundledGFunctors.{u}} [InvGS GF]
 
 @[lantana_alias own_inv_acc]
 theorem own_inv_acc (E : CoPset) (N : Namespace) (P : IProp GF) (Hsub : ↑N ⊆ E) :
-    ⊢ own_inv N P ={E, E \ ↑N}=∗ ▷ P ∗ (▷ P ={E \ ↑N, E}=∗ True) := by
-  simp only [own_inv, fupd, uPred_fupd]
+    ⊢ ownInv N P ={E, E \ ↑N}=∗ ▷ P ∗ (▷ P ={E \ ↑N, E}=∗ True) := by
+  simp only [ownInv, fupd, uPredFUpd]
   iintro ⟨%i, %Hin, #Hown⟩ ⟨Hwsat, HE⟩
   have Hsub' : ({i} : CoPset) ⊆ ↑N := by
     intro x; simp only [mem_singleton]
@@ -172,8 +172,8 @@ theorem fresh_inv_name (E : PosSet) (N : Namespace) : ∃ i, i ∉ E ∧ i ∈ (
 
 @[lantana_alias own_inv_alloc]
 theorem own_inv_alloc (N : Namespace) (E : CoPset) (P : IProp GF) :
-  ⊢ ▷ P ={E}=∗ own_inv N P := by
-  simp only [own_inv, fupd, uPred_fupd]
+  ⊢ ▷ P ={E}=∗ ownInv N P := by
+  simp only [ownInv, fupd, uPredFUpd]
   iintro HP ⟨Hw, HE⟩
   imod ownI_alloc (· ∈ (↑N : CoPset)) P $$ [HP Hw] with ⟨%i, %Hin, Hw, HI⟩
   · intro E; apply fresh_name
@@ -183,8 +183,8 @@ theorem own_inv_alloc (N : Namespace) (E : CoPset) (P : IProp GF) :
 
 @[lantana_alias own_inv_alloc_open]
 theorem own_inv_alloc_open (N : Namespace) (E : CoPset) (P : IProp GF) (Hsub : ↑N ⊆ E) :
-    ⊢ |={E, E \ ↑N}=> own_inv N P ∗ (▷P ={E \ ↑N, E}=∗ True) := by
-  simp only [own_inv, fupd, uPred_fupd]
+    ⊢ |={E, E \ ↑N}=> ownInv N P ∗ (▷P ={E \ ↑N, E}=∗ True) := by
+  simp only [ownInv, fupd, uPredFUpd]
   iintro ⟨Hw, HE⟩
   imod ownI_alloc_open $$ Hw with ⟨%i, %Hin, Hcont, #HI, HD⟩
   · intro _; apply fresh_name
@@ -233,7 +233,7 @@ theorem own_inv_alloc_open (N : Namespace) (E : CoPset) (P : IProp GF) (Hsub : �
 
 @[lantana_alias own_inv_to_inv]
 theorem own_inv_to_inv (M : Namespace) (P : IProp GF) :
-    ⊢ own_inv M P -∗ inv M P := by
+    ⊢ ownInv M P -∗ inv M P := by
   simp only [inv]
   iintro #I
   imodintro
@@ -417,7 +417,7 @@ theorem inv_combine [SIdxFinite SI] (N1 N2 N : Namespace) (P Q : IProp GF) (Hdis
   iassumption
 
 @[lantana_alias inv_combine_dup_l]
-theorem inv_combine_dup_l [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
+theorem inv_combine_dup_left [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
     ⊢ □ (P -∗ (P ∗ P)) -∗ inv N P -∗ inv N Q -∗ inv N iprop(P ∗ Q) := by
   simp only [inv]
   iintro #HPP #HI1 #HI2
@@ -441,7 +441,7 @@ section Splitting
 variable {GF : BundledGFunctors.{u}} [InvGS GF]
 
 @[lantana_alias inv_split_l]
-theorem inv_split_l [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
+theorem inv_split_left [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
     ⊢ inv N iprop(P ∗ Q) -∗ inv N P := by
   iintro H
   iapply inv_alter $$ H
@@ -452,7 +452,7 @@ theorem inv_split_l [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
   isplitl [HP] <;> iassumption
 
 @[lantana_alias inv_split_r]
-theorem inv_split_r [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
+theorem inv_split_right [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
     ⊢ inv N iprop(P ∗ Q) -∗ inv N Q := by
   iintro H
   iapply inv_alter $$ H
@@ -466,12 +466,12 @@ theorem inv_split_r [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
 theorem inv_split [SIdxFinite SI] (N : Namespace) (P Q : IProp GF) :
     ⊢ inv N iprop(P ∗ Q) -∗ inv N P ∗ inv N Q := by
   iintro #H
-  ihave H1 := inv_split_l $$ H
-  ihave H2 := inv_split_r $$ H
+  ihave H1 := inv_split_left $$ H
+  ihave H2 := inv_split_right $$ H
   isplit <;> iassumption
 
 @[lantana_alias inv_split_l_timeless]
-theorem inv_split_l_timeless (N : Namespace) (P Q : IProp GF) [Timeless P] [Timeless Q] :
+theorem inv_split_left_timeless (N : Namespace) (P Q : IProp GF) [Timeless P] [Timeless Q] :
     ⊢ inv N iprop(P ∗ Q) -∗ inv N P := by
   iintro #H
   iapply inv_alter_timeless N iprop(P ∗ Q) P $$ H
@@ -483,7 +483,7 @@ theorem inv_split_l_timeless (N : Namespace) (P Q : IProp GF) [Timeless P] [Time
   isplitl [HP] <;> iassumption
 
 @[lantana_alias inv_split_r_timeless]
-theorem inv_split_r_timeless (N : Namespace) (P Q : IProp GF) [Timeless P] [Timeless Q] :
+theorem inv_split_right_timeless (N : Namespace) (P Q : IProp GF) [Timeless P] [Timeless Q] :
     ⊢ inv N iprop(P ∗ Q) -∗ inv N Q := by
   iintro #H
   iapply inv_alter_timeless N iprop(P ∗ Q) Q $$ H
@@ -498,8 +498,8 @@ theorem inv_split_r_timeless (N : Namespace) (P Q : IProp GF) [Timeless P] [Time
 theorem inv_split_timeless (N : Namespace) (P Q : IProp GF) [Timeless P] [Timeless Q] :
     ⊢ inv N iprop(P ∗ Q) -∗ inv N P ∗ inv N Q := by
   iintro #H
-  ihave H1 := inv_split_l_timeless N P Q $$ H
-  ihave H2 := inv_split_r_timeless N P Q $$ H
+  ihave H1 := inv_split_left_timeless N P Q $$ H
+  ihave H2 := inv_split_right_timeless N P Q $$ H
   isplit <;> iassumption
 
 end Splitting

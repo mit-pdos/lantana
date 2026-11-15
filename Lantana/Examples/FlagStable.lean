@@ -10,7 +10,7 @@ public import Lantana.Examples.Flag
 
 Rocq `examples/flag_stable.v`: the flag of `Lantana.Examples.Flag`, with the set flag an
 invariant of its own. The until of the invariant `flagInv l k` has the right formula
-`alwaysI Nv (l ↦ 1)`, which `set` allocates after its store, so the guarantee describes the
+`alwaysI valueN (l ↦ 1)`, which `set` allocates after its store, so the guarantee describes the
 history and not only each state: once the flag is `1`, it stays `1` (`flagTrSpec_stays`), and
 the run `Flag.flagRun` (`0, 1, 0, 1, 1, …`), which satisfies the guarantee of `Flag`, violates
 this one (`flagRun_violates_guarantee`).
@@ -30,11 +30,11 @@ own proofs are M4–M6).
 namespace Lantana.Examples.FlagStable
 
 open Iris Iris.BI Lantana Lantana.HeapLang Lantana.Language
-open Lantana.Examples.Flag (init set wait v0 v1 N Na Np pointsToSpec pointsToTr flagRun)
+open Lantana.Examples.Flag (init set wait v0 v1 flagN alwaysN pointsToN pointsToSpec pointsToTr flagRun)
 open scoped Lantana.TrSpec Lantana.TrProp Lantana.Measure Ordinals.Ordinal
 
 /-- The namespace of the invariant of the set flag. -/
-def Nv : Namespace := N.@"value"
+def valueN : Namespace := flagN.@"value"
 
 /-! ## The invariant -/
 
@@ -45,18 +45,18 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 and the flag is `1` forever. -/
 @[lantana_alias flag_stable.flag_inv]
 def flagInv (l : Loc) (k : Oid) : IProp GF :=
-  iprop(untilI Np k (1 : Qp).half iprop(l ↦ some v0) (alwaysI Nv iprop(l ↦ some v1)) ∨
-    (Obl.discharged k ∗ alwaysI Nv iprop(l ↦ some v1)))
+  iprop(untilI pointsToN k (1 : Qp).half iprop(l ↦ some v0) (alwaysI valueN iprop(l ↦ some v1)) ∨
+    (Obl.discharged k ∗ alwaysI valueN iprop(l ↦ some v1)))
 
 /-- The flag `l` on the obligation `k` with witness layer `ℓ` (persistent). -/
 @[lantana_alias flag_stable.is_flag]
 def isFlag (l : Loc) (k : Oid) (ℓ : Layer) : IProp GF :=
-  iprop(Wit.layer k ℓ ∗ alwaysI Na (flagInv l k))
+  iprop(Wit.layer k ℓ ∗ alwaysI alwaysN (flagInv l k))
 
 /-- The setter's token: the other half of the until. -/
 @[lantana_alias flag_stable.flag_tk]
 def flagTk (l : Loc) (k : Oid) : IProp GF :=
-  untilI Np k (1 : Qp).half iprop(l ↦ some v0) (alwaysI Nv iprop(l ↦ some v1))
+  untilI pointsToN k (1 : Qp).half iprop(l ↦ some v0) (alwaysI valueN iprop(l ↦ some v1))
 
 @[lantana_alias flag_stable.is_flag_persistent]
 instance isFlag_persistent (l : Loc) (k : Oid) (ℓ : Layer) :
@@ -122,17 +122,17 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
 @[lantana_alias flag_stable.is_flag_init]
 theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K B : Oids) (ℓ : Layer)
     (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗ Par.bill p B -∗
+    Par.le (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗ Par.bill p B -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
         oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := by
   iintro #Hle Ptr Kp HB
   imod untilI_alloc (E := E) p K B ℓ μ $$ Hle Kp HB with ⟨%k, %hk, Kp, HB, Kk, Fk, #Wk, H⟩
-  imod H $$ %E %Np %iprop(l ↦ some v0) %(alwaysI Nv iprop(l ↦ some v1)) [Ptr] with H
+  imod H $$ %E %pointsToN %iprop(l ↦ some v0) %(alwaysI valueN iprop(l ↦ some v1)) [Ptr] with H
   · inext
     iexact Ptr
   icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half)
     (Qp.half_add_half 1).symm $$ H with ⟨H1, H2⟩
-  imod alwaysI_alloc (E := E) (N := Na) (P := flagInv l k) $$ [H1] with #HA
+  imod alwaysI_alloc (E := E) (N := alwaysN) (P := flagInv l k) $$ [H1] with #HA
   · inext
     unfold flagInv
     ileft
@@ -161,7 +161,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent)
     (K B : Oids) (ℓ : Layer) (m : Measure) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thCarriers i G ∗
-          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ parLe p ℓ ∗ Par.kids p K ∗ Par.bill p B }}}
+          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ Par.le p ℓ ∗ Par.kids p K ∗ Par.bill p B }}}
         hl(v(&init) #()) @ i
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
         thCarriers i G ∗ ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
@@ -209,7 +209,7 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
   icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
-  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨Hinv, Hclose⟩
@@ -221,7 +221,7 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
   · iexfalso
     iapply untilI_discharged_false $$ HU Hd
   ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
-  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Flag.Np_subseteq $$ HU
+  ihave HU := untilI_discharge (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subseteq $$ HU
   ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
   imod HU
   iapply lwp_credit_later $$ Hc2
@@ -233,7 +233,7 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
   iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
   rw [show (hl_val(#1) : Val) = v1 from rfl]
   -- The set flag becomes an invariant: the right formula of the until.
-  imod alwaysI_alloc (N := Nv) (P := iprop(l ↦ some v1)) $$ [Hl] with #Av
+  imod alwaysI_alloc (N := valueN) (P := iprop(l ↦ some v1)) $$ [Hl] with #Av
   · inext
     iexact Hl
   imod Hdis $$ %p %K %hk HK Hkk Av %_ with H
@@ -275,7 +275,7 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
   rw [show (hl_val(#0) : Val) = v0 from rfl]
   imod isFlag_init ⊤ x (.thread i) G G ℓ m $$ [] Hx HK HG with
     ⟨%k, %hk, HK, HG, Hkk, Hf, Htk, #Hflag⟩
-  · iapply parLe_thread
+  · iapply Par.le_thread
   imodintro
   iapply HΦ $$ %x %k
   iframe
@@ -303,7 +303,7 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
   icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
-  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨Hinv, Hclose⟩
@@ -315,7 +315,7 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   · iexfalso
     iapply untilI_discharged_false $$ HU Hd
   ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
-  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Flag.Np_subseteq $$ HU
+  ihave HU := untilI_discharge (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subseteq $$ HU
   ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
   imod HU
   iapply lwp_credit_later $$ Hc2
@@ -327,7 +327,7 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   iintro ⟨HT, ⟨-, HG, -⟩, Hl⟩
   rw [show (hl_val(#1) : Val) = v1 from rfl]
   -- The set flag becomes an invariant: the right formula of the until.
-  imod alwaysI_alloc (N := Nv) (P := iprop(l ↦ some v1)) $$ [Hl] with #Av
+  imod alwaysI_alloc (N := valueN) (P := iprop(l ↦ some v1)) $$ [Hl] with #Av
   · inext
     iexact Hl
   imod Hdis $$ %(.thread i) %G %hk HK Hkk Av %_ with H
@@ -375,7 +375,7 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
       lwp_expr_simp
       lwp_bind hl(!#l) HT
-      ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+      ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := flagInv l k)
         (fun _ _ => CoPset.mem_full) $$ HA
       ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
       imod Hacc with ⟨Hinv, Hclose⟩
@@ -383,7 +383,7 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       inext
       unfold flagInv
       icases Hinv with (Hinv | ⟨#Hd, #Av⟩)
-      · ihave Hu := untilI_acc (E := ⊤ \ ↑Na) Flag.Np_subseteq $$ Hinv
+      · ihave Hu := untilI_acc (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subseteq $$ Hinv
         ihave Hu := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hu
         imod Hu
         iapply lwp_credit_later $$ Hc2
@@ -420,8 +420,8 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         imod IH $$ Hwc with ⟨HF, HP⟩
         iapply HP $$ HT HG HΦ HF
       · -- The set flag is read from its own invariant.
-        ihave Hvacc := alwaysI_acc (E := ⊤ \ ↑Na) (N := Nv) (P := iprop(l ↦ some v1))
-          (Flag.ndot_subseteq_diff N (by decide)) $$ Av
+        ihave Hvacc := alwaysI_acc (E := ⊤ \ ↑alwaysN) (N := valueN) (P := iprop(l ↦ some v1))
+          (Flag.ndot_subseteq_diff flagN (by decide)) $$ Av
         ihave Hvacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hvacc
         imod Hvacc with ⟨Hl, Hvclose⟩
         iapply lwp_credit_later $$ Hc2
@@ -472,7 +472,7 @@ def isFlagTr (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ ((pointsToTr l v0 Uₜ □ₜ pointsToTr l v1) ∨ₜ □ₜ pointsToTr l v1)
 
 @[lantana_alias flag_stable.flag_trSpec_impl]
-theorem flagTrSpec_impl (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l :=
+theorem flagTrSpec_external_subset (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l :=
   fun _ ⟨_, h⟩ m hm => (h m hm).imp id And.right
 
 /-- Once the flag is `1`, it stays `1`. -/
@@ -494,7 +494,7 @@ theorem isFlagTr_stays (l : Loc) : isFlagTr l ⊆ flagStaysTr l := by
 /-- Unlike in `Flag`, the guarantee says that once the flag is `1`, it stays `1`. -/
 @[lantana_alias flag_stable.flag_trSpec_stays]
 theorem flagTrSpec_stays (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ flagStaysTr l :=
-  TrProp.le_trans (flagTrSpec_impl l) (isFlagTr_stays l)
+  TrProp.le_trans (flagTrSpec_external_subset l) (isFlagTr_stays l)
 
 #lantana_ignore flag_stable.Flag.init "Rocq redefines the code identically: `Flag.init`."
 #lantana_ignore flag_stable.Flag.set "`Flag.set`."

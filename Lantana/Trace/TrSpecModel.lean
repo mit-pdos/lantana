@@ -13,7 +13,7 @@ Rocq `lantana/trace/trspec_model.v`: under the ghost-state assumptions of the ad
 (`TemporalGpreS`), what is valid in the logic holds on the trace (`TrSpec.valid_ext`). Hence
 in-logic entailment `⊑ₛ` is sound for the trace readings of complete specifications
 (`TrSpec.le_sound`) and not complete for them (`TrSpec.always_elim_not_le`), and a guarded
-fixpoint body has no fold (`TrSpec.mu_unfold_r_guarded`).
+fixpoint body has no fold (`TrSpec.mu_unfold_right_guarded`).
 
 **The instances.** Rocq allocates the ghost state under the satisfiability of `|==>` and
 extracts the instances with the existential property. Here the instance records
@@ -112,7 +112,7 @@ theorem guarded_prefix_ext [TemporalGpreS Expr State GF] (M : TrSpec Expr State 
 /-- The guarded body has no fold: on traces its least fixpoint is `⊤ U ⊥`, which is empty,
 whereas a fold would make it a pre-fixpoint, true on every trace. -/
 @[lantana_alias trSpec_mu_unfold_r_guarded]
-theorem mu_unfold_r_guarded [TemporalGpreS Expr State GF] (τ : Trace (Cfg Expr State)) :
+theorem mu_unfold_right_guarded [TemporalGpreS Expr State GF] (τ : Trace (Cfg Expr State)) :
     ¬ (untilBody TrSpec.true ⌜False⌝ₛ (mu (untilBody TrSpec.true ⌜False⌝ₛ)) ⊑ₛ
       mu (untilBody (TrSpec.true : TrSpec Expr State GF) ⌜False⌝ₛ)) := by
   intro hfold

@@ -180,7 +180,7 @@ theorem threadExpr_read (σ : State) (tp : ThreadPool Exp) (i : ThreadId) (C : L
 
 @[lantana_alias pointsto_state_interp]
 theorem pointsTo_stateInterp (σ : State) (tp : ThreadPool Exp) (l : Loc) (dq : DFrac) (v : Val) :
-    stateInterp (GF := GF) σ tp ∗ l ↦{dq} some v ⊢ ⌜pointstoSat l dq v σ tp⌝ := by
+    stateInterp (GF := GF) σ tp ∗ l ↦{dq} some v ⊢ ⌜PointstoSat l dq v σ tp⌝ := by
   unfold stateInterp genHeapInterp pointsTo
   iintro ⟨⟨⟨%m, -, Hh, -⟩, -⟩, Hl⟩
   ihave %h := ghost_map_lookup $$ Hh Hl
@@ -190,7 +190,7 @@ theorem pointsTo_stateInterp (σ : State) (tp : ThreadPool Exp) (l : Loc) (dq : 
 @[lantana_alias thread_expr_state_interp]
 theorem threadExpr_stateInterp (σ : State) (tp : ThreadPool Exp) (i : ThreadId)
     (C : List ECtxItem) (e : Exp) :
-    stateInterp (GF := GF) σ tp ∗ threadExpr i C e ⊢ ⌜threadExprSat i C e σ tp⌝ := by
+    stateInterp (GF := GF) σ tp ∗ threadExpr i C e ⊢ ⌜ThreadExprSat i C e σ tp⌝ := by
   iintro ⟨Hσ, Hf⟩
   ihave %h := threadExpr_read σ tp i C e $$ Hσ Hf
   ipureintro
@@ -249,7 +249,7 @@ theorem keepsCrashed (i : ThreadId) (e : Exp) : KeepsCrashed (Ectx := List ECtxI
   KeepsCrashed.of_never not_crashed i e
 
 /-- Crashing is permanent in HeapLang. -/
-theorem staysCrashed (i : ThreadId) (ρ₁ ρ₂ : Cfg Exp State) : Cfg.staysCrashed i ρ₁ ρ₂ :=
+theorem staysCrashed (i : ThreadId) (ρ₁ ρ₂ : Cfg Exp State) : Cfg.StaysCrashed i ρ₁ ρ₂ :=
   Cfg.staysCrashed_of_never not_crashed i ρ₁ ρ₂
 
 /-! ## The primitive laws -/
@@ -265,11 +265,11 @@ variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem} {G R : 
 /-- What a step takes: the bill of the thread with one unit of fuel for each of its obligations,
 and witnesses. -/
 abbrev stepPre (i : ThreadId) (G R : Oids) : IProp GF :=
-  iprop(thCarriers i G ∗ oblFuels G 1 ∗ witLayers R)
+  iprop(thCarriers i G ∗ oblFuels G 1 ∗ Wit.layers R)
 
 /-- What a step gives back: later credits, the bill, the witnesses' credits. -/
 abbrev stepPost (i : ThreadId) (G R : Oids) (o : Fuel) : IProp GF :=
-  iprop(£ₒ o ∗ thCarriers i G ∗ witCreds R)
+  iprop(£ₒ o ∗ thCarriers i G ∗ Wit.creds R)
 
 /-- A step of the redex `e₁` that forks no thread and ends in a value, given its effect `hstep` on
 the heap and the resources `H`. -/
@@ -305,8 +305,8 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
   · iframe
   imodintro
   iintro HG HW
-  iapply (ALC_credits o).mpr
-  iapply ALC_intro
+  iapply (alc_credits o).mpr
+  iapply alc_intro
   iintro Ho
   imodintro
   isplitr
@@ -336,8 +336,8 @@ omit [HeapGS GF] [TemporalInterp Exp State GF] in
 /-- The credits of `m + 1` steps give those of one step. -/
 theorem witCreds_of_nat (R : Oids) (m : Nat) :
     ([∗set] r ∈ R, Wit.cred (GF := GF) r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) ⊢
-      witCreds R := by
-  unfold witCreds
+      Wit.creds R := by
+  unfold Wit.creds
   refine BigSepS.bigSepS_mono fun _ => ?_
   iintro (H | #H)
   · ileft
@@ -350,8 +350,8 @@ theorem witCreds_of_nat (R : Oids) (m : Nat) :
 @[lantana_alias heap_lang.lwp_pure_step]
 theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IProp GF)
     [Language.PureExec φ n e₁ e₂] (hφ : φ) (hn : 0 < n) :
-    threadExpr i C e₁ ∗ thCarriers i G ∗ oblFuels G n ∗ witLayers R ∗
-      (threadExpr i C e₂ -∗ thCarriers i G -∗ witCreds R -∗ £ₒ o -∗
+    threadExpr i C e₁ ∗ thCarriers i G ∗ oblFuels G n ∗ Wit.layers R ∗
+      (threadExpr i C e₂ -∗ thCarriers i G -∗ Wit.creds R -∗ £ₒ o -∗
         |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
@@ -391,7 +391,7 @@ children and its bill; the parent keeps `G \ K` as its children and its bill. -/
 theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
     (∀ j : ThreadId, l{{{ threadExpr j [] e ∗ thActive j ∗ thKids j K ∗ thCarriers j K ∗ P }}}
         e @ s; j; ⊤
-        l{{{ v, RET v; liftTerm j (fun _ _ => iprop(True)) v }}})
+        l{{{ v, RET v; lwp.liftTerm j (fun _ _ => iprop(True)) v }}})
       ⊢@{IProp GF} l{{{ threadExpr i C (.fork e) ∗ stepPre i G R ∗ thKids i G ∗
             oblFuels K 1 ∗ P }}}
           (Exp.fork e) @ s; i; E
@@ -420,8 +420,8 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
   imod threadMapAuth_fork _ e $$ Ha with ⟨Ha, Hj⟩
   imodintro
   iintro HB HW Hforks
-  iapply (ALC_credits o).mpr
-  iapply ALC_intro
+  iapply (alc_credits o).mpr
+  iapply alc_intro
   iintro Ho
   imodintro
   isplitl [Hh Ha]
@@ -430,7 +430,7 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
   simp only [List.length_set, List.length_singleton, List.range_one]
   icases BigSepL.bigSepL_singleton.mp $$ Hforks with ⟨Haj, Hkj, Hbj⟩
   unfold oblFuels
-  imod obl_move_thread_set E (.thread i) tp.length G ∅ ∅ K hK $$ HG Hkj Hbj HK
+  imod Obl.move_thread_set E (.thread i) tp.length G ∅ ∅ K hK $$ HG Hkj Hbj HK
     with ⟨-, HG, Hkj, Hbj⟩
   imod Th.carriers_resync E i G (G \ K) $$ HB HG with ⟨HB, HG⟩
   imodintro
@@ -507,7 +507,7 @@ theorem lwp_alloc (v : Val) :
     next l _ hfresh =>
     have hl : σ₁.get? l = none := by
       have := hfresh 0 (by omega) (by omega)
-      rwa [loc_add_zero] at this
+      rwa [Loc.add_zero] at this
     imod genHeap_alloc (v := some v) hl $$ Hh with ⟨Hh, Hl, -⟩
     imodintro
     isplitr

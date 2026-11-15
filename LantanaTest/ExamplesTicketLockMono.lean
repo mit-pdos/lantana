@@ -20,7 +20,7 @@ open scoped Lantana.TrProp Lantana.TrSpec
 noncomputable section
 
 /-- The contractivity of a ghost variable's functor, as `GhostVarG` expects it. -/
-abbrev ghostVarF_contractive (A : Type) : RFunctorContractive (GhostVarF A) :=
+abbrev ghostVarFContractive (A : Type) : RFunctorContractive (GhostVarF A) :=
   @instRFunctorContractiveProdOF _ _ OFunctor.constOF_RFunctorContractive
     instRFunctorContractiveAgreeRFOfOFunctorContractive
 
@@ -32,10 +32,10 @@ noncomputable def TLMGF : BundledGFunctors.{0} := fun n =>
   | 1 => { F := ULiftOF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TMap))
            contractive := @ULiftOF.instRFunctorContractive _ OFunctor.constOF_RFunctorContractive }
   | 2 => { F := ULiftOF (GhostVarF Int)
-           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarF_contractive Int) }
+           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarFContractive Int) }
   | 3 => ⟨ULiftOF.{4} (constOFP (AuthMra (α := Layer) (· ≤ ·)))⟩
   | 4 => { F := ULiftOF (GhostVarF Unit)
-           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarF_contractive Unit) }
+           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarFContractive Unit) }
   | 5 => ⟨ULiftOF MonoNatRF⟩
   | _ => ⟨constOFU Unit⟩
 
@@ -45,11 +45,11 @@ noncomputable instance : TicketLockMonoG TLMGF where
   oblG := ⟨@ElemG.ofEqLift TLMGF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TMap))
     OFunctor.constOF_RFunctorContractive _ 1 (by unfold TLMGF; rfl)⟩
   tokenG := { elemG :=
-    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarF_contractive Int) _ 2 (by unfold TLMGF; rfl) }
+    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarFContractive Int) _ 2 (by unfold TLMGF; rfl) }
   configG := (ElemG.ofEq 3 (by unfold TLMGF; rfl) : ElemG TLMGF (ULiftOF.{4}
     (constOFP (AuthMra (α := Layer) (· ≤ ·))))).ofLift
   aliveG := { elemG :=
-    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarF_contractive Unit) _ 4 (by unfold TLMGF; rfl) }
+    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarFContractive Unit) _ 4 (by unfold TLMGF; rfl) }
   monoG := ⟨{ elem := ElemG.ofEqLift 5 (by unfold TLMGF; rfl), name := 0 }⟩
 
 /-- The ghost names extend those of `TicketLock`, whose ghost state is reused through the

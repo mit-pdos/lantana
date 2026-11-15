@@ -11,9 +11,9 @@ public import Lantana.Trace.TemporalFormula
 
 Rocq `examples/extended_int.v` (module `Int`): the integers extended with `-∞` and `+∞`, their
 representation as HeapLang values (a tag `0`, `1`, `2` paired with `()` or the integer), the
-strict order `ltRel`, and the program `lt` that compares two representations, with its
+strict order `LtRel`, and the program `lt` that compares two representations, with its
 specification `lwp_lt`: from `100` units of fuel of the bill of the calling thread (as in
-Rocq; the comparison takes at most `18` pure steps), `lt` returns whether `ltRel` holds.
+Rocq; the comparison takes at most `18` pure steps), `lt` returns whether `LtRel` holds.
 
 The type is `ExtInt` (Rocq `Int.t`; `Int` is Lean's), with the coercion from `Int` and the
 scoped notations `-∞`, `+∞`. The proof goes by cases on the two arguments, with the result
@@ -60,7 +60,7 @@ def intoVal : ExtInt → Val
 
 /-- The strict order. -/
 @[lantana_alias Int.lt_rel]
-def ltRel : ExtInt → ExtInt → Prop
+def LtRel : ExtInt → ExtInt → Prop
   | negInf, negInf => False
   | negInf, _ => True
   | fin _, negInf => False
@@ -69,7 +69,7 @@ def ltRel : ExtInt → ExtInt → Prop
   | posInf, _ => False
 
 @[lantana_alias Int.lt_rel_dec]
-instance ltRel_dec : (x y : ExtInt) → Decidable (ltRel x y)
+instance ltRel_dec : (x y : ExtInt) → Decidable (LtRel x y)
   | negInf, negInf => inferInstanceAs (Decidable False)
   | negInf, fin _ => inferInstanceAs (Decidable True)
   | negInf, posInf => inferInstanceAs (Decidable True)
@@ -90,7 +90,7 @@ def ltb : ExtInt → ExtInt → Bool
   | posInf, fin _ => false
   | posInf, posInf => false
 
-theorem decide_ltRel (x y : ExtInt) : decide (ltRel x y) = ltb x y := by
+theorem decide_ltRel (x y : ExtInt) : decide (LtRel x y) = ltb x y := by
   cases x <;> cases y <;> rfl
 
 end ExtInt
@@ -116,13 +116,13 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 #lantana_ignore Int.post_wp "A tactic; `lwp_step` closes each pure step."
 #lantana_ignore Int.lwp_pures "A tactic; `HeapLang.lwp_pures`."
 
-/-- `lt` returns whether `ltRel` holds. -/
+/-- `lt` returns whether `LtRel` holds. -/
 @[lantana_alias Int.lwp_lt]
 theorem lwp_lt : ∃ μ : Measure, ∀ (x y : ExtInt) (i : ThreadId) (G : Oids) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&lt) v(&(intoVal x)) v(&(intoVal y))) ∗ thCarriers i G ∗
           oblFuels G μ }}}
         hl(v(&lt) v(&(intoVal x)) v(&(intoVal y))) @ i
-      l{{{ RET hl_val(#(decide (ltRel x y))); threadExpr i C hl(#(decide (ltRel x y))) ∗
+      l{{{ RET hl_val(#(decide (LtRel x y))); threadExpr i C hl(#(decide (LtRel x y))) ∗
         thCarriers i G }}} := by
   refine ⟨100, fun x y i G C => ?_⟩
   rw [decide_ltRel]

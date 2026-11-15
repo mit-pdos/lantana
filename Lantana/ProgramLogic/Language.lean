@@ -10,7 +10,7 @@ public import Lantana.Init
 /-! # Lantana's additions to Iris-Lean's language interface
 
 Lantana's languages are Iris-Lean's.  This module adds the class `Crash` of the crashed threads of
-a language, `Stuckness.maybeReducible`, the evaluation-context instances `Language.Context.comp`,
+a language, `Stuckness.MaybeReducible`, the evaluation-context instances `Language.Context.comp`,
 `fillEmpty` and `fillComp`, and `EctxItemLanguage.fill_ctx_step_inj`.
 See `docs/program-logic.md`, §1.
 -/
@@ -158,14 +158,15 @@ class Crash (Expr State : Type) (Obs Val : outParam Type) [Language Expr State O
 section Stuckness
 variable [Language Expr State Obs Val]
 
-/-- The reducibility that a stuckness requires. -/
-def _root_.Iris.Stuckness.maybeReducible : Iris.Stuckness → Expr → State → Prop
-  | .NotStuck, e, σ => PrimStep.Reducible (e, σ)
-  | .MaybeStuck, _, _ => True
+/-- The reducibility that a stuckness requires: Iris-Lean's `Stuckness.MaybeReducible`
+(`Iris.ProgramLogic.WeakestPre`, which Lantana does not import), with the same signature. -/
+def _root_.Iris.Stuckness.MaybeReducible : Iris.Stuckness → Expr × State → Prop
+  | .NotStuck, ρ => PrimStep.Reducible ρ
+  | .MaybeStuck, _ => True
 
 theorem _root_.Iris.Stuckness.maybeReducible_mono {s₁ s₂ : Iris.Stuckness} (hs : s₁ ≤ s₂)
-    {e : Expr} {σ : State} (h : s₁.maybeReducible e σ) : s₂.maybeReducible e σ := by
-  cases s₁ <;> cases s₂ <;> simp_all [Iris.Stuckness.maybeReducible, LE.le]
+    {ρ : Expr × State} (h : s₁.MaybeReducible ρ) : s₂.MaybeReducible ρ := by
+  cases s₁ <;> cases s₂ <;> simp_all [Iris.Stuckness.MaybeReducible, LE.le]
 
 end Stuckness
 

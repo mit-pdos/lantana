@@ -110,12 +110,12 @@ section Layers
 
 variable [OSatGS GF] [OWitGS GF]
 
-/-- A new obligation at layer `ℓ` may be created below `p` (the interface's `parLe`). -/
+/-- A new obligation at layer `ℓ` may be created below `p` (the interface's `Par.le`). -/
 @[reducible] def parLe : Parent → Layer → IProp GF
   | .thread _, _ => iprop(True)
   | .obl q, ℓ => iprop(∃ ℓq : Layer, ⌜ℓq ≤ ℓ⌝ ∗ witLayer q ℓq)
 
-/-- One unit of fuel at layer `ℓ` is enough to hang below `p` (the interface's `parBelow`). -/
+/-- One unit of fuel at layer `ℓ` is enough to hang below `p` (the interface's `Par.below`). -/
 @[reducible] def parBelow : Parent → Layer → IProp GF
   | .thread _, _ => iprop(True)
   | .obl q, ℓ => iprop(∃ ℓq : Layer, ⌜ℓq < ℓ⌝ ∗ witLayer q ℓq)
@@ -232,7 +232,7 @@ theorem witLayer_elem [OWitGS GF] (k : Oid) (ℓ : Layer) :
   iexact He
 
 /-- The witnesses of `R` are obligations of the model. -/
-theorem osat_elems [OWitGS GF] (Ω : Obls) (R : Oids) :
+theorem osat_elems [OWitGS GF] (Ω : Obligations) (R : Oids) :
     osat Ω ∗ ([∗set] r ∈ R, ∃ ℓ, witLayer (GF := GF) r ℓ) ⊢
       ⌜∀ r, r ∈ R → (get? Ω r).isSome⌝ := by
   refine (BI.forall_intro fun r => ?_).trans BI.pure_forall.2
@@ -256,7 +256,7 @@ theorem oblFuel_pos (k : Oid) :
   exact Ordinal.lt_of_lt_of_le zero_lt_one (le_nadd_self _ _)
 
 /-- The fuel `π` of `k` is a piece below `p` if it is above the fuel of the parent. -/
-theorem fuel_forestPiece {Ω : Obls} {k : Oid} {p : Parent} {π : Fuel}
+theorem fuel_forestPiece {Ω : Obligations} {k : Oid} {p : Parent} {π : Fuel}
     (h : ∀ q, p = .obl q → Ω.fuelOf q < π) :
     OSat.fuel k π ⊢@{IProp GF} forestPiece Ω k p := by
   cases p with
@@ -283,29 +283,29 @@ variable [ModelGS GF]
 forest at any view. -/
 @[lantana_alias omodel.mupd_model_round]
 theorem mupd_model_round (n : Nat) (P : IProp GF) :
-    (∀ (Ω : Obls) (tc : Nat) (X : ThreadId → Prop), osat Ω ∗ oforest Ω tc X ==∗ ∃ Ω' : Obls,
-        ⌜Obls.ndf Ω Ω' ∧ ∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome⌝ ∗
+    (∀ (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop), osat Ω ∗ oforest Ω tc X ==∗ ∃ Ω' : Obligations,
+        ⌜Obligations.NoDischarge Ω Ω' ∧ ∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome⌝ ∗
         osat Ω' ∗ oforest Ω' tc X ∗ P) ⊢ mupd n P := by
   iintro H
-  iapply mupd_nd_step
+  iapply mupd_noDischarge_step
   iintro %h %i %Ω₁ %W₁ %tc %X HM
   unfold modelInterp
   icases HM with ⟨HH, Hs, Hf, Hw, %hI₁⟩
   imod H $$ %Ω₁ %tc %X [$Hs $Hf] with ⟨%Ω₂, %⟨hnd, hdom⟩, Hs, Hf, HP⟩
-  imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.lef.le $$ HH with HH
+  imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.stayOrStep.le $$ HH with HH
   imodintro
   iexists Ω₂
   isplitr
   · ipureintro
     exact hnd
   iintro %W₂ %⟨hW, hI₂⟩
-  have hmono : W₁.mono W₂ := hW.mono fun k hk =>
+  have hmono : W₁.Mono W₂ := hW.mono fun k hk =>
     (hI₁.dom k).1 ((hdom k).1 ((hI₂.dom k).2 hk))
   imodintro
   iframe HH Hs Hf
   isplitl [Hw]
   · isplitl [Hw]
-    · iapply owit_mon hmono $$ Hw
+    · iapply owit_mono hmono $$ Hw
     · ipureintro
       exact hI₂
   · iapply mupd_intro
@@ -314,7 +314,7 @@ theorem mupd_model_round (n : Nat) (P : IProp GF) :
 /-- A round that changes only ghost state, on the forest at any view. -/
 @[lantana_alias omodel.mupd_ghost_round]
 theorem mupd_ghost_round (n : Nat) (P : IProp GF) :
-    (∀ (Ω : Obls) (tc : Nat) (X : ThreadId → Prop),
+    (∀ (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop),
         osat Ω ∗ oforest Ω tc X ==∗ osat Ω ∗ oforest Ω tc X ∗ P) ⊢
       mupd n P := by
   iintro H
@@ -325,7 +325,7 @@ theorem mupd_ghost_round (n : Nat) (P : IProp GF) :
   iexists Ω
   iframe Hs Hf HP
   ipureintro
-  exact ⟨Obls.ndf_refl Ω, fun _ => Iff.rfl⟩
+  exact ⟨Obligations.noDischarge_refl Ω, fun _ => Iff.rfl⟩
 
 private theorem mupd_mono_of {n : Nat} {P Q : IProp GF} (h : P ⊢ Q) :
     mupd n P ⊢ mupd n Q := by
@@ -357,7 +357,7 @@ theorem thread_terminate_mupd (n : Nat) (i : ThreadId) :
 
 /-- The owner `t` of a new obligation below `p`, and a piece `ν` at layer `ℓ` above the fuel of
 `p` if it is an obligation. -/
-theorem parLe_owner (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (p : Parent) (K : Oids)
+theorem parLe_owner (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (p : Parent) (K : Oids)
     (ℓ : Layer) :
     oforest Ω tc X ∗ OForest.kids p K ∗ parLe p ℓ ⊢@{IProp GF}
       ⌜∃ (t : ThreadId) (ν : Measure), match p with
@@ -372,12 +372,12 @@ theorem parLe_owner (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (p : Parent) 
     iintro ⟨Hf, Hk, %ℓq, %hℓ, #Hw⟩
     icases witLayer_bound q ℓq $$ Hw with ⟨%μq, #Hb⟩
     icases oforest_obl_fuel_bound Ω tc q K _ $$ [$Hf $Hk $Hb] with %⟨hle, hlive⟩
-    obtain ⟨t, ht⟩ := Obls.ownerOf_of_live hlive
+    obtain ⟨t, ht⟩ := Obligations.ownerOf_of_live hlive
     ipureintro
     exact ⟨t, μq + 1, ht, Ordinal.lt_of_le_of_lt hle (Measure.layer_le_bound μq hℓ)⟩
 
 /-- The owner `j` of `p`; if `p` is an obligation, its fuel is below `▽` at layer `ℓ`. -/
-theorem parBelow_owner (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (p : Parent) (K : Oids)
+theorem parBelow_owner (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (p : Parent) (K : Oids)
     (ℓ : Layer) :
     oforest Ω tc X ∗ OForest.kids p K ∗ parBelow p ℓ ⊢@{IProp GF}
       ⌜∃ j : ThreadId, match p with
@@ -392,22 +392,22 @@ theorem parBelow_owner (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (p : Paren
     iintro ⟨Hf, Hk, %ℓq, %hℓ, #Hw⟩
     icases witLayer_bound q ℓq $$ Hw with ⟨%μq, #Hb⟩
     icases oforest_obl_fuel_bound Ω tc q K _ $$ [$Hf $Hk $Hb] with %⟨hle, hlive⟩
-    obtain ⟨t, ht⟩ := Obls.ownerOf_of_live hlive
+    obtain ⟨t, ht⟩ := Obligations.ownerOf_of_live hlive
     ipureintro
     exact ⟨t, ht, Ordinal.lt_of_le_of_lt hle (Measure.layer_dominates μq hℓ)⟩
 
 /-- The witness bound of a new obligation keeps the witnesses chosen by the environment below the
 old ones. -/
-private theorem wits_mono_new {Ω₁ : Obls} {W₁ W₂ : Witnesses} {k : Oid} {g : Obl}
-    (hI₁ : owitInvFair Ω₁ W₁) (hW : W₁.ndf W₂) (hI₂ : owitInvFair (insert Ω₁ k g) W₂) :
-    Witnesses.mono (insert W₁ k (match g with
+private theorem wits_mono_new {Ω₁ : Obligations} {W₁ W₂ : Witnesses} {k : Oid} {g : Obligation}
+    (hI₁ : OwitInvFair Ω₁ W₁) (hW : W₁.NoDischarge W₂) (hI₂ : OwitInvFair (insert Ω₁ k g) W₂) :
+    Witnesses.Mono (insert W₁ k (match g with
       | .assigned a _ => .assigned (fairMeasureUb a)
       | .discharged => .discharged)) W₂ :=
-  wits_ndf_insert_mono hI₁ hW hI₂ fun w₂ hw₂ => by
-    have hr := mapForall2.lookup hI₂ (get?_insert_eq rfl) hw₂
-    cases g <;> cases w₂ <;> simp_all [owitRel, Witness.ndLe]
+  Witnesses.noDischarge_insert_mono hI₁ hW hI₂ fun w₂ hw₂ => by
+    have hr := MapForall2.lookup hI₂ (get?_insert_eq rfl) hw₂
+    cases g <;> cases w₂ <;> simp_all [OwitRel, Witness.NoDischargeLe]
 
-private theorem get?_none_wits {Ω : Obls} {W : Witnesses} {k : Oid} (hI : owitInvFair Ω W)
+private theorem get?_none_wits {Ω : Obligations} {W : Witnesses} {k : Oid} (hI : OwitInvFair Ω W)
     (hk : get? Ω k = none) : get? W k = none := by
   have h := hI.dom k
   rw [hk] at h
@@ -424,12 +424,12 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
         witLayer k ℓ) := by
   unfold parKids
   iintro Hb ⟨Hx, Hk, Hs⟩ HB
-  iapply mupd_nd_step
+  iapply mupd_noDischarge_step
   iintro %h %i %Ω₁ %W₁ %tc %X HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   icases parLe_owner Ω₁ tc X p K ℓ $$ [$Hf $Hk $Hb] with %⟨t, ν, hpt⟩
-  have hk := Obls.get?_fresh Ω₁
+  have hk := Obligations.get?_fresh Ω₁
   have hkW := get?_none_wits hI₁ hk
   have hpiece : ∀ q, p = .obl q → Ω₁.fuelOf q < Measure.rep ℓ ν := by
     rintro q rfl
@@ -454,9 +454,9 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
     with ⟨Hf, %hkK, Hk, HB, Hkk⟩
   imod owit_alloc_witness_assigned hkW
     (fairMeasureUb (modelFuel ℓ μ +ₕ Measure.rep ℓ ▽ +ₕ Measure.rep ℓ ν)) $$ Hw with ⟨Hw, #Hwb⟩
-  have hnd := Obls.ndf_insert_fresh (.assigned
+  have hnd := Obligations.noDischarge_insert_fresh (.assigned
     (modelFuel ℓ μ +ₕ Measure.rep ℓ ▽ +ₕ Measure.rep ℓ ν) t) hk
-  imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.lef.le $$ HH with HH
+  imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.stayOrStep.le $$ HH with HH
   icases (oblAssigned_shares Ω₁.fresh).mp $$ [$He $Ha] with ⟨Ha, Hsh₁, Hsh₂⟩
   imodintro
   iexists _
@@ -468,7 +468,7 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
   iframe HH Hos Hf
   isplitl [Hw]
   · isplitl [Hw]
-    · iapply owit_mon (wits_mono_new hI₁ hW hI₂) $$ Hw
+    · iapply owit_mono (wits_mono_new hI₁ hW hI₂) $$ Hw
     · ipureintro
       exact hI₂
   iapply mupd_intro
@@ -509,18 +509,18 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
 @[lantana_alias omodel.obl_new_discharged_mupd]
 theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
     ⊢@{IProp GF} mupd n iprop(∃ k : Oid, oblDischarged k ∗ witLayer k ℓ) := by
-  iapply mupd_nd_step
+  iapply mupd_noDischarge_step
   iintro %h %i %Ω₁ %W₁ %tc %X HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
-  have hk := Obls.get?_fresh Ω₁
+  have hk := Obligations.get?_fresh Ω₁
   have hkW := get?_none_wits hI₁ hk
   imod osat_alloc_obl_discharged hk (Measure.rep ℓ 1) $$ Hos with ⟨Hos, #Hβ, #He, #Hd, -, -⟩
   imod owit_alloc_witness_discharged hkW (fairMeasureUb (Measure.rep ℓ 1)) $$ [$Hw $Hd]
     with ⟨Hw, #Hwb⟩
   ihave Hf := oforest_alloc_discharged hk $$ Hf
-  have hnd := Obls.ndf_insert_fresh .discharged hk
-  imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.lef.le $$ HH with HH
+  have hnd := Obligations.noDischarge_insert_fresh .discharged hk
+  imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.stayOrStep.le $$ HH with HH
   imodintro
   iexists _
   isplitr
@@ -531,7 +531,7 @@ theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
   iframe HH Hos Hf
   isplitl [Hw]
   · isplitl [Hw]
-    · iapply owit_mon (wits_mono_new hI₁ hW hI₂) $$ Hw
+    · iapply owit_mono (wits_mono_new hI₁ hW hI₂) $$ Hw
     · ipureintro
       exact hI₂
   iapply mupd_intro
@@ -551,20 +551,20 @@ theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
 
 /-- A move of the node `k` from `p₁` to `p₂` (`oforest_move_same` or `oforest_move_cross`), with
 the unit `u` that `k` burns if its owner changes and its new piece `π`. -/
-theorem oforest_move {Ω : Obls} {tc : Nat} {X : ThreadId → Prop} {p₁ p₂ : Parent}
+theorem oforest_move {Ω : Obligations} {tc : Nat} {X : ThreadId → Prop} {p₁ p₂ : Parent}
     {K₁ K₂ B₂ : Oids} {k : Oid} {j : ThreadId} {u π : Fuel} (hk : k ∈ K₁) (hu : 0 < u)
     (hp₂ : match p₂ with
       | .thread j' => j' = j
       | .obl q => Ω.ownerOf q = some j ∧ Ω.fuelOf q < π) :
     osat Ω ∗ oforest Ω tc X ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗
         OForest.parBill p₂ B₂ ∗ OSat.fuel k u ∗ OSat.fuel k π
-      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obls.ndf Ω Ω' ∧ (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
+      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obligations.NoDischarge Ω Ω' ∧ (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
         k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc X ∗ OForest.kids p₁ (K₁ \ {k}) ∗
         OForest.kids p₂ ({k} ∪ K₂) ∗ OForest.parBill p₂ ({k} ∪ B₂) := by
   iintro ⟨Hs, Hf, H₁, H₂, HB, Hu, Hπ⟩
   icases oforest_kids_live Ω tc p₁ K₁ $$ [$Hf $H₁] with %⟨hlive, -⟩
-  obtain ⟨t, ht⟩ := Obls.ownerOf_of_live (hlive k hk)
-  obtain ⟨a, ha⟩ := Obls.ownerOf_eq_some.1 ht
+  obtain ⟨t, ht⟩ := Obligations.ownerOf_of_live (hlive k hk)
+  obtain ⟨a, ha⟩ := Obligations.ownerOf_eq_some.1 ht
   have hpiece : ∀ q, p₂ = .obl q → Ω.fuelOf q < π := by
     rintro q rfl
     exact hp₂.2
@@ -572,7 +572,7 @@ theorem oforest_move {Ω : Obls} {tc : Nat} {X : ThreadId → Prop} {p₁ p₂ :
   · subst htj
     icases osat_fuel_le Ω k π $$ [$Hs $Hπ] with %hle
     have hπk : π ≤ Ω.fuelOf k := by
-      rw [Obls.fuelOf_eq ha]
+      rw [Obligations.fuelOf_eq ha]
       exact hle a t ha
     have hp₂' : match (generalizing := false) p₂ with
         | .thread j => Ω.ownerOf k = some j
@@ -586,7 +586,7 @@ theorem oforest_move {Ω : Obls} {tc : Nat} {X : ThreadId → Prop} {p₁ p₂ :
     iexists Ω
     iframe Hs Hf H₁ H₂ HB
     ipureintro
-    exact ⟨Obls.ndf_refl Ω, fun _ => Iff.rfl, hkK⟩
+    exact ⟨Obligations.noDischarge_refl Ω, fun _ => Iff.rfl, hkK⟩
   · have hp₂' : match (generalizing := false) p₂ with
         | .thread j' => j' = j
         | .obl q => Ω.ownerOf q = some j := by
@@ -713,7 +713,7 @@ theorem bill_erase_discharged_mupd (n : Nat) (i : ThreadId) (B : Oids) (k : Oid)
   iapply mupd_ghost_round
   iintro %Ω %tc %X ⟨Hos, Hf⟩
   icases osat_lookup_discharged Ω k $$ [$Hos $Hd] with %hk
-  have hlive : ¬Ω.live k := fun ⟨_, _, h⟩ => by
+  have hlive : ¬Ω.Live k := fun ⟨_, _, h⟩ => by
     rw [hk] at h
     cases h
   imod oforest_bill_erase hlive i B $$ [$Hf $Hb] with ⟨Hf, Hb⟩
@@ -750,7 +750,7 @@ theorem obl_check_witnesses_mupd (n : Nat) (R : Oids) :
     ([∗set] r ∈ R, ∃ ℓ, witLayer (GF := GF) r ℓ) ⊢
       mupd n iprop([∗set] r ∈ R, witCred r 0 ∨ oblDischarged r) := by
   iintro #HR
-  iapply mupd_nd_step
+  iapply mupd_noDischarge_step
   iintro %h %i %Ω₁ %W₁ %tc %X HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
@@ -763,18 +763,18 @@ theorem obl_check_witnesses_mupd (n : Nat) (R : Oids) :
     | assigned b => exact BI.or_intro_l
     | discharged => exact BI.or_intro_r
   ihave Hc := bigSepM_restrict W₁ R (fun r hr => (hI₁.dom r).1 (hR r hr)) hpt $$ Hc
-  imod modelHistoryInterp_step h i (Nat.le_refl n) (Obls.le_refl Ω₁) $$ HH with HH
+  imod modelHistoryInterp_step h i (Nat.le_refl n) (Obligations.le_refl Ω₁) $$ HH with HH
   imodintro
   iexists Ω₁
   isplitr
   · ipureintro
-    exact Obls.ndf_refl Ω₁
+    exact Obligations.noDischarge_refl Ω₁
   iintro %W₂ %⟨hW, hI₂⟩
   imodintro
   iframe HH Hos Hf
   isplitl [Hw]
   · isplitl [Hw]
-    · iapply owit_mon (wits_lef_same_mono hI₁ hW.lef hI₂) $$ Hw
+    · iapply owit_mono (Witnesses.stayOrStep_same_mono hI₁ hW.stayOrStep hI₂) $$ Hw
     · ipureintro
       exact hI₂
   iapply mupd_intro
@@ -794,7 +794,7 @@ theorem obl_check_witness_mupd (n : Nat) (r : Oid) (ℓ : Layer) :
       (BigSepS.bigSepS_singleton (Φ := fun x => iprop(∃ ℓ, witLayer (GF := GF) x ℓ))).mpr
   exact h₂.trans ((obl_check_witnesses_mupd n {r}).trans (mupd_mono_of h₁))
 
-/-- Discharge of a leaf `k` below `p`: the only round that discharges (`Obls.lef`). -/
+/-- Discharge of a leaf `k` below `p`: the only round that discharges (`Obligations.StayOrStep`). -/
 @[lantana_alias omodel.obl_discharge_mupd]
 theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k ∈ K) :
     parKids (GF := GF) p K ⊢ parKids (.obl k) ∅ -∗ oblAssigned k 1 -∗
@@ -811,13 +811,13 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   imod osat_discharge Ω₁ k $$ [$Hos $Ha] with ⟨Hos, #Hd, %⟨a, t, hk₁⟩⟩
   imod oforest_discharge_obl hk $$ [$Hf $Hp $Hkk] with ⟨Hf, Hp⟩
-  obtain ⟨w, hw, hr⟩ := mapForall2.lookup_left hI₁ hk₁
+  obtain ⟨w, hw, hr⟩ := MapForall2.lookup_left hI₁ hk₁
   obtain ⟨b, rfl⟩ : ∃ b, w = .assigned b := by
     cases w with
     | assigned b => exact ⟨b, rfl⟩
-    | discharged => simp [owitRel] at hr
+    | discharged => simp [OwitRel] at hr
   ihave Hw := owit_discharge hw $$ [$Hw $Hd]
-  have hlef := Obls.lef_insert_step (g₂ := .discharged) hk₁ (.inr trivial)
+  have hlef := Obligations.stayOrStep_insert_step (g₂ := .discharged) hk₁ (.inr trivial)
   imod modelHistoryInterp_step h i (Nat.le_refl n) hlef.le $$ HH with HH
   imodintro
   iexists _
@@ -829,7 +829,7 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
   iframe HH Hos Hf
   isplitl [Hw]
   · isplitl [Hw]
-    · iapply owit_mon (wits_lef_discharge_mono hI₁ hW hI₂) $$ Hw
+    · iapply owit_mono (Witnesses.stayOrStep_discharge_mono hI₁ hW hI₂) $$ Hw
     · ipureintro
       exact hI₂
   iapply mupd_intro
@@ -843,7 +843,7 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
     · iexact Hd
 
 /-- Each child of an obligation of `S` has more fuel than its parent. -/
-theorem oforest_kids_rank (Ω : Obls) (tc : Nat) (X : ThreadId → Prop) (S : Oids)
+theorem oforest_kids_rank (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (S : Oids)
     (kids : Oid → Oids) :
     oforest Ω tc X ∗ ([∗set] k ∈ S, parKids (GF := GF) (.obl k) (kids k)) ⊢
       ⌜∀ k, k ∈ S → ∀ x, x ∈ kids k → Ω.fuelOf k < Ω.fuelOf x⌝ := by
@@ -890,7 +890,7 @@ theorem node_eq (j : ThreadId) :
 
 /-- `oforest_alloc_threads` through the user's predicates. -/
 @[lantana_alias omodel.thP_kids_alloc_threads]
-theorem thKids_alloc_threads (Ω : Obls) (tc m : Nat) (X : ThreadId → Prop) :
+theorem thKids_alloc_threads (Ω : Obligations) (tc m : Nat) (X : ThreadId → Prop) :
     oforest Ω tc X ⊢@{IProp GF} |==> (oforest Ω (tc + m) X ∗
       [∗list] j ∈ List.range' tc m,
         (⌜¬X j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗ OForest.bill j ∅) := by
@@ -926,7 +926,7 @@ theorem mprog_step_kids (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R
   icases osat_elems Ω₁ R $$ [$Hos $HR] with %hR
   ihave HF := BigSepS.bigSepS_mono_of_forall (fun k => oblFuel_pos (GF := GF) k) $$ HF
   imod oforest_osat_step Ω₁ tc i B $$ [$Hos $Hf $Hb $HF] with ⟨%Ω₂, %⟨hp, -⟩, Hos, Hf, Hb⟩
-  imod modelHistoryInterp_step h a (Nat.le_refl n) (Obls.condProgress_le hp) $$ HH with HH
+  imod modelHistoryInterp_step h a (Nat.le_refl n) (Obligations.condProgress_le hp) $$ HH with HH
   imodintro
   iexists Ω₂
   isplitr
@@ -940,7 +940,7 @@ theorem mprog_step_kids (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R
     cases w with
     | assigned b =>
       iintro ⟨%c, %hc, Hc⟩
-      imod OWit.cred_mon (one_eq_succ_zero ▸ succ_le_of_lt hc) $$ Hc with Hc
+      imod OWit.cred_mono (one_eq_succ_zero ▸ succ_le_of_lt hc) $$ Hc with Hc
       imodintro
       ileft
       iexact Hc
@@ -999,12 +999,12 @@ theorem mphys_forks {n₁ n₂ tc₁ tc₂ : Nat} {X₁ X₂ : ThreadId → Prop
     (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁),
         thActive j ∗ parKids (.thread j) ∅ ∗ OForest.bill j ∅) ={∅}=∗
-      ALC (mupd n₂ (mbits n₂ tc₂ X₁ X₂ P))) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
+      alc (mupd n₂ (mbits n₂ tc₂ X₁ X₂ P))) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
   unfold mphys
   iintro H %h %a %Ω %W HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI⟩
-  imod modelHistoryInterp_step h a hn (Obls.le_refl Ω) $$ HH with HH
+  imod modelHistoryInterp_step h a hn (Obligations.le_refl Ω) $$ HH with HH
   imod thKids_alloc_threads Ω tc₁ (tc₂ - tc₁) X₁ $$ Hf with ⟨Hf, Hl⟩
   rw [show tc₁ + (tc₂ - tc₁) = tc₂ by omega]
   ihave Hl := forked_pieces hX₁ $$ Hl
@@ -1043,7 +1043,7 @@ theorem mphys_step_kids (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → 
     (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁),
         thActive j ∗ parKids (.thread j) ∅ ∗ OForest.bill j ∅) ={∅}=∗
-      ALC (mupd n₂ iprop(
+      alc (mupd n₂ iprop(
         ([∗list] j ∈ List.range tc₂, ⌜¬X₁ j ∧ X₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗
         (([∗list] j ∈ List.range tc₂, ⌜X₁ j ∧ ¬X₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅)
           -∗ P)))) ⊢
@@ -1053,20 +1053,20 @@ theorem mphys_step_kids (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → 
   iintro Hl
   imod H $$ Hl with H
   imodintro
-  iapply ALC_mono (mupd_mono_of (mbits_kids n₂ tc₂ X₁ X₂ P)) $$ H
+  iapply alc_mono (mupd_mono_of (mbits_kids n₂ tc₂ X₁ X₂ P)) $$ H
 
 /-- A step that forks the threads `tc₁, …, tc₂ - 1` and keeps the bits. -/
 theorem mphys_step_fork (n₁ n₂ tc₁ tc₂ : Nat) (X : ThreadId → Prop) (P : IProp GF)
     (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX : ∀ j, tc₁ ≤ j → ¬X j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁),
-        thActive j ∗ parKids (.thread j) ∅ ∗ OForest.bill j ∅) ={∅}=∗ ALC (mupd n₂ P)) ⊢
+        thActive j ∗ parKids (.thread j) ∅ ∗ OForest.bill j ∅) ={∅}=∗ alc (mupd n₂ P)) ⊢
       mphys n₁ n₂ tc₁ tc₂ X X P := by
   iintro H
   iapply mphys_forks hn htc hX
   iintro Hl
   imod H $$ Hl with H
   imodintro
-  iapply ALC_mono (mupd_mono_of (mbits_intro n₂ tc₂ X P)) $$ H
+  iapply alc_mono (mupd_mono_of (mbits_intro n₂ tc₂ X P)) $$ H
 
 end Physical
 

@@ -10,9 +10,9 @@ public import Lantana.Temporal.Fairness.FairnessAssumption
 
 An `Action` is an enabling condition on configurations and a grant relation on steps, the usual
 state form of a fairness assumption.  Its strong fairness `SF` is the textbook one and its weak
-fairness `WF` has `◇ₜ □ₜ a.enabledNow` as premise.  Both are assumptions by a recipe:
+fairness `weakFair` has `◇ₜ □ₜ a.enabledNow` as premise.  Both are assumptions by a recipe:
 `a.strong.holds ↔ a.SF` (`holds_strong`) and `a.weak.holds ↔ a.WF` (`holds_weak`).  For a convex
-enabling condition (`Convex`) the two coincide (`sf_iff_wf_of_convex`).
+enabling condition (`convex`) the two coincide (`sf_iff_wf_of_convex`).
 See `docs/temporal.md`.
 -/
 
@@ -43,15 +43,15 @@ abbrev granted (a : Action C) : TrProp C := TrProp.step a.grant
 
 /-- Strong fairness of the action: enabled infinitely often, it is granted infinitely often while
 enabled.  A statement about the run that names no thread. -/
-def SF (a : Action C) : TrProp C := □ₜ ◇ₜ a.enabledNow →ₜ □ₜ ◇ₜ (a.enabledNow ∧ₜ a.granted)
+def strongFair (a : Action C) : TrProp C := □ₜ ◇ₜ a.enabledNow →ₜ □ₜ ◇ₜ (a.enabledNow ∧ₜ a.granted)
 
 /-- Weak fairness of the action: enabled from some position on, it is granted infinitely often
 while enabled. -/
-def WF (a : Action C) : TrProp C := ◇ₜ □ₜ a.enabledNow →ₜ □ₜ ◇ₜ (a.enabledNow ∧ₜ a.granted)
+def weakFair (a : Action C) : TrProp C := ◇ₜ □ₜ a.enabledNow →ₜ □ₜ ◇ₜ (a.enabledNow ∧ₜ a.granted)
 
 /-- The enabling condition is convex along the run: true now and at some later position makes it
 true at every position in between. -/
-def Convex (a : Action C) : TrProp C :=
+def convex (a : Action C) : TrProp C :=
   □ₜ (a.enabledNow →ₜ □ₜ (◇ₜ a.enabledNow →ₜ a.enabledNow))
 
 /-- The strong recipe: the attempts are the positions where the action is enabled, whoever
@@ -68,20 +68,20 @@ variable {a : Action C} {τ : Trace C}
 /-! ### Strong fairness -/
 
 /-- `SF` is the same at every position of the run. -/
-theorem sf_absolute : TrProp.Absolute a.SF :=
+theorem sf_absolute : TrProp.Absolute a.strongFair :=
   TrProp.absolute_imp TrProp.absolute_always_eventually TrProp.absolute_always_eventually
 
 /-- The strong recipe holds exactly when the action is strongly fair. -/
-theorem holds_strong : a.strong.holds τ ↔ a.SF τ := AttemptGrant.fair_iff_attempt
+theorem holds_strong : a.strong.holds τ ↔ a.strongFair τ := AttemptGrant.fair_iff_attempt
 
 /-- `SF` is the existence of a counter of the strong recipe. -/
-theorem sf_iff_counter : a.SF τ ↔ ∃ δ, a.strong.IsCounter δ τ :=
+theorem sf_iff_counter : a.strongFair τ ↔ ∃ δ, a.strong.isCounter δ τ :=
   holds_strong.symm.trans FairnessAssumption.holds_iff_counter
 
 /-! ### Weak fairness -/
 
 /-- The weak recipe holds exactly when the action is weakly fair. -/
-theorem holds_weak : a.weak.holds τ ↔ a.WF τ := by
+theorem holds_weak : a.weak.holds τ ↔ a.weakFair τ := by
   constructor
   · intro hag hev
     refine Classical.byContradiction fun hno => ?_
@@ -107,21 +107,21 @@ theorem holds_weak : a.weak.holds τ ↔ a.WF τ := by
     exact hno ⟨m, hm, trivial, Or.inr hg⟩
 
 /-- `SF` gives weak fairness. -/
-theorem wf_of_sf : a.SF ⊆ a.WF :=
+theorem wf_of_sf : a.strongFair ⊆ a.weakFair :=
   fun τ hsf hev => hsf (TrProp.eventually_always_le τ hev)
 
 /-! ### A convex enabling condition -/
 
 /-- A convex condition that holds infinitely often holds from some position on. -/
 theorem eventually_always_of_infOften_of_convex :
-    (a.Convex ∧ₜ □ₜ ◇ₜ a.enabledNow) ⊆ ◇ₜ □ₜ a.enabledNow := by
+    (a.convex ∧ₜ □ₜ ◇ₜ a.enabledNow) ⊆ ◇ₜ □ₜ a.enabledNow := by
   rintro τ ⟨hconv, hinf⟩
   obtain ⟨m, hm, hA⟩ := TrProp.always_eventually_iff.mp hinf τ.pos (Nat.le_refl _)
   exact TrProp.eventually_always_iff.mpr
     ⟨m, hm, fun l hl => hconv m hm hA l hl (hinf l (Nat.le_trans hm hl))⟩
 
 /-- For a convex enabling condition, strong and weak fairness coincide. -/
-theorem sf_iff_wf_of_convex (hconv : a.Convex τ) : a.SF τ ↔ a.WF τ :=
+theorem sf_iff_wf_of_convex (hconv : a.convex τ) : a.strongFair τ ↔ a.weakFair τ :=
   ⟨wf_of_sf τ, fun hwf hinf => hwf (eventually_always_of_infOften_of_convex τ ⟨hconv, hinf⟩)⟩
 
 end Action

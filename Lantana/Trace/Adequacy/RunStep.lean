@@ -10,7 +10,7 @@ public import Lantana.Trace.Guarantee
 
 `run_step`: one step of a fair behavior, simulated by the `lWP`s of the threads of the pool
 (`threadsRun`), threading the history and temporal interpretation and the model, in the deferred
-shape `|={⊤,∅}=> ALC (|={∅,⊤}=> …)`; it also gives the facts of the step that safety needs
+shape `|={⊤,∅}=> alc (|={∅,⊤}=> …)`; it also gives the facts of the step that safety needs
 (`runStepPost`). See `docs/adequacy.md`, §5.3. Rocq: `lantana/trace/adequacy_temporal.v`.
 -/
 
@@ -29,7 +29,7 @@ variable {Expr State Obs Val : Type} [Λ : Language Expr State Obs Val]
 
 /-- No thread of the pool of `ρ` is stuck: each is a value or can step. -/
 @[lantana_alias adequacy_safety.not_stuck]
-def Cfg.notStuck (ρ : Cfg Expr State) : Prop :=
+def Cfg.NotStuck (ρ : Cfg Expr State) : Prop :=
   ∀ (i : ThreadId) (e : Expr), ρ.1[i]? = some e → PrimStep.NotStuck (e, ρ.2)
 
 /-- The inversion of a thread step. -/
@@ -42,8 +42,8 @@ theorem ThreadStep.inv {i : ThreadId} {ρ₁ ρ₂ : Cfg Expr State} (h : Thread
 /-- The ghost history extended by the configuration of the next position is a prefix of the
 run. -/
 theorem histTrace_snoc {h : List (HistEntry Expr State)} {τf : Nat → Cfg Expr State}
-    {n : Nat} {σ' : State} {tp' : ThreadPool Expr} (hh : histTrace h τf) (hlen : h.length = n + 1)
-    (hcfg : τf (n + 1) = (tp', σ')) : histTrace (h ++ [(σ', tp')]) τf := by
+    {n : Nat} {σ' : State} {tp' : ThreadPool Expr} (hh : HistTrace h τf) (hlen : h.length = n + 1)
+    (hcfg : τf (n + 1) = (tp', σ')) : HistTrace (h ++ [(σ', tp')]) τf := by
   intro n' σ'' tp'' hn'
   rcases Nat.lt_or_ge n' h.length with hlt | hge
   · rw [List.getElem?_append_left hlt] at hn'
@@ -61,7 +61,7 @@ theorem histTrace_snoc {h : List (HistEntry Expr State)} {τf : Nat → Cfg Expr
 
 /-- The fair-scheduler measures of a counter satisfy the requirements of the model's witness
 lower bounds. -/
-theorem owitInvLbMonoFair_fairMeasure (c : Nat → Nat) : owitInvLbMonoFair (fairMeasure c) :=
+theorem owitInvLbMonoFair_fairMeasure (c : Nat → Nat) : OwitInvLbMonoFair (fairMeasure c) :=
   ⟨fun _ _ _ _ h => fairMeasure_lt_mono h, fairMeasure_le_ub c⟩
 
 section Run
@@ -72,12 +72,12 @@ variable [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF]
 
 /-! ## The running threads -/
 
-/-- Thread `j` running `e` with postcondition `liftTerm j Ψ`: a value has its postcondition, a
+/-- Thread `j` running `e` with postcondition `lwp.liftTerm j Ψ`: a value has its postcondition, a
 running thread its `lWP`. -/
 def threadRun (j : ThreadId) (e : Expr) (Ψ : ThreadId → Val → IProp GF) : IProp GF :=
   match toVal e with
-  | some v => liftTerm j Ψ v
-  | none => lWP e @ j; ⊤ {{ liftTerm j Ψ }}
+  | some v => lwp.liftTerm j Ψ v
+  | none => lWP e @ j; ⊤ {{ lwp.liftTerm j Ψ }}
 
 /-- The running threads of the pool `tp` with postconditions `Ψ`. -/
 @[lantana_alias threads_run]
@@ -100,19 +100,19 @@ theorem postFork_ge {Ψ fp : ThreadId → Val → IProp GF} {len j : Nat} (h : l
   simp [postFork, Nat.not_lt.mpr h]
 
 theorem threadRun_of_toVal {j : ThreadId} {e : Expr} {v : Val} {Ψ : ThreadId → Val → IProp GF}
-    (he : toVal e = some v) : threadRun j e Ψ = liftTerm j Ψ v := by
+    (he : toVal e = some v) : threadRun j e Ψ = lwp.liftTerm j Ψ v := by
   simp [threadRun, he]
 
 theorem threadRun_of_toVal_none {j : ThreadId} {e : Expr} {Ψ : ThreadId → Val → IProp GF}
-    (he : toVal e = none) : threadRun j e Ψ = lWP e @ j; ⊤ {{ liftTerm j Ψ }} := by
+    (he : toVal e = none) : threadRun j e Ψ = lWP e @ j; ⊤ {{ lwp.liftTerm j Ψ }} := by
   simp [threadRun, he]
 
 /-- `threadRun j` only reads the postcondition of `j`. -/
 theorem threadRun_congr {j : ThreadId} {e : Expr} {Ψ Ψ' : ThreadId → Val → IProp GF}
     (h : Ψ' j = Ψ j) : threadRun j e Ψ' = threadRun j e Ψ := by
-  have hl : liftTerm j Ψ' = liftTerm j Ψ := by
+  have hl : lwp.liftTerm j Ψ' = lwp.liftTerm j Ψ := by
     funext v
-    simp only [liftTerm, h]
+    simp only [lwp.liftTerm, h]
   simp only [threadRun, hl]
 
 theorem threadsRun_congr {tp : ThreadPool Expr} {Ψ Ψ' : ThreadId → Val → IProp GF}
@@ -126,7 +126,7 @@ theorem threadRun_doneToken (j : ThreadId) (e : Expr) (Ψ : ThreadId → Val →
   rcases he : toVal e with _ | v
   · simp only [doneToken, he]
     exact true_intro
-  · simp only [threadRun, doneToken, he, liftTerm]
+  · simp only [threadRun, doneToken, he, lwp.liftTerm]
     exact sep_elim_left
 
 theorem threadsRun_doneTokens (tp : ThreadPool Expr) (Ψ : ThreadId → Val → IProp GF) :
@@ -145,17 +145,17 @@ theorem threadsRun_ifTermVal {tp : ThreadPool Expr} {Ψ : ThreadId → Val → I
   unfold threadsRun
   refine (BigSepL.bigSepL_lookup hj).trans ?_
   rw [threadRun_of_toVal he]
-  unfold liftTerm
+  unfold lwp.liftTerm
   refine sep_elim_right.trans ((hΨ v).trans (pure_mono fun hv e' v' h h' => ?_))
   cases h
   rw [he] at h'
   cases h'
   exact hv
 
-/-- An `lWP` with postcondition `liftTerm j Ψ` runs as thread `j`, after the model update of
+/-- An `lWP` with postcondition `lwp.liftTerm j Ψ` runs as thread `j`, after the model update of
 its postcondition if it is a value. -/
 theorem lwp_threadRun (j : ThreadId) (e : Expr) (Ψ : ThreadId → Val → IProp GF) :
-    lWP e @ j; ⊤ {{ liftTerm j Ψ }} ⊢ |={⊤}=>m threadRun j e Ψ := by
+    lWP e @ j; ⊤ {{ lwp.liftTerm j Ψ }} ⊢ |={⊤}=>m threadRun j e Ψ := by
   rcases he : toVal e with _ | v
   · rw [threadRun_of_toVal_none he]
     exact mupd_intro
@@ -164,13 +164,13 @@ theorem lwp_threadRun (j : ThreadId) (e : Expr) (Ψ : ThreadId → Val → IProp
 
 /-- The initial threads run. -/
 theorem lwps_threadsRun (tp : ThreadPool Expr) (Ψ : ThreadId → Val → IProp GF) :
-    ([∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ liftTerm j Ψ }}) ⊢ |={⊤}=>m threadsRun tp Ψ := by
+    ([∗list] j ↦ e ∈ tp, lWP e @ j; ⊤ {{ lwp.liftTerm j Ψ }}) ⊢ |={⊤}=>m threadsRun tp Ψ := by
   unfold threadsRun
   exact (BigSepL.bigSepL_mono fun _ => lwp_threadRun _ _ _).trans (bigSepL_mupd _ ⊤ _)
 
 /-- The forked threads `len + k` run with the postconditions `postFork Ψ len`. -/
 theorem forks_threadsRun (len : Nat) (efs : List Expr) (Ψ : ThreadId → Val → IProp GF) :
-    ([∗list] k ↦ ef ∈ efs, lWP ef @ (len + k); ⊤ {{ liftTerm (len + k) L.forkPost }}) ⊢
+    ([∗list] k ↦ ef ∈ efs, lWP ef @ (len + k); ⊤ {{ lwp.liftTerm (len + k) L.forkPost }}) ⊢
       |={⊤}=>m [∗list] k ↦ ef ∈ efs, threadRun (k + len) ef (postFork Ψ L.forkPost len) := by
   refine (BigSepL.bigSepL_mono fun {k ef} _ => ?_).trans (bigSepL_mupd _ ⊤ _)
   rw [threadRun_congr (postFork_ge (Nat.le_add_left len k)), Nat.add_comm k len]
@@ -197,7 +197,7 @@ theorem historyTInterp_wf (h : List (HistEntry Expr State)) (n : Nat) (σ : Stat
   unfold historyTInterp historyInterp
   iintro ⟨⟨%⟨hlen, hlast⟩, -, -⟩, -⟩
   ipureintro
-  exact ⟨hlen, Lantana.getLast?_eq_getElem?_of_length hlen hlast⟩
+  exact ⟨hlen, List.getLast?_eq_getElem?_of_length hlen hlast⟩
 
 /-- A stutter appends the current configuration to the history. -/
 theorem historyTInterp_stutter (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
@@ -216,16 +216,16 @@ theorem historyTInterp_stutter (h : List (HistEntry Expr State)) (n : Nat) (σ :
 facts of the one-step property, and those that safety needs. -/
 def runStepPost (c : Nat) (h : List (HistEntry Expr State)) (n : Nat)
     (τf : Nat → Cfg Expr State) (γ : Nat → ThreadId → Nat) (tp : ThreadPool Expr)
-    (Ψ : ThreadId → Val → IProp GF) (Ω : Obls) : IProp GF :=
+    (Ψ : ThreadId → Val → IProp GF) (Ω : Obligations) : IProp GF :=
   iprop(∃ (σ' : State) (tp' : ThreadPool Expr) (Ψ' : ThreadId → Val → IProp GF)
-      (g' : List MEvent) (v' : Nat) (Ω' : Obls) (W' : Witnesses),
-    ⌜owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
-      oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' ∧
-      (τf n).notStuck ∧ tp.length ≤ tp'.length ∧ (∀ j, j < tp.length → Ψ' j = Ψ j)⌝ ∗
+      (g' : List MEvent) (v' : Nat) (Ω' : Obligations) (W' : Witnesses),
+    ⌜OwitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
+      OblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' ∧
+      (τf n).NotStuck ∧ tp.length ≤ tp'.length ∧ (∀ j, j < tp.length → Ψ' j = Ψ j)⌝ ∗
     £ₙ c ∗ historyTInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
-    modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) ∗ threadsRun tp' Ψ')
+    modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) ∗ threadsRun tp' Ψ')
 
-/-- One step of `lWP` for a running thread: `lwpStep` at the empty context, mask `⊤`. -/
+/-- One step of `lWP` for a running thread: `lwp.step` at the empty context, mask `⊤`. -/
 theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → IProp GF}
     (he : toVal e₁ = none) :
     threadRun i e₁ Ψ ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
@@ -234,31 +234,31 @@ theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → I
         ⌜PrimStep.Reducible (e₁, σ)⌝ ∗
         ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
           ⌜primStep (e₁, σ) obs (e₂, σ₂, efs)⌝ -∗
-          mprog n tp.length (Cfg.crashed (tp, σ)) i
-            (mphys n (n + 1) tp.length (tp.length + efs.length) (Cfg.crashed (tp, σ))
-              (Cfg.crashed (tp.set i e₂ ++ efs, σ₂))
+          mprog n tp.length (Cfg.Crashed (tp, σ)) i
+            (mphys n (n + 1) tp.length (tp.length + efs.length) (Cfg.Crashed (tp, σ))
+              (Cfg.Crashed (tp.set i e₂ ++ efs, σ₂))
               (|=[n + 1]=>m |={∅,⊤}=>
                 historyTInterp (h ++ [(σ₂, tp.set i e₂ ++ efs)]) (n + 1) σ₂
                   (tp.set i e₂ ++ efs) ∗
-                lWP e₂ @ i; ⊤ {{ liftTerm i Ψ }} ∗
+                lWP e₂ @ i; ⊤ {{ lwp.liftTerm i Ψ }} ∗
                 [∗list] k ↦ ef ∈ efs,
-                  lWP ef @ (tp.length + k); ⊤ {{ liftTerm (tp.length + k) L.forkPost }})) := by
+                  lWP ef @ (tp.length + k); ⊤ {{ lwp.liftTerm (tp.length + k) L.forkPost }})) := by
   rw [threadRun_of_toVal_none he, lwp_unfold.to_eq]
-  simp only [lwpPre, he]
-  unfold lwpStep
+  simp only [lwp.pre, he]
+  unfold lwp.step
   refine (forall_elim (EvContextOps.empty : Ectx)).trans ?_
-  simp only [EvContext.fill_empty, Stuckness.maybeReducible]
+  simp only [EvContext.fill_empty, Stuckness.MaybeReducible]
   iintro H %h %n %σ %tp %hi
   iapply H $$ %h %n %σ %tp %(Language.Context.fillEmpty (Ectx := Ectx)) %hi
 
 omit L [TemporalInterp Expr State GF] in
-/-- `getOblsThreadActive`, keeping the model. -/
+/-- `get_oblsThreadActive`, keeping the model. -/
 theorem oblsThreadActive_keep {tp : ThreadPool Expr} {σ : State} {ρ : Cfg Expr State}
-    (hρ : ρ = (tp, σ)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (n : Nat) :
-    doneTokens tp ∗ modelInterp (GF := GF) g v Ω W n tp.length (Cfg.crashed (tp, σ)) ⊢
-      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗ ⌜oblsThreadActive Ω ρ⌝ := by
+    (hρ : ρ = (tp, σ)) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) (n : Nat) :
+    doneTokens tp ∗ modelInterp (GF := GF) g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ⊢
+      modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗ ⌜OblsThreadActive Ω ρ⌝ := by
   subst hρ
-  exact (persistent_entails_left (getOblsThreadActive (ρ := (tp, σ)) rfl g v Ω W n)).trans
+  exact (persistent_entails_left (get_oblsThreadActive (ρ := (tp, σ)) rfl g v Ω W n)).trans
     (sep_mono_left sep_elim_right)
 
 /-- The threads after a step of `i` to `e₂` forking `efs`, after the model updates of the
@@ -266,9 +266,9 @@ finished threads' postconditions. -/
 theorem threadsRun_after_step (tp : ThreadPool Expr) (i : ThreadId) (e₂ : Expr)
     (efs : List Expr) (Ψ : ThreadId → Val → IProp GF) :
     (∀ y, threadRun i y Ψ -∗ [∗list] k ↦ z ∈ tp.set i y, threadRun k z Ψ) ∗
-        lWP e₂ @ i; ⊤ {{ liftTerm i Ψ }} ∗
+        lWP e₂ @ i; ⊤ {{ lwp.liftTerm i Ψ }} ∗
         ([∗list] k ↦ ef ∈ efs,
-          lWP ef @ (tp.length + k); ⊤ {{ liftTerm (tp.length + k) L.forkPost }}) ⊢
+          lWP ef @ (tp.length + k); ⊤ {{ lwp.liftTerm (tp.length + k) L.forkPost }}) ⊢
       |={⊤}=>m threadsRun (tp.set i e₂ ++ efs) (postFork Ψ L.forkPost tp.length) := by
   iintro ⟨HT, Hi, Hefs⟩
   imod lwp_threadRun i e₂ Ψ $$ Hi with Hi
@@ -282,10 +282,10 @@ theorem threadsRun_after_step (tp : ThreadPool Expr) (i : ThreadId) (e₂ : Expr
 /-- A thread of the pool is stuck: impossible, its `lWP` proves reducibility. -/
 theorem run_step_stuck {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
-    {Ω : Obls} {W : Witnesses} {i : ThreadId} {c' : Nat → Nat}
-    (hLb : owitInvLb (fairMeasure c') Ω W) (hst : ∃ e, tp[i]? = some e ∧ PrimStep.Stuck (e, σ))
+    {Ω : Obligations} {W : Witnesses} {i : ThreadId} {c' : Nat → Nat}
+    (hLb : OwitInvLb (fairMeasure c') Ω W) (hst : ∃ e, tp[i]? = some e ∧ PrimStep.Stuck (e, σ))
     (P : IProp GF) :
-    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
       threadsRun tp Ψ ⊢ |={⊤,∅}=> P := by
   obtain ⟨e, he, hv, hirr⟩ := hst
   iintro ⟨HH, HM, HT⟩
@@ -294,23 +294,23 @@ theorem run_step_stuck {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
   ihave Hi := threadRun_step hv $$ Hi
   imod Hi $$ %h %n %σ %tp %he HH with Hi
   imod mupdBase_modelInterp_steps n (fairMeasure c') (owitInvLbMonoFair_fairMeasure c')
-    _ $$ Hi %g %v %Ω %W %tp.length %(Cfg.crashed (tp, σ)) %hLb HM with ⟨⟨%hred, -⟩, -⟩
+    _ $$ Hi %g %v %Ω %W %tp.length %(Cfg.Crashed (tp, σ)) %hLb HM with ⟨⟨%hred, -⟩, -⟩
   exact (Language.not_reducible_iff_irreducible.mpr hirr hred).elim
 
 /-- The thread the schedule names is a value: the configuration stutters. -/
 theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
-    {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : SchedCounters sched γ ⟨0, τf⟩)
-    (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) (hlen : h.length = n + 1)
-    (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).notStuck)
+    {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : schedCounters sched γ ⟨0, τf⟩)
+    (hLb : OwitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) (hlen : h.length = n + 1)
+    (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).NotStuck)
     (hd : ThreadDone i (tp, σ) (τf (n + 1))) :
-    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
       threadsRun tp Ψ ⊢
-      |={⊤,∅}=> ALC iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
+      |={⊤,∅}=> alc iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
   obtain ⟨e, he, hv, hcfg⟩ := hd
   simp only at he hcfg
-  have hna : (τf n).inactive (sched n) := by
+  have hna : (τf n).Inactive (sched n) := by
     rw [hnow, hi]
     exact .inr (.inl ⟨e, he, hv⟩)
   iintro ⟨HH, HM, HT⟩
@@ -322,8 +322,8 @@ theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   imod modelInterp_step_idx g v Ω W n tp.length _ $$ HM with HM
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
   iintro Hclose
-  iapply (ALC_credits (Ordinals.Ordinal.ofNat c)).mpr
-  iapply ALC_intro
+  iapply (alc_credits (Ordinals.Ordinal.ofNat c)).mpr
+  iapply alc_intro
   iintro Hc
   imod Hclose with -
   imodintro
@@ -336,14 +336,14 @@ theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
 /-- The thread the schedule names steps, crashed or not: its `lWP` takes the step. -/
 theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
-    {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : SchedCounters sched γ ⟨0, τf⟩)
-    (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) (hlen : h.length = n + 1)
-    (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).notStuck)
+    {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : schedCounters sched γ ⟨0, τf⟩)
+    (hLb : OwitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) (hlen : h.length = n + 1)
+    (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).NotStuck)
     (hstep : ThreadStep i (tp, σ) (τf (n + 1))) :
-    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
       threadsRun tp Ψ ⊢
-      |={⊤,∅}=> ALC iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
+      |={⊤,∅}=> alc iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
   obtain ⟨e₁, obs, e₂, σ₂, efs, he₁, hprim, hcfg⟩ := hstep.inv
   simp only at he₁ hprim
   have hv₁ : toVal e₁ = none := Language.val_stuck hprim
@@ -356,7 +356,7 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   ihave Hi := threadRun_step hv₁ $$ Hi
   imod Hi $$ %h %n %σ %tp %he₁ HH with Hi
   imod mupdBase_modelInterp_steps n (fairMeasure (γ n)) hγn _ $$
-    Hi %g %v %Ω %W %tp.length %(Cfg.crashed (tp, σ)) %hLb HM
+    Hi %g %v %Ω %W %tp.length %(Cfg.Crashed (tp, σ)) %hLb HM
     with ⟨⟨%_, Hi⟩, %g₀, %v₀, %Ω₀, %W₀, %⟨hle₀, hLb₀⟩, HM⟩
   icases Model.modelInterp_owitInv' _ _ _ _ _ _ _ $$ HM with ⟨HM, %hI₀⟩
   icases oblsThreadActive_keep hnow _ _ Ω₀ W₀ n $$ [$HD $HM] with ⟨HM, %hact₀⟩
@@ -369,8 +369,8 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   imod mphys_modelInterp_run n (n + 1) tp.length (tp.length + efs.length) _ _
     (fairMeasure (γ (n + 1))) hγn1 _ $$ Hi %_ %_ %Ω₂ %W₂ %hLb₂ HM with Hi
   imodintro
-  iapply (ALC_credits (Ordinals.Ordinal.ofNat c)).mpr
-  iapply ALC_wand $$ [HT] Hi
+  iapply (alc_credits (Ordinals.Ordinal.ofNat c)).mpr
+  iapply alc_wand $$ [HT] Hi
   iintro Hi Hc
   imod Hi with ⟨Hi, %g₃, %v₃, %Ω₃, %W₃, %⟨hle₃, hLb₃⟩, HM⟩
   imod mupdBase_modelInterp_steps (n + 1) (fairMeasure (γ (n + 1))) hγn1 _ $$
@@ -389,7 +389,7 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   iframe Hc HH HM HT
   ipureintro
   exact ⟨hLb₅, histTrace_snoc hh hlen hcfg,
-    oblsDrop_step hi hcnt hle₀ hprog (Obls.le_trans hle₃ (Obls.le_trans hle₄ hle₅)) hact₂, hns,
+    oblsDrop_step hi hcnt hle₀ hprog (Obligations.le_trans hle₃ (Obligations.le_trans hle₄ hle₅)) hact₂, hns,
     by omega, fun _ hj => postFork_lt hj⟩
 
 /-- **One step of the run**: from the system at `n`, the system at `n + 1` with the facts about
@@ -397,21 +397,21 @@ the step (`runStepPost`), in the deferred shape. -/
 @[lantana_alias run_step]
 theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
-    {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hsch : Schedule sched ⟨0, τf⟩)
-    (hcnt : SchedCounters sched γ ⟨0, τf⟩)
-    (hLb : owitInvLb (fairMeasure (γ n)) Ω W) (hh : histTrace h τf) :
-    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+    {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} (hsch : schedule sched ⟨0, τf⟩)
+    (hcnt : schedCounters sched γ ⟨0, τf⟩)
+    (hLb : OwitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) :
+    historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
       threadsRun tp Ψ ⊢
-      |={⊤,∅}=> ALC iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
+      |={⊤,∅}=> alc iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by
   iintro ⟨HH, HM, HT⟩
   icases persistent_entails_left (historyTInterp_wf h n σ tp) $$ HH with ⟨HH, %⟨hlen, hlast⟩⟩
   have hnow := hh n σ tp hlast
   -- no thread of the pool is stuck
-  by_cases hns : (τf n).notStuck
+  by_cases hns : (τf n).NotStuck
   case neg =>
     rw [hnow] at hns
-    simp only [Cfg.notStuck, Classical.not_forall] at hns
+    simp only [Cfg.NotStuck, Classical.not_forall] at hns
     obtain ⟨j, e, he, hst⟩ := hns
     iapply run_step_stuck hLb ⟨e, he, Language.not_not_suck.mp hst⟩
     iframe HH HM HT

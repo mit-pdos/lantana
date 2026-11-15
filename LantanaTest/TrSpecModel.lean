@@ -128,7 +128,7 @@ example (σ : State) (tp : ThreadPool Exp) (X : ThreadId → Prop) :
 /-- The extraction of the names, as in adequacy (the model at the crashed threads of the initial
 configuration): the instances are rebuilt from them, then the state interpretation is chosen
 (here a trivial one), the registry gets its interpretation, and, no thread of HeapLang being
-crashed, every initial thread gets its pieces (`Examples.initThreads`). -/
+crashed, every initial thread gets its pieces (`Examples.init_threads`). -/
 example (σ : State) (tp : ThreadPool Exp) : ∃ γ : ModelNames × TemporalNames,
     letI := ModelGS.ofNames (GF := TestGF) γ.1
     letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
@@ -137,13 +137,13 @@ example (σ : State) (tp : ThreadPool Exp) : ∃ γ : ModelNames × TemporalName
       regStateWith (fun _ => iprop(True)) ∗
       [∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅)) := by
   obtain ⟨γ, h⟩ :=
-    iPropSat.sat_alloc (adequacy_alloc_names (GF := TestGF) σ tp (Cfg.crashed (tp, σ)))
+    iPropSat.sat_alloc (adequacy_alloc_names (GF := TestGF) σ tp (Cfg.Crashed (tp, σ)))
   refine ⟨γ, iPropSat.mono ?_ h⟩
   letI := ModelGS.ofNames (GF := TestGF) γ.1
   letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
   letI : StateInterp Exp State TestGF := ⟨fun _ _ => iprop(True)⟩
   iintro ⟨-, Hw, HE, -, Hk, HH, HR⟩
-  ihave Hk := Lantana.Examples.initThreads σ tp $$ Hk
+  ihave Hk := Lantana.Examples.init_threads σ tp $$ Hk
   iframe Hw HE
   have hs : ⊢@{IProp TestGF} stateInterp σ tp := true_intro
   ihave Hs := hs
@@ -173,7 +173,7 @@ example (G G' : TrSpec Exp State TestGF) [TrSpec.Complete G] (h : G ⊑ₛ G') :
 example (φ ψ : State → ThreadPool Exp → Prop) :
     (□ₛ (TrSpec.state φ ∧ₛ TrSpec.state ψ : TrSpec Exp State TestGF)).external ⊆
       (□ₛ (TrSpec.state φ : TrSpec Exp State TestGF)).external :=
-  TrSpec.le_sound _ _ (TrSpec.always_mono TrSpec.and_elim_l)
+  TrSpec.le_sound _ _ (TrSpec.always_mono TrSpec.and_elim_left)
 
 example : ¬ ((□ₛ ⌜False⌝ₛ) ⊑ₛ (⌜False⌝ₛ : TrSpec Exp State TestGF)) :=
   TrSpec.always_elim_not_le τ
@@ -181,7 +181,7 @@ example : ¬ ((□ₛ ⌜False⌝ₛ) ⊑ₛ (⌜False⌝ₛ : TrSpec Exp State 
 example : ¬ (TrSpec.untilBody TrSpec.true ⌜False⌝ₛ
       (TrSpec.mu (TrSpec.untilBody TrSpec.true ⌜False⌝ₛ)) ⊑ₛ
     TrSpec.mu (TrSpec.untilBody (TrSpec.true : TrSpec Exp State TestGF) ⌜False⌝ₛ)) :=
-  TrSpec.mu_unfold_r_guarded τ
+  TrSpec.mu_unfold_right_guarded τ
 
 end
 

@@ -263,8 +263,8 @@ theorem tac_lwp_pure {e e' : Exp} {φ : Prop} {n : Nat} [hpe : PureExecCtx φ n 
     (hn : 0 < n) (Φ : Val → IProp GF) :
     threadExpr i C e ⊢
       (∃ (G : Oids) (m : Nat) (R : Oids) (o : Fuel),
-        (thCarriers i G ∗ oblFuels G ((n + m : Nat) : Measure) ∗ witLayers R) ∗
-        (thCarriers i G -∗ oblFuels G (m : Measure) -∗ witCreds R -∗ £ₒ o -∗
+        (thCarriers i G ∗ oblFuels G ((n + m : Nat) : Measure) ∗ Wit.layers R) ∗
+        (thCarriers i G -∗ oblFuels G (m : Measure) -∗ Wit.creds R -∗ £ₒ o -∗
           threadExpr i C e' -∗ |={E}=>m lWP e' @ s; i; E {{ Φ }})) -∗
       lWP e @ s; i; E {{ Φ }} := by
   haveI := hpe.pureExecCtx
@@ -298,8 +298,8 @@ section Steps
 variable {GF : BundledGFunctors}
 
 /-- No witnesses. -/
-theorem witLayers_empty [ModelGS GF] : ⊢ witLayers (GF := GF) ∅ := by
-  unfold witLayers
+theorem witLayers_empty [ModelGS GF] : ⊢ Wit.layers (GF := GF) ∅ := by
+  unfold Wit.layers
   iapply BigSepS.bigSepS_empty.mpr
   iempintro
 
@@ -318,15 +318,15 @@ theorem stepPre_wit [ModelGS GF] (i : ThreadId) (G : Oids) (k : Oid) (ℓ : Laye
   iintro HG HF Hk
   simp only [stepPre]
   iframe HG HF
-  unfold witLayers
+  unfold Wit.layers
   iapply BigSepS.bigSepS_singleton.mpr
   iexists ℓ
   iexact Hk
 
 /-- What a step that observes the witness `k` gives back: a credit of `k`, or its discharge. -/
 theorem witCreds_singleton [ModelGS GF] (k : Oid) :
-    witCreds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
-  unfold witCreds
+    Wit.creds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
+  unfold Wit.creds
   exact BigSepS.bigSepS_singleton.mp
 
 variable [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]

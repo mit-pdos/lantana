@@ -69,9 +69,9 @@ example [TlcGS TestGF] (P : IProp TestGF) (n : Nat) :
     £ₒ ω ∗ (£ₙ n -∗ ▷ |==>r P) ⊢@{IProp TestGF} |==>r P :=
   tlc_later_strong (ofNat_lt_omega n)
 
-/-- `ALC` allocates a credit to strip a later. -/
-example [TlcGS TestGF] (P : IProp TestGF) : ALC iprop(▷ P) ⊢ ALC P :=
-  ALC_later.mpr
+/-- `alc` allocates a credit to strip a later. -/
+example [TlcGS TestGF] (P : IProp TestGF) : alc iprop(▷ P) ⊢ alc P :=
+  alc_later.mpr
 
 /-- The proof mode eliminates basic and relational updates in front of `|==>r`. -/
 example [TlcGS TestGF] (P Q : IProp TestGF) :
@@ -82,16 +82,16 @@ example [TlcGS TestGF] (P Q : IProp TestGF) :
   imodintro
   iframe
 
-/-- The proof mode introduces, eliminates and frames `ALC`. -/
-example [TlcGS TestGF] (P Q : IProp TestGF) : ALC P ∗ Q ⊢@{IProp TestGF} ALC iprop(P ∗ Q) := by
+/-- The proof mode introduces, eliminates and frames `alc`. -/
+example [TlcGS TestGF] (P Q : IProp TestGF) : alc P ∗ Q ⊢@{IProp TestGF} alc iprop(P ∗ Q) := by
   iintro ⟨HP, HQ⟩
   imod HP
   iframe
 
-/-- `ALC` hands out credits: here one credit strips a later. -/
-example [TlcGS TestGF] (P : IProp TestGF) : ▷ P ⊢@{IProp TestGF} ALC P := by
+/-- `alc` hands out credits: here one credit strips a later. -/
+example [TlcGS TestGF] (P : IProp TestGF) : ▷ P ⊢@{IProp TestGF} alc P := by
   iintro HP
-  iapply ALC_alloc (1 : Ordinal.{1})
+  iapply alc_alloc (1 : Ordinal.{1})
   iintro H1
   iapply tlc_later
   isplitl [H1]

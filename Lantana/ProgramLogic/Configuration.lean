@@ -11,7 +11,7 @@ public import Lantana.ProgramLogic.Language
 /-! # Configurations, thread steps, and Lantana's language as a thread system
 
 `Cfg`, the step of a thread `ThreadStep` and the trace step `TraceStep`; the crashed and active
-threads of a configuration (`Cfg.crashed`, `Cfg.active`); the thread-system instance, the
+threads of a configuration (`Cfg.Crashed`, `Cfg.Active`); the thread-system instance, the
 convexity of activity (`Cfg.active_convex`) and fair scheduling as weak fairness
 (`Cfg.sched_sf_iff_wf`).  See `docs/program-logic.md`, §1.
 Rocq: the trace part of `lantana/program_logic/language.v`.
@@ -136,22 +136,22 @@ variable [Crash Expr State Obs Val]
 /-! ## Crashed threads -/
 
 /-- Thread `i` is crashed at `ρ`: in the pool, and crashed in the state by the language. -/
-def Cfg.crashed (ρ : Cfg Expr State) (i : ThreadId) : Prop :=
+def Cfg.Crashed (ρ : Cfg Expr State) (i : ThreadId) : Prop :=
   ∃ e, ρ.1[i]? = some e ∧ Crash.crashed e ρ.2
 
 /-- A crashed thread is a thread of the pool. -/
-theorem Cfg.crashed.lt_length {ρ : Cfg Expr State} {i : ThreadId} (h : ρ.crashed i) :
+theorem Cfg.Crashed.lt_length {ρ : Cfg Expr State} {i : ThreadId} (h : ρ.Crashed i) :
     i < ρ.1.length := by
   obtain ⟨e, he, -⟩ := h
   exact (List.getElem?_eq_some_iff.mp he).1
 
 /-- No thread beyond the pool is crashed. -/
 theorem Cfg.not_crashed_of_le {ρ : Cfg Expr State} {i : ThreadId} (h : ρ.1.length ≤ i) :
-    ¬ ρ.crashed i :=
+    ¬ ρ.Crashed i :=
   fun hc => Nat.lt_irrefl _ (Nat.lt_of_lt_of_le hc.lt_length h)
 
 /-- A crashed thread is not finished. -/
-theorem Cfg.crashed.not_val {ρ : Cfg Expr State} {i : ThreadId} {e : Expr} (h : ρ.crashed i)
+theorem Cfg.Crashed.not_val {ρ : Cfg Expr State} {i : ThreadId} {e : Expr} (h : ρ.Crashed i)
     (he : ρ.1[i]? = some e) : toVal e = none := by
   obtain ⟨e', he', hc⟩ := h
   rw [he] at he'
@@ -159,48 +159,48 @@ theorem Cfg.crashed.not_val {ρ : Cfg Expr State} {i : ThreadId} {e : Expr} (h :
   exact Crash.crashed_not_val hc
 
 /-- Two configurations that agree on every thread have the same crashed threads. -/
-theorem Cfg.crashed_eq_of_iff {ρ₁ ρ₂ : Cfg Expr State} (h : ∀ j, ρ₂.crashed j ↔ ρ₁.crashed j) :
-    Cfg.crashed ρ₂ = Cfg.crashed ρ₁ :=
+theorem Cfg.crashed_eq_of_iff {ρ₁ ρ₂ : Cfg Expr State} (h : ∀ j, ρ₂.Crashed j ↔ ρ₁.Crashed j) :
+    Cfg.Crashed ρ₂ = Cfg.Crashed ρ₁ :=
   funext fun j => propext (h j)
 
 /-- In a language that never crashes, all configurations have the same crashed threads. -/
 theorem Cfg.crashed_eq_of_never (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crashed e σ)
-    (ρ₁ ρ₂ : Cfg Expr State) : Cfg.crashed ρ₂ = Cfg.crashed ρ₁ :=
+    (ρ₁ ρ₂ : Cfg Expr State) : Cfg.Crashed ρ₂ = Cfg.Crashed ρ₁ :=
   Cfg.crashed_eq_of_iff fun _ =>
     ⟨fun ⟨e, _, hc⟩ => (hnc e _ hc).elim, fun ⟨e, _, hc⟩ => (hnc e _ hc).elim⟩
 
 /-- Thread `i`, if crashed at `ρ₁`, is still crashed at `ρ₂`. -/
-def Cfg.staysCrashed (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Prop :=
-  ρ₁.crashed i → ρ₂.crashed i
+def Cfg.StaysCrashed (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Prop :=
+  ρ₁.Crashed i → ρ₂.Crashed i
 
 /-- A step that keeps the statuses keeps every crashed thread crashed. -/
-theorem Cfg.staysCrashed_of_eq {ρ₁ ρ₂ : Cfg Expr State} (h : Cfg.crashed ρ₂ = Cfg.crashed ρ₁)
-    (i : ThreadId) : Cfg.staysCrashed i ρ₁ ρ₂ :=
+theorem Cfg.staysCrashed_of_eq {ρ₁ ρ₂ : Cfg Expr State} (h : Cfg.Crashed ρ₂ = Cfg.Crashed ρ₁)
+    (i : ThreadId) : Cfg.StaysCrashed i ρ₁ ρ₂ :=
   fun hc => h ▸ hc
 
 /-- In a language that never crashes, crashing is permanent. -/
 theorem Cfg.staysCrashed_of_never (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crashed e σ)
-    (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Cfg.staysCrashed i ρ₁ ρ₂ :=
+    (i : ThreadId) (ρ₁ ρ₂ : Cfg Expr State) : Cfg.StaysCrashed i ρ₁ ρ₂ :=
   Cfg.staysCrashed_of_eq (Cfg.crashed_eq_of_never hnc ρ₁ ρ₂) i
 
 /-! ## Threads at a configuration -/
 
 /-- Thread `i` is active at `ρ`: in the pool, not a value, and not crashed. -/
 @[lantana_alias thread_active]
-def Cfg.active (i : ThreadId) (ρ : Cfg Expr State) : Prop :=
+def Cfg.Active (i : ThreadId) (ρ : Cfg Expr State) : Prop :=
   ∃ e, ρ.1[i]? = some e ∧ toVal e = none ∧ ¬ Crash.crashed e ρ.2
 
 /-- Thread `i` is not active at `ρ`: not in the pool, a value, or crashed. -/
 @[lantana_alias thread_na]
-def Cfg.inactive (i : ThreadId) (ρ : Cfg Expr State) : Prop :=
-  ρ.1[i]? = none ∨ (∃ e, ρ.1[i]? = some e ∧ (toVal e).isSome) ∨ ρ.crashed i
+def Cfg.Inactive (i : ThreadId) (ρ : Cfg Expr State) : Prop :=
+  ρ.1[i]? = none ∨ (∃ e, ρ.1[i]? = some e ∧ (toVal e).isSome) ∨ ρ.Crashed i
 
 #lantana_ignore thread_turn
   "traces carry no thread label; the schedule is a proof instrument"
 
 @[lantana_alias thread_active_or_not]
 theorem Cfg.active_or_inactive (i : ThreadId) (ρ : Cfg Expr State) :
-    ρ.active i ∨ ρ.inactive i := by
+    ρ.Active i ∨ ρ.Inactive i := by
   rcases h : ρ.1[i]? with _ | e
   · exact .inr (.inl h)
   · rcases hv : toVal e with _ | v
@@ -211,7 +211,7 @@ theorem Cfg.active_or_inactive (i : ThreadId) (ρ : Cfg Expr State) :
 
 @[lantana_alias thread_active_and_not_false]
 theorem Cfg.not_active_and_inactive (i : ThreadId) (ρ : Cfg Expr State) :
-    ¬ (ρ.active i ∧ ρ.inactive i) := by
+    ¬ (ρ.Active i ∧ ρ.Inactive i) := by
   rintro ⟨⟨e, he, hv, hc⟩, h | ⟨e', he', hv'⟩ | ⟨e', he', hc'⟩⟩
   · simp [he] at h
   · simp [he] at he'
@@ -223,23 +223,23 @@ theorem Cfg.not_active_and_inactive (i : ThreadId) (ρ : Cfg Expr State) :
 
 /-- Inactivity is the negation of activity. -/
 theorem Cfg.inactive_iff_not_active {i : ThreadId} {ρ : Cfg Expr State} :
-    ρ.inactive i ↔ ¬ ρ.active i :=
+    ρ.Inactive i ↔ ¬ ρ.Active i :=
   ⟨fun h ha => Cfg.not_active_and_inactive i ρ ⟨ha, h⟩,
     fun h => (Cfg.active_or_inactive i ρ).resolve_left h⟩
 
 /-! ## Lantana's thread system -/
 
 /-- Lantana's configurations as a thread system: the step of thread `i` is `TraceStep i`, its
-activity `Cfg.active i`. -/
-instance : ThreadSystem (Cfg Expr State) := ⟨TraceStep, Cfg.active⟩
+activity `Cfg.Active i`. -/
+instance : ThreadSystem (Cfg Expr State) := ⟨TraceStep, Cfg.Active⟩
 
 /-- The thread system's step on Lantana's configurations is the trace step. -/
 @[simp] theorem ThreadSystem.step_def {i : ThreadId} {ρ₁ ρ₂ : Cfg Expr State} :
     ThreadSystem.step i ρ₁ ρ₂ = TraceStep i ρ₁ ρ₂ := rfl
 
-/-- The thread system's activity on Lantana's configurations is `Cfg.active`. -/
+/-- The thread system's activity on Lantana's configurations is `Cfg.Active`. -/
 @[simp] theorem ThreadSystem.active_def {i : ThreadId} {ρ : Cfg Expr State} :
-    ThreadSystem.active i ρ = ρ.active i := rfl
+    ThreadSystem.active i ρ = ρ.Active i := rfl
 
 #lantana_ignore behavior_tp "adequacy fixes the initial configuration by `τ.seq 0 = ρ`"
 
@@ -250,11 +250,11 @@ variable {i j : ThreadId} {ρ₁ ρ₂ : Cfg Expr State}
 
 /-- A trace step of another thread that keeps the statuses keeps thread `i` active. -/
 theorem Cfg.active_of_step_ne (hs : TraceStep j ρ₁ ρ₂) (hji : j ≠ i)
-    (hkeep : Cfg.crashed ρ₂ = Cfg.crashed ρ₁) (h : ρ₁.active i) : ρ₂.active i := by
+    (hkeep : Cfg.Crashed ρ₂ = Cfg.Crashed ρ₁) (h : ρ₁.Active i) : ρ₂.Active i := by
   obtain ⟨e, he, hv, hc⟩ := h
   have he₂ := hs.get?_ne hji he
   refine ⟨e, he₂, hv, fun hc₂ => ?_⟩
-  obtain ⟨e', he', hc'⟩ : ρ₁.crashed i := hkeep ▸ ⟨e, he₂, hc₂⟩
+  obtain ⟨e', he', hc'⟩ : ρ₁.Crashed i := hkeep ▸ ⟨e, he₂, hc₂⟩
   rw [he] at he'
   cases he'
   exact hc hc'
@@ -262,8 +262,8 @@ theorem Cfg.active_of_step_ne (hs : TraceStep j ρ₁ ρ₂) (hji : j ≠ i)
 /-- An inactive thread of the pool stays inactive across a trace step that keeps it crashed if it
 is. -/
 theorem Cfg.inactive_of_step_of_isSome (hs : TraceStep j ρ₁ ρ₂)
-    (hcr : Cfg.staysCrashed i ρ₁ ρ₂) (hsome : (ρ₁.1[i]?).isSome) (h : ρ₁.inactive i) :
-    ρ₂.inactive i := by
+    (hcr : Cfg.StaysCrashed i ρ₁ ρ₂) (hsome : (ρ₁.1[i]?).isSome) (h : ρ₁.Inactive i) :
+    ρ₂.Inactive i := by
   rcases h with h | ⟨e, he, hv⟩ | hc
   · simp [h] at hsome
   · exact .inr (.inl ⟨e, hs.get?_of_val he hv, hv⟩)
@@ -279,8 +279,8 @@ variable {σ : Nat → Cfg Expr State} {i : ThreadId}
 /-- Along a run where thread `i` stays crashed once crashed, the thread, in the pool and
 inactive, stays inactive. -/
 theorem Cfg.inactive_mono_of_isSome (hrun : ∀ n, ∃ j, TraceStep j (σ n) (σ (n + 1)))
-    (hcr : ∀ n, Cfg.staysCrashed i (σ n) (σ (n + 1))) {n k : Nat} (hnk : n ≤ k) :
-    ((σ n).1[i]?).isSome → (σ n).inactive i → (σ k).inactive i := by
+    (hcr : ∀ n, Cfg.StaysCrashed i (σ n) (σ (n + 1))) {n k : Nat} (hnk : n ≤ k) :
+    ((σ n).1[i]?).isSome → (σ n).Inactive i → (σ k).Inactive i := by
   intro hsome h
   induction hnk with
   | refl => exact h
@@ -291,14 +291,14 @@ theorem Cfg.inactive_mono_of_isSome (hrun : ∀ n, ∃ j, TraceStep j (σ n) (σ
 /-- **Convexity of activity**: along a run where thread `i` stays crashed once crashed, the
 thread, active at two positions, is active at every position between them. -/
 theorem Cfg.active_convex (hrun : ∀ n, ∃ j, TraceStep j (σ n) (σ (n + 1)))
-    (hcr : ∀ n, Cfg.staysCrashed i (σ n) (σ (n + 1))) :
-    ∀ n m k, n ≤ m → m ≤ k → (σ n).active i → (σ k).active i → (σ m).active i := by
+    (hcr : ∀ n, Cfg.StaysCrashed i (σ n) (σ (n + 1))) :
+    ∀ n m k, n ≤ m → m ≤ k → (σ n).Active i → (σ k).Active i → (σ m).Active i := by
   intro n m k hnm hmk hn hk
   obtain ⟨e₀, he₀, -⟩ := hn
   have hsome := Cfg.isSome_mono (i := i) hrun hnm (by simp [he₀])
   rcases he : (σ m).1[i]? with _ | e
   · simp [he] at hsome
-  have hnot : ¬ (σ m).inactive i := fun hm =>
+  have hnot : ¬ (σ m).Inactive i := fun hm =>
     Cfg.not_active_and_inactive i (σ k) ⟨hk, Cfg.inactive_mono_of_isSome hrun hcr hmk hsome hm⟩
   refine ⟨e, he, ?_, fun hc => hnot (.inr (.inr ⟨e, he, hc⟩))⟩
   rcases hv : toVal e with _ | v
@@ -315,14 +315,14 @@ open scoped TrProp
 
 /-- Activity is convex along a behavior where thread `i`, once crashed, stays crashed. -/
 theorem Cfg.convex_of_isBehavior {i : ThreadId} :
-    (IsBehavior ∧ₜ □ₜ TrProp.step (Cfg.staysCrashed i) : TrProp (Cfg Expr State)) ⊆
-      Fairness.Action.Convex (Fairness.Sched.action i) := by
+    (isBehavior ∧ₜ □ₜ TrProp.step (Cfg.StaysCrashed i) : TrProp (Cfg Expr State)) ⊆
+      Fairness.Action.convex (Fairness.Sched.action i) := by
   rintro τ ⟨hbeh, hcr⟩ m hm hA k hmk hev
   obtain ⟨k', hkk', hA'⟩ := TrProp.eventually_iff.mp hev
   have hle : ∀ n, τ.pos ≤ m + n := fun n => Nat.le_trans hm (Nat.le_add_right m n)
   have hrun : ∀ n, ∃ j, TraceStep j (τ.seq (m + n)) (τ.seq (m + n + 1)) :=
     fun n => isBehavior_iff.mp hbeh (m + n) (hle n)
-  have hcr' : ∀ n, Cfg.staysCrashed i (τ.seq (m + n)) (τ.seq (m + n + 1)) :=
+  have hcr' : ∀ n, Cfg.StaysCrashed i (τ.seq (m + n)) (τ.seq (m + n + 1)) :=
     fun n => hcr (m + n) (hle n)
   have h := Cfg.active_convex (σ := fun n => τ.seq (m + n)) (i := i) hrun hcr' 0 (k - m)
     (k' - m) (Nat.zero_le _) (Nat.sub_le_sub_right hkk' m) (by simp only [Nat.add_zero]; exact hA)
@@ -332,9 +332,9 @@ theorem Cfg.convex_of_isBehavior {i : ThreadId} :
 
 /-- Fair scheduling of a thread is weak fairness along a behavior where the thread, once
 crashed, stays crashed. -/
-theorem Cfg.sched_sf_iff_wf {τ : Trace (Cfg Expr State)} (hrun : IsBehavior τ)
-    (i : ThreadId) (hcr : (□ₜ TrProp.step (Cfg.staysCrashed i)) τ) :
-    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
+theorem Cfg.sched_sf_iff_wf {τ : Trace (Cfg Expr State)} (hrun : isBehavior τ)
+    (i : ThreadId) (hcr : (□ₜ TrProp.step (Cfg.StaysCrashed i)) τ) :
+    Fairness.Sched.strongFair i τ ↔ Fairness.Action.weakFair (Fairness.Sched.action i) τ :=
   Fairness.Action.sf_iff_wf_of_convex (Cfg.convex_of_isBehavior τ ⟨hrun, hcr⟩)
 
 end Scheduling

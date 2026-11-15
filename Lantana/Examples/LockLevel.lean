@@ -65,10 +65,10 @@ theorem lockLevel_alloc (ℓ : Layer) : ⊢@{IProp GF} |==> ∃ γ : GName, lock
   exact iOwn_alloc (F := LockLevelF) _ auth_valid
 
 /-- The authority knows its level. -/
-theorem lockLevel_lb (γ : GName) (dq : DFrac) (ℓ : Layer) :
+theorem lockLevelLb_of_lockLevel (γ : GName) (dq : DFrac) (ℓ : Layer) :
     lockLevel (GF := GF) γ dq ℓ ⊢ lockLevelLb γ ℓ := by
   unfold lockLevel lockLevelLb
-  exact iOwn_mono (included dq ℓ)
+  exact iOwn_mono (inc dq ℓ)
 
 /-- The authority knows its level, and keeps it. -/
 theorem lockLevel_get_lb (γ : GName) (dq : DFrac) (ℓ : Layer) :
@@ -78,7 +78,7 @@ theorem lockLevel_get_lb (γ : GName) (dq : DFrac) (ℓ : Layer) :
   exact iOwn_op.mp
 
 /-- What is known is below the level. -/
-theorem lockLevel_lb_valid (γ : GName) (dq : DFrac) (ℓ ℓ' : Layer) :
+theorem lockLevel_lockLevelLb_valid (γ : GName) (dq : DFrac) (ℓ ℓ' : Layer) :
     lockLevel (GF := GF) γ dq ℓ ⊢ lockLevelLb γ ℓ' -∗ lockLevel γ dq ℓ ∗ ⌜ℓ' ≤ ℓ⌝ := by
   unfold lockLevel lockLevelLb
   iintro H1 #H2

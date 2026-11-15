@@ -247,7 +247,7 @@ theorem oblFuel_mono_gen (k : Oid) {ℓ₁ ℓ₂ : Layer} {μ₁ μ₂ : Measur
     oblFuel (GF := GF) k ℓ₂ μ₂ ⊢ |==> oblFuel k ℓ₁ μ₁ := by
   unfold oblFuel oblFuelVal
   iintro ⟨#He, Hf⟩
-  imod OSat.fuel_mon (modelFuel_mono hℓ h) $$ Hf with Hf
+  imod OSat.fuel_mono (modelFuel_mono hℓ h) $$ Hf with Hf
   imodintro
   iframe Hf
   iexact He
@@ -274,7 +274,7 @@ theorem oblFuel_extend (k : Oid) {ℓ₁ ℓ₂ : Layer} (h : ℓ₁ < ℓ₂) (
     oblFuel (GF := GF) k ℓ₂ 1 ⊢ |==> oblFuel k ℓ₁ μ := by
   unfold oblFuel oblFuelVal
   iintro ⟨#He, Hf⟩
-  imod OSat.fuel_mon (modelFuel_le_extend h μ) $$ Hf with Hf
+  imod OSat.fuel_mono (modelFuel_le_extend h μ) $$ Hf with Hf
   imodintro
   iframe Hf
   iexact He
@@ -284,7 +284,7 @@ theorem witCred_mono [OWitGS GF] (k : Oid) {a₀ a₁ : Fuel} (h : a₀ ≤ a₁
     witCred (GF := GF) k a₁ ⊢ |==> witCred k a₀ := by
   unfold witCred
   iintro ⟨#He, Hc⟩
-  imod OWit.cred_mon h $$ Hc with Hc
+  imod OWit.cred_mono h $$ Hc with Hc
   imodintro
   iframe Hc
   iexact He
@@ -342,7 +342,7 @@ theorem witFuels_layer [OWitGS GF] (k : Oid) (ℓ : Layer) (α : Fuel)
   · iexists μ
     isplitl []
     · iexact He
-    · iapply OWit.bound_mon hα $$ Hb
+    · iapply OWit.bound_mono hα $$ Hb
   · iexists μ'
     iexact Hβ
 
@@ -359,7 +359,7 @@ theorem witFuels_add [OWitGS GF] (k : Oid) {ℓ₁ ℓ₂ : Layer} (α : Fuel)
   have hle : modelFuel ℓ₂ μ ×ⱼ α ≤ modelFuel ℓ₂ (μ * ▽) := by
     rw [modelFuel_mul_extend]
     refine jmul_le_jmul Ordinal.le_rfl (Ordinal.le_trans hα (Measure.rep_extend h _))
-  imod OSat.fuel_mon hle $$ Hf with Hf
+  imod OSat.fuel_mono hle $$ Hf with Hf
   imodintro
   iexists μ'
   isplitr
@@ -391,7 +391,7 @@ theorem witFuels_decr [OWitGS GF] (k : Oid) (ℓ : Layer) (α : Fuel)
     subst hlm
     unfold oblFuelVal
     iintro ⟨#He', Hf⟩
-    imod OSat.fuel_mon_split (jmul_succ_le hα₀) $$ Hf with ⟨Hf₀, Hf⟩
+    imod OSat.fuel_mono_split (jmul_succ_le hα₀) $$ Hf with ⟨Hf₀, Hf⟩
     imodintro
     isplitl [Hf]
     · iframe Hf

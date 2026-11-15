@@ -18,7 +18,7 @@ public import Lantana.ProgramLogic.Notation
 
 /-! # The liveness weakest precondition `lWP`
 
-`lWP e @ s; i; E {{ Φ }}`, the least fixpoint of `lwpPre`, whose step is `lwpStep`: its unfolding
+`lWP e @ s; i; E {{ Φ }}`, the least fixpoint of `lwp.pre`, whose step is `lwp.step`: its unfolding
 `lwp_unfold`, induction `lwp_ind_strong`, the structural and derived rules, the later-credit rules
 and the proof-mode instances.  Structured as Iris-Lean's `TotalWeakestPre`, with a thread id and
 the rounds of the obligation model in each step; see `docs/program-logic.md`, §2.
@@ -54,30 +54,30 @@ variable [Crash Expr State Obs Val] [L : LantanaGS Expr State Obs Val GF]
 /-- One step of `lWP` for thread `i` running `fill K e₁`, in phases (`docs/program-logic.md`, §2);
 `ν e₂ len efs` holds after a step to `e₂` that forks the threads `efs` from the id `len`. -/
 @[lantana_alias lwp_step]
-def lwpStep (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
+def lwp.step (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
     (ν : Expr → Nat → List Expr → IProp GF) : IProp GF :=
   iprop(∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
     (tp : ThreadPool Expr),
     ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
     historyTInterp h n σ₁ tp ={E,∅}=∗
     |=[n]=>m
-    ⌜s.maybeReducible e₁ σ₁⌝ ∗
+    ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
     ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
       ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ -∗
-      mprog n tp.length (Cfg.crashed (tp, σ₁)) i
+      mprog n tp.length (Cfg.Crashed (tp, σ₁)) i
         (mphys n (n + 1) tp.length (tp.length + efs.length)
-          (Cfg.crashed (tp, σ₁)) (Cfg.crashed (tp.set i (fill K e₂) ++ efs, σ₂))
+          (Cfg.Crashed (tp, σ₁)) (Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂))
           (|=[n + 1]=>m |={∅,E}=>
             historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
               (tp.set i (fill K e₂) ++ efs) ∗
             ν e₂ tp.length efs)))
 
 @[lantana_alias lwp_step_mono]
-theorem lwpStep_mono {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr}
+theorem lwp.step_mono {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr}
     {ν₁ ν₂ : Expr → Nat → List Expr → IProp GF} :
     (∀ e₂ len efs, ν₁ e₂ len efs -∗ ν₂ e₂ len efs) ⊢
-      lwpStep s i E e₁ ν₁ -∗ lwpStep s i E e₁ ν₂ := by
-  unfold lwpStep
+      lwp.step s i E e₁ ν₁ -∗ lwp.step s i E e₁ ν₂ := by
+  unfold lwp.step
   iintro Hν H %K %h %n %σ₁ %tp %hK %hi Hσ
   imod H $$ %K %h %n %σ₁ %tp %hK %hi Hσ with H
   imodintro
@@ -99,11 +99,11 @@ theorem lwpStep_mono {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr}
   iframe Hσ
   iapply Hν $$ H
 
-theorem lwpStep_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr} {n : SI}
+theorem lwp.step_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr} {n : SI}
     {ν₁ ν₂ : Expr → Nat → List Expr → IProp GF}
     (h : ∀ e₂ len efs, ν₁ e₂ len efs ≡{n}≡ ν₂ e₂ len efs) :
-    lwpStep s i E e₁ ν₁ ≡{n}≡ lwpStep s i E e₁ ν₂ := by
-  unfold lwpStep
+    lwp.step s i E e₁ ν₁ ≡{n}≡ lwp.step s i E e₁ ν₂ := by
+  unfold lwp.step
   refine forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ =>
     forall_ne fun tp => imp_ne.ne .rfl <| imp_ne.ne .rfl <| wand_ne.ne .rfl <| fupd_ne.ne <|
     (mupdBase_ne _).ne <| sep_ne.ne .rfl <| forall_ne fun _ => forall_ne fun e₂ =>
@@ -113,33 +113,33 @@ theorem lwpStep_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Expr} {n 
 
 /-- The postcondition of a forked thread `j` with postcondition `Φ`: it has terminated. -/
 @[lantana_alias lift_term]
-def liftTerm (j : ThreadId) (Φ : ThreadId → Val → IProp GF) : Val → IProp GF :=
+def lwp.liftTerm (j : ThreadId) (Φ : ThreadId → Val → IProp GF) : Val → IProp GF :=
   fun v => iprop(Th.done j ∗ Φ j v)
 
 /-- One unfolding of `lWP`: the postcondition of a value, or one step after which the thread and
 the forked threads continue. -/
 @[lantana_alias lwp_pre]
-def lwpPre (s : Stuckness)
-    (lwp : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF)
+def lwp.pre (s : Stuckness)
+    (wp : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF)
     (i : ThreadId) (E : CoPset) (e₁ : Expr) (Φ : Val → IProp GF) : IProp GF :=
   match toVal e₁ with
   | some v => iprop(|={E}=>m Φ v)
   | none =>
-    lwpStep s i E e₁ fun e₂ len efs =>
-      iprop(lwp i E e₂ Φ ∗
-        [∗list] j ↦ ef ∈ efs, lwp (len + j) ⊤ ef (liftTerm (len + j) L.forkPost))
+    lwp.step s i E e₁ fun e₂ len efs =>
+      iprop(wp i E e₂ Φ ∗
+        [∗list] j ↦ ef ∈ efs, wp (len + j) ⊤ ef (lwp.liftTerm (len + j) L.forkPost))
 
 @[lantana_alias lwp_pre_mono]
-theorem lwpPre_mono {s : Stuckness}
+theorem lwp.pre_mono {s : Stuckness}
     {X Y : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF} :
     □ (∀ i E e Φ, X i E e Φ -∗ Y i E e Φ) ⊢
-      ∀ i E e Φ, lwpPre s X i E e Φ -∗ lwpPre s Y i E e Φ := by
+      ∀ i E e Φ, lwp.pre s X i E e Φ -∗ lwp.pre s Y i E e Φ := by
   iintro #H %i %E %e %Φ Hpre
-  unfold lwpPre
+  unfold lwp.pre
   cases toVal e with
   | some v => iexact Hpre
   | none =>
-    iapply lwpStep_mono $$ [] Hpre
+    iapply lwp.step_mono $$ [] Hpre
     iintro %e₂ %len %efs ⟨Hlwp, Hefs⟩
     isplitl [Hlwp]
     · iapply H $$ Hlwp
@@ -147,7 +147,7 @@ theorem lwpPre_mono {s : Stuckness}
       iintro !> %j %ef %_ Hef
       iapply H $$ Hef
 
-namespace Internal
+namespace lwp.Internal
 
 -- Discrete OFEs on the argument types, as in `Iris.ProgramLogic.TotalWeakestPre`.
 local instance (priority := low) : OFE CoPset := OFE.ofDiscrete _
@@ -158,11 +158,11 @@ local instance (priority := low) : OFE ThreadId := OFE.ofDiscrete _
 /-- The arguments of `lWP`, uncurried. -/
 abbrev Args := ThreadId × CoPset × Expr × (Val → IProp GF)
 
-/-- `lwpPre` on the uncurried arguments. -/
+/-- `lwp.pre` on the uncurried arguments. -/
 @[lantana_alias lwp_pre']
 abbrev pre' (s : Stuckness) (X : Args (Expr := Expr) (Val := Val) (GF := GF) → IProp GF) :
     Args (Expr := Expr) (Val := Val) (GF := GF) → IProp GF
-  | (i, E, e, Φ) => lwpPre s (fun i E e Φ => X (i, E, e, Φ)) i E e Φ
+  | (i, E, e, Φ) => lwp.pre s (fun i E e Φ => X (i, E, e, Φ)) i E e Φ
 
 @[lantana_alias lwp_pre_mono']
 instance pre'_mono (s : Stuckness) :
@@ -170,28 +170,28 @@ instance pre'_mono (s : Stuckness) :
   mono_pred := by
     intro X Y _ _
     iintro #HXY %⟨i, E, e, Φ⟩ HX
-    iapply lwpPre_mono $$ [] HX
+    iapply lwp.pre_mono $$ [] HX
     iintro !> %i %E %e %Φ H
     iapply HXY $$ H
   mono_pred_ne {X} _ := ⟨fun {n} => fun ⟨i₁, E₁, e₁, Φ₁⟩ ⟨i₂, E₂, e₂, Φ₂⟩ ⟨hi, hE, he, hΦ⟩ => by
     obtain rfl := show i₁ = i₂ from hi
     obtain rfl := show E₁ = E₂ from hE
     obtain rfl := show e₁ = e₂ from he
-    simp only [pre', lwpPre]
+    simp only [pre', lwp.pre]
     match toVal e₁ with
     | some v => exact (mupd_ne _ _).ne (hΦ v)
     | none =>
-      refine lwpStep_ne fun e₂ _ _ => sep_ne.ne ?_ .rfl
+      refine lwp.step_ne fun e₂ _ _ => sep_ne.ne ?_ .rfl
       exact OFE.NonExpansive.ne (f := X) (x₁ := (i₁, E₁, e₂, Φ₁)) (x₂ := (i₁, E₁, e₂, Φ₂))
         ⟨.rfl, .rfl, .rfl, hΦ⟩⟩
 
 /-- `lWP` as the least fixpoint. -/
 @[lantana_alias lwp_fix]
-def get (s : Stuckness) (i : ThreadId) (E : CoPset) (e : Expr) (Φ : Val → IProp GF) : IProp GF :=
+def lfp (s : Stuckness) (i : ThreadId) (E : CoPset) (e : Expr) (Φ : Val → IProp GF) : IProp GF :=
   bi_least_fixpoint (pre' s) (i, E, e, Φ)
 
-theorem get_unfold {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr}
-    {Φ : Val → IProp GF} : get s i E e Φ ⊣⊢ lwpPre s (get s) i E e Φ :=
+theorem lfp_unfold {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr}
+    {Φ : Val → IProp GF} : lfp s i E e Φ ⊣⊢ lwp.pre s (lfp s) i E e Φ :=
   equiv_iff.mp (least_fixpoint_unfold (pre' s))
 
 omit [ModelGS GF] in
@@ -201,18 +201,18 @@ private theorem internalEq_rewrite_sep {A : Type _} [OFE A] {a b : A} (Ψ : A �
   sep_and.trans (internalEq.rewrite' Ψ and_elim_l and_elim_r)
 
 /-- Induction on the least fixpoint, for any `Ψ`, non-expansive or not. -/
-theorem get_ind_strong (s : Stuckness)
+theorem lfp_ind_strong (s : Stuckness)
     (Ψ : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF) :
-    □ (∀ i e E Φ, lwpPre s (fun i E e Φ => iprop(Ψ i E e Φ ∧ get s i E e Φ)) i E e Φ -∗
+    □ (∀ i e E Φ, lwp.pre s (fun i E e Φ => iprop(Ψ i E e Φ ∧ lfp s i E e Φ)) i E e Φ -∗
         Ψ i E e Φ)
-      ⊢ ∀ i e E Φ, get s i E e Φ -∗ Ψ i E e Φ := by
+      ⊢ ∀ i e E Φ, lfp s i E e Φ -∗ Ψ i E e Φ := by
   let Ψ' : Args (Expr := Expr) (Val := Val) (GF := GF) → IProp GF :=
     fun x => iprop(∀ y : Args, x ≡ y → Ψ y.1 y.2.1 y.2.2.1 y.2.2.2)
   haveI hΨ' : OFE.NonExpansive Ψ' :=
     ⟨fun _ _ _ h => forall_ne fun y => imp_ne.ne ((internalEq.ne_l y).ne h) .rfl⟩
   letI : OFE.NonExpansive fun x => iprop(Ψ' x ∧ bi_least_fixpoint (pre' s) x) :=
     ⟨fun _ _ _ h => and_ne.ne (hΨ'.ne h) (OFE.NonExpansive.ne h)⟩
-  unfold get
+  unfold lfp
   iintro #IH %i %e %E %Φ H
   ihave H := least_fixpoint_ind (pre' s) Ψ' $$ [] %(i, E, e, Φ) H
   · iintro !> %x Hx %y Heq
@@ -223,7 +223,7 @@ theorem get_ind_strong (s : Stuckness)
       · iexact Hx
     obtain ⟨i, E, e, Φ⟩ := y
     iapply IH
-    iapply lwpPre_mono $$ [] Hy
+    iapply lwp.pre_mono $$ [] Hy
     iintro !> %i %E %e %Φ H
     isplit
     · icases H with ⟨H, -⟩
@@ -236,43 +236,43 @@ theorem get_ind_strong (s : Stuckness)
   ipureintro
   rfl
 
-theorem get_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr} :
-    OFE.NonExpansive (get (Expr := Expr) (GF := GF) s i E e) :=
+theorem lfp_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr} :
+    OFE.NonExpansive (lfp (Expr := Expr) (GF := GF) s i E e) :=
   ⟨fun _ _ _ h => by
     refine OFE.NonExpansive.ne (f := bi_least_fixpoint (pre' s)) ?_
     exact ⟨.rfl, .rfl, .rfl, h⟩⟩
 
-end Internal
+end lwp.Internal
 
 instance instLwp : Lwp (IProp GF) Expr Val Stuckness ThreadId where
-  lwp := Internal.get
+  lwp := lwp.Internal.lfp
 
 /-! ## The defining equations and induction -/
 
 @[lantana_alias lwp_unfold]
 theorem lwp_unfold {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr} {Φ : Val → IProp GF} :
-    lWP e @ s; i; E {{ Φ }} ⊣⊢ lwpPre s (Lwp.lwp (PROP := IProp GF) s) i E e Φ :=
-  Internal.get_unfold
+    lWP e @ s; i; E {{ Φ }} ⊣⊢ lwp.pre s (Lwp.lwp (PROP := IProp GF) s) i E e Φ :=
+  lwp.Internal.lfp_unfold
 
 /-- Induction on `lWP`, with the fixpoint available in the hypothesis. -/
 @[lantana_alias lwp_ind_strong]
 theorem lwp_ind_strong (s : Stuckness)
     (Ψ : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF) :
     □ (∀ i e E Φ,
-        lwpPre s (fun i E e Φ => iprop(Ψ i E e Φ ∧ lWP e @ s; i; E {{ Φ }})) i E e Φ -∗ Ψ i E e Φ)
+        lwp.pre s (fun i E e Φ => iprop(Ψ i E e Φ ∧ lWP e @ s; i; E {{ Φ }})) i E e Φ -∗ Ψ i E e Φ)
       ⊢ ∀ i e E Φ, lWP e @ s; i; E {{ Φ }} -∗ Ψ i E e Φ :=
-  Internal.get_ind_strong s Ψ
+  lwp.Internal.lfp_ind_strong s Ψ
 
 /-- Induction on `lWP`. -/
 @[lantana_alias lwp_ind]
 theorem lwp_ind (s : Stuckness) (Ψ : ThreadId → CoPset → Expr → (Val → IProp GF) → IProp GF) :
-    □ (∀ i e E Φ, lwpPre s Ψ i E e Φ -∗ Ψ i E e Φ)
+    □ (∀ i e E Φ, lwp.pre s Ψ i E e Φ -∗ Ψ i E e Φ)
       ⊢ ∀ i e E Φ, lWP e @ s; i; E {{ Φ }} -∗ Ψ i E e Φ := by
   iintro #IH
   iapply lwp_ind_strong s Ψ
   iintro !> %i %e %E %Φ H
   iapply IH
-  iapply lwpPre_mono $$ [] H
+  iapply lwp.pre_mono $$ [] H
   iintro !> %i %E %e %Φ H
   icases H with ⟨H, -⟩
   iexact H
@@ -280,7 +280,7 @@ theorem lwp_ind (s : Stuckness) (Ψ : ThreadId → CoPset → Expr → (Val → 
 @[lantana_alias lwp_ne]
 instance lwp_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr} :
     OFE.NonExpansive (Lwp.lwp (PROP := IProp GF) (Val := Val) s i E e) :=
-  Internal.get_ne
+  lwp.Internal.lfp_ne
 
 #lantana_ignore lwp_proper "Subsumed by the `NonExpansive` instance `lwp_ne`."
 #lantana_ignore lwp_fix_ne "`lwp` is not sealed: `lwp_ne`."
@@ -289,8 +289,8 @@ instance lwp_ne {s : Stuckness} {i : ThreadId} {E : CoPset} {e : Expr} :
 #lantana_ignore lwp_fix_unfold_fix "`lwp` is not sealed: `lwp_unfold`."
 #lantana_ignore lwp_unfold_fix "`lwp` is not sealed: `lwp_unfold`."
 #lantana_ignore lwp_pre_lwp_pre' "`lwp` is not sealed: `pre'` is an `abbrev`."
-#lantana_ignore lwp_step_ne "`lwpStep_ne`, a dist lemma (no `Proper`)."
-#lantana_ignore lwp_step_proper "`lwpStep_ne`, a dist lemma (no `Proper`)."
+#lantana_ignore lwp_step_ne "`lwp.step_ne`, a dist lemma (no `Proper`)."
+#lantana_ignore lwp_step_proper "`lwp.step_ne`, a dist lemma (no `Proper`)."
 
 /-! ## Structural rules -/
 
@@ -300,28 +300,28 @@ variable {s s₁ s₂ : Stuckness} {i : ThreadId} {E E₁ E₂ : CoPset} {e : Ex
 
 @[lantana_alias fupd_lwp]
 theorem fupd_lwp : (|={E}=> lWP e @ s; i; E {{ Φ }}) ⊢ lWP e @ s; i; E {{ Φ }} := by
-  simp only [(lwp_unfold (e := e)).to_eq, lwpPre]
+  simp only [(lwp_unfold (e := e)).to_eq, lwp.pre]
   iintro H
   cases toVal e with
   | some v =>
     imod H
     iexact H
   | none =>
-    unfold lwpStep
+    unfold lwp.step
     iintro %K %h %n %σ₁ %tp %hK %hi Hσ
     imod H
     iapply H $$ %K %h %n %σ₁ %tp %hK %hi Hσ
 
 @[lantana_alias sfmupd_lwp]
 theorem mupd_lwp : (|={E}=>m lWP e @ s; i; E {{ Φ }}) ⊢ lWP e @ s; i; E {{ Φ }} := by
-  simp only [(lwp_unfold (e := e)).to_eq, lwpPre]
+  simp only [(lwp_unfold (e := e)).to_eq, lwp.pre]
   iintro H
   cases toVal e with
   | some v =>
     imod H
     iexact H
   | none =>
-    unfold lwpStep mupd mupdFancy
+    unfold lwp.step mupd mupdFancy
     iintro %K %h %n %σ₁ %tp %hK %hi Hσ
     imod H $$ %h %n %σ₁ %tp Hσ with H
     imodintro
@@ -332,7 +332,7 @@ theorem mupd_lwp : (|={E}=>m lWP e @ s; i; E {{ Φ }}) ⊢ lWP e @ s; i; E {{ Φ
 
 @[lantana_alias lwp_value_sfmupd']
 theorem lwp_value_mupd' {v : Val} : lWP (v : Expr) @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := by
-  simp [(lwp_unfold (e := (v : Expr))).to_eq, lwpPre]
+  simp [(lwp_unfold (e := (v : Expr))).to_eq, lwp.pre]
 
 @[lantana_alias lwp_strong_mono_sfmupd]
 theorem lwp_strong_mono_mupd (hs : s₁ ≤ s₂) (hE : E₁ ⊆ E₂) :
@@ -342,13 +342,13 @@ theorem lwp_strong_mono_mupd (hs : s₁ ≤ s₂) (hE : E₁ ⊆ E₂) :
       (∀ v, Φ v ={E₂}=∗m Ψ v) -∗ lWP e @ s₂; i; E₂ {{ Ψ }})) $$ [] %i %e %E₁ %Φ H %E₂ %Ψ %hE HΦ
   iintro !> %i %e %E₁ %Φ IH %E₂ %Ψ %hE HΦ
   rw [lwp_unfold.to_eq]
-  unfold lwpPre
+  unfold lwp.pre
   cases toVal e with
   | some v =>
     imod mupd_mask_mono hE $$ IH with HΦv
     iapply HΦ $$ HΦv
   | none =>
-    unfold lwpStep
+    unfold lwp.step
     iintro %K %h %n %σ₁ %tp %hK %hi Hσ
     imod fupd_mask_subseteq hE with Hclose
     imod IH $$ %K %h %n %σ₁ %tp %hK %hi Hσ with IH
@@ -396,7 +396,7 @@ theorem lwp_mupd : lWP e @ s; i; E {{ v, |={E}=>m Φ v }} ⊢ lWP e @ s; i; E {{
 
 theorem lwp_value_mupd_of_toVal {v : Val} (he : toVal e = some v) :
     lWP e @ s; i; E {{ Φ }} ⊣⊢ |={E}=>m Φ v := by
-  simp [(lwp_unfold (e := e)).to_eq, lwpPre, he]
+  simp [(lwp_unfold (e := e)).to_eq, lwp.pre, he]
 
 @[lantana_alias lwp_value_sfmupd]
 theorem lwp_value_mupd {v : Val} [h : Language.IntoVal e v] :
@@ -411,12 +411,6 @@ theorem lwp_value' {v : Val} : Φ v ⊢ lWP (v : Expr) @ s; i; E {{ Φ }} :=
 @[lantana_alias lwp_value]
 theorem lwp_value {v : Val} [Language.IntoVal e v] : Φ v ⊢ lWP e @ s; i; E {{ Φ }} :=
   mupd_intro.trans lwp_value_mupd.mpr
-
-theorem getElem?_set_append {tp efs : List Expr} {i : ThreadId} {e e' : Expr}
-    (hi : tp[i]? = some e) : (tp.set i e' ++ efs)[i]? = some e' := by
-  have hlt : i < tp.length := (List.getElem?_eq_some_iff.mp hi).1
-  rw [List.getElem?_append_left (by simpa using hlt)]
-  simp [hlt]
 
 /-- The value case of `lwp_atomic_mupd`. -/
 private theorem lwp_atomic_value {e₂ : Expr} {v₂ : Val} (he₂ : toVal e₂ = some v₂)
@@ -441,7 +435,7 @@ private theorem lwp_atomic_value {e₂ : Expr} {v₂ : Val} (he₂ : toVal e₂ 
 @[lantana_alias lwp_atomic_sfmupd]
 theorem lwp_atomic_mupd [hatom : Language.Atomic ↑s e] :
     (|={E₁,E₂}=>m lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }}) ⊢ lWP e @ s; i; E₁ {{ Φ }} := by
-  simp only [(lwp_unfold (e := e)).to_eq, lwpPre]
+  simp only [(lwp_unfold (e := e)).to_eq, lwp.pre]
   iintro H
   cases toVal e with
   | some v =>
@@ -449,7 +443,7 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic ↑s e] :
     imod H
     iexact H
   | none =>
-    unfold lwpStep
+    unfold lwp.step
     iintro %K %h %n %σ₁ %tp %hK %hi Hσ
     imod mupd_elim $$ H Hσ with H
     imodintro
@@ -478,8 +472,8 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic ↑s e] :
       cases he₂ : toVal e₂ with
       | some v₂ => iapply lwp_atomic_value he₂ $$ H Hσ Hefs
       | none =>
-        isimp only [(lwp_unfold (e := e₂)).to_eq, lwpPre, he₂, lwpStep] at H
-        imod H $$ %K %_ %_ %_ %_ %hK %(getElem?_set_append hi) Hσ with H
+        isimp only [(lwp_unfold (e := e₂)).to_eq, lwp.pre, he₂, lwp.step] at H
+        imod H $$ %K %_ %_ %_ %_ %hK %(List.getElem?_set_append hi) Hσ with H
         imodintro
         imod H with ⟨%hred₂, -⟩
         exact (Language.not_reducible_iff_irreducible.mpr hat hred₂).elim
@@ -497,7 +491,7 @@ theorem lwp_bind (K : Ectx) [hK : Language.Context (fill (Expr := Expr) K)] :
         lWP (fill K e) @ s; i; E {{ Φ }}))
     $$ [] %i %e %E %_ H %Φ []
   · iintro !> %i %e %E %Ψ IH %Φ HΦ
-    unfold lwpPre
+    unfold lwp.pre
     cases he : toVal e with
     | some v =>
       obtain rfl := Iris.ProgramLogic.ToVal.coe_of_toVal_eq_some he
@@ -507,8 +501,8 @@ theorem lwp_bind (K : Ectx) [hK : Language.Context (fill (Expr := Expr) K)] :
       iapply HΦ $$ IH
     | none =>
       rw [(lwp_unfold (e := fill K e)).to_eq]
-      simp only [lwpPre, hK.toVal_eq_none_fill he]
-      unfold lwpStep
+      simp only [lwp.pre, hK.toVal_eq_none_fill he]
+      unfold lwp.step
       iintro %K₁ %h %n %σ₁ %tp %hK₁ %hi Hσ
       rw [EvContext.fill_comp] at hi
       imod IH $$ %(EvContextOps.comp K₁ K) %h %n %σ₁ %tp %(Language.Context.fillComp K₁ K) %hi Hσ
@@ -642,7 +636,7 @@ theorem lwp_mask_mono (hE : E₁ ⊆ E₂) : lWP e @ s; i; E₁ {{ Φ }} ⊢ lWP
   iexact Hv
 
 @[lantana_alias lwp_frame_l]
-theorem lwp_frame_l {R : IProp GF} :
+theorem lwp_frame_left {R : IProp GF} :
     R ∗ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ v, R ∗ Φ v }} := by
   iintro ⟨HR, H⟩
   iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
@@ -650,7 +644,7 @@ theorem lwp_frame_l {R : IProp GF} :
   iframe
 
 @[lantana_alias lwp_frame_r]
-theorem lwp_frame_r {R : IProp GF} :
+theorem lwp_frame_right {R : IProp GF} :
     lWP e @ s; i; E {{ Φ }} ∗ R ⊢ lWP e @ s; i; E {{ v, Φ v ∗ R }} := by
   iintro ⟨H, HR⟩
   iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
@@ -658,7 +652,7 @@ theorem lwp_frame_r {R : IProp GF} :
   iframe
 
 @[lantana_alias lwp_frame_step_l]
-theorem lwp_frame_step_l {R : IProp GF} (he : toVal e = none) (hE : E₂ ⊆ E₁) :
+theorem lwp_frame_step_left {R : IProp GF} (he : toVal e = none) (hE : E₂ ⊆ E₁) :
     (|={E₁,E₂}=> |={E₂,E₁}=> R) ∗ lWP e @ s; i; E₂ {{ Φ }} ⊢
       lWP e @ s; i; E₁ {{ v, R ∗ Φ v }} := by
   iintro ⟨HR, H⟩
@@ -673,26 +667,26 @@ theorem lwp_frame_step_l {R : IProp GF} (he : toVal e = none) (hE : E₂ ⊆ E�
   iframe
 
 @[lantana_alias lwp_frame_step_r]
-theorem lwp_frame_step_r {R : IProp GF} (he : toVal e = none) (hE : E₂ ⊆ E₁) :
+theorem lwp_frame_step_right {R : IProp GF} (he : toVal e = none) (hE : E₂ ⊆ E₁) :
     lWP e @ s; i; E₂ {{ Φ }} ∗ (|={E₁,E₂}=> |={E₂,E₁}=> R) ⊢
       lWP e @ s; i; E₁ {{ v, Φ v ∗ R }} := by
   iintro ⟨H, HR⟩
   iapply lwp_mono (fun _ => sep_comm.mp)
-  iapply lwp_frame_step_l he hE
+  iapply lwp_frame_step_left he hE
   iframe
 
 @[lantana_alias lwp_frame_step_l']
-theorem lwp_frame_step_l' {R : IProp GF} (he : toVal e = none) :
+theorem lwp_frame_step_left' {R : IProp GF} (he : toVal e = none) :
     R ∗ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ v, R ∗ Φ v }} := by
   iintro ⟨HR, H⟩
-  iapply lwp_frame_step_l he Std.LawfulSet.subset_refl
+  iapply lwp_frame_step_left he Std.LawfulSet.subset_refl
   iframe
 
 @[lantana_alias lwp_frame_step_r']
-theorem lwp_frame_step_r' {R : IProp GF} (he : toVal e = none) :
+theorem lwp_frame_step_right' {R : IProp GF} (he : toVal e = none) :
     lWP e @ s; i; E {{ Φ }} ∗ R ⊢ lWP e @ s; i; E {{ v, Φ v ∗ R }} := by
   iintro ⟨H, HR⟩
-  iapply lwp_frame_step_r he Std.LawfulSet.subset_refl
+  iapply lwp_frame_step_right he Std.LawfulSet.subset_refl
   iframe
 
 @[lantana_alias lwp_wand]
@@ -704,12 +698,12 @@ theorem lwp_wand : lWP e @ s; i; E {{ Φ }} ⊢ (∀ v, Φ v -∗ Ψ v) -∗ lWP
   iapply HΦ $$ Hv
 
 @[lantana_alias lwp_wand_l]
-theorem lwp_wand_l : (∀ v, Φ v -∗ Ψ v) ∗ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ Ψ }} := by
+theorem lwp_wand_left : (∀ v, Φ v -∗ Ψ v) ∗ lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E {{ Ψ }} := by
   iintro ⟨HΦ, H⟩
   iapply lwp_wand $$ H HΦ
 
 @[lantana_alias lwp_wand_r]
-theorem lwp_wand_r : lWP e @ s; i; E {{ Φ }} ∗ (∀ v, Φ v -∗ Ψ v) ⊢ lWP e @ s; i; E {{ Ψ }} := by
+theorem lwp_wand_right : lWP e @ s; i; E {{ Φ }} ∗ (∀ v, Φ v -∗ Ψ v) ⊢ lWP e @ s; i; E {{ Ψ }} := by
   iintro ⟨H, HΦ⟩
   iapply lwp_wand $$ H HΦ
 
@@ -752,30 +746,30 @@ variable {s : Stuckness} {i : ThreadId} {E E₁ E₂ : CoPset} {e : Expr}
   {Φ Ψ : Val → IProp GF} {P R : IProp GF}
 
 @[lantana_alias frame_lwp]
-instance frame_lwp {p : Bool} [H : ∀ v, FrameInstantiateExistDisabled p R (Φ v) (Ψ v)] :
+instance frameLwp {p : Bool} [H : ∀ v, FrameInstantiateExistDisabled p R (Φ v) (Ψ v)] :
     Frame p R (lWP e @ s; i; E {{ Φ }}) (lWP e @ s; i; E {{ Ψ }}) where
-  frame := lwp_frame_l.trans (lwp_mono fun v => (H v).frame_instantiatiate_exist_disabled.frame)
+  frame := lwp_frame_left.trans (lwp_mono fun v => (H v).frame_instantiatiate_exist_disabled.frame)
 
 @[lantana_alias is_except_0_lwp]
-instance isExcept0_lwp : IsExcept0 (lWP e @ s; i; E {{ Φ }}) where
+instance isExcept0Lwp : IsExcept0 (lWP e @ s; i; E {{ Φ }}) where
   is_except0 := (except0_mono fupd_intro).trans (BIFUpdate.except0.trans fupd_lwp)
 
 @[lantana_alias elim_modal_fupd_lwp]
-instance (priority := default + 10) elimModal_fupd_lwp {p io} :
+instance (priority := default + 10) elimModalFupdLwp {p io} :
     ElimModal True p io false iprop(|={E}=> P) P (lWP e @ s; i; E {{ Φ }})
       (lWP e @ s; i; E {{ Φ }}) where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans (fupd_wand_right.trans fupd_lwp)
 
 @[lantana_alias elim_modal_bupd_lwp]
-instance elimModal_bupd_lwp {p io} :
+instance elimModalBupdLwp {p io} :
     ElimModal True p io false iprop(|==> P) P (lWP e @ s; i; E {{ Φ }})
       (lWP e @ s; i; E {{ Φ }}) where
   elim_modal _ := (sep_mono_left (intuitionisticallyIf_mono
     (BIUpdateFUpdate.fupd_of_bupd (E := E)))).trans
-      ((elimModal_fupd_lwp (p := p) (io := io)).elim_modal trivial)
+      ((elimModalFupdLwp (p := p) (io := io)).elim_modal trivial)
 
 @[lantana_alias elim_modal_sfmupd_lwp]
-instance (priority := default + 10) elimModal_mupd_lwp {p io} :
+instance (priority := default + 10) elimModalMupdLwp {p io} :
     ElimModal True p io false (|={E}=>m P) P (lWP e @ s; i; E {{ Φ }})
       (lWP e @ s; i; E {{ Φ }}) where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
@@ -783,21 +777,21 @@ instance (priority := default + 10) elimModal_mupd_lwp {p io} :
 
 /-- The error message for a non-mask-changing update at a mask other than the goal's. -/
 @[lantana_alias elim_modal_fupd_lwp_wrong_mask]
-instance (priority := low) elimModal_fupd_lwp_wrongMask {p io} :
+instance (priority := low) elimModalFupdLwp_wrongMask {p io} :
     ElimModal (PMError "Goal and eliminated modality must have the same mask.
 Use `iapply fupd_lwp; imod (fupd_mask_subseteq E₂)` to adjust the mask of your goal to `E₂`")
       p io false iprop(|={E₂}=> P) iprop(False) (lWP e @ s; i; E₁ {{ Φ }}) iprop(False) where
   elim_modal := nofun
 
 @[lantana_alias elim_modal_fupd_lwp_atomic]
-instance elimModal_fupd_lwp_atomic {p io} :
+instance elimModalFupdLwpAtomic {p io} :
     ElimModal (Language.Atomic ↑s e) p io false iprop(|={E₁,E₂}=> P) P
       (lWP e @ s; i; E₁ {{ Φ }}) (lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=> Φ v }}) where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans
     (fupd_wand_right.trans lwp_atomic)
 
 @[lantana_alias elim_modal_sfmupd_lwp_atomic]
-instance elimModal_mupd_lwp_atomic {p io} :
+instance elimModalMupdLwpAtomic {p io} :
     ElimModal (Language.Atomic ↑s e) p io false (|={E₁,E₂}=>m P) P
       (lWP e @ s; i; E₁ {{ Φ }}) (lWP e @ s; i; E₂ {{ v, |={E₂,E₁}=>m Φ v }}) where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
@@ -805,18 +799,18 @@ instance elimModal_mupd_lwp_atomic {p io} :
 
 /-- Error message for a mask-changing update in front of a non-atomic expression. -/
 @[lantana_alias elim_modal_fupd_lwp_atomic_wrong_mask]
-instance (priority := low) elimModal_fupd_lwp_atomic_wrongMask {E₂' : CoPset} {p io} :
+instance (priority := low) elimModalFupdLwpAtomic_wrongMask {E₂' : CoPset} {p io} :
     ElimModal (PMError "Goal and eliminated modality must have the same mask.
 Use `imod (fupd_mask_subseteq E₂)` to adjust the mask of your goal to `E₂`")
       p io false iprop(|={E₂,E₂'}=> P) iprop(False) (lWP e @ s; i; E₁ {{ Φ }}) iprop(False) where
   elim_modal := nofun
 
 @[lantana_alias add_modal_fupd_lwp]
-instance addModal_fupd_lwp : AddModal iprop(|={E}=> P) P (lWP e @ s; i; E {{ Φ }}) where
+instance addModalFupdLwp : AddModal iprop(|={E}=> P) P (lWP e @ s; i; E {{ Φ }}) where
   add_modal := fupd_wand_right.trans fupd_lwp
 
 @[lantana_alias add_modal_sfmupd_lwp]
-instance addModal_mupd_lwp : AddModal (|={E}=>m P) P (lWP e @ s; i; E {{ Φ }}) where
+instance addModalMupdLwp : AddModal (|={E}=>m P) P (lWP e @ s; i; E {{ Φ }}) where
   add_modal := mupd_frame_right.trans <| (mupd_mono wand_elim_right).trans mupd_lwp
 
 @[lantana_alias elim_acc_lwp_atomic]

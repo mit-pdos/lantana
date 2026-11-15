@@ -48,16 +48,16 @@ theorem lwp_lift_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
-            thCarriers i G -∗ witCreds R -∗
+            thCarriers i G -∗ Wit.creds R -∗
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
-            ALC iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
+            alc iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
               |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                 [∗list] j ↦ ef ∈ efs,
-                  lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))
+                  lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_lift_step_si he hX
@@ -108,16 +108,16 @@ theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i 
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
-            thCarriers i G -∗ witCreds R -∗
+            thCarriers i G -∗ Wit.creds R -∗
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
-            ALC iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
+            alc iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
               |={E₁}=>m ((∃ v, ⌜toVal e₂ = some v⌝ ∗ Φ v) ∗
                 [∗list] j ↦ ef ∈ efs,
-                  lWP ef @ s; (tp.length + j); ⊤ {{ liftTerm (tp.length + j) L.forkPost }})))
+                  lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))
       ⊢ lWP e₁ @ s; i; E₁ {{ Φ }} := by
   iintro H
   iapply lwp_lift_atomic_step he hX
@@ -144,11 +144,11 @@ theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) (hX : KeepsCr
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
+        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
-            thCarriers i G -∗ witCreds R -∗
-            ALC iprop(|={E₂,E₁}=> ⌜efs = []⌝ ∗ stateInterp σ₂ (tp.set i (fill K e₂)) ∗
+            thCarriers i G -∗ Wit.creds R -∗
+            alc iprop(|={E₂,E₁}=> ⌜efs = []⌝ ∗ stateInterp σ₂ (tp.set i (fill K e₂)) ∗
               ∃ v, ⌜toVal e₂ = some v⌝ ∗ |={E₁}=>m Φ v))
       ⊢ lWP e₁ @ s; i; E₁ {{ Φ }} := by
   iintro H
@@ -168,7 +168,7 @@ theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) (hX : KeepsCr
   imodintro
   iintro HG HW -
   ispecialize H $$ HG HW
-  iapply ALC_wand $$ [] H
+  iapply alc_wand $$ [] H
   iintro H
   imod H with ⟨%hefs, Hs, %v, %hv, HΦ⟩
   subst hefs
@@ -191,9 +191,9 @@ theorem lwp_lift_pure_det_base_step_no_fork [Inhabited State] {ς : ThreadId →
     (hsafe : ∀ σ₁, BaseStep.Reducible (e₁, σ₁))
     (hdet : ∀ σ₁ obs e₂' σ₂ efs, baseStep (e₁, σ₁) obs (e₂', σ₂, efs) →
       σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) :
-    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, witLayers R ∗
-      (ς i e₂ -∗ thCarriers i G -∗ witCreds R -∗
-        ALC iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})))
+    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+      (ς i e₂ -∗ thCarriers i G -∗ Wit.creds R -∗
+        alc iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} :=
   lwp_lift_pure_det_step_no_fork (ς := ς) E'
     (fun σ₁ => by

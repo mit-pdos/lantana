@@ -44,12 +44,12 @@ abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace (Cfg Exp State)
 
 /-- The contractivity of the ghost variable's functor, as `GhostVarG` expects it (here, instance
 search would find Lantana's `constOFP_rFunctorContractive` instead). -/
-abbrev ghostVarF_contractive : RFunctorContractive (GhostVarF Oid) :=
+abbrev ghostVarFContractive : RFunctorContractive (GhostVarF Oid) :=
   @instRFunctorContractiveProdOF _ _ OFunctor.constOF_RFunctorContractive
     instRFunctorContractiveAgreeRFOfOFunctorContractive
 
 /-- The contractivity of a ghost variable's functor, as `GhostVarG` expects it. -/
-abbrev ghostVarOfF_contractive (A : Type) : RFunctorContractive (GhostVarF A) :=
+abbrev ghostVarOfFContractive (A : Type) : RFunctorContractive (GhostVarF A) :=
   @instRFunctorContractiveProdOF _ _ OFunctor.constOF_RFunctorContractive
     instRFunctorContractiveAgreeRFOfOFunctorContractive
 
@@ -77,7 +77,7 @@ def ExGF : BundledGFunctors.{0} := fun n =>
   | 18 => ⟨ULiftOF (constOF MetaUR)⟩
   | 19 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO Exp)) ThreadMapF))⟩
   | 20 => { F := ULiftOF (GhostVarF Oid)
-            contractive := @ULiftOF.instRFunctorContractive _ ghostVarF_contractive }
+            contractive := @ULiftOF.instRFunctorContractive _ ghostVarFContractive }
   | 21 => ⟨ULiftOF MonoNatRF⟩
   | 22 => ⟨ULiftOF (constOF (HeapView Nat (Agree (DiscreteO Oid)) OidMap))⟩
   | 23 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO Oids)) ThreadMap))⟩
@@ -86,16 +86,16 @@ def ExGF : BundledGFunctors.{0} := fun n =>
   | 42 => ⟨ULiftOF (constOF (HeapView Int (Agree (DiscreteO Bool)) IntMap))⟩
   | 50 => { F := ULiftOF (GhostVarF (List (Val × Oids)))
             contractive :=
-              @ULiftOF.instRFunctorContractive _ (ghostVarOfF_contractive (List (Val × Oids))) }
+              @ULiftOF.instRFunctorContractive _ (ghostVarOfFContractive (List (Val × Oids))) }
   | 51 => ⟨ULiftOF.{4} (constOFP (HeapView Int (Agree (DiscreteO TicketLock.TicketInfo))
       TicketLock.TMap))⟩
   | 52 => { F := ULiftOF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TicketLock.TMap))
             contractive := @ULiftOF.instRFunctorContractive _ OFunctor.constOF_RFunctorContractive }
   | 53 => { F := ULiftOF (GhostVarF Int)
-            contractive := @ULiftOF.instRFunctorContractive _ (ghostVarOfF_contractive Int) }
+            contractive := @ULiftOF.instRFunctorContractive _ (ghostVarOfFContractive Int) }
   | 54 => ⟨ULiftOF.{4} (constOFP (AuthMra (α := Layer) (· ≤ ·)))⟩
   | 55 => { F := ULiftOF (GhostVarF Unit)
-            contractive := @ULiftOF.instRFunctorContractive _ (ghostVarOfF_contractive Unit) }
+            contractive := @ULiftOF.instRFunctorContractive _ (ghostVarOfFContractive Unit) }
   | _ => ⟨constOFU Unit⟩
 
 instance : WsatGpreS ExGF where
@@ -151,7 +151,7 @@ instance : HeapStateGpreS ExGF where
   threadMapPre := ⟨ElemG.ofEqLift 19 (by unfold ExGF; rfl)⟩
 
 instance : GhostVarG ExGF Oid where
-  elemG := @ElemG.ofEqLift _ (GhostVarF Oid) ghostVarF_contractive _ 20
+  elemG := @ElemG.ofEqLift _ (GhostVarF Oid) ghostVarFContractive _ 20
     (by unfold ExGF; rfl)
 
 instance : MonoNatG ExGF where
@@ -174,17 +174,17 @@ instance : TicketLock.TicketLockG ExGF where
   oblG := ⟨@ElemG.ofEqLift ExGF (constOF (HeapView Int (Agree (DiscreteO (Option Oid)))
     TicketLock.TMap)) OFunctor.constOF_RFunctorContractive _ 52 (by unfold ExGF; rfl)⟩
   tokenG := { elemG :=
-    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarOfF_contractive Int) _ 53 (by unfold ExGF; rfl) }
+    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarOfFContractive Int) _ 53 (by unfold ExGF; rfl) }
   configG := (ElemG.ofEq 54 (by unfold ExGF; rfl) : ElemG ExGF (ULiftOF.{4}
     (constOFP (AuthMra (α := Layer) (· ≤ ·))))).ofLift
   aliveG := { elemG :=
-    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarOfF_contractive Unit) _ 55 (by unfold ExGF; rfl) }
+    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarOfFContractive Unit) _ 55 (by unfold ExGF; rfl) }
 
 /-- The cameras of the queue: its list of elements (slot 50) and its inbox (the ghost variable
 of obligation ids of slot 20). -/
 instance : Queue.QueueG ExGF where
   queueG := { elemG :=
-    (@ElemG.ofEqLift _ (GhostVarF (List (Val × Oids))) (ghostVarOfF_contractive _) _ 50
+    (@ElemG.ofEqLift _ (GhostVarF (List (Val × Oids))) (ghostVarOfFContractive _) _ 50
       (by unfold ExGF; rfl)) }
   dataG := inferInstance
 

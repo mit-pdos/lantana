@@ -16,12 +16,12 @@ always on `y ↦ 7` is allocated in the same modality, and the nested commitment
 `kf`) is discharged after the store, before the thread terminates. Adequacy records the nested
 always and until at the discharge position.
 
-`certDischarge_adequacy` (Rocq `cert_discharge_adequacy`) is the end-to-end statement, from
+`adequacy` (Rocq `cert_discharge_adequacy`) is the end-to-end statement, from
 `lwp_adequacy_temporal` in the closed world `ExGF` (as `FlagFork.main_adequacy`): the initial heap
 holds `x ↦ 0` and `y ↦ 7`, whose points-tos come from `heapState_init` (`heap0_pointsTo`); the
 main thread allocates both obligations in `main_pre`. At the level of traces (`rMain`):
 eventually `x` holds `1` while `y` holds `7` from then on and `x` later holds `2`, and eventually
-`x` holds `2`. `certDischarge_safety_adequacy` is the safety statement.
+`x` holds `2`. `safety_adequacy` is the safety statement.
 
 Statement adaptations: thread ids are list positions, so the main thread is `0`; locations
 `x = ⟨0⟩`, `y = ⟨1⟩`. The guarantee of a `finallyI` is inferred as `⌜True⌝ₛ Uₛ G`, which is
@@ -50,9 +50,9 @@ def v2 : Val := hl_val(#2)
 def v7 : Val := hl_val(#7)
 
 /-- The namespaces of the two commitments and of the always. -/
-def Nq : Namespace := nroot.@"cert_discharge_q"
-def Nf : Namespace := nroot.@"cert_discharge_f"
-def Na : Namespace := nroot.@"cert_discharge_always"
+def qN : Namespace := nroot.@"cert_discharge_q"
+def fN : Namespace := nroot.@"cert_discharge_f"
+def alwaysN : Namespace := nroot.@"cert_discharge_always"
 
 /-! ## The specification -/
 
@@ -63,7 +63,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 invariant allocated in the same pre-step modality, and the second commitment. -/
 @[lantana_alias cd_Q]
 def cdQ (x y : Loc) (kf : Oid) : IProp GF :=
-  iprop(x ↦ some v1 ∗ alwaysI Na iprop(y ↦ some v7) ∗ finallyI Nf kf 1 iprop(x ↦ some v2))
+  iprop(x ↦ some v1 ∗ alwaysI alwaysN iprop(y ↦ some v7) ∗ finallyI fN kf 1 iprop(x ↦ some v2))
 
 /-- What `cdQ` guarantees. -/
 def cdQSpec (x y : Loc) : TrSpec Exp State GF :=
@@ -83,10 +83,10 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
     ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #x #y) ∗ thActive i ∗ thKids i {kq, kf} ∗
           thCarriers i {kq, kf} ∗ ([∗set] g ∈ ({kq, kf} : Oids), Obl.fuel g 0 μ) ∗ ⌜kq ≠ kf⌝ ∗
           oblKids kq ∅ ∗ oblKids kf ∅ ∗ x ↦ some v0 ∗ y ↦ some v7 ∗
-          finallyI Nq kq 1 (cdQ x y kf) ∗ finallyI Nf kf 1 iprop(x ↦ some v2) }}}
+          finallyI qN kq 1 (cdQ x y kf) ∗ finallyI fN kf 1 iprop(x ↦ some v2) }}}
         hl(v(&main) #x #y) @ i
       l{{{ RET hl_val(#()); threadExpr i [] hl(#()) ∗
-        liftTerm i (fun _ _ => iprop(True)) hl_val(#()) }}} := by
+        lwp.liftTerm i (fun _ _ => iprop(True)) hl_val(#()) }}} := by
   refine ⟨10, fun i kq kf x y => ?_⟩
   iintro %Φ !> ⟨HT, Hact, HK, HG, HF, %hne, Hkq, Hkf, Hx, Hy, HQ, HFf⟩ HΦ
   ihave HF := oblFuels_init _ 10 0 $$ HF
@@ -113,7 +113,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
   lwp_expr_simp
   -- `x ← #2`: the discharge of `kq` happens in the pre-step modality of this store.
   lwp_bind hl(#x ← #2) HT
-  imod alwaysI_alloc (E := ⊤) (N := Na) (P := iprop(y ↦ some v7)) $$ [Hy] with #HA
+  imod alwaysI_alloc (E := ⊤) (N := alwaysN) (P := iprop(y ↦ some v7)) $$ [Hy] with #HA
   · inext
     iexact Hy
   ihave Hc1 := tlc_one_nat.mpr $$ Hc1
@@ -155,7 +155,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
   imodintro
   iapply HΦ
   iframe HT
-  unfold liftTerm
+  unfold lwp.liftTerm
   isplitl
   · iexact Hd
   · ipureintro
@@ -163,7 +163,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
 
 /-- The commitments of the main thread `i`, the initial heap and the resources (Rocq `Φ_P`). -/
 def mainRes (x y : Loc) (i : ThreadId) (μ : Measure) : IProp GF :=
-  iprop(∃ kq kf : Oid, finallyI Nq kq 1 (cdQ x y kf) ∗ finallyI Nf kf 1 iprop(x ↦ some v2) ∗
+  iprop(∃ kq kf : Oid, finallyI qN kq 1 (cdQ x y kf) ∗ finallyI fN kf 1 iprop(x ↦ some v2) ∗
     x ↦ some v0 ∗ y ↦ some v7 ∗
     (thKids i {kq, kf} ∗ thCarriers i {kq, kf} ∗ oblKids kq ∅ ∗ oblKids kf ∅ ∗ ⌜kq ≠ kf⌝ ∗
       [∗set] g ∈ ({kq, kf} : Oids), Obl.fuel g 0 μ))
@@ -180,20 +180,20 @@ theorem main_pre (i : ThreadId) (x y : Loc) :
       thActive i -∗ thKids i ∅ -∗ thCarriers i ∅ -∗
       |={⊤}=>m ∃ μ : Measure, mainRes x y i μ ∗
         (mainRes x y i μ -∗
-          |={⊤}=>m lWP hl(v(&main) #x #y) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+          |={⊤}=>m lWP hl(v(&main) #x #y) @ i; ⊤ {{ lwp.liftTerm i mainPost }}) := by
   obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
   iintro HT Hx Hy HA HG HB
   imod untilI_alloc (E := ⊤) (.thread i) ∅ ∅ 0 μ $$ [] HG HB with
     ⟨%kf, -, HG, HB, Hkf, Fkf, -, Akf⟩
-  · iapply parLe_thread
-  imod Akf $$ %⊤ %Nf %iprop(True) %iprop(x ↦ some v2) [] with Uf
+  · iapply Par.le_thread
+  imod Akf $$ %⊤ %fN %iprop(True) %iprop(x ↦ some v2) [] with Uf
   · inext
     ipureintro
     trivial
   imod untilI_alloc (E := ⊤) (.thread i) _ _ 0 μ $$ [] HG HB with
     ⟨%kq, %hkq, HG, HB, Hkq, Fkq, -, Akq⟩
-  · iapply parLe_thread
-  imod Akq $$ %⊤ %Nq %iprop(True) %(cdQ x y kf) [] with Uq
+  · iapply Par.le_thread
+  imod Akq $$ %⊤ %qN %iprop(True) %(cdQ x y kf) [] with Uq
   · inext
     ipureintro
     trivial
@@ -227,7 +227,7 @@ theorem main_pre (i : ThreadId) (x y : Loc) :
     ipureintro
     exact hne
   iintro ⟨-, Hd⟩
-  unfold liftTerm
+  unfold lwp.liftTerm
   icases Hd with ⟨Hd, -⟩
   iframe Hd
   ipureintro
@@ -252,7 +252,7 @@ def gMain (x y : Loc) : TrSpec Exp State GF :=
     TrSpec.true
 
 @[lantana_alias cert_discharge.G_main_impl]
-theorem gMain_impl (x y : Loc) : (gMain (GF := GF) x y).external ⊆ rMain x y :=
+theorem gMain_external_subset (x y : Loc) : (gMain (GF := GF) x y).external ⊆ rMain x y :=
   fun _ ⟨h₁, h₂, _⟩ => ⟨h₁, h₂⟩
 
 variable [ModelGS GF] [HeapGS GF]
@@ -293,11 +293,11 @@ theorem heap0_pointsTo {GF : BundledGFunctors} [HeapStateGS GF] :
 /-- In every fair behavior from the initial configuration, eventually `x` holds `1` while `y`
 holds `7` from then on and `x` later holds `2`, and eventually `x` holds `2`. -/
 @[lantana_alias cert_discharge_adequacy]
-theorem certDischarge_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain x0 y0 τ := by
   refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain x0 y0) (rMain x0 y0)
-    (gMain_impl x0 y0) τ hbeh hfair hpos hinit ?_
+    (gMain_external_subset x0 y0) τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, Hh, HT⟩
@@ -307,7 +307,7 @@ theorem certDischarge_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior �
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
-  ihave HG := initThreads σ0 tp0 $$ HG
+  ihave HG := init_threads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
@@ -327,7 +327,7 @@ theorem certDischarge_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior �
 /-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the main thread has returned, its value is `()`. -/
 @[lantana_alias cert_discharge_safety_adequacy]
-theorem certDischarge_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = hl_val(#())) τ := by
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
@@ -343,7 +343,7 @@ theorem certDischarge_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBeh
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
-  ihave HG := initThreads σ0 tp0 $$ HG
+  ihave HG := init_threads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
@@ -356,11 +356,11 @@ theorem certDischarge_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBeh
 
 /-- Liveness and safety together, over the same fair behaviors. -/
 @[lantana_alias cert_discharge_liveness_safety]
-theorem certDischarge_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain x0 y0 τ ∧ safetyIris 0 (fun _ v => v = hl_val(#())) τ :=
-  ⟨certDischarge_adequacy τ hbeh hfair hpos hinit,
-    certDischarge_safety_adequacy τ hbeh hfair hpos hinit⟩
+  ⟨adequacy τ hbeh hfair hpos hinit,
+    safety_adequacy τ hbeh hfair hpos hinit⟩
 
 end Adequacy
 

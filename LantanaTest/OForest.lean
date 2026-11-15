@@ -58,7 +58,7 @@ section
 variable [OSatGS TestGF] [OForestGS TestGF] {X : ThreadId → Prop}
 
 /-- Two new threads, not crashed, each without children and with an empty bill. -/
-example (Ω : Obls) (h₀ : ¬X 0) (h₁ : ¬X 1) : oforest Ω 0 X ⊢@{IProp TestGF} |==>
+example (Ω : Obligations) (h₀ : ¬X 0) (h₁ : ¬X 1) : oforest Ω 0 X ⊢@{IProp TestGF} |==>
     (oforest Ω 2 X ∗ OForest.kids (.thread 0) ∅ ∗ OForest.bill 0 ∅ ∗
       OForest.kids (.thread 1) ∅ ∗ OForest.bill 1 ∅) := by
   iintro Hf
@@ -72,7 +72,7 @@ example (Ω : Obls) (h₀ : ¬X 0) (h₁ : ¬X 1) : oforest Ω 0 X ⊢@{IProp Te
   iframe
 
 /-- A new thread, not crashed, with a new obligation below it, in its bill. -/
-example (Ω : Obls) (tc : Nat) (hX : ¬X tc) :
+example (Ω : Obligations) (tc : Nat) (hX : ¬X tc) :
     osat Ω ∗ oforest Ω tc X ⊢@{IProp TestGF} |==>
       (osat (insert Ω Ω.fresh (.assigned 1 tc)) ∗ oforest (insert Ω Ω.fresh (.assigned 1 tc))
         (tc + 1) X ∗ OForest.kids (.thread tc) ({Ω.fresh} ∪ ∅) ∗
@@ -80,9 +80,9 @@ example (Ω : Obls) (tc : Nat) (hX : ¬X tc) :
   iintro ⟨Hs, Hf⟩
   imod oforest_alloc_thread Ω tc $$ Hf with ⟨Hf, Hn, HB⟩
   icases Hn $$ %hX with ⟨-, Hk⟩
-  imod osat_alloc_obl_assigned (Obls.get?_fresh Ω) (1 : Ordinal.{1}) tc $$ Hs
+  imod osat_alloc_obl_assigned (Obligations.get?_fresh Ω) (1 : Ordinal.{1}) tc $$ Hs
     with ⟨Hs, #Hb, -, -, -, -⟩
-  imod oforest_alloc_obl (p := .thread tc) (Obls.get?_fresh Ω) rfl Ordinal.le_rfl ∅
+  imod oforest_alloc_obl (p := .thread tc) (Obligations.get?_fresh Ω) rfl Ordinal.le_rfl ∅
     $$ [$Hf $Hk $HB $Hb //] with ⟨Hf, -, Hk, HB, Hkk⟩
   imodintro
   iframe
@@ -90,7 +90,7 @@ example (Ω : Obls) (tc : Nat) (hX : ¬X tc) :
 /-- The life of a thread, not crashed, with one obligation: allocation of the thread and of the
 obligation (fuel `1`), a step of the thread (the obligation burns its unit), discharge,
 termination. -/
-example (Ω : Obls) (tc : Nat) (hX : ¬X tc) :
+example (Ω : Obligations) (tc : Nat) (hX : ¬X tc) :
     osat Ω ∗ oforest Ω tc X ⊢@{IProp TestGF} |==> ∃ Ω', osat Ω' ∗ oforest Ω' (tc + 1) X ∗
       OForest.done tc := by
   have hsing : ({Ω.fresh} ∪ ∅ : Oids) = {Ω.fresh} :=
@@ -105,9 +105,9 @@ example (Ω : Obls) (tc : Nat) (hX : ¬X tc) :
   iintro ⟨Hs, Hf⟩
   imod oforest_alloc_thread Ω tc $$ Hf with ⟨Hf, Hn, HB⟩
   icases Hn $$ %hX with ⟨He, Hk⟩
-  imod osat_alloc_obl_assigned (Obls.get?_fresh Ω) (1 : Ordinal.{1}) tc $$ Hs
+  imod osat_alloc_obl_assigned (Obligations.get?_fresh Ω) (1 : Ordinal.{1}) tc $$ Hs
     with ⟨Hs, #Hb, -, Ha, Hu, -⟩
-  imod oforest_alloc_obl (p := .thread tc) (Obls.get?_fresh Ω) rfl Ordinal.le_rfl ∅
+  imod oforest_alloc_obl (p := .thread tc) (Obligations.get?_fresh Ω) rfl Ordinal.le_rfl ∅
     $$ [$Hf $Hk $HB $Hb //] with ⟨Hf, -, Hk, HB, Hkk⟩
   rw [hsing]
   ihave Hus : [∗set] x ∈ ({Ω.fresh} : Oids), ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c $$ [Hu]
@@ -126,7 +126,7 @@ example (Ω : Obls) (tc : Nat) (hX : ¬X tc) :
   iframe
 
 /-- A terminated thread owns no obligation. -/
-example (Ω : Obls) (tc : Nat) (k : Oid) (a : Fuel) (hk : get? Ω k = some (.assigned a 0)) :
+example (Ω : Obligations) (tc : Nat) (k : Oid) (a : Fuel) (hk : get? Ω k = some (.assigned a 0)) :
     oforest Ω tc X ∗ OForest.done 0 ⊢@{IProp TestGF} False :=
   oforest_assigned_done_false hk
 

@@ -104,7 +104,7 @@ theorem toVal_fill_some {K : List ECtxItem} {e : Exp} {v : Val}
   exact ⟨rfl, (coe_of_toVal_eq_some (by simpa using h)).symm⟩
 
 theorem threadExprSat_iff {i : Nat} {C : List ECtxItem} {e : Exp} {σ : State} {tp : List Exp} :
-    threadExprSat i C e σ tp ↔ tp[i]? = some (fill C e) :=
+    ThreadExprSat i C e σ tp ↔ tp[i]? = some (fill C e) :=
   .rfl
 
 /-! ## Values -/
@@ -138,26 +138,26 @@ theorem primStep_val_baseStep {e : Exp} {σ : State} {obs : List Empty} {v : Val
 
 /-- If one base step of `e₁` returns a value, every base step of `e₁` does. -/
 @[lantana_alias heap_lang.base_step_to_val]
-theorem base_step_to_val {e₁ : Exp} {σ₁ : State} {e₂ : Exp} {σ₂ : State} {efs : List Exp}
+theorem isSome_toVal_of_baseStep {e₁ : Exp} {σ₁ : State} {e₂ : Exp} {σ₂ : State} {efs : List Exp}
     {σ₁' : State} {e₂' : Exp} {σ₂' : State} {efs' : List Exp}
     (h : BaseStep e₁ σ₁ e₂ σ₂ efs) (h' : BaseStep e₁ σ₁' e₂' σ₂' efs')
     (hv : (toVal e₂).isSome) : (toVal e₂').isSome := by
   cases h <;> cases h' <;> simp_all
 
-theorem prim_step_to_val_always_to_val {e₁ : Exp} {σ₁ : State} {obs : List Empty} {v₂ : Val}
+theorem isSome_toVal_of_primStep_ofVal {e₁ : Exp} {σ₁ : State} {obs : List Empty} {v₂ : Val}
     {σ₂ : State} {efs : List Exp} {σ₁' : State} {obs' : List Empty} {e₂' : Exp} {σ₂' : State}
     {efs' : List Exp} (h : primStep (e₁, σ₁) obs (Exp.ofVal v₂, σ₂, efs))
     (h' : primStep (e₁, σ₁') obs' (e₂', σ₂', efs')) : (toVal e₂').isSome :=
   have hb := primStep_val_baseStep h
-  base_step_to_val hb
+  isSome_toVal_of_baseStep hb
     (EctxLanguage.baseStep_of_primStep h' (subredexesAreValues_of_baseStep hb)) (by simp)
 
 /-- An expression with a base step to a value is atomic. -/
-theorem base_step_to_val_atomic {e₁ : Exp} {σ₁ : State} {v₂ : Val} {σ₂ : State}
+theorem atomic_of_baseStep_ofVal {e₁ : Exp} {σ₁ : State} {v₂ : Val} {σ₂ : State}
     {efs : List Exp} (a : Atomicity) (h : BaseStep e₁ σ₁ (Exp.ofVal v₂) σ₂ efs) :
     Atomic a e₁ :=
   stronglyAtomic_atomic ⟨fun h' =>
-    prim_step_to_val_always_to_val (EctxLanguage.primStep_of_baseStep (obs := []) h) h'⟩
+    isSome_toVal_of_primStep_ofVal (EctxLanguage.primStep_of_baseStep (obs := []) h) h'⟩
 
 /-! ## Atomicity -/
 

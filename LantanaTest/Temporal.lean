@@ -23,7 +23,7 @@ variable {C : Type}
 /-- The notations parse at any configuration type, with negation and the two-position atom. -/
 example (R : C → C → Prop) (φ : AProp C) :
     (□ₜ ◇ₜ TrProp.step R ∧ₜ ¬ₜ TrProp.atomic φ) ⊆ (□ₜ ◇ₜ TrProp.step R) :=
-  TrProp.and_elim_l
+  TrProp.and_elim_left
 
 /-- Infinitely often is the same at every position of a run. -/
 example (P : TrProp C) (τ : Trace C) (m : Nat) :
@@ -42,11 +42,11 @@ variable {C : Type} [ThreadSystem C]
 
 /-- A behavior is a run of the thread system from the current position on. -/
 example (τ : Trace C) :
-    IsBehavior τ ↔
+    isBehavior τ ↔
       ∀ m, τ.pos ≤ m → ∃ i, ThreadSystem.step i (τ.seq m) (τ.seq (m + 1)) :=
   isBehavior_iff
 
-example (τ : Trace C) (h : IsBehavior τ) : IsBehavior τ.next.next := h.next.next
+example (τ : Trace C) (h : isBehavior τ) : isBehavior τ.next.next := h.next.next
 
 end ThreadSystem
 
@@ -58,20 +58,20 @@ example : ThreadSystem (Cfg Expr State) := inferInstance
 
 /-- At Lantana's instance, a behavior is a sequence of trace steps from the current position. -/
 example (τ : Trace (Cfg Expr State)) :
-    IsBehavior τ ↔ ∀ m, τ.pos ≤ m → ∃ i, TraceStep i (τ.seq m) (τ.seq (m + 1)) :=
+    isBehavior τ ↔ ∀ m, τ.pos ≤ m → ∃ i, TraceStep i (τ.seq m) (τ.seq (m + 1)) :=
   Iff.rfl
 
 /-- At Lantana's instance, a thread is inactive exactly when it is not active. -/
-example (i : ThreadId) (τ : Trace (Cfg Expr State)) : inactive i τ ↔ τ.now.inactive i :=
+example (i : ThreadId) (τ : Trace (Cfg Expr State)) : inactive i τ ↔ τ.now.Inactive i :=
   inactive_iff.trans Cfg.inactive_iff_not_active.symm
 
 /-- At Lantana's instance, a crashed thread is inactive. -/
-example (i : ThreadId) (τ : Trace (Cfg Expr State)) (h : τ.now.crashed i) : inactive i τ :=
+example (i : ThreadId) (τ : Trace (Cfg Expr State)) (h : τ.now.Crashed i) : inactive i τ :=
   inactive_iff.mpr (Cfg.inactive_iff_not_active.mp (.inr (.inr h)))
 
 /-- At Lantana's instance, a thread of the pool that is neither a value nor crashed is active. -/
 example (i : ThreadId) (τ : Trace (Cfg Expr State)) (e : Expr) (he : τ.now.1[i]? = some e)
-    (hv : toVal e = none) (hc : ¬ τ.now.crashed i) : active i τ :=
+    (hv : toVal e = none) (hc : ¬ τ.now.Crashed i) : active i τ :=
   active_iff.mpr ⟨e, he, hv, fun h => hc ⟨e, he, h⟩⟩
 
 end Lantana

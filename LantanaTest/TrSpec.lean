@@ -38,7 +38,7 @@ noncomputable example (G : Nat → TrSpec Expr State GF) : TrSpec Expr State GF 
 /-- Over a larger universe (`Fuel : Type 2`) the index type must be given: the `SIdxLarge`
 instance would otherwise be synthesized at `Type 0` before the index type is known. -/
 noncomputable example (G : Fuel → TrSpec Expr State GF) : TrSpec Expr State GF :=
-  TrSpec.ex (X := Fuel) G
+  TrSpec.exists (X := Fuel) G
 
 /-- Monotone and continuous bodies, by instance resolution (including eta-reducible bodies). -/
 example (G : TrSpec Expr State GF) :

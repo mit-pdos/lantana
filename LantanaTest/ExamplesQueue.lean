@@ -20,13 +20,13 @@ open scoped Lantana.TrProp Lantana.TrSpec
 
 /-- Rocq's definition of `disjoint_list_of_sets` is the lemma `disjointList_iff_lookup`. -/
 example (L : List Oids) :
-    disjointList L ↔ ∀ (j₁ j₂ : Nat) (s₁ s₂ : Oids), j₁ ≠ j₂ → L[j₁]? = some s₁ →
+    DisjointList L ↔ ∀ (j₁ j₂ : Nat) (s₁ s₂ : Oids), j₁ ≠ j₂ → L[j₁]? = some s₁ →
       L[j₂]? = some s₂ → s₁ ## s₂ :=
   disjointList_iff_lookup
 
 /-- Appending a set disjoint from the union keeps the list disjoint. -/
-example (L : List Oids) (B : Oids) (h : disjointList L) (hB : unionList L ## B) :
-    disjointList (L ++ [B]) := by
+example (L : List Oids) (B : Oids) (h : DisjointList L) (hB : unionList L ## B) :
+    DisjointList (L ++ [B]) := by
   refine disjointList_append_disjoint_iff.mpr ⟨h, disjointList_singleton B, ?_⟩
   rwa [unionList_singleton]
 
@@ -58,17 +58,17 @@ example {GF : Iris.BundledGFunctors} (ql : Val) (τ : Trace (Cfg Exp State))
     ∃ lhptr ltptr next curr : Loc,
       ql = Queue.vQueue lhptr ltptr (TicketLock.vLock next curr) ∧
         TicketLock.releaseProgress next curr τ :=
-  TaskQueue.taskQueue_release_progress ql τ h
+  TaskQueue.release_progress ql τ h
 
 /-- The end-to-end statement of `task_queue_client.v`, liveness and safety. -/
-example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+example (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ)
     (hpos : τ.pos = 0) (hinit : τ.seq 0 = (TaskQueueClient.tp0, TaskQueueClient.σ0)) :
     (TaskQueueClient.rMain 0 τ ∧ TaskQueueClient.rQueue τ) ∧
       safetyIris 0 (fun _ v => v = Flag.v1) τ :=
-  TaskQueueClient.taskQueueClient_liveness_safety τ hbeh hfair hpos hinit
+  TaskQueueClient.liveness_safety τ hbeh hfair hpos hinit
 
 /-- Over the stable flag, the flag stays set once set. -/
-example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+example (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ)
     (hpos : τ.pos = 0) (hinit : τ.seq 0 = (TaskQueueClient.tp0, TaskQueueClient.σ0)) :
     (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ :=
   TaskQueueFlagStableClient.taskQueueClient_flag_stays τ hbeh hfair hpos hinit
@@ -78,7 +78,7 @@ example : @RocqLantana.queue.Queue_dequeue_spec = @Queue.dequeue_spec := rfl
 
 set_option linter.deprecated false in
 example : @RocqLantana.task_queue_client_adequacy =
-    @TaskQueueClient.taskQueueClient_adequacy := rfl
+    @TaskQueueClient.adequacy := rfl
 
 /-! The specifications and the end-to-end corollaries depend only on the standard axioms. -/
 
@@ -104,11 +104,11 @@ info: 'Lantana.Examples.TaskQueue.init_spec' depends on axioms:
 #print axioms TaskQueue.init_spec
 
 /--
-info: 'Lantana.Examples.TaskQueueClient.taskQueueClient_liveness_safety' depends on axioms:
+info: 'Lantana.Examples.TaskQueueClient.liveness_safety' depends on axioms:
   [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs (whitespace := lax) in
-#print axioms TaskQueueClient.taskQueueClient_liveness_safety
+#print axioms TaskQueueClient.liveness_safety
 
 /--
 info: 'Lantana.Examples.TaskQueueFlagStableClient.taskQueueClient_liveness_safety' depends on

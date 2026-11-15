@@ -168,7 +168,7 @@ theorem rupd_trans {P : IProp GF} : (|==>r |==>r P) ⊢ |==>r P :=
   wand_entails <| (entails_wand .rfl).trans rupd_bind
 
 @[lantana_alias rupd_frame_r]
-theorem rupd_frame_r {P R : IProp GF} : (|==>r P) ∗ R ⊢ |==>r (P ∗ R) := by
+theorem rupd_frame_right {P R : IProp GF} : (|==>r P) ∗ R ⊢ |==>r (P ∗ R) := by
   iintro ⟨H, HR⟩
   iapply rupd_bind $$ [HR] H
   iintro HP
@@ -176,31 +176,31 @@ theorem rupd_frame_r {P R : IProp GF} : (|==>r P) ∗ R ⊢ |==>r (P ∗ R) := b
   iframe
 
 @[lantana_alias rupd_frame_l]
-theorem rupd_frame_l {P R : IProp GF} : R ∗ (|==>r P) ⊢ |==>r (R ∗ P) :=
-  sep_comm.mp.trans <| rupd_frame_r.trans <| rupd_mono sep_comm.mp
+theorem rupd_frame_left {P R : IProp GF} : R ∗ (|==>r P) ⊢ |==>r (R ∗ P) :=
+  sep_comm.mp.trans <| rupd_frame_right.trans <| rupd_mono sep_comm.mp
 
 @[lantana_alias rupd_bupd_l]
-theorem rupd_bupd_l {P : IProp GF} : (|==> |==>r P) ⊢ |==>r P :=
+theorem rupd_bupd_left {P : IProp GF} : (|==> |==>r P) ⊢ |==>r P :=
   bupd_rupd.trans rupd_trans
 
 @[lantana_alias rupd_bupd_r]
-theorem rupd_bupd_r {P : IProp GF} : (|==>r |==> P) ⊢ |==>r P :=
+theorem rupd_bupd_right {P : IProp GF} : (|==>r |==> P) ⊢ |==>r P :=
   (rupd_mono bupd_rupd).trans rupd_trans
 
 @[lantana_alias rupd_wand_l]
-theorem rupd_wand_l {P Q : IProp GF} : (P -∗ Q) ∗ (|==>r P) ⊢ |==>r Q :=
-  rupd_frame_l.trans <| rupd_mono wand_elim_left
+theorem rupd_wand_left {P Q : IProp GF} : (P -∗ Q) ∗ (|==>r P) ⊢ |==>r Q :=
+  rupd_frame_left.trans <| rupd_mono wand_elim_left
 
 @[lantana_alias rupd_wand_r]
-theorem rupd_wand_r {P Q : IProp GF} : (|==>r P) ∗ (P -∗ Q) ⊢ |==>r Q :=
-  rupd_frame_r.trans <| rupd_mono wand_elim_right
+theorem rupd_wand_right {P Q : IProp GF} : (|==>r P) ∗ (P -∗ Q) ⊢ |==>r Q :=
+  rupd_frame_right.trans <| rupd_mono wand_elim_right
 
 @[lantana_alias rupd_sep]
 theorem rupd_sep {P Q : IProp GF} : (|==>r P) ∗ (|==>r Q) ⊢ |==>r (P ∗ Q) :=
-  rupd_frame_r.trans <| (rupd_mono rupd_frame_l).trans rupd_trans
+  rupd_frame_right.trans <| (rupd_mono rupd_frame_left).trans rupd_trans
 
 @[lantana_alias rupd_idemp]
-theorem rupd_idemp {P : IProp GF} : (|==>r |==>r P) ⊣⊢ |==>r P :=
+theorem rupd_idem {P : IProp GF} : (|==>r |==>r P) ⊣⊢ |==>r P :=
   ⟨rupd_trans, rupd_intro⟩
 
 #lantana_ignore rupd_homomorphism "Not needed: Lantana states big-op rules directly."
@@ -210,7 +210,7 @@ theorem rupd_idemp {P : IProp GF} : (|==>r |==>r P) ⊣⊢ |==>r P :=
 #lantana_ignore big_sepMS_rupd "Not ported yet: no client in the base logic."
 
 @[lantana_alias except_0_rupd]
-theorem except_0_rupd {P : IProp GF} : ◇ (|==>r P) ⊢ |==>r ◇ P := by
+theorem except0_rupd {P : IProp GF} : ◇ (|==>r P) ⊢ |==>r ◇ P := by
   simp only [BIBase.except0]
   iintro (HF | H)
   · iapply rupd_intro
@@ -233,11 +233,11 @@ instance elimModal_bupd_rupd {p io} {P Q : IProp GF} :
     ElimModal True p io false iprop(|==> P) P iprop(|==>r Q) iprop(|==>r Q) where
   elim_modal _ :=
     (sep_mono_left (intuitionisticallyIf_elim.trans bupd_rupd)).trans <|
-      rupd_wand_r.trans rupd_trans
+      rupd_wand_right.trans rupd_trans
 
 @[lantana_alias add_modal_bupd]
 instance addModal_bupd_rupd {P Q : IProp GF} : AddModal iprop(|==> P) P iprop(|==>r Q) where
-  add_modal := (sep_mono_left bupd_rupd).trans <| rupd_wand_r.trans rupd_trans
+  add_modal := (sep_mono_left bupd_rupd).trans <| rupd_wand_right.trans rupd_trans
 
 @[lantana_alias from_assumption_rupd]
 instance fromAssumption_rupd {p ioP} {P Q : IProp GF} [h : FromAssumption p ioP P Q] :
@@ -260,13 +260,13 @@ instance intoWand_rupd {p q m} {R P Q : IProp GF} [h : IntoWand false false R m 
 instance intoWand_rupd_persistent {p q m} {R P Q : IProp GF} [h : IntoWand false q R m P Q] :
     IntoWand p q iprop(|==>r R) m P iprop(|==>r Q) where
   into_wand := intuitionisticallyIf_elim.trans <| wand_intro <|
-    (sep_mono_left (rupd_mono h.into_wand)).trans <| rupd_frame_r.trans (rupd_mono wand_elim_left)
+    (sep_mono_left (rupd_mono h.into_wand)).trans <| rupd_frame_right.trans (rupd_mono wand_elim_left)
 
 @[lantana_alias into_wand_rupd_args]
 instance (priority := low) intoWand_rupd_args {p q} {s : WandMode.Side} {R P Q : IProp GF}
     [h : IntoWand p false R (.matching s) P Q] :
     IntoWand p q R (.matching s) iprop(|==>r P) iprop(|==>r Q) where
-  into_wand := wand_intro_left <| (sep_mono intuitionisticallyIf_elim h.into_wand).trans rupd_wand_r
+  into_wand := wand_intro_left <| (sep_mono intuitionisticallyIf_elim h.into_wand).trans rupd_wand_right
 
 @[lantana_alias from_sep_rupd]
 instance fromSep_rupd {P Q1 Q2 : IProp GF} [h : FromSep P Q1 Q2] :
@@ -285,7 +285,7 @@ instance fromExists_rupd {α : Sort _} {P : IProp GF} {Φ : α → IProp GF} [h 
 
 @[lantana_alias is_except_0_rupd]
 instance isExcept0_rupd {P : IProp GF} [h : IsExcept0 P] : IsExcept0 iprop(|==>r P) where
-  is_except0 := except_0_rupd.trans (rupd_mono h.1)
+  is_except0 := except0_rupd.trans (rupd_mono h.1)
 
 @[lantana_alias from_modal_rupd]
 instance fromModal_rupd {io} {P : IProp GF} :
@@ -295,16 +295,16 @@ instance fromModal_rupd {io} {P : IProp GF} :
 @[lantana_alias elim_modal_rupd]
 instance elimModal_rupd {p io} {P Q : IProp GF} :
     ElimModal True p io false iprop(|==>r P) P iprop(|==>r Q) iprop(|==>r Q) where
-  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <| rupd_wand_r.trans rupd_trans
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <| rupd_wand_right.trans rupd_trans
 
 @[lantana_alias add_modal_rupd]
 instance addModal_rupd {P Q : IProp GF} : AddModal iprop(|==>r P) P iprop(|==>r Q) where
-  add_modal := rupd_wand_r.trans rupd_trans
+  add_modal := rupd_wand_right.trans rupd_trans
 
 @[lantana_alias frame_rupd]
 instance frame_rupd {p} {R P Q : IProp GF} [h : Frame p R P Q] :
     Frame p R iprop(|==>r P) iprop(|==>r Q) where
-  frame := rupd_frame_l.trans (rupd_mono h.frame)
+  frame := rupd_frame_left.trans (rupd_mono h.frame)
 
 end ProofMode
 

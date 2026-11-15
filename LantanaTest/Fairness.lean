@@ -75,18 +75,18 @@ open scoped Lantana.TrProp
 /-- Fair scheduling is the strong fairness of every thread's scheduling action; it names no
 scheduled thread. -/
 example {C : Type} [ThreadSystem C] (τ : Trace C) :
-    fairScheduling τ ↔ ∀ i, Fairness.Sched.SF i τ :=
+    fairScheduling τ ↔ ∀ i, Fairness.Sched.strongFair i τ :=
   Iff.rfl
 
 /-- Fair scheduling of a thread is a fairness assumption, the strong recipe of its scheduling
 action. -/
 example {C : Type} [ThreadSystem C] (τ : Trace C) (i : ThreadId) :
-    (Fairness.Sched.assumption i).holds τ ↔ Fairness.Sched.SF i τ :=
+    (Fairness.Sched.assumption i).holds τ ↔ Fairness.Sched.strongFair i τ :=
   Fairness.Sched.holds_assumption
 
 /-- The thread's own view of an action is an assumption, read by dot notation. -/
 example {C : Type} [ThreadSystem C] (a : Fairness.Action C) (i : ThreadId) (τ : Trace C)
-    (hown : a.OwnGrant i) (hsf : a.SF τ) : (a.own i).holds τ :=
+    (hown : a.OwnGrant i) (hsf : a.strongFair τ) : (a.own i).holds τ :=
   Fairness.Action.own_holds_of_sf hown τ hsf
 
 /-! Lantana's configurations are a thread system, and fair scheduling of a thread is weak
@@ -99,20 +99,20 @@ variable {Expr State Obs Val : Type} [Language Expr State Obs Val] [Crash Expr S
 
 example : ThreadSystem (Cfg Expr State) := inferInstance
 
-example (τ : Trace (Cfg Expr State)) (h : IsBehavior τ) (i : ThreadId)
-    (hcr : (□ₜ TrProp.step (Cfg.staysCrashed i)) τ) :
-    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
+example (τ : Trace (Cfg Expr State)) (h : isBehavior τ) (i : ThreadId)
+    (hcr : (□ₜ TrProp.step (Cfg.StaysCrashed i)) τ) :
+    Fairness.Sched.strongFair i τ ↔ Fairness.Action.weakFair (Fairness.Sched.action i) τ :=
   Cfg.sched_sf_iff_wf h i hcr
 
 example (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crashed e σ) (τ : Trace (Cfg Expr State))
-    (h : IsBehavior τ) (i : ThreadId) :
-    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
+    (h : isBehavior τ) (i : ThreadId) :
+    Fairness.Sched.strongFair i τ ↔ Fairness.Action.weakFair (Fairness.Sched.action i) τ :=
   Cfg.sched_sf_iff_wf h i fun _ _ => Cfg.staysCrashed_of_never hnc i _ _
 
 end ThreadSystem
 
-example (τ : Trace (Cfg HeapLang.Exp HeapLang.State)) (h : IsBehavior τ) (i : ThreadId) :
-    Fairness.Sched.SF i τ ↔ Fairness.Action.WF (Fairness.Sched.action i) τ :=
+example (τ : Trace (Cfg HeapLang.Exp HeapLang.State)) (h : isBehavior τ) (i : ThreadId) :
+    Fairness.Sched.strongFair i τ ↔ Fairness.Action.weakFair (Fairness.Sched.action i) τ :=
   Cfg.sched_sf_iff_wf h i fun _ _ => HeapLang.staysCrashed i _ _
 
 end LantanaTest.Fairness

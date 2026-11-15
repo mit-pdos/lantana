@@ -86,12 +86,12 @@ interface, run against the model with the lower bound `γ i a := a` of the witne
 step's later credits, thread `0` runs, without children and with an empty bill, and the model is
 at one thread. -/
 example (X : ThreadId → Prop) (hX : ∀ j, ¬X j) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
-    |={∅}=> ALC iprop(|={∅}=> (thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) ∗
-      ∃ h' a' Ω' W', ⌜Obls.le ∅ Ω' ∧ owitInvLb (fun _ a => a) Ω' W'⌝ ∗
+    |={∅}=> alc iprop(|={∅}=> (thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) ∗
+      ∃ h' a' Ω' W', ⌜Obligations.le ∅ Ω' ∧ OwitInvLb (fun _ a => a) Ω' W'⌝ ∗
         modelInterp ([(0, ∅)] ++ h') (0 + a') Ω' W' 0 1 X) := by
-  have hγ : owitInvLbMonoFair (fun _ a => a) :=
+  have hγ : OwitInvLbMonoFair (fun _ a => a) :=
     ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
-  have hLb : owitInvLb (fun _ a => a) (∅ : Obls) (∅ : Witnesses) := mapForall2_empty
+  have hLb : OwitInvLb (fun _ a => a) (∅ : Obligations) (∅ : Witnesses) := mapForall2_empty
   imod modelInterp_alloc (GF := TestGF) 0 X with ⟨%G, -, -, -, HM⟩
   imodintro
   iexists G
@@ -102,13 +102,13 @@ example (X : ThreadId → Prop) (hX : ∀ j, ¬X j) : ⊢@{IProp TestGF} |==> �
     rw [show List.range' 0 (1 - 0) = [0] from rfl]
     iintro Hl
     imodintro
-    iapply ALC_intro
+    iapply alc_intro
     iapply mupdBase_intro
     icases BigSepL.bigSepL_cons.mp $$ Hl with ⟨Hk, -⟩
     iexact Hk
   ihave Hrun := hfork.trans (mphys_modelInterp_run 0 0 0 1 X X (fun _ a => a) hγ
     iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅))
-  imod Hrun $$ [] %([(0, ∅)] : List MEvent) %0 %(∅ : Obls) %(∅ : Witnesses) %hLb HM with H
+  imod Hrun $$ [] %([(0, ∅)] : List MEvent) %0 %(∅ : Obligations) %(∅ : Witnesses) %hLb HM with H
   · iempintro
   imodintro
   iexact H
@@ -124,7 +124,7 @@ example (E : CoPset) (ℓ : Layer) :
       thKids 0 ((∅ : Oids).insert k) ∗ thCarriers 0 ((∅ : Oids).insert k) ∗
       oblKids k ∅ ∗ Obl.assigned k 1 ∗ Obl.fuel k ℓ 1 ∗ Wit.layer k ℓ := by
   iintro ⟨Hk, HB⟩
-  ihave #Hb := parLe_thread (GF := TestGF) 0 ℓ
+  ihave #Hb := Par.le_thread (GF := TestGF) 0 ℓ
   imod Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
     with ⟨%k, -, Hk, HB, Hkk, Ha, Hf, #Hw⟩
   imodintro
@@ -139,7 +139,7 @@ example (E : CoPset) (ℓ : Layer) :
       thKids 0 (((∅ : Oids).insert k).erase k) ∗ thCarriers 0 (((∅ : Oids).insert k).erase k) ∗
       Obl.discharged k ∗ Wit.layer k ℓ := by
   iintro ⟨Hk, HB⟩
-  ihave #Hb := parLe_thread (GF := TestGF) 0 ℓ
+  ihave #Hb := Par.le_thread (GF := TestGF) 0 ℓ
   imod Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
     with ⟨%k, -, Hk, HB, Hkk, Ha, -, #Hw⟩
   imod Obl.discharge_leaf (Expr := Expr) (State := State) E (.thread 0) _ k
@@ -155,12 +155,12 @@ example (E : CoPset) (ℓ : Layer) :
 /-- Running `Obl.new` against the model at any view, with the lower bound
 `γ i a := a` of the witnesses. -/
 example (E : CoPset) (ℓ : Layer) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
-    (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat)
-    (X : ThreadId → Prop) (hLb : owitInvLb (fun _ a => a) Ω W) :
+    (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
+    (X : ThreadId → Prop) (hLb : OwitInvLb (fun _ a => a) Ω W) :
     thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tc X
       ⊢@{IProp TestGF} |={E}=> ∃ k : Oid, Obl.assigned k 1 ∗ historyTInterp h n σ tp := by
   iintro ⟨Hk, HB, HT, HM⟩
-  ihave #Hb := parLe_thread (GF := TestGF) 0 ℓ
+  ihave #Hb := Par.le_thread (GF := TestGF) 0 ℓ
   ihave H := Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
   imod mupd_modelInterp_steps (fun _ a => a) ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
     E E h n σ tp g v Ω W tc X _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, -, Ha, -⟩, HT, -⟩

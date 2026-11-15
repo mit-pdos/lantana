@@ -53,8 +53,8 @@ def main : Val :=
 def v42 : Val := hl_val(#42)
 
 /-- The namespaces of the main thread's commitments: to return, to create a fair lock. -/
-def Nr : Namespace := nroot.@"tl_client_ret"
-def Nc : Namespace := nroot.@"tl_client_lock"
+def returnN : Namespace := nroot.@"tl_client_ret"
+def lockN : Namespace := nroot.@"tl_client_lock"
 
 /-! ## The specification -/
 
@@ -72,11 +72,11 @@ obligations live at the layer `aleph`, above the lock's waiting (`acquire` at lo
 theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #()) ∗ thActive i ∗ thKids i {kr, kc} ∗
           thCarriers i {kr, kc} ∗ ([∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g aleph μ) ∗
-          ⌜kr ≠ kc⌝ ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ finallyI Nr kr 1 (exits v42 @ i) ∗
-          finallyI Nc kc 1 someFairLock }}}
+          ⌜kr ≠ kc⌝ ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ finallyI returnN kr 1 (exits v42 @ i) ∗
+          finallyI lockN kc 1 someFairLock }}}
         hl(v(&main) #()) @ i
       l{{{ (w : Val), RET w; threadExpr i [] hl(v(&w)) ∗ ⌜w = v42⌝ ∗
-        liftTerm i (fun _ _ => iprop(True)) w }}} := by
+        lwp.liftTerm i (fun _ _ => iprop(True)) w }}} := by
   obtain ⟨μi, hinit⟩ := TicketLock2.init_spec (GF := GF)
   obtain ⟨μa, hacq⟩ := TicketLock2.acquire_spec (GF := GF)
   obtain ⟨μr, hrel⟩ := TicketLock2.release_spec (GF := GF)
@@ -167,7 +167,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   rw [show (hl(#42) : Exp) = .val v42 from rfl]
   iapply lwp_value_mupd'.mpr
   ihave Hc2 := tlc_one_nat.mpr $$ Hc2
-  imod threadExpr_terminate_finally i ⊤ v42 kr Nr (fun _ _ => CoPset.mem_full)
+  imod threadExpr_terminate_finally i ⊤ v42 kr returnN (fun _ _ => CoPset.mem_full)
     $$ HT Hc2 HA HK Hkr HFr with ⟨HT, #Hd⟩
   imodintro
   iapply HΦ
@@ -175,7 +175,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   isplitr
   · ipureintro
     rfl
-  · unfold liftTerm
+  · unfold lwp.liftTerm
     isplitl
     · iexact Hd
     · ipureintro
@@ -183,7 +183,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
 
 /-- The commitments of the main thread `i` and its resources (Rocq `Φ_P`). -/
 def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
-  iprop(∃ kr kc : Oid, finallyI Nr kr 1 (exits v42 @ i) ∗ finallyI Nc kc 1 someFairLock ∗
+  iprop(∃ kr kc : Oid, finallyI returnN kr 1 (exits v42 @ i) ∗ finallyI lockN kc 1 someFairLock ∗
     (thKids i {kr, kc} ∗ thCarriers i {kr, kc} ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ ⌜kr ≠ kc⌝ ∗
       [∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g aleph μ))
 
@@ -196,20 +196,20 @@ bill: its commitments, and its `lWP` from them (Rocq `main_pre`). -/
 theorem main_pre (i : ThreadId) :
     threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thActive i -∗ thKids i ∅ -∗ thCarriers i ∅ -∗
       |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
-        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ lwp.liftTerm i mainPost }}) := by
   obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
   iintro HT HA HG HB
   imod untilI_alloc (E := ⊤) (.thread i) ∅ ∅ aleph μ $$ [] HG HB with
     ⟨%kr, -, HG, HB, Hkr, Fkr, -, Akr⟩
-  · iapply parLe_thread
-  imod Akr $$ %⊤ %Nr %iprop(True) %(exits v42 @ i) [] with Ur
+  · iapply Par.le_thread
+  imod Akr $$ %⊤ %returnN %iprop(True) %(exits v42 @ i) [] with Ur
   · inext
     ipureintro
     trivial
   imod untilI_alloc (E := ⊤) (.thread i) _ _ aleph μ $$ [] HG HB with
     ⟨%kc, %hkc, HG, HB, Hkc, Fkc, -, Akc⟩
-  · iapply parLe_thread
-  imod Akc $$ %⊤ %Nc %iprop(True) %(someFairLock (GF := GF)) [] with Uc
+  · iapply Par.le_thread
+  imod Akc $$ %⊤ %lockN %iprop(True) %(someFairLock (GF := GF)) [] with Uc
   · inext
     ipureintro
     trivial
@@ -244,7 +244,7 @@ theorem main_pre (i : ThreadId) :
     ipureintro
     exact hne
   iintro %w ⟨-, %hw, Hd⟩
-  unfold liftTerm
+  unfold lwp.liftTerm
   icases Hd with ⟨Hd, -⟩
   iframe Hd
   ipureintro
@@ -261,16 +261,16 @@ variable {GF : BundledGFunctors}
 (Rocq `client_spec`). -/
 @[lantana_alias ticket_lock2_client.client_spec]
 def clientSpec (i : ThreadId) : TrProp (Cfg Exp State) :=
-  ◇ₜ TrProp.state (threadExprSat i [] (.val v42)) ∧ₜ
+  ◇ₜ TrProp.state (ThreadExprSat i [] (.val v42)) ∧ₜ
     ◇ₜ (∃ₜ (next : Loc) (curr : Loc), starvationFree next curr)
 
 /-- What the commitments guarantee (Rocq `G_main`). -/
 def gMain (i : ThreadId) : TrSpec Exp State GF :=
-  ◇ₛ TrSpec.state (threadExprSat i [] (.val v42)) ∧ₛ ◇ₛ (∃ₛ tl : Val, fairLockTrSpec tl) ∧ₛ
+  ◇ₛ TrSpec.state (ThreadExprSat i [] (.val v42)) ∧ₛ ◇ₛ (∃ₛ tl : Val, fairLockTrSpec tl) ∧ₛ
     TrSpec.true
 
 @[lantana_alias ticket_lock2_client.G_main_impl]
-theorem gMain_impl (i : ThreadId) : (gMain (GF := GF) i).external ⊆ clientSpec i := by
+theorem gMain_external_subset (i : ThreadId) : (gMain (GF := GF) i).external ⊆ clientSpec i := by
   rintro τ ⟨hr, ⟨m, hm, ⟨tl, htl⟩, hbef⟩, -⟩
   obtain ⟨next, curr, -, hsf⟩ := fairLock_starvationFree (GF := GF) tl _ htl
   exact ⟨hr, m, hm, ⟨next, curr, hsf⟩, hbef⟩
@@ -281,15 +281,15 @@ variable [ModelGS GF] [HeapGS GF] [TicketLock2G GF]
 theorem guar_mainRes (i : ThreadId) (μ : Measure) :
     ⊢@{IProp GF} mainRes i μ ⊨ₜ gMain i := by
   unfold mainRes gMain finallyI
-  iapply guar_ex_ghost
+  iapply guar_exists_ghost
   iintro %kr
-  iapply guar_ex_ghost
+  iapply guar_exists_ghost
   iintro %kc
   iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nr kr 1 iprop(True)
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) returnN kr 1 iprop(True)
       (exits v42 @ i)))
   iapply guar_sep
-  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) Nc kc 1 iprop(True)
+  · iapply (GuarOf.guar_of (P := untilI (Expr := Exp) (State := State) lockN kc 1 iprop(True)
       (someFairLock (GF := GF))))
   iapply guar_true
 
@@ -310,11 +310,11 @@ abbrev σ0 : State := ⟨∅⟩
 /-- In every fair behavior from the initial configuration, the main thread returns `42`, and a
 ticket lock gets created that is starvation free. -/
 @[lantana_alias ticket_lock2_client.ticket_lock_client_adequacy]
-theorem ticketLockClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem ticketLockClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     clientSpec 0 τ := by
   refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (clientSpec 0)
-    (gMain_impl 0) τ hbeh hfair hpos hinit ?_
+    (gMain_external_subset 0) τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
@@ -324,7 +324,7 @@ theorem ticketLockClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavio
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
-  ihave HG := initThreads σ0 tp0 $$ HG
+  ihave HG := init_threads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
@@ -343,7 +343,7 @@ theorem ticketLockClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavio
 /-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the main thread has returned, its value is `42`. -/
 @[lantana_alias ticket_lock2_client.ticket_lock_client_safety_adequacy]
-theorem ticketLockClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem ticketLockClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ w => w = v42) τ := by
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
@@ -359,7 +359,7 @@ theorem ticketLockClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : Is
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
-  ihave HG := initThreads σ0 tp0 $$ HG
+  ihave HG := init_threads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
@@ -372,7 +372,7 @@ theorem ticketLockClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : Is
 /-- Liveness and safety together, over the same fair behaviors: the main thread returns `42`,
 a starvation-free lock gets created, and no thread is ever stuck. -/
 @[lantana_alias ticket_lock2_client.ticket_lock_client_liveness_safety]
-theorem ticketLockClient_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem ticketLockClient_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     clientSpec 0 τ ∧ safetyIris 0 (fun _ w => w = v42) τ :=
   ⟨ticketLockClient_adequacy τ hbeh hfair hpos hinit,

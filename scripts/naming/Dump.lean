@@ -7,9 +7,9 @@ import Lean
 /-!
 # Declaration dump for the naming review (`docs/naming.md`)
 
-`lake env lean --run scripts/naming/Dump.lean [Module]` (default `Lantana`; run from the package
-root on a built tree) prints one TSV row per declaration of `import Module` whose module is in
-`Lantana` or `Iris`:
+`lake env lean --run scripts/naming/Dump.lean [Module ...]` (default `Lantana`; run from the
+package root on a built tree) prints one TSV row per declaration of `import Module ...` whose
+module is in `Lantana`, `LantanaTest` or `Iris`:
 
   name, kind, module, private, aliases, result sort, line
 
@@ -53,8 +53,8 @@ def kindOf (env : Environment) (n : Name) (ci : ConstantInfo) : String :=
 unsafe def main (args : List String) : IO Unit := do
   enableInitializersExecution
   initSearchPath (← findSysroot)
-  let root := (args.headD "Lantana").toName
-  let env ← importModules #[{ module := root }] {} (loadExts := true)
+  let roots := if args.isEmpty then ["Lantana"] else args
+  let env ← importModules (roots.map fun r => { module := r.toName }).toArray {} (loadExts := true)
   let mods := env.header.moduleNames
   -- Rocq aliases: target → Rocq names.
   let mut aliasMap : Std.HashMap Name (Array String) := {}
@@ -68,18 +68,21 @@ unsafe def main (args : List String) : IO Unit := do
   for (n, ci) in env.constants.toList do
     let some idx := env.getModuleIdxFor? n | continue
     let m := mods[idx.toNat]!
-    unless m.getRoot == `Lantana || m.getRoot == `Iris do continue
+    unless m.getRoot == `Lantana || m.getRoot == `Iris || m.getRoot == `LantanaTest do continue
     if n.getRoot == `RocqLantana || n.getRoot == `Rocq then continue
+    -- a private declaration is checked under its user-facing name
+    let priv := if isPrivateName n then "private" else ""
+    let n0 := n
+    let n := (privateToUserName? n).getD n
     if n.isInternalDetail then continue
     if isAuxRecursor env n || isNoConfusion env n then continue
     let s := n.toString
     if s.endsWith ".inj" || s.endsWith ".injEq" || s.endsWith ".sizeOf_spec" ||
         s.endsWith ".ctorIdx" then continue
-    let k := kindOf env n ci
+    let k := kindOf env n0 ci
     if k == "rec" then continue
-    let priv := if isPrivateName n then "private" else ""
-    let al := ",".intercalate (aliasMap.getD n #[]).toList
-    let ln := match declRangeExt.find? (level := .exported) env n with
+    let al := ",".intercalate (aliasMap.getD n0 #[]).toList
+    let ln := match declRangeExt.find? (level := .exported) env n0 with
       | some r => toString r.range.pos.line
       | none => "?"
     IO.println s!"{n}\t{k}\t{m}\t{priv}\t{al}\t{retSort ci.type}\t{ln}"

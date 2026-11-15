@@ -209,14 +209,14 @@ theorem valid_debtOf_cash {a c : α} {q : Qp} :
 /-! ## Inclusion -/
 
 @[lantana_alias bank_cash_included]
-theorem cash_included {a b : α} : (cash a : Bank α) ≼ cash b ↔ ∃ c, b = a +ₒ c := by
+theorem cash_inc {a b : α} : (cash a : Bank α) ≼ cash b ↔ ∃ c, b = a +ₒ c := by
   refine ⟨fun ⟨z, hz⟩ => ?_, fun ⟨c, hc⟩ => ⟨cash c, hc ▸ rfl⟩⟩
   rcases z with c | ⟨e, s, q⟩
   · exact ⟨c, Bank.cash.inj hz⟩
   · cases hz
 
 @[lantana_alias bank_debt_included]
-theorem debt_included {e₀ e₁ s₀ s₁ : α} {q₀ q₁ : Qp} :
+theorem debt_inc {e₀ e₁ s₀ s₁ : α} {q₀ q₁ : Qp} :
     (debt e₀ s₀ q₀ : Bank α) ≼ debt e₁ s₁ q₁ ↔
       (∃ s, e₀ = e₁ ∧ s₁ = s₀ +ₒ s ∧ q₀ = q₁) ∨
       (∃ e s q, e₁ = min e₀ e ∧ s₁ = s₀ +ₒ s ∧ q₁ = q₀ + q) := by
@@ -232,7 +232,7 @@ theorem debt_included {e₀ e₁ s₀ s₁ : α} {q₀ q₁ : Qp} :
     · exact ⟨debt e s q, rfl⟩
 
 @[lantana_alias bank_cash_debt_included]
-theorem cash_debt_included {a e s : α} {q : Qp} :
+theorem cash_debt_inc {a e s : α} {q : Qp} :
     (cash a : Bank α) ≼ debt e s q ↔ ∃ b, s = a +ₒ b := by
   refine ⟨fun ⟨z, hz⟩ => ?_, fun ⟨b, hb⟩ => ⟨debt e b q, hb ▸ rfl⟩⟩
   rcases z with c | ⟨e', s', q'⟩
@@ -240,7 +240,7 @@ theorem cash_debt_included {a e s : α} {q : Qp} :
   · exact ⟨s', (Bank.debt.inj hz).2.1⟩
 
 @[lantana_alias bank_debt_cash_included]
-theorem debt_cash_included {a e s : α} {q : Qp} :
+theorem debt_cash_inc {a e s : α} {q : Qp} :
     (debt e s q : Bank α) ≼ cash a ↔ False := by
   refine ⟨fun ⟨z, hz⟩ => ?_, False.elim⟩
   rcases z with c | ⟨e', s', q'⟩ <;> cases hz

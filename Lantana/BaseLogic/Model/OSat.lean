@@ -14,13 +14,13 @@ public import Lantana.BaseLogic.Forest
 /-! # Ghost state of obligations
 
 The ghost state of the obligations of the model and the invariant `osat Ω` that ties the pure
-obligation map `Ω : Obls` to it (Rocq `lantana/base_logic/osat.v`). Each obligation `k` has a
+obligation map `Ω : Obligations` to it (Rocq `lantana/base_logic/osat.v`). Each obligation `k` has a
 persistent fuel bound `OSat.bound k β`, a state (assigned, fractional `OSat.assigned k q`, or
 discharged, persistent `OSat.discharged k`) and a bank of fuel: the invariant holds the debt
 `OSat.supply k α 1`, and the cash `OSat.fuel k a` in circulation is at most `α`, itself at most
 the bound and the model fuel of the obligation. Spending positive cash makes the obligation
 progress (`osat_progress_one`, `osat_progress`), possibly with a new owner (`osat_chown_set`,
-the owner changes of a subtree, `chownRel` of `Lantana.BaseLogic.Forest`; `osat_progress_owner`,
+the owner changes of a subtree, `ChownRel` of `Lantana.BaseLogic.Forest`; `osat_progress_owner`,
 the owner-preserving progress round of a thread).
 
 Design (plan M4 §1, differences with Rocq):
@@ -44,10 +44,10 @@ namespace Lantana.Model
 open Iris Iris.BI Iris.ProofMode Iris.Std LawfulPartialMap
 open Ordinals Ordinal
 
-namespace Obl
+namespace Obligation
 
 /-- Whether an obligation is discharged: the status kept by the state ghost map. -/
-def isDischarged : Obl → Bool
+def isDischarged : Obligation → Bool
   | assigned _ _ => false
   | discharged => true
 
@@ -56,7 +56,7 @@ def isDischarged : Obl → Bool
 
 @[simp] theorem isDischarged_discharged : discharged.isDischarged = true := rfl
 
-end Obl
+end Obligation
 
 /-! ## Ghost state -/
 
@@ -467,7 +467,7 @@ private theorem bank_update {k : Oid} {x y : Bank Fuel} (h : x ~~> y) :
   iexact H
 
 @[lantana_alias oblG_fuel_mon]
-theorem fuel_mon {k : Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
+theorem fuel_mono {k : Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
     fuel k a₁ ⊢@{IProp GF} |==> fuel k a₀ :=
   bank_update (Bank.cash_update h)
 
@@ -477,9 +477,9 @@ theorem fuel_split (k : Oid) (a₀ a₁ : Fuel) :
   ⟨bank_split k (Bank.cash a₀) (Bank.cash a₁), bank_combine k (Bank.cash a₀) (Bank.cash a₁)⟩
 
 @[lantana_alias oblG_fuel_mon_split]
-theorem fuel_mon_split {k : Oid} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
+theorem fuel_mono_split {k : Oid} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
     fuel k a₂ ⊢@{IProp GF} |==> (fuel k a₀ ∗ fuel k a₁) :=
-  (fuel_mon h).trans (BIUpdate.mono (fuel_split k a₀ a₁).mp)
+  (fuel_mono h).trans (BIUpdate.mono (fuel_split k a₀ a₁).mp)
 
 /-- Split off a positive unit of fuel. -/
 @[lantana_alias oblG_fuel_lt]
@@ -487,7 +487,7 @@ theorem fuel_lt {k : Oid} {a₀ a₁ : Fuel} (h : a₀ < a₁) :
     fuel k a₁ ⊢@{IProp GF} |==> (fuel k a₀ ∗ ∃ c, ⌜0 < c⌝ ∗ fuel k c) := by
   obtain ⟨c, hc, hle⟩ := Ordinal.lt_exists_left.mpr h
   iintro H
-  imod fuel_mon_split hle $$ H with ⟨H₀, Hc⟩
+  imod fuel_mono_split hle $$ H with ⟨H₀, Hc⟩
   imodintro
   iframe H₀
   iexists c
@@ -510,9 +510,9 @@ instance fuel_combineSepAs (k : Oid) (a₀ a₁ : Fuel) :
 /-! Big-operator versions, over lists and sets of obligations. -/
 
 @[lantana_alias oblG_fuel_mon_list]
-theorem fuel_mon_list {L : List Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
+theorem fuel_mono_list {L : List Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
     ([∗list] k ∈ L, fuel k a₁) ⊢@{IProp GF} |==> [∗list] k ∈ L, fuel k a₀ :=
-  (BigSepL.bigSepL_mono_of_forall (fuel_mon h)).trans (BigSepL.bigSepL_bupd _ L)
+  (BigSepL.bigSepL_mono_of_forall (fuel_mono h)).trans (BigSepL.bigSepL_bupd _ L)
 
 @[lantana_alias oblG_fuel_split_list]
 theorem fuel_split_list (L : List Oid) (a₀ a₁ : Fuel) :
@@ -522,10 +522,10 @@ theorem fuel_split_list (L : List Oid) (a₀ a₁ : Fuel) :
     BigSepL.bigSepL_sep_eqv.mpr.trans (BigSepL.bigSepL_mono_of_forall (fuel_split _ a₀ a₁).mpr)⟩
 
 @[lantana_alias oblG_fuel_mon_split_list]
-theorem fuel_mon_split_list {L : List Oid} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
+theorem fuel_mono_split_list {L : List Oid} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
     ([∗list] k ∈ L, fuel k a₂) ⊢@{IProp GF}
       |==> (([∗list] k ∈ L, fuel k a₀) ∗ [∗list] k ∈ L, fuel k a₁) :=
-  (fuel_mon_list h).trans (BIUpdate.mono (fuel_split_list L a₀ a₁).mp)
+  (fuel_mono_list h).trans (BIUpdate.mono (fuel_split_list L a₀ a₁).mp)
 
 @[lantana_alias oblG_fuel_lt_list]
 theorem fuel_lt_list {L : List Oid} {a₀ a₁ : Fuel} (h : a₀ < a₁) :
@@ -535,9 +535,9 @@ theorem fuel_lt_list {L : List Oid} {a₀ a₁ : Fuel} (h : a₀ < a₁) :
     (BigSepL.bigSepL_bupd _ L).trans (BIUpdate.mono BigSepL.bigSepL_sep_eqv.mp)
 
 @[lantana_alias oblG_fuel_mon_set]
-theorem fuel_mon_set {K : Oids} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
+theorem fuel_mono_set {K : Oids} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
     ([∗set] k ∈ K, fuel k a₁) ⊢@{IProp GF} |==> [∗set] k ∈ K, fuel k a₀ :=
-  (BigSepS.bigSepS_mono_of_forall fun _ => fuel_mon h).trans (BigSepS.bigSepS_bupd _ K)
+  (BigSepS.bigSepS_mono_of_forall fun _ => fuel_mono h).trans (BigSepS.bigSepS_bupd _ K)
 
 @[lantana_alias oblG_fuel_split_set]
 theorem fuel_split_set (K : Oids) (a₀ a₁ : Fuel) :
@@ -548,10 +548,10 @@ theorem fuel_split_set (K : Oids) (a₀ a₁ : Fuel) :
       (BigSepS.bigSepS_mono_of_forall fun _ => (fuel_split _ a₀ a₁).mpr)⟩
 
 @[lantana_alias oblG_fuel_mon_split_set]
-theorem fuel_mon_split_set {K : Oids} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
+theorem fuel_mono_split_set {K : Oids} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
     ([∗set] k ∈ K, fuel k a₂) ⊢@{IProp GF}
       |==> (([∗set] k ∈ K, fuel k a₀) ∗ [∗set] k ∈ K, fuel k a₁) :=
-  (fuel_mon_set h).trans (BIUpdate.mono (fuel_split_set K a₀ a₁).mp)
+  (fuel_mono_set h).trans (BIUpdate.mono (fuel_split_set K a₀ a₁).mp)
 
 @[lantana_alias oblG_fuel_lt_set]
 theorem fuel_lt_set {K : Oids} {a₀ a₁ : Fuel} (h : a₀ < a₁) :
@@ -576,7 +576,7 @@ instance supply_asFractional (k : Oid) (a : Fuel) (q : Qp) {ioΦ ioq : InOut} :
   as_fractional_fractional := supply_fractional k a
 
 @[lantana_alias oblG_fuel_supply_mon]
-theorem supply_mon {k : Oid} {a₀ a₁ : Fuel} (q : Qp) (h : a₀ ≤ a₁) :
+theorem supply_mono {k : Oid} {a₀ a₁ : Fuel} (q : Qp) (h : a₀ ≤ a₁) :
     supply k a₀ q ⊢@{IProp GF} |==> supply k a₁ q :=
   bank_update (Bank.debtOf_update h)
 
@@ -645,7 +645,7 @@ theorem supply_issue_2 {k : Oid} {q₀ q₁ : Qp} (hq : q₀ + q₁ = 1) (a₀ a
     exact ((supply_fractional k _).fractional q₀ q₁).mp
   iintro H
   icases supply_add k a₀ a₁ q₀ q₁ $$ H with ⟨%c, H, %hc⟩
-  imod supply_mon (q₀ + q₁) hc.1 $$ H with H
+  imod supply_mono (q₀ + q₁) hc.1 $$ H with H
   ihave H := e₁ $$ H
   imod supply_issue k a₀ b $$ H with ⟨H, Hf⟩
   icases e₂ $$ H with ⟨H₀, H₁⟩
@@ -671,11 +671,11 @@ theorem supply_spend_2 (k : Oid) (a₀ a₁ c : Fuel) (q₀ q₁ : Qp) :
 /-- The invariant of obligation `k` in state `g`: a bound `β`, the whole supply `α ≤ β`, and `α`
 at most the model fuel (assigned) or the persistent discharged state (Rocq: the body of the
 big separating conjunction of `osat`, without the owner and the fractions of the state). -/
-@[reducible] def oblInv (k : Oid) : Obl → IProp GF
+@[reducible] def oblInv (k : Oid) : Obligation → IProp GF
   | .assigned a _ => iprop(∃ β, bound k β ∗ ∃ α, supply k α 1 ∗ ⌜α ≤ β ∧ α ≤ a⌝)
   | .discharged => iprop(∃ β, bound k β ∗ ∃ α, supply k α 1 ∗ ⌜α ≤ β⌝ ∗ discharged k)
 
-instance oblInv_timeless (k : Oid) (g : Obl) : Timeless (oblInv (GF := GF) k g) := by
+instance oblInv_timeless (k : Oid) (g : Obligation) : Timeless (oblInv (GF := GF) k g) := by
   cases g <;> unfold oblInv <;> infer_instance
 
 end OSat
@@ -684,13 +684,13 @@ end OSat
 
 /-- The authoritative maps `S` (statuses) and `Ns` (names) of `osat Ω` have the domain of `Ω`,
 and `S` records the statuses of `Ω`. -/
-structure OSatWf (Ω : Obls) (S : OidMap Bool) (Ns : OidMap OblNames) : Prop where
-  state : ∀ k, get? S k = (get? Ω k).map Obl.isDischarged
+structure OSatWf (Ω : Obligations) (S : OidMap Bool) (Ns : OidMap OblNames) : Prop where
+  state : ∀ k, get? S k = (get? Ω k).map Obligation.isDischarged
   names : ∀ k, (get? Ns k).isSome = (get? Ω k).isSome
 
 namespace OSatWf
 
-variable {Ω : Obls} {S : OidMap Bool} {Ns : OidMap OblNames}
+variable {Ω : Obligations} {S : OidMap Bool} {Ns : OidMap OblNames}
 
 theorem empty : OSatWf ∅ ∅ ∅ where
   state k := by simp [get?_empty]
@@ -704,7 +704,7 @@ theorem names_none (h : OSatWf Ω S Ns) {k : Oid} (hk : get? Ω k = none) : get?
   simp only [hk, Option.isSome_none, Option.isSome_eq_false_iff, Option.isNone_iff_eq_none] at this
   exact this
 
-theorem alloc (h : OSatWf Ω S Ns) (k : Oid) (g : Obl) (ns : OblNames) :
+theorem alloc (h : OSatWf Ω S Ns) (k : Oid) (g : Obligation) (ns : OblNames) :
     OSatWf (insert Ω k g) (insert S k g.isDischarged) (insert Ns k ns) where
   state j := by
     rw [get?_insert, get?_insert]
@@ -718,7 +718,7 @@ theorem alloc (h : OSatWf Ω S Ns) (k : Oid) (g : Obl) (ns : OblNames) :
     · exact h.names j
 
 /-- A change of an obligation that keeps its status. -/
-theorem insert_same (h : OSatWf Ω S Ns) {k : Oid} {g g' : Obl} (hk : get? Ω k = some g)
+theorem insert_same (h : OSatWf Ω S Ns) {k : Oid} {g g' : Obligation} (hk : get? Ω k = some g)
     (hg : g'.isDischarged = g.isDischarged) : OSatWf (insert Ω k g') S Ns where
   state j := by
     rw [get?_insert]
@@ -732,7 +732,7 @@ theorem insert_same (h : OSatWf Ω S Ns) {k : Oid} {g g' : Obl} (hk : get? Ω k 
     · exact h.names j
 
 /-- The discharge of an obligation. -/
-theorem discharge (h : OSatWf Ω S Ns) {k : Oid} {g : Obl} (hk : get? Ω k = some g) :
+theorem discharge (h : OSatWf Ω S Ns) {k : Oid} {g : Obligation} (hk : get? Ω k = some g) :
     OSatWf (insert Ω k .discharged) (insert S k true) Ns where
   state j := by
     rw [get?_insert, get?_insert]
@@ -772,26 +772,26 @@ end OSatWf
 `osat_progress` makes the obligations of a submap `D` of `Ω` progress one by one. The condition
 of the round is `(get? D k).isSome ∧ C k g`, evaluated on the values of the initial map `Ω`. -/
 
-namespace Obls
+namespace Obligations
 
-variable {C : Oid → Obl → Prop}
+variable {C : Oid → Obligation → Prop}
 
-private theorem condProgress_empty (Ω : Obls) :
-    condProgress (fun k g => (get? (∅ : Obls) k).isSome ∧ C k g) Ω Ω :=
+private theorem condProgress_empty (Ω : Obligations) :
+    CondProgress (fun k g => (get? (∅ : Obligations) k).isSome ∧ C k g) Ω Ω :=
   ⟨mapForall2_refl (fun _ _ => .inr ⟨by simp [get?_empty], rfl⟩) Ω, keep_refl Ω⟩
 
-private theorem condProgress_get?_of_none {D Ω Ω₁ : Obls} {i : Oid} {x : Obl}
-    (h₁ : condProgress (fun k g => (get? D k).isSome ∧ C k g) Ω Ω₁) (hi : get? D i = none)
+private theorem condProgress_get?_of_none {D Ω Ω₁ : Obligations} {i : Oid} {x : Obligation}
+    (h₁ : CondProgress (fun k g => (get? D k).isSome ∧ C k g) Ω Ω₁) (hi : get? D i = none)
     (hΩi : get? Ω i = some x) : get? Ω₁ i = some x := by
-  obtain ⟨y, hy, hr⟩ := mapForall2.lookup_left h₁.1 hΩi
+  obtain ⟨y, hy, hr⟩ := MapForall2.lookup_left h₁.1 hΩi
   rcases hr with ⟨⟨hc, -⟩, -⟩ | ⟨-, rfl⟩
   · simp [hi] at hc
   · exact hy
 
-private theorem condProgress_insert_step {D Ω Ω₁ : Obls} {i : Oid} {a a' : Fuel}
-    {o : ThreadId} (h₁ : condProgress (fun k g => (get? D k).isSome ∧ C k g) Ω Ω₁)
+private theorem condProgress_insert_step {D Ω Ω₁ : Obligations} {i : Oid} {a a' : Fuel}
+    {o : ThreadId} (h₁ : CondProgress (fun k g => (get? D k).isSome ∧ C k g) Ω Ω₁)
     (hΩi : get? Ω i = some (.assigned a o)) (hCi : C i (.assigned a o)) (hlt : a' < a) :
-    condProgress (fun k g => (get? (insert D i (.assigned a o)) k).isSome ∧ C k g) Ω
+    CondProgress (fun k g => (get? (insert D i (.assigned a o)) k).isSome ∧ C k g) Ω
       (insert Ω₁ i (.assigned a' o)) := by
   obtain ⟨hs, hkeep⟩ := h₁
   refine ⟨mapForall2_intro fun j => ?_, mapForall2_intro fun j => ?_⟩
@@ -810,10 +810,10 @@ private theorem condProgress_insert_step {D Ω Ω₁ : Obls} {i : Oid} {a a' : F
     · rw [get?_insert_ne hij]
       exact hkeep.inv j
 
-private theorem condProgress_insert_skip {D Ω Ω₁ : Obls} {i : Oid} {x : Obl}
-    (h₁ : condProgress (fun k g => (get? D k).isSome ∧ C k g) Ω Ω₁) (hi : get? D i = none)
+private theorem condProgress_insert_skip {D Ω Ω₁ : Obligations} {i : Oid} {x : Obligation}
+    (h₁ : CondProgress (fun k g => (get? D k).isSome ∧ C k g) Ω Ω₁) (hi : get? D i = none)
     (hΩi : get? Ω i = some x) (hnC : ¬C i x) :
-    condProgress (fun k g => (get? (insert D i x) k).isSome ∧ C k g) Ω Ω₁ := by
+    CondProgress (fun k g => (get? (insert D i x) k).isSome ∧ C k g) Ω Ω₁ := by
   refine ⟨condRel_iff_lookup h₁.1 fun j g hj => ?_, h₁.2⟩
   by_cases hij : i = j
   · subst hij
@@ -822,7 +822,7 @@ private theorem condProgress_insert_skip {D Ω Ω₁ : Obls} {i : Oid} {x : Obl}
     simp [hi, hnC]
   · simp [get?_insert_ne hij]
 
-end Obls
+end Obligations
 
 section Osat
 
@@ -832,18 +832,18 @@ variable {GF : BundledGFunctors} [OSatGS GF]
 records the statuses of `Ω`, the authoritative name map has the domain of `Ω`, and every
 obligation satisfies `OSat.oblInv`. -/
 @[lantana_alias osat]
-def osat (Ω : Obls) : IProp GF :=
+def osat (Ω : Obligations) : IProp GF :=
   iprop(∃ S Ns, ⌜OSatWf Ω S Ns⌝ ∗ OSat.stateAuth S ∗ OSat.namesAuth Ns ∗
     [∗map] k ↦ g ∈ Ω, OSat.oblInv k g)
 
 @[lantana_alias osat_timeless]
-instance osat_timeless (Ω : Obls) : Timeless (osat (GF := GF) Ω) := by
+instance osat_timeless (Ω : Obligations) : Timeless (osat (GF := GF) Ω) := by
   unfold osat; infer_instance
 
 /-! ### Lookups -/
 
 @[lantana_alias osat_elem]
-theorem osat_elem (Ω : Obls) (k : Oid) :
+theorem osat_elem (Ω : Obligations) (k : Oid) :
     osat Ω ∗ OSat.elem k ⊢@{IProp GF} ⌜(get? Ω k).isSome⌝ := by
   unfold osat
   iintro ⟨⟨%S, %Ns, %hwf, -, HN, -⟩, He⟩
@@ -853,7 +853,7 @@ theorem osat_elem (Ω : Obls) (k : Oid) :
   exact h
 
 @[lantana_alias osat_elem_lookup]
-theorem osat_elem_lookup (Ω : Obls) (k : Oid) :
+theorem osat_elem_lookup (Ω : Obligations) (k : Oid) :
     osat Ω ∗ OSat.elem k ⊢@{IProp GF} ⌜∃ a t, get? Ω k = some (.assigned a t)⌝ ∨
       (OSat.discharged k ∗ ⌜get? Ω k = some .discharged⌝) := by
   unfold osat
@@ -875,7 +875,7 @@ theorem osat_elem_lookup (Ω : Obls) (k : Oid) :
 
 /-- An assigned state is in `Ω` (Rocq `osat_lookup_assigned`, which also takes `oblG_elem k`). -/
 @[lantana_alias osat_lookup_assigned]
-theorem osat_lookup_assigned (Ω : Obls) (k : Oid) (q : Qp) :
+theorem osat_lookup_assigned (Ω : Obligations) (k : Oid) (q : Qp) :
     osat Ω ∗ OSat.assigned k q ⊢@{IProp GF} ⌜∃ a t, get? Ω k = some (.assigned a t)⌝ := by
   unfold osat
   iintro ⟨⟨%S, %Ns, %hwf, HS, -, -⟩, Ha⟩
@@ -886,7 +886,7 @@ theorem osat_lookup_assigned (Ω : Obls) (k : Oid) (q : Qp) :
 /-- A discharged state is in `Ω` (Rocq `osat_lookup_discharged`, which also takes
 `oblG_elem k`). -/
 @[lantana_alias osat_lookup_discharged]
-theorem osat_lookup_discharged (Ω : Obls) (k : Oid) :
+theorem osat_lookup_discharged (Ω : Obligations) (k : Oid) :
     osat Ω ∗ OSat.discharged k ⊢@{IProp GF} ⌜get? Ω k = some .discharged⌝ := by
   unfold osat
   iintro ⟨⟨%S, %Ns, %hwf, HS, -, -⟩, Hd⟩
@@ -901,7 +901,7 @@ theorem osat_lookup_discharged (Ω : Obls) (k : Oid) :
 
 /-- The cash of an obligation is at most its model fuel (Rocq `osat_fuel_le`, in `oforest.v`). -/
 @[lantana_alias osat_fuel_le]
-theorem osat_fuel_le (Ω : Obls) (x : Oid) (a : Fuel) :
+theorem osat_fuel_le (Ω : Obligations) (x : Oid) (a : Fuel) :
     osat Ω ∗ OSat.fuel x a ⊢@{IProp GF}
       ⌜∀ f t, get? Ω x = some (.assigned f t) → a ≤ f⌝ := by
   unfold osat
@@ -928,10 +928,10 @@ theorem osat_fuel_le (Ω : Obls) (x : Oid) (a : Fuel) :
 /-! ### Allocation -/
 
 @[lantana_alias osat_alloc_obl_assigned]
-theorem osat_alloc_obl_assigned {Ω : Obls} {k : Oid} (hk : get? Ω k = none) (α : Fuel)
+theorem osat_alloc_obl_assigned {Ω : Obligations} {k : Oid} (hk : get? Ω k = none) (α : Fuel)
     (t : ThreadId) :
     osat Ω ⊢@{IProp GF} |==> (osat (insert Ω k (.assigned α t)) ∗ OSat.bound k α ∗ OSat.elem k ∗
-      OSat.assigned k 1 ∗ OSat.fuel k α ∗ ⌜Obls.alloc Ω (insert Ω k (.assigned α t))⌝) := by
+      OSat.assigned k 1 ∗ OSat.fuel k α ∗ ⌜Obligations.Alloc Ω (insert Ω k (.assigned α t))⌝) := by
   unfold osat
   iintro ⟨%S, %Ns, %hwf, HS, HN, HM⟩
   imod OSat.names_alloc (hwf.names_none hk) α α $$ HN with ⟨%ns, HN, #Hb, Hsup, Hf⟩
@@ -958,9 +958,9 @@ theorem osat_alloc_obl_assigned {Ω : Obls} {k : Oid} (hk : get? Ω k = none) (�
     exact ⟨k, hk, _, rfl⟩
 
 @[lantana_alias osat_alloc_obl_discharged]
-theorem osat_alloc_obl_discharged {Ω : Obls} {k : Oid} (hk : get? Ω k = none) (α : Fuel) :
+theorem osat_alloc_obl_discharged {Ω : Obligations} {k : Oid} (hk : get? Ω k = none) (α : Fuel) :
     osat Ω ⊢@{IProp GF} |==> (osat (insert Ω k .discharged) ∗ OSat.bound k α ∗ OSat.elem k ∗
-      OSat.discharged k ∗ OSat.fuel k α ∗ ⌜Obls.alloc Ω (insert Ω k .discharged)⌝) := by
+      OSat.discharged k ∗ OSat.fuel k α ∗ ⌜Obligations.Alloc Ω (insert Ω k .discharged)⌝) := by
   unfold osat
   iintro ⟨%S, %Ns, %hwf, HS, HN, HM⟩
   imod OSat.names_alloc (hwf.names_none hk) α α $$ HN with ⟨%ns, HN, #Hb, Hsup, Hf⟩
@@ -992,10 +992,10 @@ theorem osat_alloc_obl_discharged {Ω : Obls} {k : Oid} (hk : get? Ω k = none) 
 same time (Rocq `osat_progress_one_owner`: without owner ghost state, the owner is just part of
 the new `Ω`). -/
 @[lantana_alias osat_progress_one_owner]
-theorem osat_progress_one_owner {Ω : Obls} {k : Oid} {a : Fuel} {t₁ : ThreadId} (t₂ : ThreadId)
+theorem osat_progress_one_owner {Ω : Obligations} {k : Oid} {a : Fuel} {t₁ : ThreadId} (t₂ : ThreadId)
     {c : Fuel} (hk : get? Ω k = some (.assigned a t₁)) (hc : 0 < c) :
     osat Ω ∗ OSat.fuel k c ⊢@{IProp GF} |==> ∃ a', osat (insert Ω k (.assigned a' t₂)) ∗
-      ⌜Obl.progress (.assigned a t₁) (.assigned a' t₂)⌝ := by
+      ⌜Obligation.Progress (.assigned a t₁) (.assigned a' t₂)⌝ := by
   unfold osat
   iintro ⟨⟨%S, %Ns, %hwf, HS, HN, HM⟩, Hf⟩
   icases (BigSepM.bigSepM_delete hk).mp $$ HM with ⟨⟨%β, #Hb, %α, Hsup, %hα⟩, HM⟩
@@ -1025,16 +1025,16 @@ theorem osat_progress_one_owner {Ω : Obls} {k : Oid} {a : Fuel} {t₁ : ThreadI
 
 /-- Spending positive cash makes an assigned obligation progress. -/
 @[lantana_alias osat_progress_one]
-theorem osat_progress_one {Ω : Obls} {k : Oid} {a : Fuel} {t : ThreadId} {c : Fuel}
+theorem osat_progress_one {Ω : Obligations} {k : Oid} {a : Fuel} {t : ThreadId} {c : Fuel}
     (hk : get? Ω k = some (.assigned a t)) (hc : 0 < c) :
     osat Ω ∗ OSat.fuel k c ⊢@{IProp GF} |==> ∃ a', osat (insert Ω k (.assigned a' t)) ∗
-      ⌜Obl.progress (.assigned a t) (.assigned a' t)⌝ :=
+      ⌜Obligation.Progress (.assigned a t) (.assigned a' t)⌝ :=
   osat_progress_one_owner t hk hc
 
 /-- Discharge an obligation with its full assigned state (Rocq `osat_discharge`, which also takes
 `oblG_elem k` and the owner). -/
 @[lantana_alias osat_discharge]
-theorem osat_discharge (Ω : Obls) (k : Oid) :
+theorem osat_discharge (Ω : Obligations) (k : Oid) :
     osat Ω ∗ OSat.assigned k 1 ⊢@{IProp GF} |==> (osat (insert Ω k .discharged) ∗
       OSat.discharged k ∗ ⌜∃ a t, get? Ω k = some (.assigned a t)⌝) := by
   unfold osat
@@ -1064,12 +1064,12 @@ theorem osat_discharge (Ω : Obls) (k : Oid) :
 
 /-- The obligations of a submap `D` of `Ω` that satisfy `C`, each with positive cash, progress;
 the others stay. By induction on `D`. -/
-private theorem osat_progress_sub (C : Oid → Obl → Prop)
-    (hC : ∀ k g, C k g → ∃ a o, g = .assigned a o) (D : Obls) :
-    ∀ Ω : Obls, D ⊆ Ω →
+private theorem osat_progress_sub (C : Oid → Obligation → Prop)
+    (hC : ∀ k g, C k g → ∃ a o, g = .assigned a o) (D : Obligations) :
+    ∀ Ω : Obligations, D ⊆ Ω →
       osat Ω ∗ ([∗map] k ↦ g ∈ D, (⌜C k g⌝ ∗ ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c) ∨ ⌜¬C k g⌝)
         ⊢@{IProp GF} |==> ∃ Ω', osat Ω' ∗
-          ⌜Obls.condProgress (fun k g => (get? D k).isSome ∧ C k g) Ω Ω'⌝ := by
+          ⌜Obligations.CondProgress (fun k g => (get? D k).isSome ∧ C k g) Ω Ω'⌝ := by
   induction D using LawfulFiniteMap.induction_on with
   | hemp =>
     intro Ω _
@@ -1078,7 +1078,7 @@ private theorem osat_progress_sub (C : Oid → Obl → Prop)
     iexists Ω
     iframe Hs
     ipureintro
-    exact Obls.condProgress_empty Ω
+    exact Obligations.condProgress_empty Ω
   | hins i x D hi ih =>
     intro Ω hsub
     have hD : D ⊆ Ω := PartialMap.subset_trans (subset_insert hi) hsub
@@ -1086,7 +1086,7 @@ private theorem osat_progress_sub (C : Oid → Obl → Prop)
     iintro ⟨Hs, HD⟩
     icases (BigSepM.bigSepM_insert hi).mp $$ HD with ⟨Hi, HD⟩
     imod ih Ω hD $$ [$Hs $HD] with ⟨%Ω₁, Hs, %h₁⟩
-    have hΩ₁i := Obls.condProgress_get?_of_none h₁ hi hΩi
+    have hΩ₁i := Obligations.condProgress_get?_of_none h₁ hi hΩi
     icases Hi with (⟨%hCi, %c, %hc, Hf⟩ | %hnC)
     · obtain ⟨a, o, rfl⟩ := hC i x hCi
       imod osat_progress_one hΩ₁i hc $$ [$Hs $Hf] with ⟨%a', Hs, %hp⟩
@@ -1094,20 +1094,20 @@ private theorem osat_progress_sub (C : Oid → Obl → Prop)
       iexists insert Ω₁ i (.assigned a' o)
       iframe Hs
       ipureintro
-      exact Obls.condProgress_insert_step h₁ hΩi hCi hp
+      exact Obligations.condProgress_insert_step h₁ hΩi hCi hp
     · imodintro
       iexists Ω₁
       iframe Hs
       ipureintro
-      exact Obls.condProgress_insert_skip h₁ hi hΩi hnC
+      exact Obligations.condProgress_insert_skip h₁ hi hΩi hnC
 
 /-- The obligations that satisfy `C`, each with positive cash, progress; the others stay
 (Rocq `osat_progress`). -/
 @[lantana_alias osat_progress]
-theorem osat_progress (Ω : Obls) (C : Oid → Obl → Prop)
+theorem osat_progress (Ω : Obligations) (C : Oid → Obligation → Prop)
     (hC : ∀ k g, C k g → ∃ a o, g = .assigned a o) :
     osat Ω ∗ ([∗map] k ↦ g ∈ Ω, (⌜C k g⌝ ∗ ∃ c, ⌜0 < c⌝ ∗ OSat.fuel k c) ∨ ⌜¬C k g⌝)
-      ⊢@{IProp GF} |==> ∃ Ω', osat Ω' ∗ ⌜Obls.condProgress C Ω Ω'⌝ := by
+      ⊢@{IProp GF} |==> ∃ Ω', osat Ω' ∗ ⌜Obligations.CondProgress C Ω Ω'⌝ := by
   refine (osat_progress_sub C hC Ω Ω (PartialMap.subset_refl Ω)).trans (BIUpdate.mono ?_)
   iintro ⟨%Ω', Hs, %h⟩
   iexists Ω'
@@ -1124,10 +1124,10 @@ tokens forced every progress round to keep the owners, here the round must say i
 /-- The obligations of `S`, owned by `t`, each with positive cash, get the new owner `j` and less
 fuel (Rocq `osat_chown_set`, without the owner and per-thread tokens). -/
 @[lantana_alias osat_chown_set]
-theorem osat_chown_set {Ω : Obls} (S : Oids) {t : ThreadId} (j : ThreadId)
+theorem osat_chown_set {Ω : Obligations} (S : Oids) {t : ThreadId} (j : ThreadId)
     (hS : ∀ x, x ∈ S → Ω.ownerOf x = some t) :
     osat Ω ∗ ([∗set] x ∈ S, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) ⊢@{IProp GF}
-      |==> ∃ Ω', osat Ω' ∗ ⌜chownRel S t j Ω Ω'⌝ := by
+      |==> ∃ Ω', osat Ω' ∗ ⌜ChownRel S t j Ω Ω'⌝ := by
   induction S using FiniteSet.set_ind with
   | hemp =>
     iintro ⟨Hs, -⟩
@@ -1135,11 +1135,11 @@ theorem osat_chown_set {Ω : Obls} (S : Oids) {t : ThreadId} (j : ThreadId)
     iexists Ω
     iframe Hs
     ipureintro
-    exact chownRel.empty t j Ω
+    exact ChownRel.empty t j Ω
   | hadd x X hx ih =>
     have hX : ∀ y, y ∈ X → Ω.ownerOf y = some t := fun y hy =>
       hS y (LawfulSet.mem_insert.2 (.inr hy))
-    obtain ⟨a, ha⟩ := Obls.ownerOf_eq_some.1 (hS x (LawfulSet.mem_insert.2 (.inl rfl)))
+    obtain ⟨a, ha⟩ := Obligations.ownerOf_eq_some.1 (hS x (LawfulSet.mem_insert.2 (.inl rfl)))
     iintro ⟨Hs, Hu⟩
     icases (BigSepS.bigSepS_insert hx).mp $$ Hu with ⟨⟨%c, %hc, Hf⟩, Hu⟩
     imod ih hX $$ [$Hs $Hu] with ⟨%Ω₁, Hs, %h₁⟩
@@ -1149,18 +1149,18 @@ theorem osat_chown_set {Ω : Obls} (S : Oids) {t : ThreadId} (j : ThreadId)
     iexists insert Ω₁ x (.assigned a' j)
     iframe Hs
     ipureintro
-    exact chownRel.insert hx h₁ hx₁ hpr
+    exact ChownRel.insert hx h₁ hx₁ hpr
 
 #lantana_ignore osat_chown "`osat_chown_set` iterates `osat_progress_one_owner`"
 
 /-- The obligations of thread `i`, each with positive cash, make progress and keep their owner:
 a progress round of `i` as `oforest_step` needs it (Rocq `osat_progress` with the owner tokens of
 `othread`). -/
-theorem osat_progress_owner {Ω : Obls} (i : ThreadId) (G : Oids)
+theorem osat_progress_owner {Ω : Obligations} (i : ThreadId) (G : Oids)
     (hG : ∀ x, x ∈ G ↔ Ω.ownerOf x = some i) :
     osat Ω ∗ ([∗set] x ∈ G, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) ⊢@{IProp GF}
       |==> ∃ Ω', osat Ω' ∗
-        ⌜Obls.condProgress (Obl.condOwner i) Ω Ω' ∧ ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ := by
+        ⌜Obligations.CondProgress (Obligation.CondOwner i) Ω Ω' ∧ ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ := by
   iintro H
   imod osat_chown_set G i (fun x hx => (hG x).1 hx) $$ H with ⟨%Ω', Hs, %h⟩
   imodintro

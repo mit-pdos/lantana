@@ -8,8 +8,8 @@ public import Lantana.Trace.TemporalFormula
 
 /-! # The run: certification of the temporal formulas, and the loops that read them off a run
 
-The check `regCheck`, which marks the registry and certifies every registered formula, and the
-loops `alwaysRun` and `untilRun`, which read a registered `alwaysI` or `untilI` off a run for
+The check `reg_check`, which marks the registry and certifies every registered formula, and the
+loops `always_run` and `until_run`, which read a registered `alwaysI` or `untilI` off a run for
 any system with the one-step property. See `docs/adequacy.md`, §3.
 Rocq: `lantana/trace/temporal_formula_run.v`.
 -/
@@ -30,7 +30,7 @@ variable [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF]
 
 /-- An obligation discharged at an event is discharged after any event at which it is
 assigned. -/
-theorem eventObl_assigned_discharged_le {v i' n n' : Nat} {Ω Ω' : Obls} {k : Oid} {fu : Fuel}
+theorem eventObl_assigned_discharged_le {v i' n n' : Nat} {Ω Ω' : Obligations} {k : Oid} {fu : Fuel}
     {o : ThreadId} :
     eventObl (GF := GF) v (n, Ω) k (.assigned fu o) ∗ eventObl i' (n', Ω') k .discharged ⊢
       ⌜n ≤ n'⌝ := by
@@ -39,7 +39,7 @@ theorem eventObl_assigned_discharged_le {v i' n n' : Nat} {Ω Ω' : Obls} {k : O
     icases eventObl_compare (n', Ω') (n, Ω) k .discharged (.assigned fu o) hle $$ [EF EA]
       with %⟨-, -, hle'⟩
     · iframe EF EA
-    exact absurd hle' (by simp [Model.Obl.le])
+    exact absurd hle' (by simp [Model.Obligation.le])
   · iintro ⟨EA, EF⟩
     icases eventObl_compare (i := v) (j := i') (n, Ω) (n', Ω') k (.assigned fu o) .discharged
       (by omega) $$ [EA EF]
@@ -55,17 +55,17 @@ section Certification
 @[lantana_alias until_cert_assigned]
 theorem untilCert_assigned (k : Oid) (P R : IProp GF) (G₁ G₂ : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) (fu : Fuel) (o : ThreadId)
+    (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) (fu : Fuel) (o : ThreadId)
     (hk : get? Ω k = some (.assigned fu o)) :
     ▷ (P ⊨ₜ G₁) ⊢ ▷ Obl.variant k P R ∗ historyInterp h n σ tp ∗
-      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) -∗ ▷ (record G₁ n ∨ record G₂ n) := by
+      modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) -∗ ▷ (record G₁ n ∨ record G₂ n) := by
   iintro #HG ⟨Var, HI, MI⟩
   inext
   icases (Obl.variant_unfold k P R).1 $$ Var with (⟨-, HP⟩ | ⟨D, -⟩)
   · ileft
-    iapply guar_elim P G₁ h n σ tp g v Ω W tp.length (Cfg.crashed (tp, σ)) $$ HG
+    iapply guar_elim P G₁ h n σ tp g v Ω W tp.length (Cfg.Crashed (tp, σ)) $$ HG
     iframe HI MI HP
-  · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length (Cfg.crashed (tp, σ))
+  · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length (Cfg.Crashed (tp, σ))
         $$ [D MI] with %hd
     · iframe D MI
     rw [hk] at hd
@@ -74,16 +74,16 @@ theorem untilCert_assigned (k : Oid) (P R : IProp GF) (G₁ G₂ : TrSpec Expr S
 @[lantana_alias until_cert_discharged]
 theorem untilCert_discharged (k : Oid) (P : IProp GF) (G₂ : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+    (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses)
     (hk : get? Ω k = some .discharged) :
     ▷ Obl.variant k P (untilDischarged k G₂) ∗ historyInterp h n σ tp ∗
-      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ⊢
-      ▷ (∃ (n' i' : Nat) (Ω' : Obls), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
+      modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ⊢
+      ▷ (∃ (n' i' : Nat) (Ω' : Obligations), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
         record G₂ n') := by
   iintro ⟨Var, -, MI⟩
   inext
   icases (Obl.variant_unfold k P _).1 $$ Var with (⟨A, -⟩ | ⟨-, R⟩)
-  · icases Obl.assigned_modelInterp_lookup k _ g v Ω W n tp.length (Cfg.crashed (tp, σ))
+  · icases Obl.assigned_modelInterp_lookup k _ g v Ω W n tp.length (Cfg.Crashed (tp, σ))
         $$ [A MI] with %ha
     · iframe A MI
     obtain ⟨a, t, ha⟩ := ha
@@ -91,7 +91,7 @@ theorem untilCert_discharged (k : Oid) (P : IProp GF) (G₂ : TrSpec Expr State 
     cases ha
   · iunfold untilDischarged at R
     icases R with ⟨%n', %i', %Ω', #EF, #TF⟩
-    icases modelInterp_eventObl_lookup g v Ω W n tp.length (Cfg.crashed (tp, σ)) i' (n', Ω') k
+    icases modelInterp_eventObl_lookup g v Ω W n tp.length (Cfg.Crashed (tp, σ)) i' (n', Ω') k
       .discharged $$ [MI EF] with %⟨-, -, -, hn, -⟩
     · iframe MI EF
     iexists n', i', Ω'
@@ -101,11 +101,11 @@ theorem untilCert_discharged (k : Oid) (P : IProp GF) (G₂ : TrSpec Expr State 
 
 /-- The certificate of one registered entry, from its interpretation. -/
 @[lantana_alias cert_of_entry]
-theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (σ : State)
-    (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
+theorem cert_of_entry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (σ : State)
+    (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) :
     regEntryInterp (Expr := Expr) (State := State) e ⊢ historyInterp h n σ tp -∗
-      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ={⊤}=∗
-      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+      modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ={⊤}=∗
+      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
         cert (Expr := Expr) (State := State) (GF := GF) n e := by
   rw [cert_eq]
   rcases e with _ | ⟨N, γ⟩ | ⟨N, k, γP, γQ⟩
@@ -117,7 +117,7 @@ theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (
     iintro #⟨%P, %G, #SP, #Hinv, #HG⟩ HI MI
     imod inv_acc (E := ⊤) CoPset.subseteq_top $$ Hinv with ⟨HP, Hclose⟩
     ihave #C : ▷ record G n $$ [HP HI MI]
-    · iapply guar_elim_later_guar P G h n σ tp g v Ω W tp.length (Cfg.crashed (tp, σ)) $$ HG
+    · iapply guar_elim_later_guar P G h n σ tp g v Ω W tp.length (Cfg.Crashed (tp, σ)) $$ HG
       iframe HP HI MI
     imod Hclose $$ HP with -
     imodintro
@@ -130,19 +130,19 @@ theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (
     iintro #⟨%P, %G₁, %G₂, #SP, #SQ, #OI, #HG⟩ HI MI
     imod Obl.inv_acc ⊤ N k P _ CoPset.subseteq_top $$ OI with ⟨Var, Hclose⟩
     ihave #C : (▷ (record G₁ n ∨ record G₂ n) ∨
-        ▷ (∃ (n' i' : Nat) (Ω' : Obls), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
+        ▷ (∃ (n' i' : Nat) (Ω' : Obligations), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
           record G₂ n')) $$ [Var HI MI]
     · rcases hk : get? Ω k with _ | ⟨fu, o⟩ | _
       · ileft
         inext
         icases (Obl.variant_unfold k P _).1 $$ Var with (⟨A, -⟩ | ⟨D, -⟩)
-        · icases Obl.assigned_modelInterp_lookup k _ g v Ω W n tp.length (Cfg.crashed (tp, σ))
+        · icases Obl.assigned_modelInterp_lookup k _ g v Ω W n tp.length (Cfg.Crashed (tp, σ))
               $$ [A MI] with %ha
           · iframe A MI
           obtain ⟨a, t, ha⟩ := ha
           rw [hk] at ha
           cases ha
-        · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length (Cfg.crashed (tp, σ))
+        · icases Obl.discharged_modelInterp_lookup k g v Ω W n tp.length (Cfg.Crashed (tp, σ))
               $$ [D MI] with %hd
           · iframe D MI
           rw [hk] at hd
@@ -163,11 +163,11 @@ theorem certOfEntry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State)) (
 
 /-- The certificates of all the registered entries. -/
 @[lantana_alias certify_entries]
-theorem certifyEntries (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr State))
-    (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
+theorem certify_entries (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr State))
+    (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) :
     regEntries (regEntryInterp (Expr := Expr) (State := State)) l ⊢ historyInterp h n σ tp -∗
-      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ={⊤}=∗
-      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+      modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ={⊤}=∗
+      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
         [∗list] pe ∈ l, cert (Expr := Expr) (State := State) (GF := GF) n pe.2 := by
   induction l with
   | nil =>
@@ -185,7 +185,7 @@ theorem certifyEntries (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEnt
       exact BigSepL.bigSepL_cons.mp
     iintro #Hl HI MI
     icases hcons $$ Hl with ⟨⟨-, #Hd⟩, #Hl'⟩
-    imod certOfEntry n pe.2 h σ tp g v Ω W $$ Hd HI MI with ⟨HI, MI, #C⟩
+    imod cert_of_entry n pe.2 h σ tp g v Ω W $$ Hd HI MI with ⟨HI, MI, #C⟩
     imod ih $$ Hl' HI MI with ⟨HI, MI, #Cs⟩
     imodintro
     iframe HI MI
@@ -196,7 +196,7 @@ theorem certifyEntries (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEnt
 
 /-- The check at `n` appends the marker. -/
 @[lantana_alias reg_mark]
-theorem regMark (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr State))
+theorem reg_mark (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr State))
     (σ : State) (tp : ThreadPool Expr) :
     regAuth (GF := GF) l ⊢ regEntries (regEntryInterp (Expr := Expr) (State := State)) l -∗
       historyInterp h n σ tp ==∗
@@ -222,7 +222,7 @@ theorem regMark (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr
   · iexact Hlb
 
 @[lantana_alias bundle_intro]
-theorem bundleIntro (n : Nat) (l : List (Nat × RegEntry)) (hlast : l.getLast? = some (n, .mark)) :
+theorem bundle_intro (n : Nat) (l : List (Nat × RegEntry)) (hlast : l.getLast? = some (n, .mark)) :
     regLb (GF := GF) l ⊢ ([∗list] pe ∈ l, cert (Expr := Expr) (State := State) (GF := GF) n pe.2)
       -∗ bundle (Expr := Expr) (State := State) l n := by
   rw [bundle_eq]
@@ -237,18 +237,18 @@ theorem bundleIntro (n : Nat) (l : List (Nat × RegEntry)) (hlast : l.getLast? =
 
 /-- The check at `n`: the bundle for `n`, and the registry state back. -/
 @[lantana_alias reg_check]
-theorem regCheck (n : Nat) (h : List (HistEntry Expr State)) (σ : State) (tp : ThreadPool Expr)
-    (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses) :
+theorem reg_check (n : Nat) (h : List (HistEntry Expr State)) (σ : State) (tp : ThreadPool Expr)
+    (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) :
     regState (Expr := Expr) (State := State) (GF := GF) ⊢ historyInterp h n σ tp -∗
-      modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ={⊤}=∗
+      modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ={⊤}=∗
       regState (Expr := Expr) (State := State) ∗ historyInterp h n σ tp ∗
-        modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+        modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
         ∃ l, bundle (Expr := Expr) (State := State) l n := by
   unfold regState regStateWith
   iintro ⟨%l, Ha, #Hl⟩ HI MI
-  imod regMark n l h σ tp $$ Ha Hl HI with ⟨HI, Ha, #Hl', #Hlb⟩
-  imod certifyEntries n _ h σ tp g v Ω W $$ Hl' HI MI with ⟨HI, MI, #Cs⟩
-  ihave #B := bundleIntro n (l ++ [(n, .mark)]) (by simp) $$ Hlb Cs
+  imod reg_mark n l h σ tp $$ Ha Hl HI with ⟨HI, Ha, #Hl', #Hlb⟩
+  imod certify_entries n _ h σ tp g v Ω W $$ Hl' HI MI with ⟨HI, MI, #Cs⟩
+  ihave #B := bundle_intro n (l ++ [(n, .mark)]) (by simp) $$ Hlb Cs
   imodintro
   iframe HI MI
   isplitl [Ha]
@@ -267,7 +267,7 @@ section Loops
 /-- The certificate of a registered always at a position `n` after its registration
 position `r`: from the bundle, or, at `r` itself, the allocation record. -/
 @[lantana_alias bundle_always_cert]
-theorem bundleAlwaysCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespace) (γ : GName)
+theorem bundle_always_cert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespace) (γ : GName)
     (G : TrSpec Expr State GF) (hrn : r ≤ n) :
     bundle (Expr := Expr) (State := State) l n ⊢ regIdx j r (.always N γ) -∗
       savedTrI γ G.internal -∗ (⌜r = n⌝ -∗ ▷ record G n) -∗ ▷ record G n := by
@@ -291,13 +291,13 @@ theorem bundleAlwaysCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespa
 
 /-- The same for an until. -/
 @[lantana_alias bundle_until_cert]
-theorem bundleUntilCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespace) (k : Oid)
+theorem bundle_until_cert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespace) (k : Oid)
     (γP γQ : GName) (G₁ G₂ : TrSpec Expr State GF) (hrn : r ≤ n) :
     bundle (Expr := Expr) (State := State) l n ⊢ regIdx j r (.until N k γP γQ) -∗
       savedTrI γP G₁.internal -∗ savedTrI γQ G₂.internal -∗
       (⌜r = n⌝ -∗ ▷ (record G₁ n ∨ record G₂ n)) -∗
       ▷ (record G₁ n ∨ record G₂ n) ∨
-        ▷ (∃ (n' i' : Nat) (Ω' : Obls), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
+        ▷ (∃ (n' i' : Nat) (Ω' : Obligations), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
           record G₂ n') := by
   rw [bundle_eq]
   unfold bundlePre
@@ -307,7 +307,7 @@ theorem bundleUntilCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespac
   · have hc : ([∗list] pe ∈ l, certPre (recordTrI (Expr := Expr) (State := State)) n pe.2) ⊢
         iprop(∃ fP fQ : Trace (Cfg Expr State) → IProp GF, savedTrI γP fP ∗ savedTrI γQ fQ ∗
           (▷ (recordTrI fP n ∨ recordTrI fQ n) ∨
-            ▷ (∃ (n' i' : Nat) (Ω' : Obls),
+            ▷ (∃ (n' i' : Nat) (Ω' : Obligations),
               ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗ recordTrI fQ n'))) :=
       BigSepL.bigSepL_lookup (Φ := fun _ pe =>
         certPre (recordTrI (Expr := Expr) (State := State)) n pe.2) hin
@@ -341,22 +341,22 @@ theorem bundleUntilCert (l : List (Nat × RegEntry)) (n j r : Nat) (N : Namespac
 /-- One iteration of a loop, in the deferred shape: the certificate `C` from the bundle loses
 its later, and the step gives the system at `n + 1` and `c` later credits. -/
 @[lantana_alias sys_step_iter]
-theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Expr State))
-    (n : Nat) (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls)
+theorem sysStep_iter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Expr State))
+    (n : Nat) (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations)
     (W : Witnesses) (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId)
     (γ : Nat → ThreadId → Nat) (C Φ : IProp GF)
-    (hf : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf) :
-    sysStep Sys ⊢ historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+    (hf : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf) :
+    sysStep Sys ⊢ historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
         Sys n σ tp -∗
       (∀ l, bundle (Expr := Expr) (State := State) l n -∗ ▷ C) -∗
       ▷ (∀ (l : List (Nat × RegEntry)) (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent)
-          (v' : Nat) (Ω' : Obls) (W' : Witnesses),
-        ⌜owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
-          oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ -∗
+          (v' : Nat) (Ω' : Obligations) (W' : Witnesses),
+        ⌜OwitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
+          OblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ -∗
         bundle (Expr := Expr) (State := State) l n -∗ C -∗ £ₙ c -∗
         historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
-          modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) ∗ Sys (n + 1) σ' tp' -∗
+          modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) ∗ Sys (n + 1) σ' tp' -∗
         |={⊤}=> Φ) -∗
       TrIProp.defer Φ := by
   rw [sysStep_eq]
@@ -374,7 +374,7 @@ theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Ex
   imodintro
   imod Step
   imodintro
-  iapply ALC_wand $$ [K HC] Step
+  iapply alc_wand $$ [K HC] Step
   iintro Hs
   imod Hs with ⟨%σ', %tp', %g', %v', %Ω', %W', %hf', LC, HI, MI, Sy⟩
   iapply K $$ %l %σ' %tp' %g' %v' %Ω' %W' %hf' B' HC LC
@@ -384,15 +384,15 @@ theorem sysStepIter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry Ex
 
 /-- A registered always, read off a run after its registration. -/
 @[lantana_alias always_run]
-theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
+theorem always_run (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
     (G : TrSpec Expr State GF) (j r : Nat) :
     sysStep Sys ⊢ regIdx j r (.always N γa) -∗ savedTrI γa G.internal -∗
       ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-        (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+        (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses)
         (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
-        ⌜r < n ∧ Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-          owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
-        historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+        ⌜r < n ∧ schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+          OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf⌝ -∗
+        historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
           Sys n σ tp -∗
         TrIProp.always G.internal ⟨n, τf⟩ := by
   iintro #ST #Hj #Hγ
@@ -402,11 +402,11 @@ theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
       TrIProp.always G.internal ⟨n, τf⟩ :=
     (TrIProp.always_unfold G.internal ⟨n, τf⟩).mpr
   iapply hU
-  iapply sysStepIter Sys 0 h n σ tp g v Ω W τf sched γ (record G n)
+  iapply sysStep_iter Sys 0 h n σ tp g v Ω W τf sched γ (record G n)
     iprop(G.internal ⟨n, τf⟩ ∧ TrIProp.always G.internal ⟨n + 1, τf⟩)
     ⟨hsch, hfs, hlb, hht⟩ $$ ST HS [] []
   · iintro %l #B
-    iapply bundleAlwaysCert l n j r N γa G (Nat.le_of_lt hrn) $$ B Hj Hγ
+    iapply bundle_always_cert l n j r N γa G (Nat.le_of_lt hrn) $$ B Hj Hγ
     iintro %hr
     exfalso
     omega
@@ -422,14 +422,14 @@ theorem alwaysRun (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
 
 /-- With the record of the right reading at hand, one iteration proves the until at once. -/
 @[lantana_alias until_run_discharged]
-theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State GF)
+theorem until_run_discharged (Sys : SysT Expr State GF) (fP : TrIProp Expr State GF)
     (G₂ : TrSpec Expr State GF) (a : Fuel) (h : List (HistEntry Expr State)) (n : Nat)
-    (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+    (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses)
     (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
-    (hf : Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf) :
+    (hf : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf) :
     sysStep Sys ⊢ record G₂ n -∗
-      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗ Sys n σ tp -∗
+      historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗ Sys n σ tp -∗
       TrIProp.strongUntil fP G₂.internal a ⟨n, τf⟩ := by
   iintro #ST #TQ HS
   have hU : TrIProp.defer iprop(G₂.internal ⟨n, τf⟩ ∨ (fP ⟨n, τf⟩ ∧ ∃ a' : Fuel, ⌜a' < a⌝ ∧
@@ -437,7 +437,7 @@ theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State G
       TrIProp.strongUntil fP G₂.internal a ⟨n, τf⟩ :=
     (TrIProp.until_unfold fP G₂.internal a ⟨n, τf⟩).mpr
   iapply hU
-  iapply sysStepIter Sys 0 h n σ tp g v Ω W τf sched γ iprop(True)
+  iapply sysStep_iter Sys 0 h n σ tp g v Ω W τf sched γ iprop(True)
     iprop(G₂.internal ⟨n, τf⟩ ∨ (fP ⟨n, τf⟩ ∧ ∃ a' : Fuel, ⌜a' < a⌝ ∧
       TrIProp.strongUntil fP G₂.internal a' ⟨n + 1, τf⟩))
     hf $$ ST HS [] []
@@ -453,18 +453,18 @@ theorem untilRunDischarged (Sys : SysT Expr State GF) (fP : TrIProp Expr State G
 /-- A registered until whose obligation is assigned at `n`, read off a run after its
 registration, with the rank of the obligation's measure at `n`. -/
 @[lantana_alias until_run]
-theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ : GName)
+theorem until_run (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ : GName)
     (j r : Nat) (P : IProp GF) (G₁ G₂ : TrSpec Expr State GF) :
     sysStep Sys ⊢ regIdx j r (.until N k γP γQ) -∗ savedTrI γP G₁.internal -∗
       savedTrI γQ G₂.internal -∗ Obl.inv N k P (untilDischarged k G₂) -∗
       ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-        (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+        (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses)
         (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
         (fu : Fuel) (o : ThreadId),
-        ⌜r < n ∧ Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-          owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf ∧
+        ⌜r < n ∧ schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+          OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf ∧
           get? Ω k = some (.assigned fu o)⌝ -∗
-        historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+        historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
           Sys n σ tp -∗
         TrIProp.strongUntil G₁.internal G₂.internal
           (Ordinals.Ordinal.succ (fairMeasure (γ n) o fu)) ⟨n, τf⟩ := by
@@ -480,9 +480,9 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
         (Ordinals.Ordinal.succ (fairMeasure (γ n) o fu)) ⟨n, τf⟩ :=
     (TrIProp.until_unfold G₁.internal G₂.internal _ ⟨n, τf⟩).mpr
   iapply hU
-  iapply sysStepIter Sys 1 h n σ tp g v Ω W τf sched γ
+  iapply sysStep_iter Sys 1 h n σ tp g v Ω W τf sched γ
     iprop((record G₁ n ∨ record G₂ n) ∨
-      (∃ (n' i' : Nat) (Ω' : Obls), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
+      (∃ (n' i' : Nat) (Ω' : Obligations), ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗
         record G₂ n'))
     iprop(G₂.internal ⟨n, τf⟩ ∨ (G₁.internal ⟨n, τf⟩ ∧ ∃ a' : Fuel,
       ⌜a' < Ordinals.Ordinal.succ (fairMeasure (γ n) o fu)⌝ ∧
@@ -490,7 +490,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
     ⟨hsch, hfs, hlb, hht⟩ $$ ST [HI MI Sy] [] []
   · iframe HI MI Sy
   · iintro %l #B
-    icases bundleUntilCert l n j r N k γP γQ G₁ G₂ (Nat.le_of_lt hrn) $$ B Hj HγP HγQ []
+    icases bundle_until_cert l n j r N k γP γQ G₁ G₂ (Nat.le_of_lt hrn) $$ B Hj HγP HγQ []
       with (#C | #C)
     · iintro %hr
       exfalso
@@ -510,7 +510,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
     imod lc_fupd_elim_later $$ LC Var with Var
     icases (Obl.variant_unfold k P _).1 $$ Var with (⟨Oa', HP'⟩ | ⟨#Of, #R⟩)
     · icases Obl.assigned_modelInterp_lookup k _ g' v' Ω' W' (n + 1) tp'.length
-        (Cfg.crashed (tp', σ')) $$ [Oa' MI'] with %hk'
+        (Cfg.Crashed (tp', σ')) $$ [Oa' MI'] with %hk'
       · iframe Oa' MI'
       obtain ⟨fu', o', hk'⟩ := hk'
       imod Hclose $$ [Oa' HP'] with -
@@ -533,7 +533,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
     · -- discharged during the step
       iunfold untilDischarged at R
       icases R with ⟨%n', %i', %Ω'', #EF, #TQ'⟩
-      icases modelInterp_eventObl_lookup g' v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) i'
+      icases modelInterp_eventObl_lookup g' v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) i'
         (n', Ω'') k .discharged $$ [MI' EF] with %⟨-, -, -, hn₁, -⟩
       · iframe MI' EF
       icases eventObl_assigned_discharged_le $$ [EA EF] with %hn₂
@@ -562,7 +562,7 @@ theorem untilRun (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ :
           isplit
           · ipureintro
             exact Ordinals.Ordinal.zero_lt_succ _
-          · iapply untilRunDischarged Sys G₁.internal G₂ 0 (h ++ [(σ', tp')]) (n + 1) σ' tp' g' v'
+          · iapply until_run_discharged Sys G₁.internal G₂ 0 (h ++ [(σ', tp')]) (n + 1) σ' tp' g' v'
               Ω' W' τf sched γ ⟨hsch, hfs, hlb', hht'⟩ $$ ST TQ' [HI' MI' Sy']
             iframe HI' MI' Sy'
   · -- `Q` holds at `n`

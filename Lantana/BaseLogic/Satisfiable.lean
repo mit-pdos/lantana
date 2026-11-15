@@ -12,7 +12,7 @@ public import Iris.Std.FromMathlib
 /-! # Satisfiability
 
 Satisfiability predicates on `IProp GF`, used to eliminate updates in the adequacy proofs
-(Rocq: `lantana/base_logic/satisfiable.v`, `relational_updates.v:306-384`, and `sat_ALC` of
+(Rocq: `lantana/base_logic/satisfiable.v`, `relational_updates.v:306-384`, and `sat_alc` of
 `later_credits.v:275-289`; on top of Transfinite Iris's `bi/satisfiable.v` and
 `base_logic/lib/satisfiable.v`).
 
@@ -73,10 +73,10 @@ attribute [lantana_alias sat_rupd] SatRUpd.rupd
 /-- Satisfiability allows updating the (framed) relational-update supply. -/
 @[lantana_alias SatisfiableRUpdUpdate]
 class SatRUpdUpdate {X : Type v} [RUpdG GF X] (S : SatPred GF) : Prop where
-  pred_upd {P Q : IProp GF} : (∀ x : X, RUpdG.pred x ⊢ |==> ∃ y : X, RUpdG.pred y ∗ Q) →
+  pred_update {P Q : IProp GF} : (∀ x : X, RUpdG.pred x ⊢ |==> ∃ y : X, RUpdG.pred y ∗ Q) →
     S.sat P → S.sat iprop(P ∗ Q)
 
-attribute [lantana_alias sat_pred_upd] SatRUpdUpdate.pred_upd
+attribute [lantana_alias sat_pred_upd] SatRUpdUpdate.pred_update
 
 /-- A mask-indexed family of satisfiability predicates (Rocq: `sat_at : coPset → iProp Σ → Prop`). -/
 abbrev SatAt (GF : BundledGFunctors.{u}) := CoPset → SatPred GF
@@ -142,7 +142,7 @@ theorem sat_pure_sep {φ : Prop} {P : IProp GF} : S.sat iprop(⌜φ⌝ ∗ P) �
 theorem sat_forall {X : Sort _} (x : X) {Φ : X → IProp GF} : S.sat iprop(∀ x, Φ x) → S.sat (Φ x) :=
   S.mono (forall_elim x)
 
-theorem sat_impl {P Q : IProp GF} (h : S.sat iprop(P → Q)) (hP : True ⊢ P) : S.sat Q :=
+theorem sat_imp {P Q : IProp GF} (h : S.sat iprop(P → Q)) (hP : True ⊢ P) : S.sat Q :=
   S.mono ((and_intro (true_intro.trans hP) .rfl).trans imp_elim_right) h
 
 theorem sat_wand {P Q : IProp GF} (h : S.sat iprop(P -∗ Q)) (hP : True ⊢ P) : S.sat Q :=
@@ -219,17 +219,17 @@ instance satFrame_exists {X : Type v} [SatExists S X] : SatExists (satFrame S F)
 
 @[lantana_alias sat_frame_rupd]
 instance satFrame_rupd {X : Type v} [RUpdG GF X] [SatRUpd S] : SatRUpd (satFrame S F) where
-  rupd h := SatRUpd.rupd (S := S) (S.mono rupd_frame_l h)
+  rupd h := SatRUpd.rupd (S := S) (S.mono rupd_frame_left h)
 
 @[lantana_alias sat_frame_rupd_update]
 instance satFrame_rupdUpdate {X : Type v} [RUpdG GF X] [SatRUpdUpdate S] :
     SatRUpdUpdate (satFrame S F) where
-  pred_upd hup h := S.mono sep_assoc.mp (SatRUpdUpdate.pred_upd hup h)
+  pred_update hup h := S.mono sep_assoc.mp (SatRUpdUpdate.pred_update hup h)
 
-theorem sat_frame_move {P : IProp GF} : (satFrame S F).sat P ↔ (satFrame S iprop(emp)).sat iprop(F ∗ P) :=
+theorem satFrame_move {P : IProp GF} : (satFrame S F).sat P ↔ (satFrame S iprop(emp)).sat iprop(F ∗ P) :=
   ⟨S.mono emp_sep.mpr, S.mono emp_sep.mp⟩
 
-theorem sat_sat_frame {P : IProp GF} : (satFrame S iprop(emp)).sat P ↔ S.sat P :=
+theorem sat_satFrame {P : IProp GF} : (satFrame S iprop(emp)).sat P ↔ S.sat P :=
   ⟨S.mono emp_sep.mp, S.mono emp_sep.mpr⟩
 
 end Frame
@@ -294,7 +294,7 @@ instance satLc_rupd [SatLater S] [SatBUpd S] [SatExists S X] [SatExists S Bool] 
 
 @[lantana_alias sat_lc_satisfiable_rupd_update]
 instance satLc_rupdUpdate [SatBUpd S] : SatRUpdUpdate (satLc (X := X) S) where
-  pred_upd {P Q} hup h := by
+  pred_update {P Q} hup h := by
     refine S.sat_bupd (S.mono ?_ h)
     iintro ⟨⟨%x, Hpr⟩, HP⟩
     imod hup x $$ Hpr with ⟨%y, Hpr, HQ⟩
@@ -343,13 +343,13 @@ theorem supply_alloc (x : A) {z : A} : ●£ₒ z ⊢@{IProp GF} |==> (●£ₒ 
   imodintro
   iframe
 
-/-- Satisfiability eliminates `ALC`: the credits it asks for are added to the supply. -/
+/-- Satisfiability eliminates `alc`: the credits it asks for are added to the supply. -/
 @[lantana_alias sat_ALC]
-theorem sat_ALC {S : SatPred GF} [SatRUpd S] [SatRUpdUpdate S] [SatExists S A] {P : IProp GF} :
-    S.sat (ALC P) → S.sat P := by
+theorem sat_alc {S : SatPred GF} [SatRUpd S] [SatRUpdUpdate S] [SatExists S A] {P : IProp GF} :
+    S.sat (alc P) → S.sat P := by
   intro h
   obtain ⟨x, h⟩ := S.sat_exists h
-  have h := SatRUpdUpdate.pred_upd (X := A) (S := S) (Q := £ₒ x) (fun z => ?_) h
+  have h := SatRUpdUpdate.pred_update (X := A) (S := S) (Q := £ₒ x) (fun z => ?_) h
   · exact SatRUpd.rupd (X := A) (S := S) (S.mono wand_elim_left h)
   · iintro Hz
     imod supply_alloc x $$ Hz with ⟨Hs, Hc⟩
@@ -357,11 +357,11 @@ theorem sat_ALC {S : SatPred GF} [SatRUpd S] [SatRUpdUpdate S] [SatExists S A] {
     iexists x • z
     iframe
 
-theorem sat_ALCb {S : SatPred GF} [SatRUpd S] [SatRUpdUpdate S] [SatExists S A] {b : Bool}
-    {P : IProp GF} : S.sat (ALCb b P) → S.sat P := by
+theorem sat_alcIf {S : SatPred GF} [SatRUpd S] [SatRUpdUpdate S] [SatExists S A] {b : Bool}
+    {P : IProp GF} : S.sat (alcIf b P) → S.sat P := by
   cases b
   · exact id
-  · exact sat_ALC
+  · exact sat_alc
 
 end ALC
 
@@ -440,18 +440,18 @@ theorem iPropSatLcAtFrame_sat {F : IProp GF} {E : CoPset} {P : IProp GF} :
       iPropSat.sat iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ ((wsat ∗ ownE E) ∗ (F ∗ P))) := .rfl
 
 @[lantana_alias iProp_sat_lc_and]
-theorem iProp_sat_lc_and {P Q : IProp GF} :
+theorem iPropSatLc_and {P Q : IProp GF} :
     (iPropSatLc (X := Ordinal.{1})).sat iprop(P ∧ Q) →
       (iPropSatLc (X := Ordinal.{1})).sat P ∧ (iPropSatLc (X := Ordinal.{1})).sat Q :=
   SatPred.sat_and _
 
 @[lantana_alias iProp_sat_lc_at_and]
-theorem iProp_sat_lc_at_and {E : CoPset} {P Q : IProp GF} :
+theorem iPropSatLcAt_and {E : CoPset} {P Q : IProp GF} :
     (iPropSatLcAt E).sat iprop(P ∧ Q) → (iPropSatLcAt E).sat P ∧ (iPropSatLcAt E).sat Q :=
   SatPred.sat_and _
 
 @[lantana_alias iProp_sat_lc_at_frame_and]
-theorem iProp_sat_lc_at_frame_and {E : CoPset} {F P Q : IProp GF} :
+theorem iPropSatLcAtFrame_and {E : CoPset} {F P Q : IProp GF} :
     (iPropSatLcAtFrame F E).sat iprop(P ∧ Q) →
       (iPropSatLcAtFrame F E).sat P ∧ (iPropSatLcAtFrame F E).sat Q :=
   SatPred.sat_and _

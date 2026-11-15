@@ -48,7 +48,7 @@ installs the invariant once the worker's inbox exists. Rocq's layers `ℓ ⊕ 1`
 ## Guarantees and traces
 
 `guar_isQueue`, `guar_isQueueInit`: the queue guarantees what its lock does
-(`aliveFairLockTrSpec`); `queue_release_progress`: every `enqueue` or `dequeue` that takes
+(`aliveFairLockTrSpec`); `release_progress`: every `enqueue` or `dequeue` that takes
 the lock eventually releases it.
 
 Everything here is proved.
@@ -108,8 +108,8 @@ abbrev vCell (x : Val) (l : Loc) : Val := hl_val(some((&x, #l)))
 abbrev vQueue (lhptr ltptr : Loc) (tl : Val) : Val := hl_val(((#lhptr, #ltptr), &tl))
 
 /-- The namespaces of the queue and of its invariant. -/
-def N : Namespace := nroot.@"queue"
-def Ni : Namespace := N.@"invariant"
+def queueN : Namespace := nroot.@"queue"
+def invN : Namespace := queueN.@"invariant"
 
 /-! ## Ghost state -/
 
@@ -188,7 +188,7 @@ children, and the obligations of the `n`-th element have `n + 1` units of fuel a
 @[lantana_alias queue.queue_inv]
 def queueInv (ℓ : Layer) (γq γd : GName) : IProp GF :=
   iprop(∃ (vs : List (Val × Oids)) (g : Oid), qgQueue γq vs (1 : Qp).half ∗
-    (γd ↪VAR{.own (1 : Qp).half} g) ∗ ⌜disjointList (vs.map Prod.snd)⌝ ∗
+    (γd ↪VAR{.own (1 : Qp).half} g) ∗ ⌜DisjointList (vs.map Prod.snd)⌝ ∗
     oblKids g (unionList (vs.map Prod.snd)) ∗ Wit.layer g ℓ ∗
     [∗list] n ↦ B ∈ vs.map Prod.snd, [∗set] b ∈ B, Obl.fuel b ℓ.succ ((n + 1 : Nat) : Measure))
 
@@ -204,7 +204,7 @@ layer `0`. -/
 @[lantana_alias queue.is_queue]
 def isQueue (ql : Val) (γ : QueueName) (ℓ : Layer) (φ : Val → Oids → IProp GF) : IProp GF :=
   iprop(∃ (lhptr ltptr : Loc) (tl : Val), ⌜ql = vQueue lhptr ltptr tl⌝ ∧
-    inv Ni (queueInv ℓ γ.γq γ.γd) ∗ (γ.tl ↪LOCK_AL{.discard}) ∗
+    inv invN (queueInv ℓ γ.γq γ.γd) ∗ (γ.tl ↪LOCK_AL{.discard}) ∗
     (γ.tl ↪LOCK_CF{.discard} 0) ∗ isFairLockAlive tl γ.tl (queueLock φ γ.γq lhptr ltptr))
 
 /-- A queue whose invariant is not installed yet: this enables delayed initialization after
@@ -291,7 +291,7 @@ theorem isQueue_initialize (E : CoPset) (ql : Val) (γ : QueueName) (ℓ : Layer
   iintro ⟨%lhptr, %ltptr, %tl, %hq, Q, Gd, #AL, #CF, #IFL⟩ Kg #Wg Ag
   imod ghost_var_update g $$ Gd with Gd
   icases TicketLock.ghostVar_halves _ _ $$ Gd with ⟨Gd, Gd0⟩
-  imod inv_alloc Ni E (queueInv ℓ γ.γq γ.γd) $$ [Q Gd0 Kg] with #I
+  imod inv_alloc invN E (queueInv ℓ γ.γq γ.γd) $$ [Q Gd0 Kg] with #I
   · inext
     unfold queueInv
     iexists [], g
@@ -542,7 +542,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   -- element gets `n + 1` units of fuel at layer `ℓ.succ` for its position `n`.
   ihave Hup : |={⊤}=>m (qgQueue γ.γq (vs ++ [(x, B)]) (1 : Qp).half ∗ Par.kids p (K \ B)) $$
     [Q HK HFB Hc1]
-  · ihave Hacc := inv_acc (E := ⊤) (N := Ni) (P := queueInv ℓ γ.γq γ.γd)
+  · ihave Hacc := inv_acc (E := ⊤) (N := invN) (P := queueInv ℓ γ.γq γ.γd)
       (fun _ _ => CoPset.mem_full) $$ IQ
     ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
     imod Hacc with ⟨Hinv, Hclose⟩
@@ -557,7 +557,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
     imod ghost_var_update_halves (vs ++ [(x, B)]) γ.γq vs vs $$ Q Q0 with ⟨Q, Q0⟩
     imod Obl.fuel_extend_set B (Ordinals.Ordinal.lt_succ ℓ.succ) (1 + ℵ) $$ HFB with HFB
     icases (Obl.fuel_add_set B _ 1 ℵ).mp $$ HFB with ⟨HFB1, HFBq⟩
-    imod obl_move_obl_set (⊤ \ ↑Ni) p g K _ B ℓ hBK $$ Wg HK Kg [HFB1] with ⟨%hdisB, HK, Kg⟩
+    imod Obl.move_obl_set (⊤ \ ↑invN) p g K _ B ℓ hBK $$ Wg HK Kg [HFB1] with ⟨%hdisB, HK, Kg⟩
     · iapply BigSepS.bigSepS_impl $$ HFB1
       imodintro
       iintro %b %_ Hb
@@ -744,7 +744,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
           oblKids wg ∅ ∗ (γ.γd ↪VAR{.own (1 : Qp).half} ng) ∗ Obl.assigned ng 1 ∗
           Obl.fuel ng ℓ (m + ((83 : Nat) : Measure) + μr) ∗ qgQueue γ.γq [] (1 : Qp).half) $$
           [HK HG Gw Q Hc1]
-      · ihave Hacc := inv_acc (E := ⊤) (N := Ni) (P := queueInv ℓ γ.γq γ.γd)
+      · ihave Hacc := inv_acc (E := ⊤) (N := invN) (P := queueInv ℓ γ.γq γ.γd)
           (fun _ _ => CoPset.mem_full) $$ IQ
         ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
         imod Hacc with ⟨Hinv, Hclose⟩
@@ -758,10 +758,10 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         subst vs0
         ihave %h := ghost_var_agree γ.γd wg _ g _ $$ Gw Gd
         subst g
-        imod Obl.new (⊤ \ ↑Ni) (.thread i) (G.insert κu) (G.insert κu) ℓ
+        imod Obl.new (⊤ \ ↑invN) (.thread i) (G.insert κu) (G.insert κu) ℓ
           (m + ((83 : Nat) : Measure) + μr) $$ [] HK HG with
           ⟨%ng, %hng, HK, HG, Kng, Ang, Fng, #Wng⟩
-        · iapply parLe_thread
+        · iapply Par.le_thread
         imod ghost_var_update_halves ng γ.γd wg wg $$ Gw Gd with ⟨Gw, Gd⟩
         imod Hclose $$ [Q0 Gd Kng Fq] with -
         · inext
@@ -874,7 +874,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         oblKids g B ∗ Obl.assigned g 1 ∗ Obl.fuel g ℓ (m + ((76 : Nat) : Measure) + μr) ∗
         qgQueue γ.γq vs (1 : Qp).half ∗
         ([∗list] B' ∈ vs.map Prod.snd, [∗set] b ∈ B', Obl.fuel b ℓ.succ 1)) $$ [HK HG Q Hc1]
-    · ihave Hacc := inv_acc (E := ⊤) (N := Ni) (P := queueInv ℓ γ.γq γ.γd)
+    · ihave Hacc := inv_acc (E := ⊤) (N := invN) (P := queueInv ℓ γ.γq γ.γd)
         (fun _ _ => CoPset.mem_full) $$ IQ
       ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
       imod Hacc with ⟨Hinv, Hclose⟩
@@ -888,13 +888,13 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       subst vs0
       obtain ⟨hdisB, hdis⟩ := disjointList_cons.mp hdis
       imod ghost_var_update_halves vs γ.γq _ _ $$ Q Q0 with ⟨Q, Q0⟩
-      imod Obl.new (⊤ \ ↑Ni) (.thread i) (G.insert κu) (G.insert κu) ℓ
+      imod Obl.new (⊤ \ ↑invN) (.thread i) (G.insert κu) (G.insert κu) ℓ
         (m + ((76 : Nat) : Measure) + μr) $$ [] HK HG with ⟨%g, %hg, HK, HG, Kg, Ag, Fg, #Wg⟩
-      · iapply parLe_thread
+      · iapply Par.le_thread
       simp only [List.map_cons, unionList_cons]
       icases BigSepL.bigSepL_cons.mp $$ Fq with ⟨FB, Fq⟩
       icases queueFuels_shift (vs.map Prod.snd) ℓ.succ $$ Fq with ⟨Fq, F1⟩
-      imod obl_move_obl_set (⊤ \ ↑Ni) (.obl g0) g (B ∪ unionList (vs.map Prod.snd)) ∅ B ℓ
+      imod Obl.move_obl_set (⊤ \ ↑invN) (.obl g0) g (B ∪ unionList (vs.map Prod.snd)) ∅ B ℓ
         LawfulSet.union_subset_left $$ Wg Kg0 Kg [FB] with ⟨-, Kg0, Kg⟩
       · iapply BigSepS.bigSepS_impl $$ FB
         imodintro
@@ -986,7 +986,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
           (γ.γd ↪VAR{.own (1 : Qp).half} ng) ∗ Obl.assigned ng 1 ∗
           Obl.fuel ng ℓ (m + ((76 : Nat) : Measure) + μr) ∗ qgQueue γ.γq vs (1 : Qp).half) $$
           [HK HG Gw Q Hc2 F1]
-      · ihave Hacc := inv_acc (E := ⊤) (N := Ni) (P := queueInv ℓ γ.γq γ.γd)
+      · ihave Hacc := inv_acc (E := ⊤) (N := invN) (P := queueInv ℓ γ.γq γ.γd)
           (fun _ _ => CoPset.mem_full) $$ IQ
         ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
         imod Hacc with ⟨Hinv, Hclose⟩
@@ -1000,13 +1000,13 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         subst vs0
         ihave %h := ghost_var_agree γ.γd wg _ g0 _ $$ Gw Gd
         subst g0
-        imod Obl.new (⊤ \ ↑Ni) (.thread i) ((G.insert κu).insert g) ((G.insert κu).insert g) ℓ
+        imod Obl.new (⊤ \ ↑invN) (.thread i) ((G.insert κu).insert g) ((G.insert κu).insert g) ℓ
           (m + ((76 : Nat) : Measure) + μr) $$ [] HK HG with
           ⟨%ng, %hng, HK, HG, Kng, Ang, Fng, #Wng⟩
-        · iapply parLe_thread
+        · iapply Par.le_thread
         ihave F1 := bigSepL_bigSepS_unionList (vs.map Prod.snd)
           (fun b => Obl.fuel b ℓ.succ 1) $$ F1
-        imod obl_move_obl_set (⊤ \ ↑Ni) (.obl wg) ng (unionList (vs.map Prod.snd)) ∅
+        imod Obl.move_obl_set (⊤ \ ↑invN) (.obl wg) ng (unionList (vs.map Prod.snd)) ∅
           (unionList (vs.map Prod.snd)) ℓ LawfulSet.subset_refl $$ Wng Kg0 Kng [F1]
           with ⟨-, Kg0, Kng⟩
         · iapply BigSepS.bigSepS_impl $$ F1
@@ -1112,11 +1112,11 @@ variable [ModelGS GF] [HeapGS GF] [TicketLockG GF] [QueueG GF]
 theorem guar_isQueue (ql : Val) (γ : QueueName) (ℓ : Layer) (φ : Val → Oids → IProp GF) :
     ⊢@{IProp GF} isQueue ql γ ℓ φ ⊨ₜ queueTrSpec ql := by
   unfold isQueue queueTrSpec
-  iapply guar_ex
+  iapply guar_exists
   iintro %lhptr
-  iapply guar_ex
+  iapply guar_exists
   iintro %ltptr
-  iapply guar_ex
+  iapply guar_exists
   iintro %tl
   iapply guar_and
   · iapply guar_pure
@@ -1135,11 +1135,11 @@ instance intoGuar_isQueue (ql : Val) (γ : QueueName) (ℓ : Layer) (φ : Val �
 theorem guar_isQueueInit (ql : Val) (γ : QueueName) (φ : Val → Oids → IProp GF) :
     ⊢@{IProp GF} isQueueInit ql γ φ ⊨ₜ queueTrSpec ql := by
   unfold isQueueInit queueTrSpec
-  iapply guar_ex
+  iapply guar_exists
   iintro %lhptr
-  iapply guar_ex
+  iapply guar_exists
   iintro %ltptr
-  iapply guar_ex
+  iapply guar_exists
   iintro %tl
   iapply guar_and
   · iapply guar_pure
@@ -1154,14 +1154,14 @@ end Guarantee
 /-! ## Progress of the queue's lock, at the level of traces -/
 
 /-- The queue's lock makes release progress (`releaseProgress`): every `enqueue` or `dequeue`
-that takes the lock eventually releases it (Rocq `queue_release_progress`). -/
+that takes the lock eventually releases it (Rocq `release_progress`). -/
 @[lantana_alias queue.queue_release_progress]
-theorem queue_release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace (Cfg Exp State))
+theorem release_progress {GF : BundledGFunctors} (ql : Val) (τ : Trace (Cfg Exp State))
     (h : (queueTrSpec (GF := GF) ql).external τ) :
     ∃ lhptr ltptr next curr : Loc,
       ql = vQueue lhptr ltptr (vLock next curr) ∧ releaseProgress next curr τ := by
   obtain ⟨lhptr, ltptr, tl, rfl, htl⟩ := h
-  obtain ⟨next, curr, rfl, hrp⟩ := TicketLock.aliveFairLock_release_progress tl τ htl
+  obtain ⟨next, curr, rfl, hrp⟩ := TicketLock.aliveFairLock_releaseProgress tl τ htl
   exact ⟨lhptr, ltptr, next, curr, rfl, hrp⟩
 
 end Lantana.Examples.Queue

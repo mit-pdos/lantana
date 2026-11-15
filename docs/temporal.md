@@ -40,7 +40,7 @@ connectives.  Entailment `R ⊆ S` is validity of `R →ₜ S`.
 for `□ₜ` and induction for `Uₜ`, the classical dualities, the position-level readings
 (`always_eventually_iff`, `eventually_always_iff`) and the *absolute* properties, those the same
 at every position of a run (`TrProp.Absolute`): every `□ₜ ◇ₜ`, `◇ₜ □ₜ` and implication between
-such is absolute, and so is every fairness property below.  `TrProp.along P τ` reads a trace
+such is absolute, and so is every fairness property below.  `TrProp.Along P τ` reads a trace
 property along the run of `τ` as a predicate on positions; it is how the fairness theory talks to
 its engine.
 
@@ -57,18 +57,18 @@ class ThreadSystem (C : Type) where
 
 The class has no laws; whatever a proof needs of an instance is a hypothesis.  Over it:
 `stepOf i` (the thread at `i` takes a trace step at the current position), `active i`,
-`inactive i`, and `IsBehavior := □ₜ ∃ₜ i, stepOf i` (some thread steps at every position from
-the current one on).  `StepOfInfOften i := □ₜ ◇ₜ stepOf i`.
+`inactive i`, and `isBehavior := □ₜ ∃ₜ i, stepOf i` (some thread steps at every position from
+the current one on).  `stepOfInfOften i := □ₜ ◇ₜ stepOf i`.
 
 Traces carry no thread label.  A *schedule* `sched : Nat → ThreadId` names a thread at each
 position; `scheduled sched i` says the schedule names `i` at the current position, and
-`Schedule sched := □ₜ ∃ₜ i, scheduled sched i ∧ₜ stepOf i` says the named thread steps at
+`schedule sched := □ₜ ∃ₜ i, scheduled sched i ∧ₜ stepOf i` says the named thread steps at
 every position.  Schedules are proof instruments: no behavior and no assumption mentions one,
 and the adequacy proof chooses one (section 3.6).
 
-Lantana's instance is `⟨TraceStep, Cfg.active⟩`: the trace step of a thread is its primitive
+Lantana's instance is `⟨TraceStep, Cfg.Active⟩`: the trace step of a thread is its primitive
 step or its stutter as a value or when stuck, and a thread is active when it is in the pool, not
-a value, and not crashed (`Cfg.crashed`, the threads the language declares crashed).
+a value, and not crashed (`Cfg.Crashed`, the threads the language declares crashed).
 
 ## 3. Fairness
 
@@ -147,11 +147,11 @@ stability under the other threads' steps, `a.Stable i`; `sf_of_own_holds`, `sf_i
 
 Fair scheduling is one more action: `Sched.action i := ⟨ThreadSystem.active i,
 ThreadSystem.step i⟩`, enabled where the thread is active and granted at its trace step.
-`Sched.SF i` is its strong fairness, `Sched.assumption i := (Sched.action i).strong` the
-assumption, and `fairScheduling := ∀ₜ i, Sched.SF i` is the hypothesis of Lantana's adequacy
+`Sched.strongFair i` is its strong fairness, `Sched.assumption i := (Sched.action i).strong` the
+assumption, and `fairScheduling := ∀ₜ i, Sched.strongFair i` is the hypothesis of Lantana's adequacy
 theorems: a thread active infinitely often steps infinitely often.  It names no scheduled
 thread.  For a thread system whose activity is convex, this is the usual weak fairness.  Lantana's
-is convex for a thread that, once crashed, stays crashed (`Cfg.staysCrashed`, always so in a
+is convex for a thread that, once crashed, stays crashed (`Cfg.StaysCrashed`, always so in a
 language that never crashes, such as HeapLang): the thread is active from its fork until it
 becomes a value or crashes (`Cfg.sched_sf_iff_wf`).  A crashed thread may recover in general.
 
@@ -165,11 +165,11 @@ Adequacy needs one owner per step and a decreasing measure for every waiting thr
 labelling (`Fairness/FairLabel.lean`, `exists_fair_schedule`) shows that a behavior on which
 every thread is fairly scheduled has a schedule that names every thread active infinitely often
 infinitely often while active, by a diagonal construction.  Under such a schedule the
-*fairness counters* exist: `SchedCounters sched γ` says that at every position each thread is
+*fairness counters* exist: `schedCounters sched γ` says that at every position each thread is
 inactive, or active and either named by the schedule or with a strictly decreasing counter
 `γ n i`, and `exists_fair_schedule_schedCounters` produces both the schedule and the counters from
-`IsBehavior τ` and `fairScheduling τ`.  The adequacy proofs thread `Schedule sched ⟨0, τf⟩` and
-`SchedCounters sched γ ⟨0, τf⟩` along the run and bound the fair-scheduler witnesses by
+`isBehavior τ` and `fairScheduling τ`.  The adequacy proofs thread `schedule sched ⟨0, τf⟩` and
+`schedCounters sched γ ⟨0, τf⟩` along the run and bound the fair-scheduler witnesses by
 `fairMeasure (γ n)`.
 
 ## 4. Naming
@@ -177,8 +177,8 @@ inactive, or active and either named by the schedule or with a strictly decreasi
 Namespaces follow the structure: `Lantana.TrProp` for trace properties, `Lantana` for thread
 systems, behaviors and fair scheduling, `Lantana.Fairness` for the theory with the namespaces
 `MissHit`, `AttemptGrant`, `FairnessAssumption`, `Action` and `Sched`.  Upper-case names are
-propositions about a run or about a relation (`Fair`, `IsCounter`, `Certain`, `SF`, `WF`,
-`Convex`, `OwnGrant`, `Stable`, `Persists`); lower-case names are trace properties at one
+propositions about a run or about a relation (`Fair`, `IsCounter`, `Certain`, `SF`, `weakFair`,
+`convex`, `OwnGrant`, `Stable`, `Persists`); lower-case names are trace properties at one
 position (`hit`, `miss`, `attempted`, `granted`, `enabledNow`, `stepOf`, `active`) and the
 fields of structures.  A theorem over an action or an assumption takes it as its argument `a`.
 Theorems read `conclusion_of_hypothesis` (`own_holds_of_sf`) or `subject_property`

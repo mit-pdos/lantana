@@ -6,7 +6,7 @@ note is the overview of how Lantana handles it; the details are in `docs/model.m
 obligation model), `docs/program-logic.md` (the step and the lifting lemmas) and
 `docs/adequacy.md` (the discharge rules and adequacy).  HeapLang never crashes: the notions
 below are constant for it (`HeapLang.keepsCrashed`, `HeapLang.not_crashed`,
-`Examples.initThreads`).
+`Examples.init_threads`).
 
 ## 1. Crashed, finished, active
 
@@ -18,8 +18,8 @@ class Crash (Expr State : Type) (Obs Val : outParam Type) [Language Expr State O
   crashed_not_val {e : Expr} {σ : State} : crashed e σ → toVal e = none
 ```
 
-A thread is *finished* when it is a value, *crashed* when `Cfg.crashed ρ i`, and *active*
-(`Cfg.active i ρ`) when it is in the pool, not finished and not crashed.  Fair scheduling is
+A thread is *finished* when it is a value, *crashed* when `Cfg.Crashed ρ i`, and *active*
+(`Cfg.Active i ρ`) when it is in the pool, not finished and not crashed.  Fair scheduling is
 required of active threads only.  A crashed thread may still step, and may recover
 (`docs/program-logic.md`, §1).
 
@@ -53,7 +53,7 @@ its token and its children are kept where the other thread can reach them.
 
 That update runs at the empty mask, so the invariants of the obligations are opened before the
 step and closed after it, in pairwise disjoint namespaces.  The rules discharge a whole forest
-of obligations, of any size and shape, in one update: `obl_discharge_forest`,
+of obligations, of any size and shape, in one update: `Obl.discharge_forest`,
 `untilIGuar_acc_assigned_set`, `untilIGuar_discharge_opened_forest` and their forms for thread
 roots (`docs/adequacy.md`, §4.1–§4.2).
 
