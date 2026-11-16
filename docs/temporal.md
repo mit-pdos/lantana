@@ -40,7 +40,7 @@ connectives.  Entailment `R ⊆ S` is validity of `R →ₜ S`.
 for `□ₜ` and induction for `Uₜ`, the classical dualities, the position-level readings
 (`always_eventually_iff`, `eventually_always_iff`) and the *absolute* properties, those the same
 at every position of a run (`TrProp.Absolute`): every `□ₜ ◇ₜ`, `◇ₜ □ₜ` and implication between
-such is absolute, and so is every fairness property below.  `TrProp.along P τ` reads a trace
+such is absolute, and so is every fairness property below.  `TrProp.Along P τ` reads a trace
 property along the run of `τ` as a predicate on positions; it is how the fairness theory talks to
 its engine.
 
@@ -57,18 +57,18 @@ class ThreadSystem (C : Type) where
 
 The class has no laws; whatever a proof needs of an instance is a hypothesis.  Over it:
 `stepOf i` (the thread at `i` takes a trace step at the current position), `active i`,
-`inactive i`, and `IsBehavior := □ₜ ∃ₜ i, stepOf i` (some thread steps at every position from
-the current one on).  `StepOfInfOften i := □ₜ ◇ₜ stepOf i`.
+`inactive i`, and `isBehavior := □ₜ ∃ₜ i, stepOf i` (some thread steps at every position from
+the current one on).  `stepOfInfOften i := □ₜ ◇ₜ stepOf i`.
 
 Traces carry no thread label.  A *schedule* `sched : Nat → ThreadId` names a thread at each
 position; `scheduled sched i` says the schedule names `i` at the current position, and
-`Schedule sched := □ₜ ∃ₜ i, scheduled sched i ∧ₜ stepOf i` says the named thread steps at
+`schedule sched := □ₜ ∃ₜ i, scheduled sched i ∧ₜ stepOf i` says the named thread steps at
 every position.  Schedules are proof instruments: no behavior and no assumption mentions one,
 and the adequacy proof chooses one (section 3.6).
 
-Lantana's instance is `⟨TraceStep, Cfg.active⟩`: the trace step of a thread is its primitive
+Lantana's instance is `⟨TraceStep, Cfg.Active⟩`: the trace step of a thread is its primitive
 step or its stutter as a value or when stuck, and a thread is active when it is in the pool, not
-a value, and not crashed (`Cfg.crashed`, the threads the language declares crashed).
+a value, and not crashed (`Cfg.Crashed`, the threads the language declares crashed).
 
 ## 3. Fairness
 
@@ -90,11 +90,11 @@ position predicates: the counter is the number of misses before the next hit
 (`MissHit.fair_iff_counter`).  It is not part of the theory's interface.
 
 `AttemptGrant` (`Fairness/AttemptGrant.lean`) is the core, over two trace properties `attempt`
-and `grant`: `hit`, `miss`, `Fair attempt grant`, `IsCounter attempt grant δ`, and
-`Certain attempt grant` (every attempt is granted).  Its theorems are stated once, for every
+and `grant`: `hit`, `miss`, `fair attempt grant`, `isCounter attempt grant δ`, and
+`certain attempt grant` (every attempt is granted).  Its theorems are stated once, for every
 instance below: the meaning (`fair_iff_attempt`), the counter (`fair_iff_counter`) and its three
 rules (`counter_reset`, `counter_drop`, `counter_stay`), what the counter bounds
-(`counter_bounds_misses`), restriction to fewer attempts (`fair_mono`, `fair_mono_of_le`) and a
+(`counter_bounds_misses`), restriction to fewer attempts (`fair_mono`, `fair_mono_of_subset`) and a
 certain grant (`fair_of_certain`, `counter_zero_of_certain`).
 
 ### 3.3 The declared notion: `FairnessAssumption`
@@ -110,11 +110,11 @@ structure FairnessAssumption (C : Type) where
 an attempt–grant pair whose attempts and grants are decided by the transition at each position.
 `a.attempted := step a.attempt`, `a.granted := step a.grant`, and `a.holds` is the core's
 fairness of that pair.  Because the pair is step-local, what a transition does to the counter is
-a function of the transition alone, `a.counterMove c c' : CounterMove` (`reset` at a granted attempt, `drop`
-at a refused one, `stay` where there is no attempt), and the counter's rules read by the move
-(`counter_reset`, `counter_drop`, `counter_stay`, `isCounter_iff_counterMove`).  This is the interface
-the program logic will consume: one counter per declared assumption, updated at every step by
-the move of that step.
+a function of the transition alone, `a.counterMove c c' : CounterMove` (`reset` at a granted
+attempt, `drop` at a refused one, `stay` where there is no attempt), and the counter's rules
+read by the move (`counter_reset`, `counter_drop`, `counter_stay`,
+`isCounter_iff_counterMove`).  This is the interface the program logic will consume: one counter
+per declared assumption, updated at every step by the move of that step.
 
 ### 3.4 Actions, and the recipes for assumptions
 
@@ -127,33 +127,37 @@ structure Action (C : Type) where
   grant   : C → C → Prop
 ```
 
-Its strong fairness is the textbook `a.SF := □ₜ ◇ₜ a.enabledNow →ₜ □ₜ ◇ₜ (a.enabledNow ∧ₜ
-a.granted)` and its weak fairness `a.WF` has `◇ₜ □ₜ a.enabledNow` as premise.  Both are
-assumptions by a recipe: `a.strong := ⟨fun c _ => a.enabled c, a.grant⟩` with
-`a.strong.holds ↔ a.SF` and `a.weak := ⟨fun _ _ => True, fun c c' => ¬ a.enabled c ∨ a.grant c c'⟩`
-with `a.weak.holds ↔ a.WF`.  Where the enabling condition is *convex* along the run (true in
-between any two positions where it is true, `a.Convex`) the two coincide (`sf_iff_wf_of_convex`).
+Its strong fairness is the textbook `a.strongFair := □ₜ ◇ₜ a.enabledNow →ₜ □ₜ ◇ₜ (a.enabledNow
+∧ₜ a.granted)` and its weak fairness `a.weakFair` has `◇ₜ □ₜ a.enabledNow` as premise.  Both
+are assumptions by a recipe: `a.strong := ⟨fun c _ => a.enabled c, a.grant⟩` with
+`a.strong.holds ↔ a.strongFair`, and
+`a.weak := ⟨fun _ _ => True, fun c c' => ¬ a.enabled c ∨ a.grant c c'⟩` with
+`a.weak.holds ↔ a.weakFair`.  Where the enabling condition is *convex* along the run (true in
+between any two positions where it is true, `a.convex`) the two coincide
+(`strongFair_iff_weakFair_of_convex`).
 
 The third recipe is a thread's *own view* of an action, `a.own i := ⟨fun c c' => step i c c' ∧
 a.enabled c, a.grant⟩`: the attempts are the thread's own steps from a configuration where the
 action is enabled (`Fairness/OwnView.lean`).  Its counter moves only at the thread's own steps
 (`own_counterMove_stay_of_other`), which makes it the cheap path for the program logic.  The view is
 sound when every grant is one of the thread's transitions (`a.OwnGrant i`;
-`own_holds_of_sf : a.SF ⊆ (a.own i).holds`), and it loses nothing when the thread is scheduled
-infinitely often and the enabling condition persists (`a.Persists i`, which follows from
-stability under the other threads' steps, `a.Stable i`; `sf_of_own_holds`, `sf_iff_own_holds`).
+`own_holds_of_strongFair : a.strongFair ⊆ (a.own i).holds`), and it loses nothing when the
+thread is scheduled infinitely often and the enabling condition persists (`a.persists i`, which
+follows from stability under the other threads' steps, `a.Stable i`; `strongFair_of_own_holds`,
+`strongFair_iff_own_holds`).
 
 ### 3.5 Fair scheduling
 
 Fair scheduling is one more action: `Sched.action i := ⟨ThreadSystem.active i,
 ThreadSystem.step i⟩`, enabled where the thread is active and granted at its trace step.
-`Sched.SF i` is its strong fairness, `Sched.assumption i := (Sched.action i).strong` the
-assumption, and `fairScheduling := ∀ₜ i, Sched.SF i` is the hypothesis of Lantana's adequacy
+`Sched.strongFair i` is its strong fairness, `Sched.assumption i := (Sched.action i).strong` the
+assumption, and `fairScheduling := ∀ₜ i, Sched.strongFair i` is the hypothesis of Lantana's adequacy
 theorems: a thread active infinitely often steps infinitely often.  It names no scheduled
 thread.  For a thread system whose activity is convex, this is the usual weak fairness.  Lantana's
-is convex for a thread that, once crashed, stays crashed (`Cfg.staysCrashed`, always so in a
+is convex for a thread that, once crashed, stays crashed (`Cfg.StaysCrashed`, always so in a
 language that never crashes, such as HeapLang): the thread is active from its fork until it
-becomes a value or crashes (`Cfg.sched_sf_iff_wf`).  A crashed thread may recover in general.
+becomes a value or crashes (`Cfg.sched_strongFair_iff_weakFair`).  A crashed thread may recover
+in general.
 
 A thread's own view of its scheduling is trivial: its attempts are its own steps, so every
 attempt is a grant and the counter is zero.  The scheduling counter that adequacy uses is the
@@ -165,23 +169,27 @@ Adequacy needs one owner per step and a decreasing measure for every waiting thr
 labelling (`Fairness/FairLabel.lean`, `exists_fair_schedule`) shows that a behavior on which
 every thread is fairly scheduled has a schedule that names every thread active infinitely often
 infinitely often while active, by a diagonal construction.  Under such a schedule the
-*fairness counters* exist: `SchedCounters sched γ` says that at every position each thread is
+*fairness counters* exist: `schedCounters sched γ` says that at every position each thread is
 inactive, or active and either named by the schedule or with a strictly decreasing counter
 `γ n i`, and `exists_fair_schedule_schedCounters` produces both the schedule and the counters from
-`IsBehavior τ` and `fairScheduling τ`.  The adequacy proofs thread `Schedule sched ⟨0, τf⟩` and
-`SchedCounters sched γ ⟨0, τf⟩` along the run and bound the fair-scheduler witnesses by
+`isBehavior τ` and `fairScheduling τ`.  The adequacy proofs thread `schedule sched ⟨0, τf⟩` and
+`schedCounters sched γ ⟨0, τf⟩` along the run and bound the fair-scheduler witnesses by
 `fairMeasure (γ n)`.
 
 ## 4. Naming
 
 Namespaces follow the structure: `Lantana.TrProp` for trace properties, `Lantana` for thread
 systems, behaviors and fair scheduling, `Lantana.Fairness` for the theory with the namespaces
-`MissHit`, `AttemptGrant`, `FairnessAssumption`, `Action` and `Sched`.  Upper-case names are
-propositions about a run or about a relation (`Fair`, `IsCounter`, `Certain`, `SF`, `WF`,
-`Convex`, `OwnGrant`, `Stable`, `Persists`); lower-case names are trace properties at one
-position (`hit`, `miss`, `attempted`, `granted`, `enabledNow`, `stepOf`, `active`) and the
-fields of structures.  A theorem over an action or an assumption takes it as its argument `a`.
-Theorems read `conclusion_of_hypothesis` (`own_holds_of_sf`) or `subject_property`
-(`counter_reset`), equivalences `x_iff_y` (`sf_iff_wf_of_convex`).  A statement whose hypotheses
-and conclusion are trace properties is an entailment `⊆`; one with a pure hypothesis is stated at
-a trace `τ`.
+`MissHit`, `AttemptGrant`, `FairnessAssumption`, `Action` and `Sched`.  The case of a name
+follows its type (`docs/naming.md`).  A trace property is lowerCamelCase, whether it speaks of
+the whole run (`fair`, `isCounter`, `certain`, `strongFair`, `weakFair`, `convex`, `persists`,
+`isBehavior`) or of one position (`hit`, `miss`, `attempted`, `granted`, `enabledNow`, `stepOf`,
+`active`), and so are the fields of structures.  A proposition is UpperCamelCase: a property
+of an action or of a relation (`OwnGrant`, `Stable`), and the engine's propositions about
+positions (`MissHit.Fair`, `MissHit.IsCounter`), of which `AttemptGrant.fair` and `isCounter`
+are the trace properties.  A theorem over an action or an assumption takes it as its argument
+`a`.  Theorems read `conclusion_of_hypothesis` (`own_holds_of_strongFair`) or
+`subject_property` (`counter_reset`), equivalences `x_iff_y`
+(`strongFair_iff_weakFair_of_convex`).  A statement whose hypotheses and conclusion are trace
+properties is an entailment `⊆`, named `subset` (`fair_mono_of_subset`); one with a pure
+hypothesis is stated at a trace `τ`.

@@ -25,7 +25,7 @@ open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 theorem fill_eq (K : Unit) (e : Exp) : EvContext.fill K e = e := rfl
 
 theorem crashed_cfg_iff {tp : ThreadPool Exp} {σ : St} {j : ThreadId} :
-    Cfg.crashed (tp, σ) j ↔ (∃ n, tp[j]? = some (.work n)) ∧ σ = false := by
+    Cfg.Crashed (tp, σ) j ↔ (∃ n, tp[j]? = some (.work n)) ∧ σ = false := by
   constructor
   · rintro ⟨e, he, ⟨n, rfl⟩, hσ⟩
     exact ⟨⟨n, he⟩, hσ⟩
@@ -33,14 +33,14 @@ theorem crashed_cfg_iff {tp : ThreadPool Exp} {σ : St} {j : ThreadId} :
     exact ⟨_, hn, ⟨n, rfl⟩, hσ⟩
 
 /-- While the worker is alive, no thread is crashed. -/
-theorem not_crashed_true (tp : ThreadPool Exp) (j : ThreadId) : ¬ Cfg.crashed (tp, true) j :=
+theorem not_crashed_true (tp : ThreadPool Exp) (j : ThreadId) : ¬ Cfg.Crashed (tp, true) j :=
   fun h => Bool.noConfusion (crashed_cfg_iff.mp h).2
 
 /-- A step of a thread that is not a worker, to an expression that is not a worker, keeping the
 state, keeps the statuses. -/
 theorem crashed_set_eq {tp : ThreadPool Exp} {i : ThreadId} {e₁ e₂ : Exp} {σ : St}
     (hi : tp[i]? = some e₁) (h₁ : ∀ n, e₁ ≠ .work n) (h₂ : ∀ n, e₂ ≠ .work n) :
-    Cfg.crashed (tp.set i e₂, σ) = Cfg.crashed (tp, σ) := by
+    Cfg.Crashed (tp.set i e₂, σ) = Cfg.Crashed (tp, σ) := by
   refine Cfg.crashed_eq_of_iff fun j => ?_
   simp only [crashed_cfg_iff]
   by_cases hj : i = j
@@ -57,7 +57,7 @@ theorem crashed_set_eq {tp : ThreadPool Exp} {i : ThreadId} {e₁ e₂ : Exp} {�
 /-- A step of the worker keeps the statuses: alive, nobody is crashed; crashed, it loops. -/
 theorem crashed_set_eq_worker {tp : ThreadPool Exp} {n : Nat} {e₂ : Exp} {σ₁ σ₂ : St}
     (hi : tp[0]? = some (.work n)) (hs : Step (.work n) σ₁ e₂ σ₂) :
-    Cfg.crashed (tp.set 0 e₂, σ₂) = Cfg.crashed (tp, σ₁) := by
+    Cfg.Crashed (tp.set 0 e₂, σ₂) = Cfg.Crashed (tp, σ₁) := by
   cases hs with
   | work n =>
     exact Cfg.crashed_eq_of_iff fun j =>
@@ -117,7 +117,7 @@ theorem Shape.work_of_fin {tp : ThreadPool Exp} (hS : Shape tp) (hf : fin tp = f
 
 /-- Once the worker has finished, no thread is crashed. -/
 theorem not_crashed_fin {tp : ThreadPool Exp} (hS : Shape tp) (hf : fin tp = true) (σ : St)
-    (j : ThreadId) : ¬ Cfg.crashed (tp, σ) j := by
+    (j : ThreadId) : ¬ Cfg.Crashed (tp, σ) j := by
   rintro h
   obtain ⟨⟨n, hn⟩, -⟩ := crashed_cfg_iff.mp h
   have hj := hS.1 j n hn
@@ -136,15 +136,15 @@ variable {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Exp} {Φ : Unit →
 theorem lwp_step (he : toVal e₁ = none) :
     (∀ (σ₁ : St) (tp : ThreadPool Exp), ⌜tp[i]? = some e₁⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
-        ⌜s.maybeReducible e₁ σ₁⌝ ∗
-        ∃ G G', thCarriers i G ∗ (oblFuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
+        ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
+        ∃ G G', thCarriers i G ∗ (Obl.fuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
         ∀ (e₂ : Exp) (σ₂ : St), ⌜Step e₁ σ₁ e₂ σ₂⌝ ={∅}=∗
           stateInterp σ₂ (tp.set i e₂) ∗
-          (thCarriers i G' -∗ ALC (|={∅}=>m
+          (thCarriers i G' -∗ alc (|={∅}=>m
             Th.nodes tp.length (fun j =>
-              ¬Cfg.crashed (tp, σ₁) j ∧ Cfg.crashed (tp.set i e₂, σ₂) j) ∗
+              ¬Cfg.Crashed (tp, σ₁) j ∧ Cfg.Crashed (tp.set i e₂, σ₂) j) ∗
             (Th.nodes tp.length (fun j =>
-                Cfg.crashed (tp, σ₁) j ∧ ¬Cfg.crashed (tp.set i e₂, σ₂) j) -∗
+                Cfg.Crashed (tp, σ₁) j ∧ ¬Cfg.Crashed (tp.set i e₂, σ₂) j) -∗
               |={∅,E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }}))))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
@@ -159,7 +159,7 @@ theorem lwp_step (he : toVal e₁ = none) :
   iframe HG HF
   iexists ∅
   isplitr
-  · iunfold witLayers
+  · iunfold Wit.layers
     iapply BigSepS.bigSepS_empty.mpr
     iempintro
   iintro %obs %e₂ %σ₂ %efs %hstep
@@ -170,7 +170,7 @@ theorem lwp_step (he : toVal e₁ = none) :
   iframe Hs
   iintro HG - -
   ispecialize H $$ HG
-  iapply ALC_wand $$ [] H
+  iapply alc_wand $$ [] H
   iintro H
   iapply mupd_wand $$ [] H
   iintro ⟨Hin, Hout⟩

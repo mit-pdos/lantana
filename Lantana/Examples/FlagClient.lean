@@ -12,15 +12,15 @@ public import Lantana.Examples.World
 Rocq `examples/flag_client.v`: the flag is at a fixed location `xLoc`, which holds `0` in the
 initial state; the writer (thread `0`) sets it and the reader (thread `1`) waits for it.
 
-`flagClient_pre` creates the flag at thread `0` (`Flag.isFlag_init`, its obligation `k` at layer
+`FlagClient.pre` creates the flag at thread `0` (`Flag.isFlag_init`, its obligation `k` at layer
 `0`) and the threads' commitments to return: `kl₁` at layer `0` for the writer, `kl₂` at layer
 `1` for the reader (whose `wait` needs fuel above the flag's layer). Each thread discharges its
 commitment with its final value (`threadExpr_terminate_finally`). The measures are `4 + μ_set`
 (writer) and `10 + μ_wait` (reader).
 
-`flagClient_adequacy` is the end-to-end statement, from `lwp_adequacy_temporal` in the closed
+`FlagClient.adequacy` is the end-to-end statement, from `lwp_adequacy_temporal` in the closed
 world `ExGF` (the points-to of the flag comes from the initial heap through `heapState_init`);
-`flagClient_safety_adequacy` the safety statement, from `lwp_adequacy_safety`, once per thread.
+`FlagClient.safety_adequacy` the safety statement, from `lwp_adequacy_safety`, once per thread.
 The guarantee `gClient` of the resources `clientRes` is inferred (`IntoGuar`), from the
 flag's instances `Flag.guarOf_isFlag` and `Flag.guarOf_flagTk`; the names are ghost.
 
@@ -44,21 +44,21 @@ def xLoc : Loc := ⟨0⟩
 
 /-- The flag. -/
 @[lantana_alias X]
-def X : Val := hl_val(#xLoc)
+def xVal : Val := hl_val(#xLoc)
 
-/-- `λ _, let v := set X; v`. -/
+/-- `λ _, let v := set xVal; v`. -/
 @[lantana_alias writer]
-def writer : Val := hl_val(λ _, let v := v(&Flag.set) v(&X); v)
+def writer : Val := hl_val(λ _, let v := v(&Flag.set) v(&xVal); v)
 
-/-- `λ _, let v := wait X; v`. -/
+/-- `λ _, let v := wait xVal; v`. -/
 @[lantana_alias reader]
-def reader : Val := hl_val(λ _, let v := v(&Flag.wait) v(&X); v)
+def reader : Val := hl_val(λ _, let v := v(&Flag.wait) v(&xVal); v)
 
 /-- The unit value. -/
 def vUnit : Val := hl_val(#())
 
 /-- The namespace of the threads' commitments to return. -/
-def Nl : Namespace := nroot.@"writer_return"
+def writerReturnN : Namespace := nroot.@"writer_return"
 
 /-! ## The specifications -/
 
@@ -70,16 +70,18 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 theorem writer_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
     ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&writer) #()) ∗ thActive i ∗ thKids i {k, kl} ∗
           thCarriers i {k, kl} ∗ ([∗set] g ∈ ({k, kl} : Oids), Obl.fuel g 0 μ) ∗ ⌜k ≠ kl⌝ ∗
-          oblKids k ∅ ∗ oblKids kl ∅ ∗ flagTk xLoc k ∗ finallyI Nl kl 1 (exits vUnit @ i) ∗
+          oblKids k ∅ ∗ oblKids kl ∅ ∗ flagTk xLoc k ∗
+            finallyI writerReturnN kl 1 (exits vUnit @ i) ∗
           isFlag xLoc k 0 }}}
         hl(v(&writer) #()) @ i
-      l{{{ RET vUnit; threadExpr i [] hl(#()) ∗ liftTerm i (fun _ _ => iprop(True)) vUnit }}} := by
+      l{{{ RET vUnit; threadExpr i [] hl(#()) ∗
+        lwp.liftTerm i (fun _ _ => iprop(True)) vUnit }}} := by
   obtain ⟨μs, hfs⟩ := Flag.set_thread_spec (GF := GF)
   refine ⟨4 + μs, fun i k kl => ?_⟩
   iintro %Φ !> ⟨HT, HA, HK, HG, HF, %hne, Hk, Hkl, Htk, HFl, #Hflag⟩ HΦ
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfs⟩
-  ihave HF := oblFuels_init _ _ _ $$ HF
-  unfold writer X
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
+  unfold writer xVal
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(v(&Flag.set) #xLoc) HT
@@ -98,19 +100,19 @@ theorem writer_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
     grind
   ihave HG := Th.carriers_congr hdiff $$ HG
   ihave HK := Par.kids_congr hdiff $$ HK
-  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
+  ihave HF := Obl.fuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   lwp_step HT HG HF
   lwp_step HT HG HF
   lwp_expr_simp
   rw [show (hl(#()) : Exp) = .val vUnit from rfl]
   iapply lwp_value_mupd'.mpr
   ihave Hc := tlc_one_nat.mpr $$ Hc
-  imod threadExpr_terminate_finally i ⊤ vUnit kl Nl (fun _ _ => CoPset.mem_full)
+  imod threadExpr_terminate_finally i ⊤ vUnit kl writerReturnN (fun _ _ => CoPset.mem_full)
     $$ HT Hc HA HK Hkl HFl with ⟨HT, #Hd⟩
   imodintro
   iapply HΦ
   iframe HT
-  unfold liftTerm
+  unfold lwp.liftTerm
   isplitl
   · iexact Hd
   · ipureintro
@@ -121,20 +123,21 @@ flag's. -/
 @[lantana_alias reader_spec]
 theorem reader_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
     ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&reader) #()) ∗ thActive i ∗ thKids i {kl} ∗
-          thCarriers i {kl} ∗ Obl.fuel kl 1 μ ∗ oblKids kl ∅ ∗ finallyI Nl kl 1 (exits v1 @ i) ∗
+          thCarriers i {kl} ∗ Obl.fuel kl 1 μ ∗ oblKids kl ∅ ∗
+            finallyI writerReturnN kl 1 (exits v1 @ i) ∗
           isFlag xLoc k 0 }}}
         hl(v(&reader) #()) @ i
-      l{{{ RET v1; threadExpr i [] hl(#1) ∗ liftTerm i (fun _ _ => iprop(True)) v1 }}} := by
+      l{{{ RET v1; threadExpr i [] hl(#1) ∗ lwp.liftTerm i (fun _ _ => iprop(True)) v1 }}} := by
   obtain ⟨μw, hfw⟩ := Flag.wait_spec (GF := GF)
   refine ⟨10 + μw, fun i k kl => ?_⟩
   iintro %Φ !> ⟨HT, HA, HK, HG, HF, Hkl, HFl, #Hflag⟩ HΦ
   icases (Obl.fuel_add _ _ _ _).mp $$ HF with ⟨HF, Hfw⟩
-  ihave HF : oblFuels {kl} 10 $$ [HF]
-  · unfold oblFuels
+  ihave HF : Obl.fuels {kl} 10 $$ [HF]
+  · unfold Obl.fuels
     iapply BigSepS.bigSepS_singleton.mpr
     iexists _
     iexact HF
-  unfold reader X
+  unfold reader xVal
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(v(&Flag.wait) #xLoc) HT
@@ -155,12 +158,12 @@ theorem reader_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
   rw [show (hl(#1) : Exp) = .val hl_val(#1) from rfl]
   iapply lwp_value_mupd'.mpr
   ihave Hc := tlc_one_nat.mpr $$ Hc
-  imod threadExpr_terminate_finally i ⊤ hl_val(#1) kl Nl (fun _ _ => CoPset.mem_full)
+  imod threadExpr_terminate_finally i ⊤ hl_val(#1) kl writerReturnN (fun _ _ => CoPset.mem_full)
     $$ HT Hc HA HK Hkl HFl with ⟨HT, #Hd⟩
   imodintro
   iapply HΦ
   iframe HT
-  unfold liftTerm
+  unfold lwp.liftTerm
   isplitl
   · iexact Hd
   · ipureintro
@@ -170,47 +173,47 @@ theorem reader_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
 (Rocq `Φ_P`). -/
 def clientRes (μ₁ μ₂ : Measure) : IProp GF :=
   iprop(∃ k kl₁ kl₂ : Oid, ⌜k ≠ kl₁⌝ ∗ isFlag xLoc k 0 ∗ flagTk xLoc k ∗
-    finallyI Nl kl₁ 1 (exits vUnit @ 0) ∗ finallyI Nl kl₂ 1 (exits v1 @ 1) ∗
+    finallyI writerReturnN kl₁ 1 (exits vUnit @ 0) ∗ finallyI writerReturnN kl₂ 1 (exits v1 @ 1) ∗
     (thKids 0 {k, kl₁} ∗ thCarriers 0 {k, kl₁} ∗ oblKids k ∅ ∗ oblKids kl₁ ∅ ∗
       thKids 1 {kl₂} ∗ thCarriers 1 {kl₂} ∗ oblKids kl₂ ∅ ∗
       ([∗set] g ∈ ({k, kl₁} : Oids), Obl.fuel g 0 μ₁) ∗ Obl.fuel kl₂ 1 μ₂))
 
 /-- The return values: `()` for the writer (thread `0`), `1` for the reader. -/
-def clientVal : ThreadId → Val → Prop
+def ClientVal : ThreadId → Val → Prop
   | 0, v => v = vUnit
   | _, v => v = v1
 
 /-- The postconditions of the threads. -/
-abbrev clientPost : ThreadId → Val → IProp GF := fun j v => iprop(⌜clientVal j v⌝)
+abbrev clientPost : ThreadId → Val → IProp GF := fun j v => iprop(⌜ClientVal j v⌝)
 
 /-- From the threads' tokens, the flag's location and the threads' running handles, empty sets
 of children and empty bills: the flag, the commitments, and the `lWP`s from them. -/
 @[lantana_alias flag_client_pre]
-theorem flagClient_pre :
+theorem pre :
     threadExpr (GF := GF) 0 [] hl(v(&writer) #()) ⊢ threadExpr 1 [] hl(v(&reader) #()) -∗
       xLoc ↦ some v0 -∗ thActive 0 -∗ thKids 0 ∅ -∗ thCarriers 0 ∅ -∗ thActive 1 -∗
       thKids 1 ∅ -∗ thCarriers 1 ∅ -∗
       |={⊤}=>m ∃ μ₁ μ₂ : Measure, clientRes μ₁ μ₂ ∗
         (clientRes μ₁ μ₂ -∗ |={⊤}=>m
-          lWP hl(v(&writer) #()) @ 0; ⊤ {{ liftTerm 0 clientPost }} ∗
-          lWP hl(v(&reader) #()) @ 1; ⊤ {{ liftTerm 1 clientPost }}) := by
+          lWP hl(v(&writer) #()) @ 0; ⊤ {{ lwp.liftTerm 0 clientPost }} ∗
+          lWP hl(v(&reader) #()) @ 1; ⊤ {{ lwp.liftTerm 1 clientPost }}) := by
   obtain ⟨μ₁, hw⟩ := writer_spec (GF := GF)
   obtain ⟨μ₂, hr⟩ := reader_spec (GF := GF)
   iintro HT0 HT1 Hl HA0 HG0 HB0 HA1 HG1 HB1
   imod Flag.isFlag_init ⊤ xLoc (.thread 0) ∅ ∅ 0 μ₁ $$ [] Hl HG0 HB0 with
     ⟨%k, -, HG0, HB0, Hk, Fk, Htk, #Hflag⟩
-  · iapply parLe_thread
+  · iapply Par.le_thread
   imod untilI_alloc (E := ⊤) (.thread 0) _ _ 0 μ₁ $$ [] HG0 HB0 with
     ⟨%kl₁, %hkl₁, HG0, HB0, Hkl₁, Fkl₁, -, A₁⟩
-  · iapply parLe_thread
-  imod A₁ $$ %⊤ %Nl %iprop(True) %(exits vUnit @ 0) [] with U₁
+  · iapply Par.le_thread
+  imod A₁ $$ %⊤ %writerReturnN %iprop(True) %(exits vUnit @ 0) [] with U₁
   · inext
     ipureintro
     trivial
   imod untilI_alloc (E := ⊤) (.thread 1) ∅ ∅ 1 μ₂ $$ [] HG1 HB1 with
     ⟨%kl₂, -, HG1, HB1, Hkl₂, Fkl₂, -, A₂⟩
-  · iapply parLe_thread
-  imod A₂ $$ %⊤ %Nl %iprop(True) %(exits v1 @ 1) [] with U₂
+  · iapply Par.le_thread
+  imod A₂ $$ %⊤ %writerReturnN %iprop(True) %(exits v1 @ 1) [] with U₂
   · inext
     ipureintro
     trivial
@@ -258,7 +261,7 @@ theorem flagClient_pre :
         exact hne
       · iexact Hflag
     iintro ⟨-, Hd⟩
-    unfold liftTerm
+    unfold lwp.liftTerm
     icases Hd with ⟨Hd, -⟩
     iframe Hd
     ipureintro
@@ -267,7 +270,7 @@ theorem flagClient_pre :
     · iframe
       iexact Hflag
     iintro ⟨-, Hd⟩
-    unfold liftTerm
+    unfold lwp.liftTerm
     icases Hd with ⟨Hd, -⟩
     iframe Hd
     ipureintro
@@ -284,20 +287,20 @@ variable {GF : BundledGFunctors}
 returns `()` and the reader returns `1` (Rocq `R_main`). -/
 def rClient : TrProp (Cfg Exp State) :=
   isFlagTr xLoc ∧ₜ (pointsToTr xLoc v0 Uₜ pointsToTr xLoc v1) ∧ₜ
-    ◇ₜ TrProp.state (threadExprSat 0 [] (.val vUnit)) ∧ₜ
-    ◇ₜ TrProp.state (threadExprSat 1 [] (.val v1))
+    ◇ₜ TrProp.state (ThreadExprSat 0 [] (.val vUnit)) ∧ₜ
+    ◇ₜ TrProp.state (ThreadExprSat 1 [] (.val v1))
 
 /-- What the resources guarantee: nothing for the pure and ghost parts; the names do not show
 (Rocq `G_client`). -/
 def gClient : TrSpec Exp State GF :=
   TrSpec.true ∧ₛ flagTrSpec xLoc ∧ₛ (pointsToSpec xLoc v0 Uₛ pointsToSpec xLoc v1) ∧ₛ
-    ◇ₛ TrSpec.state (threadExprSat 0 [] (.val vUnit)) ∧ₛ
-    ◇ₛ TrSpec.state (threadExprSat 1 [] (.val v1)) ∧ₛ TrSpec.true
+    ◇ₛ TrSpec.state (ThreadExprSat 0 [] (.val vUnit)) ∧ₛ
+    ◇ₛ TrSpec.state (ThreadExprSat 1 [] (.val v1)) ∧ₛ TrSpec.true
 
 @[lantana_alias G_client_impl]
-theorem gClient_impl : (gClient (GF := GF)).external ⊆ rClient := by
+theorem gClient_external_subset : (gClient (GF := GF)).external ⊆ rClient := by
   intro τ ⟨_, hflag, hu, hf₁, hf₂, _⟩
-  exact ⟨Flag.flagTrSpec_impl xLoc τ hflag, hu, hf₁, hf₂⟩
+  exact ⟨Flag.flagTrSpec_external_subset xLoc τ hflag, hu, hf₁, hf₂⟩
 
 variable [ModelGS GF] [HeapGS GF]
 
@@ -320,14 +323,14 @@ abbrev σ0 : State := ⟨Iris.Std.insert (M := HeapF) ∅ xLoc (some v0)⟩
 
 /-- The initial resources of the threads, and their `lWP`s (the common part of the adequacy
 proofs). -/
-theorem flagClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF] (hs : HeapStateGS ExGF) :
+theorem init [ModelGS ExGF] [TemporalGS Exp State ExGF] (hs : HeapStateGS ExGF) :
     letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
     bigSepM (M := HeapF) (fun l v => l ↦ v) σ0.heap ∗
       ([∗list] j ↦ e ∈ tp0, threadExpr j [] e) ⊢
       ([∗list] j ∈ List.range tp0.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
       |={⊤}=>m ∃ μ₁ μ₂ : Measure, clientRes μ₁ μ₂ ∗
         (clientRes μ₁ μ₂ -∗
-          |={⊤}=>m [∗list] j ↦ e ∈ tp0, lWP e @ j; ⊤ {{ liftTerm j clientPost }}) := by
+          |={⊤}=>m [∗list] j ↦ e ∈ tp0, lWP e @ j; ⊤ {{ lwp.liftTerm j clientPost }}) := by
   letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
   iintro ⟨Hl, HT⟩ HG
   rw [show List.range (List.length tp0) = [0, 1] from rfl]
@@ -336,7 +339,7 @@ theorem flagClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF] (hs : HeapSta
   icases BigSepL.bigSepL_cons.mp $$ HT with ⟨HT0, HT⟩
   ihave HT1 := BigSepL.bigSepL_singleton.mp $$ HT
   icases (BigSepM.bigSepM_insert (Iris.Std.LawfulPartialMap.get?_empty _)).mp $$ Hl with ⟨Hl, -⟩
-  imod flagClient_pre $$ HT0 HT1 Hl HA0 HG0 HB0 HA1 HG1 HB1 with ⟨%μ₁, %μ₂, HP, Hwp⟩
+  imod pre $$ HT0 HT1 Hl HA0 HG0 HB0 HA1 HG1 HB1 with ⟨%μ₁, %μ₂, HP, Hwp⟩
   imodintro
   iexists μ₁, μ₂
   iframe HP
@@ -351,10 +354,11 @@ theorem flagClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF] (hs : HeapSta
 /-- In every fair behavior from the initial configuration, the flag is `0` until it is `1`, and
 then `1`, the writer returns `()` and the reader returns `1`. -/
 @[lantana_alias flag_client_adequacy]
-theorem flagClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rClient τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gClient rClient gClient_impl τ hbeh hfair
+  refine lwp_adequacy_temporal
+    (GF := ExGF) σ0 tp0 gClient rClient gClient_external_subset τ hbeh hfair
     hpos hinit ?_
   intro _ _
   refine ⟨4, ?_⟩
@@ -365,8 +369,8 @@ theorem flagClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
   isplitl [Hσ]
   · iexact Hσ
   iintro - HG
-  ihave HG := initThreads σ0 tp0 $$ HG
-  imod flagClient_init hs $$ [Hl HT] HG with ⟨%μ₁, %μ₂, HP, Hwp⟩
+  ihave HG := init_threads σ0 tp0 $$ HG
+  imod init hs $$ [Hl HT] HG with ⟨%μ₁, %μ₂, HP, Hwp⟩
   · iframe
   imodintro
   iexists clientRes μ₁ μ₂
@@ -375,8 +379,8 @@ theorem flagClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
   iframe
 
 /-- Safety for one thread `j`, for any property `Φ` implied by its return value. -/
-theorem flagClient_safety_of (j : ThreadId) (hj : j < tp0.length) (Φ : ThreadId → Val → Prop)
-    (hΦ : ∀ v, clientVal j v → Φ j v) (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem safety_of (j : ThreadId) (hj : j < tp0.length) (Φ : ThreadId → Val → Prop)
+    (hΦ : ∀ v, ClientVal j v → Φ j v) (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris j Φ τ := by
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 j Φ τ hbeh hfair hpos hinit hj ?_
@@ -392,27 +396,27 @@ theorem flagClient_safety_of (j : ThreadId) (hj : j < tp0.length) (Φ : ThreadId
   isplitl [Hσ]
   · iexact Hσ
   iintro - HG
-  ihave HG := initThreads σ0 tp0 $$ HG
-  imod flagClient_init hs $$ [Hl HT] HG with ⟨%μ₁, %μ₂, HP, Hwp⟩
+  ihave HG := init_threads σ0 tp0 $$ HG
+  imod init hs $$ [Hl HT] HG with ⟨%μ₁, %μ₂, HP, Hwp⟩
   · iframe
   iapply Hwp $$ HP
 
 /-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the writer (resp. the reader) has returned, its value is `()` (resp. `1`). -/
 @[lantana_alias flag_client_safety_adequacy]
-theorem flagClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = vUnit) τ ∧ safetyIris 1 (fun _ v => v = v1) τ :=
-  ⟨flagClient_safety_of 0 (by decide) _ (fun _ h => h) τ hbeh hfair hpos hinit,
-    flagClient_safety_of 1 (by decide) _ (fun _ h => h) τ hbeh hfair hpos hinit⟩
+  ⟨safety_of 0 (by decide) _ (fun _ h => h) τ hbeh hfair hpos hinit,
+    safety_of 1 (by decide) _ (fun _ h => h) τ hbeh hfair hpos hinit⟩
 
 /-- Liveness and safety together, over the same fair behaviors. -/
 @[lantana_alias flag_client_liveness_safety]
-theorem flagClient_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rClient τ ∧ (safetyIris 0 (fun _ v => v = vUnit) τ ∧ safetyIris 1 (fun _ v => v = v1) τ) :=
-  ⟨flagClient_adequacy τ hbeh hfair hpos hinit,
-    flagClient_safety_adequacy τ hbeh hfair hpos hinit⟩
+  ⟨adequacy τ hbeh hfair hpos hinit,
+    safety_adequacy τ hbeh hfair hpos hinit⟩
 
 end Adequacy
 

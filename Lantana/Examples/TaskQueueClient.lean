@@ -34,11 +34,11 @@ later where the task is run; here the task's resource `P` carries one later cred
 ## Adequacy
 
 In the closed world `ExGF` (with the cameras of the ticket lock and of the queue in slots
-`50`–`55`, instances `TicketLockG ExGF` and `QueueG ExGF` below): `taskQueueClient_adequacy`
+`50`–`55`, instances `TicketLockG ExGF` and `QueueG ExGF` below): `TaskQueueClient.adequacy`
 (the main thread returns `1`, a flag gets created that is `0` until it is `1` and then `1`,
 and a task queue gets created whose lock makes release progress), through
-`lwp_adequacy_temporal`; `taskQueueClient_safety_adequacy` through `lwp_adequacy_safety`;
-and `taskQueueClient_liveness_safety`.
+`lwp_adequacy_temporal`; `TaskQueueClient.safety_adequacy` through `lwp_adequacy_safety`;
+and `TaskQueueClient.liveness_safety`.
 
 Everything here is proved; the end-to-end corollaries depend only on the standard axioms
 (checked in `LantanaTest.ExamplesQueue`).
@@ -85,8 +85,8 @@ abbrev vArg (ql : Val) (x : Loc) (n : Int) : Val := hl_val(((&ql, #x), #n))
 
 /-- The namespaces of the main thread's commitments: to return, and to create a flag and a
 task queue. -/
-def Nl : Namespace := nroot.@"return"
-def Nc : Namespace := nroot.@"flag"
+def returnN : Namespace := nroot.@"return"
+def flagN : Namespace := nroot.@"flag"
 
 /-- The layer of the task queue (Rocq `ℓq := 1 ⊕ 1`). -/
 abbrev ℓq : Layer := 2
@@ -157,7 +157,7 @@ theorem decrReentrant_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G
   subst harg
   icases (Obl.fuel_add_set G _ 100 (μs + μp)).mp $$ HF with ⟨HF, Fm⟩
   icases (Obl.fuel_add_set G _ μs μp).mp $$ Fm with ⟨Fs, Fp⟩
-  ihave HF := oblFuels_init G 100 _ $$ HF
+  ihave HF := Obl.fuels_init G 100 _ $$ HF
   iunfold isDecrReentrant at DRI
   icases DRI with ⟨%ql', %x', %n', %h, #Hflag, #ITQ⟩
   simp only [vArg, Val.pair.injEq, Val.lit.injEq, BaseLit.loc.injEq, BaseLit.int.injEq] at h
@@ -270,11 +270,11 @@ with fuel `ℵ` lowered to `n` once `n` is chosen (Rocq `main_spec`). -/
 theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
     ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #()) ∗ thActive i ∗ thKids i {kl, kc} ∗
           thCarriers i {kl, kc} ∗ ([∗set] g ∈ ({kl, kc} : Oids), Obl.fuel g ℓf.succ μ) ∗
-          ⌜kl ≠ kc⌝ ∗ oblKids kl ∅ ∗ oblKids kc ∅ ∗ finallyI Nl kl 1 (exits v1 @ i) ∗
-          finallyI Nc kc 1 flagAndQueue }}}
+          ⌜kl ≠ kc⌝ ∗ oblKids kl ∅ ∗ oblKids kc ∅ ∗ finallyI returnN kl 1 (exits v1 @ i) ∗
+          finallyI flagN kc 1 flagAndQueue }}}
         hl(v(&main) #()) @ i
       l{{{ (v : Val), RET v; threadExpr i [] hl(&v) ∗
-        liftTerm i (fun _ v => iprop(⌜v = v1⌝)) v }}} := by
+        lwp.liftTerm i (fun _ v => iprop(⌜v = v1⌝)) v }}} := by
   obtain ⟨μti, hti⟩ := TaskQueue.init_spec (GF := GF)
   obtain ⟨μfi, hfi⟩ := Flag.init_spec (GF := GF)
   obtain ⟨μd, hd⟩ := decrReentrant_spec (GF := GF)
@@ -285,7 +285,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Fd⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Ffi⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Fti⟩
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold main
   lwp_step HT HG HF with Hlc : 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hc1, Hc2⟩
@@ -306,7 +306,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   -- A container for the flag's obligation, at the flag's layer.
   imod Obl.new ⊤ (.thread i) {kl, kc} {kl, kc} ℓf (((7 : Nat) : Measure) + (μfi + μd))
     $$ [] HK HG with ⟨%g0, %hg0, HK, HG, Kg0, Ag0, Fg0, #Wg0⟩
-  · iapply parLe_thread
+  · iapply Par.le_thread
   icases (Obl.fuel_add g0 _ _ _).mp $$ Fg0 with ⟨F0, Fg0⟩
   icases (Obl.fuel_add g0 _ _ _).mp $$ Fg0 with ⟨F0fi, F0d⟩
   imod Obl.fuel_layer_mono_set _ (ℓ₁ := 0) μfi (Ordinals.Ordinal.zero_le _) $$ Ffi with Ffi
@@ -316,9 +316,9 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   iapply hfi 0 i (({kl, kc} : Oids).insert g0) (.obl g0) ∅ ∅ ℓf ℵ _ $$ [HT HG Ffi F0fi Kg0]
   · iframe HT HG Kg0
     isplitl [Ffi F0fi]
-    · iapply (bigSepS_insert_oids hg0).mpr
+    · iapply (Oids.bigSepS_insert hg0).mpr
       iframe
-    · iapply parLe_obl (ℓq := ℓf) g0 (Ordinals.Ordinal.le_refl _) $$ Wg0
+    · iapply Par.le_obl (ℓq := ℓf) g0 (Ordinals.Ordinal.le_refl _) $$ Wg0
   iintro %x %k ⟨HT, -, HG, -, Kg0, -, Hkk, Fk, Htk, #Hflag⟩
   ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
   lwp_expr_simp
@@ -338,15 +338,15 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
     grind
   ihave HG := Th.carriers_congr hkc $$ HG
   ihave HK := Par.kids_congr hkc $$ HK
-  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
-  icases oblFuels_add 7 90 _ $$ HF with ⟨HF7, HF⟩
-  ihave HF7 := oblFuels_add_obl _ g0 ℓf _ $$ F0 HF7
+  ihave HF := Obl.fuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
+  icases Obl.fuels_add 7 90 _ $$ HF with ⟨HF7, HF⟩
+  ihave HF7 := Obl.fuels_insert _ g0 ℓf _ $$ F0 HF7
   lwp_step HT HG HF7
   lwp_step HT HG HF7
   lwp_expr_simp
   -- Choose `n`.
   lwp_bind hl(chooseNat()) HT
-  icases oblFuels_add 1 4 _ $$ HF7 with ⟨HF1, HF7⟩
+  icases Obl.fuels_add 1 4 _ $$ HF7 with ⟨HF1, HF7⟩
   iapply lwp_chooseNat (o := 0) (G := ({kl} : Oids).insert g0) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
@@ -371,7 +371,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
     $$ [HT HK HG Fd F0d Kg0 Hkk Fk Htk]
   · iframe HT HK HG Kg0 Hkk
     isplitl [Fd F0d]
-    · iapply (bigSepS_insert_oids hg0').mpr
+    · iapply (Oids.bigSepS_insert hg0').mpr
       iframe
     isplitr
     · ipureintro
@@ -422,12 +422,12 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   rw [show (hl(#1) : Exp) = .val hl_val(#1) from rfl]
   iapply lwp_value_mupd'.mpr
   ihave Hc2 := tlc_one_nat.mpr $$ Hc2
-  imod threadExpr_terminate_finally i ⊤ hl_val(#1) kl Nl (fun _ _ => CoPset.mem_full)
+  imod threadExpr_terminate_finally i ⊤ hl_val(#1) kl returnN (fun _ _ => CoPset.mem_full)
     $$ HT Hc2 HA HK Hkl HFl with ⟨HT, #Hd⟩
   imodintro
   iapply HΦ
   iframe HT
-  unfold liftTerm
+  unfold lwp.liftTerm
   isplitl
   · iexact Hd
   · ipureintro
@@ -435,7 +435,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
 
 /-- The commitments of the main thread `i` and its resources (Rocq `Φ_P`). -/
 def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
-  iprop(∃ kl kc : Oid, finallyI Nl kl 1 (exits v1 @ i) ∗ finallyI Nc kc 1 flagAndQueue ∗
+  iprop(∃ kl kc : Oid, finallyI returnN kl 1 (exits v1 @ i) ∗ finallyI flagN kc 1 flagAndQueue ∗
     (thActive i ∗ thKids i {kl, kc} ∗ thCarriers i {kl, kc} ∗ oblKids kl ∅ ∗ oblKids kc ∅ ∗
       ⌜kl ≠ kc⌝ ∗ [∗set] g ∈ ({kl, kc} : Oids), Obl.fuel g ℓf.succ μ))
 
@@ -448,20 +448,20 @@ commitments, and its `lWP` from them (Rocq `main_pre`). -/
 theorem main_pre (i : ThreadId) :
     threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thActive i -∗ thKids i ∅ -∗ thCarriers i ∅ -∗
       |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
-        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ lwp.liftTerm i mainPost }}) := by
   obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
   iintro HT HA HK HG
   imod untilI_alloc (E := ⊤) (.thread i) ∅ ∅ ℓf.succ μ $$ [] HK HG with
     ⟨%kl, -, HK, HG, Hkl, Fkl, -, Akl⟩
-  · iapply parLe_thread
-  imod Akl $$ %⊤ %Nl %iprop(True) %(exits v1 @ i) [] with Ul
+  · iapply Par.le_thread
+  imod Akl $$ %⊤ %returnN %iprop(True) %(exits v1 @ i) [] with Ul
   · inext
     ipureintro
     trivial
   imod untilI_alloc (E := ⊤) (.thread i) _ _ ℓf.succ μ $$ [] HK HG with
     ⟨%kc, %hkc, HK, HG, Hkc, Fkc, -, Akc⟩
-  · iapply parLe_thread
-  imod Akc $$ %⊤ %Nc %iprop(True) %(flagAndQueue (GF := GF)) [] with Uc
+  · iapply Par.le_thread
+  imod Akc $$ %⊤ %flagN %iprop(True) %(flagAndQueue (GF := GF)) [] with Uc
   · inext
     ipureintro
     trivial
@@ -508,7 +508,7 @@ variable {GF : BundledGFunctors}
 /-- The main thread `i` returns `1`, and a flag gets created that is `0` until it is `1` and
 then stays `1`; in particular, the task chain run by the worker sets it (Rocq `R_main`). -/
 def rMain (i : ThreadId) : TrProp (Cfg Exp State) :=
-  ◇ₜ TrProp.state (threadExprSat i [] (.val v1)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
+  ◇ₜ TrProp.state (ThreadExprSat i [] (.val v1)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
 
 /-- Moreover, a task queue gets created whose lock makes release progress: whenever its lock
 is held, it is eventually released (Rocq `R_queue`, whose two existentials over the queue's
@@ -518,21 +518,22 @@ def rQueue : TrProp (Cfg Exp State) :=
 
 /-- What the commitments guarantee (Rocq `G_main`). -/
 def gMain (i : ThreadId) : TrSpec Exp State GF :=
-  ◇ₛ TrSpec.state (threadExprSat i [] (.val v1)) ∧ₛ
+  ◇ₛ TrSpec.state (ThreadExprSat i [] (.val v1)) ∧ₛ
     ◇ₛ ((∃ₛ x : Loc, flagTrSpec x) ∧ₛ (∃ₛ ql : Val, taskQueueTrSpec ql)) ∧ₛ TrSpec.true
 
 @[lantana_alias task_queue_client.G_main_impl]
-theorem gMain_impl (i : ThreadId) :
+theorem gMain_external_subset (i : ThreadId) :
     (gMain (GF := GF) i).external ⊆ (rMain i ∧ₜ rQueue) := by
   intro τ ⟨hr, ⟨m, hm, ⟨⟨x, hx⟩, ⟨ql, hq⟩⟩, hbef⟩, _⟩
-  obtain ⟨-, -, next, curr, -, hrp⟩ := TaskQueue.taskQueue_release_progress ql _ hq
-  exact ⟨⟨hr, m, hm, ⟨x, Flag.flagTrSpec_impl x _ hx⟩, hbef⟩, m, hm, ⟨next, curr, hrp⟩, hbef⟩
+  obtain ⟨-, -, next, curr, -, hrp⟩ := TaskQueue.release_progress ql _ hq
+  exact ⟨⟨hr, m, hm, ⟨x, Flag.flagTrSpec_external_subset x _ hx⟩, hbef⟩, m, hm,
+    ⟨next, curr, hrp⟩, hbef⟩
 
 variable [ModelGS GF] [HeapGS GF] [TicketLockG GF] [QueueG GF]
 
 /-- A task queue exists: its value is trace-visible, its ghost names and layer are not
 (inferred). -/
-theorem guar_exTaskQueue :
+theorem guar_exists_taskQueue :
     ⊢@{IProp GF} iprop(∃ (ql : Val) (γ : QueueName) (ℓ : Layer), isTaskQueue ql γ ℓ) ⊨ₜ
       (∃ₛ ql : Val, taskQueueTrSpec ql) := by
   exact IntoGuar.into_guar
@@ -559,14 +560,15 @@ abbrev σ0 : State := ⟨∅⟩
 
 /-- The initial resources and the `lWP` of the main thread, in the closed world (the common
 part of the adequacy proofs). -/
-theorem taskQueueClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF]
+theorem init [ModelGS ExGF] [TemporalGS Exp State ExGF]
     (hs : HeapStateGS ExGF) :
     letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
     ([∗list] j ↦ e ∈ tp0, threadExpr j [] e) ⊢
       ([∗list] j ∈ List.range tp0.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
       |={⊤}=>m ∃ μ : Measure, mainRes (GF := ExGF) 0 μ ∗
         (mainRes 0 μ -∗
-          |={⊤}=>m [∗list] j ↦ e ∈ tp0, lWP e @ j; ⊤ {{ liftTerm j (mainPost (GF := ExGF)) }}) := by
+          |={⊤}=>m [∗list] j ↦ e ∈ tp0,
+            lWP e @ j; ⊤ {{ lwp.liftTerm j (mainPost (GF := ExGF)) }}) := by
   letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
   iintro HT HG
   rw [show List.range (List.length tp0) = [0] from rfl]
@@ -586,11 +588,11 @@ theorem taskQueueClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF]
 gets created that is `0` until it is `1` and then `1`, and a task queue gets created whose lock
 makes release progress (Rocq `task_queue_client_adequacy`). -/
 @[lantana_alias task_queue_client_adequacy]
-theorem taskQueueClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain 0 τ ∧ rQueue τ := by
   refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (rMain 0 ∧ₜ rQueue)
-    (gMain_impl 0) τ hbeh hfair hpos hinit ?_
+    (gMain_external_subset 0) τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
   imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
@@ -600,8 +602,8 @@ theorem taskQueueClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior
   isplitl [Hσ]
   · iexact Hσ
   iintro - HG
-  ihave HG := initThreads σ0 tp0 $$ HG
-  imod taskQueueClient_init hs $$ HT HG with ⟨%μ, HP, Hwp⟩
+  ihave HG := init_threads σ0 tp0 $$ HG
+  imod init hs $$ HT HG with ⟨%μ, HP, Hwp⟩
   imodintro
   iexists mainRes 0 μ
   isplitr
@@ -612,7 +614,7 @@ theorem taskQueueClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior
 stuck, and once the main thread has returned, its value is `1` (Rocq
 `task_queue_client_safety_adequacy`). -/
 @[lantana_alias task_queue_client_safety_adequacy]
-theorem taskQueueClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = v1) τ := by
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
@@ -628,18 +630,18 @@ theorem taskQueueClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsB
   isplitl [Hσ]
   · iexact Hσ
   iintro - HG
-  ihave HG := initThreads σ0 tp0 $$ HG
-  imod taskQueueClient_init hs $$ HT HG with ⟨%μ, HP, Hwp⟩
+  ihave HG := init_threads σ0 tp0 $$ HG
+  imod init hs $$ HT HG with ⟨%μ, HP, Hwp⟩
   iapply Hwp $$ HP
 
 /-- Liveness and safety together, over the same fair behaviors (Rocq
 `task_queue_client_liveness_safety`). -/
 @[lantana_alias task_queue_client_liveness_safety]
-theorem taskQueueClient_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     (rMain 0 τ ∧ rQueue τ) ∧ safetyIris 0 (fun _ v => v = v1) τ :=
-  ⟨taskQueueClient_adequacy τ hbeh hfair hpos hinit,
-    taskQueueClient_safety_adequacy τ hbeh hfair hpos hinit⟩
+  ⟨adequacy τ hbeh hfair hpos hinit,
+    safety_adequacy τ hbeh hfair hpos hinit⟩
 
 end Adequacy
 

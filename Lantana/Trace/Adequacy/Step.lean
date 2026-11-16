@@ -10,8 +10,9 @@ public import Lantana.ProgramLogic.OblForest
 /-! # Adequacy: facts about one step
 
 The witnesses after the progress round of the thread the schedule names (`mprog_exists_step`),
-the drop of the fair-scheduler measures across a step (`oblsDrop_step`, `oblsDrop_na`), and the
-activity of the owners of obligations (`getOblsThreadActive`). See `docs/adequacy.md`, §5.4.
+the drop of the fair-scheduler measures across a step (`obligationsDrop_step`,
+`obligationsDrop_inactive`), and the activity of the owners of obligations
+(`get_obligationsThreadActive`). See `docs/adequacy.md`, §5.4.
 Rocq: `lantana/trace/adequacy_step.v`.
 -/
 
@@ -29,14 +30,14 @@ variable [Crash Expr State Obs Val]
 
 /-- Every assigned obligation is owned by a thread that is active at the configuration `ρ`. -/
 @[lantana_alias obls_thread_active]
-def oblsThreadActive (Ω : Obls) (ρ : Cfg Expr State) : Prop :=
-  ∀ k a i, get? Ω k = some (.assigned a i) → ρ.active i
+def ObligationsThreadActive (Ω : Obligations) (ρ : Cfg Expr State) : Prop :=
+  ∀ k a i, get? Ω k = some (.assigned a i) → ρ.Active i
 
 /-- The fair-scheduler measure drops from `n` to `n + 1` for an obligation of the thread the
 schedule names whose fuel dropped, and for an obligation of another active owner. -/
 theorem fairMeasure_next_lt {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat} {i o o' : ThreadId}
-    {a a' : Fuel} (hi : sched n = i) (hact : (τf n).active o)
+    {γ : Nat → ThreadId → Nat} (hcnt : schedCounters sched γ ⟨0, τf⟩) {n : Nat} {i o o' : ThreadId}
+    {a a' : Fuel} (hi : sched n = i) (hact : (τf n).Active o)
     (h : (o = i ∧ a' < a) ∨ (o ≠ i ∧ a' = a ∧ o' = o)) :
     fairMeasure (γ (n + 1)) o' a' < fairMeasure (γ n) o a := by
   rcases h with ⟨-, hlt⟩ | ⟨hne, ha, ho⟩
@@ -54,21 +55,22 @@ theorem fairMeasure_next_lt {τf : Nat → Cfg Expr State} {sched : Nat → Thre
 `fairMeasure (γ (n + 1))` decrease strictly and keep the witness invariant and its lower bound. -/
 @[lantana_alias mprog_exists_step]
 theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} {Ω₁ Ω₂ : Obls} {W₁ : Witnesses}
-    (hi : sched n = i) (hact : oblsThreadActive Ω₁ (τf n)) (hI : owitInvFair Ω₁ W₁)
-    (hLb : owitInvLb (fairMeasure (γ n)) Ω₁ W₁) (hcnt : SchedCounters sched γ ⟨0, τf⟩)
-    (hprog : Obls.condProgress (Obl.condOwner i) Ω₁ Ω₂) :
-    ∃ W₂ : Witnesses, Witnesses.condProgress Witness.condAssigned W₁ W₂ ∧ owitInvFair Ω₂ W₂ ∧
-      owitInvLb (fairMeasure (γ (n + 1))) Ω₂ W₂ := by
+    {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} {Ω₁ Ω₂ : Obligations} {W₁ : Witnesses}
+    (hi : sched n = i) (hact : ObligationsThreadActive Ω₁ (τf n)) (hI : OWitInvFair Ω₁ W₁)
+    (hLb : OWitInvLb (fairMeasure (γ n)) Ω₁ W₁) (hcnt : schedCounters sched γ ⟨0, τf⟩)
+    (hprog : Obligations.CondProgress (Obligation.CondOwner i) Ω₁ Ω₂) :
+    ∃ W₂ : Witnesses, Witnesses.CondProgress Witness.CondAssigned W₁ W₂ ∧ OWitInvFair Ω₂ W₂ ∧
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω₂ W₂ := by
   obtain ⟨W₂, hW₂⟩ := mapForall2_choice (B := Witness)
     (P := fun _ g₂ w₂ => w₂ = witOf (fairMeasure (γ (n + 1))) g₂) Ω₂
     (fun _ g₂ _ => ⟨_, rfl⟩)
   -- the new obligation of every old one
-  have hnew : ∀ k g₁, get? Ω₁ k = some g₁ → ∃ g₂, get? Ω₂ k = some g₂ ∧ Obl.keep g₁ g₂ ∧
-      ((Obl.condOwner i k g₁ ∧ Obl.progress g₁ g₂) ∨ (¬Obl.condOwner i k g₁ ∧ g₁ = g₂)) := by
+  have hnew : ∀ k g₁, get? Ω₁ k = some g₁ → ∃ g₂, get? Ω₂ k = some g₂ ∧ Obligation.Keep g₁ g₂ ∧
+      ((Obligation.CondOwner i k g₁ ∧ Obligation.Progress g₁ g₂) ∨
+        (¬Obligation.CondOwner i k g₁ ∧ g₁ = g₂)) := by
     intro k g₁ e₁
-    obtain ⟨g₂, e₂, hr⟩ := mapForall2.lookup_left hprog.1 e₁
-    have hkeep : Obl.keep g₁ g₂ := mapForall2.lookup hprog.2 e₁ e₂
+    obtain ⟨g₂, e₂, hr⟩ := MapForall2.lookup_left hprog.1 e₁
+    have hkeep : Obligation.Keep g₁ g₂ := MapForall2.lookup hprog.2 e₁ e₂
     refine ⟨g₂, e₂, hkeep, ?_⟩
     rcases hr with ⟨hc, hs | hs⟩ | hn
     · exact .inl ⟨hc, hs⟩
@@ -83,35 +85,35 @@ theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → Thread
       refine ⟨rfl, ?_⟩
       rcases e₂ : get? W₂ k with _ | w₂
       · rfl
-      · obtain ⟨g₂, eg₂, -⟩ := mapForall2.lookup_right hW₂ e₂
-        obtain ⟨g₁, eg₁, -⟩ := mapForall2.lookup_right hprog.2 eg₂
-        obtain ⟨w₁', ew₁', -⟩ := mapForall2.lookup_left hI eg₁
+      · obtain ⟨g₂, eg₂, -⟩ := MapForall2.lookup_right hW₂ e₂
+        obtain ⟨g₁, eg₁, -⟩ := MapForall2.lookup_right hprog.2 eg₂
+        obtain ⟨w₁', ew₁', -⟩ := MapForall2.lookup_left hI eg₁
         rw [e₁] at ew₁'
         cases ew₁'
     · right
-      obtain ⟨g₁, eg₁, hr₁⟩ := mapForall2.lookup_right hI e₁
+      obtain ⟨g₁, eg₁, hr₁⟩ := MapForall2.lookup_right hI e₁
       obtain ⟨g₂, eg₂, hkeep, hstep⟩ := hnew k g₁ eg₁
-      obtain ⟨w₂, ew₂, rfl⟩ := mapForall2.lookup_left hW₂ eg₂
+      obtain ⟨w₂, ew₂, rfl⟩ := MapForall2.lookup_left hW₂ eg₂
       refine ⟨w₁, _, rfl, ew₂, ?_⟩
       cases g₁ with
       | discharged =>
         cases w₁ with
-        | assigned b => simp [owitRel] at hr₁
+        | assigned b => simp [OWitRel] at hr₁
         | discharged =>
           cases g₂ with
-          | assigned a' o' => simp [Obl.keep] at hkeep
+          | assigned a' o' => simp [Obligation.Keep] at hkeep
           | discharged => exact .inr ⟨fun h => h, rfl⟩
       | assigned a o =>
         cases w₁ with
-        | discharged => simp [owitRel] at hr₁
+        | discharged => simp [OWitRel] at hr₁
         | assigned b =>
           cases g₂ with
-          | discharged => simp [Obl.keep] at hkeep
+          | discharged => simp [Obligation.Keep] at hkeep
           | assigned a' o' =>
             left
             refine ⟨trivial, .inl ?_⟩
             change fairMeasure (γ (n + 1)) o' a' < b
-            have hlb : fairMeasure (γ n) o a ≤ b := mapForall2.lookup hLb eg₁ e₁
+            have hlb : fairMeasure (γ n) o a ≤ b := MapForall2.lookup hLb eg₁ e₁
             refine Ordinals.Ordinal.lt_of_lt_of_le ?_ hlb
             refine fairMeasure_next_lt hcnt hi (hact k a o eg₁) ?_
             rcases hstep with ⟨ho, hlt⟩ | ⟨hno, heq⟩
@@ -125,25 +127,26 @@ theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → Thread
       refine ⟨rfl, ?_⟩
       rcases e₂ : get? W₂ k with _ | w₂
       · rfl
-      · obtain ⟨g₂, eg₂, -⟩ := mapForall2.lookup_right hW₂ e₂
-        obtain ⟨g₁, eg₁, -⟩ := mapForall2.lookup_right hprog.2 eg₂
-        obtain ⟨w₁', ew₁', -⟩ := mapForall2.lookup_left hI eg₁
+      · obtain ⟨g₂, eg₂, -⟩ := MapForall2.lookup_right hW₂ e₂
+        obtain ⟨g₁, eg₁, -⟩ := MapForall2.lookup_right hprog.2 eg₂
+        obtain ⟨w₁', ew₁', -⟩ := MapForall2.lookup_left hI eg₁
         rw [e₁] at ew₁'
         cases ew₁'
     · right
-      obtain ⟨g₁, eg₁, hr₁⟩ := mapForall2.lookup_right hI e₁
+      obtain ⟨g₁, eg₁, hr₁⟩ := MapForall2.lookup_right hI e₁
       obtain ⟨g₂, eg₂, hkeep, -⟩ := hnew k g₁ eg₁
-      obtain ⟨w₂, ew₂, rfl⟩ := mapForall2.lookup_left hW₂ eg₂
+      obtain ⟨w₂, ew₂, rfl⟩ := MapForall2.lookup_left hW₂ eg₂
       refine ⟨w₁, _, rfl, ew₂, ?_⟩
-      cases g₁ <;> cases g₂ <;> cases w₁ <;> simp_all [owitRel, Obl.keep, Witness.keep, witOf]
+      cases g₁ <;> cases g₂ <;> cases w₁ <;>
+        simp_all [OWitRel, Obligation.Keep, Witness.Keep, witOf]
   · -- the witness invariant
-    exact hW₂.impl fun _ g₂ w₂ h => by
+    exact hW₂.imp fun _ g₂ w₂ h => by
       subst h
       cases g₂ with
       | assigned a o => exact fairMeasure_le_ub _ o a
       | discharged => trivial
   · -- the lower bound
-    exact hW₂.impl fun _ g₂ w₂ h => by
+    exact hW₂.imp fun _ g₂ w₂ h => by
       subst h
       cases g₂ with
       | assigned a o => exact Ordinals.Ordinal.le_rfl
@@ -153,26 +156,26 @@ theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → Thread
 
 /-- The measures of all obligations drop from `Ω` to `Ω'`. -/
 @[lantana_alias obls_drop]
-def oblsDrop (m m' : ThreadId → Fuel → Fuel) (Ω Ω' : Obls) : Prop :=
+def ObligationsDrop (m m' : ThreadId → Fuel → Fuel) (Ω Ω' : Obligations) : Prop :=
   ∀ k fu o fu' o', get? Ω k = some (.assigned fu o) → get? Ω' k = some (.assigned fu' o') →
     m' o' fu' < m o fu
 
 /-- A step of the thread `i` the schedule names at `n`, through the model updates and its
 progress round, drops every measure. -/
 @[lantana_alias obls_drop_step]
-theorem oblsDrop_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+theorem obligationsDrop_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} (hi : sched n = i)
-    (hcnt : SchedCounters sched γ ⟨0, τf⟩) {Ω Ω₀ Ω₂ Ω' : Obls} (h₀ : Obls.le Ω Ω₀)
-    (hprog : Obls.condProgress (Obl.condOwner i) Ω₀ Ω₂) (h₂ : Obls.le Ω₂ Ω')
-    (hact : oblsThreadActive Ω₂ (τf n)) :
-    oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' := by
+    (hcnt : schedCounters sched γ ⟨0, τf⟩) {Ω Ω₀ Ω₂ Ω' : Obligations} (h₀ : Obligations.le Ω Ω₀)
+    (hprog : Obligations.CondProgress (Obligation.CondOwner i) Ω₀ Ω₂) (h₂ : Obligations.le Ω₂ Ω')
+    (hact : ObligationsThreadActive Ω₂ (τf n)) :
+    ObligationsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' := by
   intro k fu o fu' o' hk hk'
   obtain ⟨g₀, hk₀⟩ : ∃ g₀, get? Ω₀ k = some g₀ :=
     Option.isSome_iff_exists.mp (h₀.1 k (by rw [hk]; rfl))
-  have hle₀ : Obl.le (.assigned fu o) g₀ := h₀.2 k _ _ hk hk₀
-  obtain ⟨g₂, hk₂, hr⟩ := mapForall2.lookup_left hprog.1 hk₀
-  have hkeep : Obl.keep g₀ g₂ := mapForall2.lookup hprog.2 hk₀ hk₂
-  have hle₂ : Obl.le g₂ (.assigned fu' o') := h₂.2 k _ _ hk₂ hk'
+  have hle₀ : Obligation.le (.assigned fu o) g₀ := h₀.2 k _ _ hk hk₀
+  obtain ⟨g₂, hk₂, hr⟩ := MapForall2.lookup_left hprog.1 hk₀
+  have hkeep : Obligation.Keep g₀ g₂ := MapForall2.lookup hprog.2 hk₀ hk₂
+  have hle₂ : Obligation.le g₂ (.assigned fu' o') := h₂.2 k _ _ hk₂ hk'
   cases g₂ with
   | discharged => exact hle₂.elim
   | assigned fu₂ o₂ =>
@@ -213,10 +216,10 @@ theorem oblsDrop_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
 /-- When the thread the schedule names is inactive, every measure drops through the fairness
 counters. -/
 @[lantana_alias obls_drop_na]
-theorem oblsDrop_na {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat}
-    (hna : (τf n).inactive (sched n)) {Ω : Obls} (hact : oblsThreadActive Ω (τf n)) :
-    oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω := by
+theorem obligationsDrop_inactive {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} (hcnt : schedCounters sched γ ⟨0, τf⟩) {n : Nat}
+    (hna : (τf n).Inactive (sched n)) {Ω : Obligations} (hact : ObligationsThreadActive Ω (τf n)) :
+    ObligationsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω := by
   intro k fu o fu' o' hk hk'
   rw [hk] at hk'
   cases hk'
@@ -229,11 +232,11 @@ theorem oblsDrop_na {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
 /-- When the thread the schedule names is inactive, the lower bound of the witnesses holds with
 the counters of the next position. -/
 @[lantana_alias owit_inv_lb_step_na_turn]
-theorem owitInvLb_step_na_turn {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
-    {γ : Nat → ThreadId → Nat} (hcnt : SchedCounters sched γ ⟨0, τf⟩) {n : Nat}
-    (hna : (τf n).inactive (sched n)) {Ω : Obls} {W : Witnesses}
-    (hact : oblsThreadActive Ω (τf n)) (hLb : owitInvLb (fairMeasure (γ n)) Ω W) :
-    owitInvLb (fairMeasure (γ (n + 1))) Ω W := by
+theorem owitInvLb_step_inactive_turn {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {γ : Nat → ThreadId → Nat} (hcnt : schedCounters sched γ ⟨0, τf⟩) {n : Nat}
+    (hna : (τf n).Inactive (sched n)) {Ω : Obligations} {W : Witnesses}
+    (hact : ObligationsThreadActive Ω (τf n)) (hLb : OWitInvLb (fairMeasure (γ n)) Ω W) :
+    OWitInvLb (fairMeasure (γ (n + 1))) Ω W := by
   refine mapForall2_intro fun k => (hLb.inv k).imp id fun ⟨g, w, eg, ew, hr⟩ => ⟨g, w, eg, ew, ?_⟩
   cases g with
   | discharged => cases w <;> first | exact hr.elim | trivial
@@ -279,7 +282,7 @@ instance doneTokens_persistent (tp : ThreadPool Expr) :
 
 /-- The owners of the obligations are below the thread count of the model (Rocq
 `othread_assigned_thread_elem`). -/
-theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
+theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses)
     (n tc : Nat) (X : ThreadId → Prop) :
     modelInterp (GF := GF) h a Ω W n tc X ⊢
       ⌜∀ k fu o, get? Ω k = some (.assigned fu o) → o < tc⌝ := by
@@ -288,20 +291,20 @@ theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnes
   icases oforest_owner_lt Ω tc $$ Hf with %h
   ipureintro
   intro k fu o hk
-  exact h k o (Obls.ownerOf_eq hk)
+  exact h k o (Obligations.ownerOf_eq hk)
 
 /-- Every owner of an obligation is active at `ρ`, given the `Th.done` tokens of the finished
 threads and the model at the crashed threads of `ρ`. -/
 @[lantana_alias get_obls_thread_active_gen]
-theorem getOblsThreadActive [Crash Expr State Obs Val] {tp : ThreadPool Expr}
-    {ρ : Cfg Expr State} (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
-    (n : Nat) :
-    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length (Cfg.crashed ρ) ⊢
-      ⌜oblsThreadActive Ω ρ⌝ := by
+theorem get_obligationsThreadActive [Crash Expr State Obs Val] {tp : ThreadPool Expr}
+    {ρ : Cfg Expr State} (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obligations)
+    (W : Witnesses) (n : Nat) :
+    doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length (Cfg.Crashed ρ) ⊢
+      ⌜ObligationsThreadActive Ω ρ⌝ := by
   classical
-  by_cases hact : oblsThreadActive Ω ρ
+  by_cases hact : ObligationsThreadActive Ω ρ
   · exact pure_intro hact
-  simp only [oblsThreadActive, Classical.not_forall] at hact
+  simp only [ObligationsThreadActive, Classical.not_forall] at hact
   obtain ⟨k, fu, o, hk, hna⟩ := hact
   unfold doneTokens
   iintro ⟨#HD, HM⟩
@@ -312,7 +315,7 @@ theorem getOblsThreadActive [Crash Expr State Obs Val] {tp : ThreadPool Expr}
   have heρ : ρ.1[o]? = some e := by rw [hτ]; exact he
   rcases hv : toVal e with _ | v
   · -- a running owner is crashed, and the model holds its node
-    have hc : ρ.crashed o := ⟨e, heρ, Classical.byContradiction fun hc => hna ⟨e, heρ, hv, hc⟩⟩
+    have hc : ρ.Crashed o := ⟨e, heρ, Classical.byContradiction fun hc => hna ⟨e, heρ, hv, hc⟩⟩
     icases Th.crashed_modelInterp_not_owner hc (hlt k fu o hk) h a Ω W n $$ HM with %hno
     exact (hno k fu hk).elim
   ihave Hd := BigSepL.bigSepL_lookup he $$ HD
@@ -322,13 +325,13 @@ theorem getOblsThreadActive [Crash Expr State Obs Val] {tp : ThreadPool Expr}
   exact (hno k fu hk).elim
 
 /-- A stutter moves the model to the next step index (Rocq `model_history_interp_step`). -/
-theorem modelInterp_step_idx (h : List MEvent) (a : Nat) (Ω : Obls) (W : Witnesses)
+theorem modelInterp_step_idx (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses)
     (n tc : Nat) (X : ThreadId → Prop) :
     modelInterp (GF := GF) h a Ω W n tc X ⊢
       |==> modelInterp (h ++ [(n + 1, Ω)]) (a + 1) Ω W (n + 1) tc X := by
   unfold modelInterp
   iintro ⟨HH, Hs, Hf, Hw, %hI⟩
-  imod modelHistoryInterp_step h a (Nat.le_succ n) (Obls.le_refl Ω) $$ HH with HH
+  imod modelHistoryInterp_step h a (Nat.le_succ n) (Obligations.le_refl Ω) $$ HH with HH
   imodintro
   iframe HH Hs Hf Hw
   ipureintro

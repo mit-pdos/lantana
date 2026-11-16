@@ -19,7 +19,7 @@ public import Iris.Std.CoPset
 
 Lantana's fancy update `|={E₁,E₂}=> P` (Rocq: `lantana/base_logic/fancy_updates.v`), built on the
 relational update of transfinite later credits instead of the basic update:
-`uPred_fupd E₁ E₂ P := wsat ∗ ownE E₁ -∗ |==>r ◇ (wsat ∗ ownE E₂ ∗ P)`.
+`uPredFUpd E₁ E₂ P := wsat ∗ ownE E₁ -∗ |==>r ◇ (wsat ∗ ownE E₂ ∗ P)`.
 
 Iris-Lean's `Iris.Instances.Lib.FUpd` (template of this file) builds the fancy update on its `Nat`
 later-credit update `|==£>`, whose `▷^[n] False` escape disjunct hides the `◇`; Lantana's `|==>r`
@@ -117,9 +117,9 @@ theorem invGS_alloc_names {GF : BundledGFunctors.{u}} [InvGpreS GF] :
   · unfold wsat
     iexists ∅
     isplitl
-    · have H : liftInv (∅ : InvMap (IProp GF)) = ∅ := by
+    · have hlift : liftInv (∅ : InvMap (IProp GF)) = ∅ := by
         simp only [liftInv, LawfulPartialMap.map_empty]
-      rw [invMap, H]
+      rw [invMap, hlift]
       iexact Hi
     · iapply BigSepM.bigSepM_empty
       itrivial
@@ -143,23 +143,23 @@ section FUpd
 
 variable {GF : BundledGFunctors.{u}} [InvGS GF]
 
-#lantana_ignore uPred_fupd_def "`uPred_fupd` is defined directly without `seal`/`unseal`."
-#lantana_ignore uPred_fupd_aux "`uPred_fupd` is defined directly without `seal`/`unseal`."
-#lantana_ignore uPred_fupd_unseal "`uPred_fupd` is defined directly without `seal`/`unseal`."
+#lantana_ignore uPred_fupd_def "`uPredFUpd` is defined directly without `seal`/`unseal`."
+#lantana_ignore uPred_fupd_aux "`uPredFUpd` is defined directly without `seal`/`unseal`."
+#lantana_ignore uPred_fupd_unseal "`uPredFUpd` is defined directly without `seal`/`unseal`."
 
 /-- The fancy update: given world satisfaction and the mask `E₁`, update the ghost state with the
 relational update, and give back world satisfaction, the mask `E₂` and `P`, under `◇`. -/
 @[lantana_alias uPred_fupd]
-def uPred_fupd (E₁ E₂ : CoPset) (P : IProp GF) : IProp GF :=
+def uPredFUpd (E₁ E₂ : CoPset) (P : IProp GF) : IProp GF :=
   iprop(wsat ∗ ownE E₁ -∗ |==>r ◇ (wsat ∗ ownE E₂ ∗ P))
 
-instance uPred_fupd_ne {E₁ E₂ : CoPset} : NonExpansive (uPred_fupd (GF := GF) E₁ E₂) where
+instance uPred_fupd_ne {E₁ E₂ : CoPset} : NonExpansive (uPredFUpd (GF := GF) E₁ E₂) where
   ne {_ _ _} h := by
-    simp only [uPred_fupd]
+    simp only [uPredFUpd]
     exact wand_ne.ne .rfl <| rupd_ne.ne <| except0_ne.ne <| sep_ne.ne .rfl <| sep_ne.ne .rfl h
 
 instance uPred_fupd_instance : FUpd (IProp GF) where
-  fupd := uPred_fupd
+  fupd := uPredFUpd
 
 end FUpd
 
@@ -173,10 +173,10 @@ variable {GF : BundledGFunctors.{u}} [InvGS GF]
 
 @[lantana_alias uPred_bi_fupd]
 instance uPred_bi_fupd : BIFUpdate (IProp GF) where
-  fupd := uPred_fupd
+  fupd := uPredFUpd
   ne := uPred_fupd_ne
   subset {E1 E2} Hsub := by
-    simp only [uPred_fupd]
+    simp only [uPredFUpd]
     iintro ⟨Hw, HE⟩
     rw [diff_subset_decomp Hsub]
     icases (ownE_op (disjoint_symm disjoint_diff_right)).mp $$ HE with ⟨HE1, HE2⟩
@@ -192,37 +192,37 @@ instance uPred_bi_fupd : BIFUpdate (IProp GF) where
       iframe
     · iempintro
   except0 {E1 E2 P} := by
-    simp only [uPred_fupd]
+    simp only [uPredFUpd]
     iintro H Hwe
     imod H
     iapply H $$ Hwe
   mono H := by
-    simp only [uPred_fupd]
+    simp only [uPredFUpd]
     iintro Hupd HwE
     iapply rupd_mono (except0_mono (sep_mono_right (sep_mono_right H)))
     iapply Hupd $$ HwE
   trans {_ _ _ _} := by
-    simp only [uPred_fupd]
+    simp only [uPredFUpd]
     iintro Hupd HwE
     imod Hupd $$ HwE with >⟨Hw, HE, Hupd⟩
     iapply Hupd
     iframe
   mask_frame_right_strong {E1 E2 Ef P} Hdisj := by
-    simp only [uPred_fupd]
+    simp only [uPredFUpd]
     iintro Hupd ⟨Hwsat, HE⟩
     icases (ownE_op Hdisj).mp $$ HE with ⟨HE1, HEf⟩
     imod Hupd $$ [Hwsat HE1] with >⟨Hw, HE2, HP⟩
     · iframe
-    icases (ownE_op_iff (E1 := E2) (E2 := Ef)).mpr $$ [HE2 HEf] with ⟨%Hdisj', HE⟩
+    icases (ownE_op_iff (E1 := E2) (E2 := Ef)).mpr $$ [HE2 HEf] with ⟨%hdisj', HE⟩
     · iframe
     imodintro
     imodintro
     iframe Hw HE
     iapply HP
     ipureintro
-    exact Hdisj'
+    exact hdisj'
   frame_right {_ _ _ _} := by
-    simp only [uPred_fupd]
+    simp only [uPredFUpd]
     iintro ⟨Hupd, HR⟩ HwE
     imod Hupd $$ HwE with >⟨Hw, HE, HP⟩
     imodintro
@@ -233,7 +233,7 @@ instance uPred_bi_fupd : BIFUpdate (IProp GF) where
 instance uPred_bi_bupd_fupd : BIUpdateFUpdate (IProp GF) where
   fupd_of_bupd {_ _} := by
     iintro H
-    simp only [fupd, uPred_fupd]
+    simp only [fupd, uPredFUpd]
     iintro ⟨Hw, HE⟩
     imod H
     imodintro
@@ -241,7 +241,7 @@ instance uPred_bi_bupd_fupd : BIUpdateFUpdate (IProp GF) where
     iframe
 
 theorem fupd_eq {E₁ E₂ : CoPset} {P : IProp GF} :
-    iprop(|={E₁,E₂}=> P) = uPred_fupd E₁ E₂ P := rfl
+    iprop(|={E₁,E₂}=> P) = uPredFUpd E₁ E₂ P := rfl
 
 /-- Unfold the fancy update. -/
 theorem fupd_unfold {E₁ E₂ : CoPset} {P : IProp GF} :
@@ -260,7 +260,7 @@ open Ordinals Ordinal
 @[lantana_alias rupd_fupd]
 theorem rupd_fupd {E : CoPset} {P : IProp GF} : (|==>r P) ⊢ |={E}=> P := by
   iintro Hupd
-  simp only [fupd, uPred_fupd]
+  simp only [fupd, uPredFUpd]
   iintro ⟨Hw, HE⟩
   imod Hupd
   imodintro
@@ -272,7 +272,7 @@ theorem rupd_fupd {E : CoPset} {P : IProp GF} : (|==>r P) ⊢ |={E}=> P := by
 theorem lc_fupd_elim_later_ord {E : CoPset} {P : IProp GF} :
     ⊢ £ₒ (1 : Ordinal.{1}) -∗ ▷ P -∗ |={E}=> P := by
   iintro Hf HP
-  simp only [fupd, uPred_fupd]
+  simp only [fupd, uPredFUpd]
   iintro ⟨Hw, HE⟩
   iapply tlc_later
   isplitl [Hf]
@@ -322,39 +322,39 @@ section ALCb
 
 variable {GF : BundledGFunctors.{u}} {A : Type _} [UCMRA A] [CreditGS GF A] [CreditCamera A]
 
-/-- `ALC? p P` is `ALC P` if `p`, and `P` otherwise (Rocq: `ALC? p P := Nat.iter (b2n p) ALC P`). -/
-def ALCb (p : Bool) (P : IProp GF) : IProp GF :=
+/-- `ALC? p P` is `alc P` if `p`, and `P` otherwise (Rocq: `ALC? p P := Nat.iter (b2n p) alc P`). -/
+def alcIf (p : Bool) (P : IProp GF) : IProp GF :=
   match p with
-  | true => ALC P
+  | true => alc P
   | false => P
 
 /-- `ALC? p P`. -/
 scoped syntax:max "ALC? " term:max ppSpace term:max : term
 
 macro_rules
-  | `(iprop(ALC?%$tk $p $P)) => ``($(wrapIprop tk ``ALCb) $p iprop($P))
-  | `(ALC? $p $P) => ``(ALCb $p $P)
+  | `(iprop(ALC?%$tk $p $P)) => ``($(wrapIprop tk ``alcIf) $p iprop($P))
+  | `(ALC? $p $P) => ``(alcIf $p $P)
 
-@[simp] theorem ALCb_true {P : IProp GF} : ALCb true P = ALC P := rfl
-@[simp] theorem ALCb_false {P : IProp GF} : ALCb false P = P := rfl
+@[simp] theorem alcIf_true {P : IProp GF} : alcIf true P = alc P := rfl
+@[simp] theorem alcIf_false {P : IProp GF} : alcIf false P = P := rfl
 
 @[lantana_alias from_modal_ALCb]
-instance fromModal_ALCb {io} {b : Bool} {P : IProp GF} :
-    FromModal io modality_id True (ALCb b P) (ALCb b P) P where
-  from_modal _ := by cases b <;> simp only [ALCb] <;> first | exact ALC_intro | exact .rfl
+instance fromModal_alcIf {io} {b : Bool} {P : IProp GF} :
+    FromModal io modality_id True (alcIf b P) (alcIf b P) P where
+  from_modal _ := by cases b <;> simp only [alcIf] <;> first | exact alc_intro | exact .rfl
 
 @[lantana_alias from_pure_ALCb]
-instance fromPure_ALCb {a io φ} {b : Bool} {P : IProp GF} [h : FromPure a P io φ] :
-    FromPure a (ALCb b P) io φ where
-  from_pure := by cases b <;> simp only [ALCb] <;> first | exact h.1.trans ALC_intro | exact h.1
+instance fromPure_alcIf {a io φ} {b : Bool} {P : IProp GF} [h : FromPure a P io φ] :
+    FromPure a (alcIf b P) io φ where
+  from_pure := by cases b <;> simp only [alcIf] <;> first | exact h.1.trans alc_intro | exact h.1
 
 @[lantana_alias elim_rupd_ALCb]
-instance elimModal_ALCb {p io} {b : Bool} {P Q : IProp GF} :
-    ElimModal True p io false (ALCb b P) P (ALCb b Q) Q where
+instance elimModal_alcIf {p io} {b : Bool} {P Q : IProp GF} :
+    ElimModal True p io false (alcIf b P) P (alcIf b Q) Q where
   elim_modal h := by
     cases b
     · exact (sep_mono_left intuitionisticallyIf_elim).trans wand_elim_right
-    · exact (elimModal_ALC (p := p) (io := io)).elim_modal h
+    · exact (elimModal_alc (p := p) (io := io)).elim_modal h
 
 end ALCb
 

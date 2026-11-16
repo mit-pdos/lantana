@@ -75,7 +75,7 @@ example (σ : State) (e : Exp) :
   EctxLanguage.primStep_of_baseStep (.forkS e σ)
 
 example (σ : State) (e : Exp) :
-    threadExprSat 1 [ECtxItem.label "t"] e σ [hl(#()), hl(label("t", &e))] :=
+    ThreadExprSat 1 [ECtxItem.label "t"] e σ [hl(#()), hl(label("t", &e))] :=
   threadExprSat_iff.mpr rfl
 
 set_option linter.deprecated false in

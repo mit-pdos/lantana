@@ -10,7 +10,7 @@ public import Lantana.ProgramLogic.OblForest
 
 The rules of `|=[n]=>m P` and `|={E₁,E₂}=>m P` with their proof-mode instances; the rules of
 obligation invariants, witness induction, parents, fuel and credits; the model updates in their
-usual shapes, among them `obl_discharge_forest`; the physical steps and the nodes `Th.nodes`
+usual shapes, among them `Obl.discharge_forest`; the physical steps and the nodes `Th.nodes`
 they hand in and out. All are derived from the statements of `Lantana.ProgramLogic.OblForest`.
 See `docs/model.md`, §6 to §8. Rocq: `lantana/program_logic/obl_forest_rules.v`. -/
 
@@ -22,13 +22,6 @@ open Iris Iris.BI Iris.ProofMode Iris.Std
 open scoped Lantana.Measure Ordinals.Ordinal
 
 /-! ## Sets of obligations -/
-
-/-- `Std.ExtTreeSet.erase` as a set difference. -/
-theorem Oids.erase_eq_diff (K : Oids) (k : Oid) : K.erase k = K \ {k} :=
-  LawfulSet.ext fun x => by
-    rw [Std.ExtTreeSet.mem_erase, mem_diff, mem_singleton, Ne,
-      Std.LawfulEqCmp.compare_eq_iff_eq]
-    grind
 
 open LawfulSet in
 /-- A set of obligations is empty or has one of largest rank. -/
@@ -159,11 +152,11 @@ theorem fupd_mupd_elim_2 : (|={E₁,E₂}=>m |={E₂}=> P) ⊢ |={E₁,E₂}=>m 
   (mupd_mono (fupd_mupd E₂ E₂ P)).trans mupd_trans
 
 @[lantana_alias sfmupd_fupd_l]
-theorem mupd_fupd_l : (|={E₁,E₂}=> |={E₂}=>m P) ⊢ |={E₁,E₂}=>m P :=
+theorem mupd_fupd_left : (|={E₁,E₂}=> |={E₂}=>m P) ⊢ |={E₁,E₂}=>m P :=
   (fupd_mupd E₁ E₂ _).trans mupd_trans
 
 @[lantana_alias sfmupd_fupd_r]
-theorem mupd_fupd_r : (|={E₁}=>m |={E₁,E₂}=> P) ⊢ |={E₁,E₂}=>m P :=
+theorem mupd_fupd_right : (|={E₁}=>m |={E₁,E₂}=> P) ⊢ |={E₁,E₂}=>m P :=
   (mupd_mono (fupd_mupd E₁ E₂ P)).trans mupd_trans
 
 @[lantana_alias sfmupd_mask_mono]
@@ -187,7 +180,7 @@ theorem mupd_sep : (|={E}=>m P) ∗ (|={E}=>m Q) ⊢ |={E}=>m (P ∗ Q) :=
   mupd_frame_right.trans <| (mupd_mono mupd_frame_left).trans mupd_trans
 
 @[lantana_alias sfmupd_idemp]
-theorem mupd_idemp : (|={E}=>m |={E}=>m P) ⊣⊢ |={E}=>m P :=
+theorem mupd_idem : (|={E}=>m |={E}=>m P) ⊣⊢ |={E}=>m P :=
   ⟨mupd_trans, mupd_intro⟩
 
 /-- The model update `|={E₁,E₂}=>m P` applied to the history interpretation. -/
@@ -420,12 +413,6 @@ theorem Obl.variant_unfold (k : Oid) (P R : IProp GF) :
 
 variable (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF)
 
-@[lantana_alias oblP_inv_acc_cases]
-theorem Obl.inv_acc_cases (hN : ↑N ⊆ E) :
-    Obl.inv N k P R ⊢ |={E, E \ ↑N}=> ▷ Obl.variant k P R ∗
-      (▷ Obl.variant k P R ={E \ ↑N, E}=∗ True) :=
-  Obl.inv_acc E N k P R hN
-
 @[lantana_alias oblP_inv_acc_assigned]
 theorem Obl.inv_acc_assigned (hN : ↑N ⊆ E) :
     Obl.inv N k P R ⊢ |={E, E \ ↑N}=> ∀ q, Obl.assigned k q -∗
@@ -483,21 +470,21 @@ section Parents
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 @[lantana_alias parent_below_persistent]
-instance parBelow_persistent (p : Parent) (ℓ : Layer) : Persistent (parBelow (GF := GF) p ℓ) := by
-  cases p <;> unfold parBelow <;> infer_instance
+instance Par.below_persistent (p : Parent) (ℓ : Layer) : Persistent (Par.below (GF := GF) p ℓ) := by
+  cases p <;> unfold Par.below <;> infer_instance
 
 @[lantana_alias parent_le_persistent]
-instance parLe_persistent (p : Parent) (ℓ : Layer) : Persistent (parLe (GF := GF) p ℓ) := by
-  cases p <;> unfold parLe <;> infer_instance
+instance Par.le_persistent (p : Parent) (ℓ : Layer) : Persistent (Par.le (GF := GF) p ℓ) := by
+  cases p <;> unfold Par.le <;> infer_instance
 
 @[lantana_alias parP_below_thread]
-theorem parBelow_thread (i : ThreadId) (ℓ : Layer) : ⊢ parBelow (GF := GF) (.thread i) ℓ :=
+theorem Par.below_thread (i : ThreadId) (ℓ : Layer) : ⊢ Par.below (GF := GF) (.thread i) ℓ :=
   true_intro
 
 @[lantana_alias parP_below_obl]
-theorem parBelow_obl (q : Oid) {ℓq ℓ : Layer} (h : ℓq < ℓ) :
-    Wit.layer (GF := GF) q ℓq ⊢ parBelow (.obl q) ℓ := by
-  simp only [parBelow]
+theorem Par.below_obl (q : Oid) {ℓq ℓ : Layer} (h : ℓq < ℓ) :
+    Wit.layer (GF := GF) q ℓq ⊢ Par.below (.obl q) ℓ := by
+  simp only [Par.below]
   iintro W
   iexists ℓq
   iframe W
@@ -505,13 +492,13 @@ theorem parBelow_obl (q : Oid) {ℓq ℓ : Layer} (h : ℓq < ℓ) :
   exact h
 
 @[lantana_alias parP_le_thread]
-theorem parLe_thread (i : ThreadId) (ℓ : Layer) : ⊢ parLe (GF := GF) (.thread i) ℓ :=
+theorem Par.le_thread (i : ThreadId) (ℓ : Layer) : ⊢ Par.le (GF := GF) (.thread i) ℓ :=
   true_intro
 
 @[lantana_alias parP_le_obl]
-theorem parLe_obl (q : Oid) {ℓq ℓ : Layer} (h : ℓq ≤ ℓ) :
-    Wit.layer (GF := GF) q ℓq ⊢ parLe (.obl q) ℓ := by
-  simp only [parLe]
+theorem Par.le_obl (q : Oid) {ℓq ℓ : Layer} (h : ℓq ≤ ℓ) :
+    Wit.layer (GF := GF) q ℓq ⊢ Par.le (.obl q) ℓ := by
+  simp only [Par.le]
   iintro W
   iexists ℓq
   iframe W
@@ -519,11 +506,11 @@ theorem parLe_obl (q : Oid) {ℓq ℓ : Layer} (h : ℓq ≤ ℓ) :
   exact h
 
 @[lantana_alias parP_below_le]
-theorem parBelow_le (p : Parent) (ℓ : Layer) : parBelow (GF := GF) p ℓ ⊢ parLe p ℓ := by
+theorem Par.below_le (p : Parent) (ℓ : Layer) : Par.below (GF := GF) p ℓ ⊢ Par.le p ℓ := by
   cases p with
   | thread i => exact .rfl
   | obl q =>
-    simp only [parBelow, parLe]
+    simp only [Par.below, Par.le]
     iintro ⟨%ℓq, %h, W⟩
     iexists ℓq
     iframe W
@@ -537,6 +524,16 @@ theorem Par.kids_diff_discharged (p : Parent) (K : Oids) (x : Oid) :
   icases Par.kids_discharged x p K $$ H D with %hx
   rw [LawfulSet.diff_subset_disj (LawfulSet.disjoint_singleton_right.2 hx)]
   iexact H
+
+/-- A node with the same members. -/
+theorem Par.kids_congr {p : Parent} {A B : Oids} (h : ∀ k, k ∈ A ↔ k ∈ B) :
+    Par.kids (GF := GF) p A ⊢ Par.kids p B := by
+  rw [Std.ExtTreeSet.ext_mem h]
+
+/-- A bill with the same members. -/
+theorem Th.carriers_congr {j : ThreadId} {A B : Oids} (h : ∀ k, k ∈ A ↔ k ∈ B) :
+    Th.carriers (GF := GF) j A ⊢ Th.carriers j B := by
+  rw [Std.ExtTreeSet.ext_mem h]
 
 end Parents
 
@@ -590,12 +587,6 @@ theorem Obl.fuel_layer_eq (k : Oid) {ℓ₁ ℓ₂ : Layer} (μ : Measure) (h : 
 
 #lantana_ignore oblP_fuel_layer_eq_list "Layer equality is Leibniz: rewrite."
 #lantana_ignore oblP_fuel_layer_eq_set "Layer equality is Leibniz: rewrite."
-
-/-- `Obl.fuel_eq` with the layer explicit. -/
-@[lantana_alias oblP_fuel_eq]
-theorem Obl.fuel_eq_of_rep (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
-    (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) : Obl.fuel (GF := GF) k ℓ μ₁ ⊣⊢ Obl.fuel k ℓ μ₂ :=
-  Obl.fuel_eq k h
 
 @[lantana_alias oblP_fuel_eq_list]
 theorem Obl.fuel_eq_of_rep_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
@@ -747,7 +738,7 @@ theorem Obl.fuel_add_set (K : Oids) (ℓ : Layer) (μ₁ μ₂ : Measure) :
   (bigSepS_eqv fun _ => Obl.fuel_add _ ℓ μ₁ μ₂).trans bigSepS_sep
 
 @[lantana_alias oblP_fuel_mult]
-theorem Obl.fuel_mult (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_mul (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) :
     Obl.fuel (GF := GF) k ℓ (s * μ₂) ⊢ |==> (Obl.fuel k ℓ (s * μ₁) ∗ Obl.fuel k ℓ s) :=
   Obl.fuel_mono_split k ℓ (by
@@ -755,21 +746,21 @@ theorem Obl.fuel_mult (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measu
     exact jmul_le_jmul Ordinal.le_rfl (succ_le_of_lt h))
 
 @[lantana_alias oblP_fuel_mult_list]
-theorem Obl.fuel_mult_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_mul_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) :
     ([∗list] k ∈ K, Obl.fuel (GF := GF) k ℓ (s * μ₂)) ⊢
       |==> (([∗list] k ∈ K, Obl.fuel k ℓ (s * μ₁)) ∗ [∗list] k ∈ K, Obl.fuel k ℓ s) :=
-  bigSepL_bupd_sep_of fun k => Obl.fuel_mult k ℓ s h
+  bigSepL_bupd_sep_of fun k => Obl.fuel_mul k ℓ s h
 
 @[lantana_alias oblP_fuel_mult_set]
-theorem Obl.fuel_mult_set (K : Oids) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_mul_set (K : Oids) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) :
     ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ (s * μ₂)) ⊢
       |==> (([∗set] k ∈ K, Obl.fuel k ℓ (s * μ₁)) ∗ [∗set] k ∈ K, Obl.fuel k ℓ s) :=
-  bigSepS_bupd_sep_of fun k => Obl.fuel_mult k ℓ s h
+  bigSepS_bupd_sep_of fun k => Obl.fuel_mul k ℓ s h
 
 @[lantana_alias oblP_fuel_expn]
-theorem Obl.fuel_expn (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_pow (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) (hs : 0 < Measure.rep ℓ s) :
     Obl.fuel (GF := GF) k ℓ (s ^ μ₂) ⊢ |==> Obl.fuel k ℓ (s ^ μ₁ * s) :=
   Obl.fuel_mono k ℓ (by
@@ -777,18 +768,18 @@ theorem Obl.fuel_expn (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measu
     exact jpow_le_jpow Ordinal.le_rfl (succ_le_of_lt h))
 
 @[lantana_alias oblP_fuel_expn_list]
-theorem Obl.fuel_expn_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_pow_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) (hs : 0 < Measure.rep ℓ s) :
     ([∗list] k ∈ K, Obl.fuel (GF := GF) k ℓ (s ^ μ₂)) ⊢
       |==> [∗list] k ∈ K, Obl.fuel k ℓ (s ^ μ₁ * s) :=
-  bigSepL_bupd_of fun k => Obl.fuel_expn k ℓ s h hs
+  bigSepL_bupd_of fun k => Obl.fuel_pow k ℓ s h hs
 
 @[lantana_alias oblP_fuel_expn_set]
-theorem Obl.fuel_expn_set (K : Oids) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_pow_set (K : Oids) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) (hs : 0 < Measure.rep ℓ s) :
     ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ (s ^ μ₂)) ⊢
       |==> [∗set] k ∈ K, Obl.fuel k ℓ (s ^ μ₁ * s) :=
-  bigSepS_bupd_of fun k => Obl.fuel_expn k ℓ s h hs
+  bigSepS_bupd_of fun k => Obl.fuel_pow k ℓ s h hs
 
 @[lantana_alias oblP_fuel_extend_list]
 theorem Obl.fuel_extend_list (K : List Oid) {ℓ₁ ℓ₂ : Layer} (h : ℓ₁ < ℓ₂) (μ : Measure) :
@@ -826,36 +817,37 @@ theorem Wit.cred_lt (k : Oid) {a₀ a₁ : Fuel} (h : a₀ < a₁) :
 /-! ### Fuels of sets of obligations -/
 
 @[lantana_alias oblP_fuels_add_gen]
-theorem oblFuels_add_gen (K : Oids) (m₁ m₂ : Measure) :
-    oblFuels (GF := GF) K (m₁ + m₂) ⊢ oblFuels K m₁ ∗ oblFuels K m₂ :=
+theorem Obl.fuels_add_gen (K : Oids) (m₁ m₂ : Measure) :
+    Obl.fuels (GF := GF) K (m₁ + m₂) ⊢ Obl.fuels K m₁ ∗ Obl.fuels K m₂ :=
   (bigSepS_mono_of_forall fun k => exists_elim fun ℓ =>
     (Obl.fuel_add k ℓ m₁ m₂).1.trans (sep_mono (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ _) ℓ)
       (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ _) ℓ))).trans
     bigSepS_sep.1
 
 @[lantana_alias oblP_fuels_add]
-theorem oblFuels_add (n m : Nat) (K : Oids) :
-    oblFuels (GF := GF) K ((n + m : Nat) : Measure) ⊢
-      oblFuels K (n : Measure) ∗ oblFuels K (m : Measure) :=
+theorem Obl.fuels_add (n m : Nat) (K : Oids) :
+    Obl.fuels (GF := GF) K ((n + m : Nat) : Measure) ⊢
+      Obl.fuels K (n : Measure) ∗ Obl.fuels K (m : Measure) :=
   (bigSepS_mono_of_forall fun k => exists_elim fun ℓ =>
     (Obl.fuel_add_nat k ℓ rfl).1.trans (sep_mono (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ _) ℓ)
       (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ _) ℓ))).trans
     bigSepS_sep.1
 
 @[lantana_alias oblP_fuels_add_nat]
-theorem oblFuels_add_nat (m₁ m₂ n : Nat) (K : Oids) (h : n = m₁ + m₂) :
-    oblFuels (GF := GF) K (n : Measure) ⊢ oblFuels K (m₁ : Measure) ∗ oblFuels K (m₂ : Measure) :=
-  h ▸ oblFuels_add m₁ m₂ K
+theorem Obl.fuels_add_nat (m₁ m₂ n : Nat) (K : Oids) (h : n = m₁ + m₂) :
+    Obl.fuels (GF := GF) K (n : Measure) ⊢
+      Obl.fuels K (m₁ : Measure) ∗ Obl.fuels K (m₂ : Measure) :=
+  h ▸ Obl.fuels_add m₁ m₂ K
 
 @[lantana_alias oblP_fuels_init]
-theorem oblFuels_init (K : Oids) (m : Measure) (ℓ : Layer) :
-    ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ m) ⊢ oblFuels K m :=
+theorem Obl.fuels_init (K : Oids) (m : Measure) (ℓ : Layer) :
+    ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ m) ⊢ Obl.fuels K m :=
   bigSepS_mono_of_forall fun k => exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ m) ℓ
 
 @[lantana_alias oblP_fuels_add_obl]
-theorem oblFuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
-    Obl.fuel (GF := GF) k ℓ n ⊢ oblFuels K n -∗ oblFuels (K.insert k) n := by
-  unfold oblFuels
+theorem Obl.fuels_insert (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
+    Obl.fuel (GF := GF) k ℓ n ⊢ Obl.fuels K n -∗ Obl.fuels (K.insert k) n := by
+  unfold Obl.fuels
   refine wand_intro ?_
   rw [insert_eq_singleton_union_extTreeSet]
   refine (sep_mono_left ?_).trans bigSepS_union_2
@@ -863,19 +855,31 @@ theorem oblFuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
     (bigSepS_singleton (Φ := fun k => iprop(∃ ℓ, Obl.fuel k ℓ n))).2
 
 @[lantana_alias oblP_fuels_add_obls]
-theorem oblFuels_add_obls (K₁ K₂ : Oids) (n : Measure) :
-    oblFuels (GF := GF) K₁ n ⊢ oblFuels K₂ n -∗ oblFuels (K₁ ∪ K₂) n :=
+theorem Obl.fuels_union (K₁ K₂ : Oids) (n : Measure) :
+    Obl.fuels (GF := GF) K₁ n ⊢ Obl.fuels K₂ n -∗ Obl.fuels (K₁ ∪ K₂) n :=
   wand_intro bigSepS_union_2
 
 @[lantana_alias oblP_fuels_remove_obl]
-theorem oblFuels_remove_obl (k : Oid) (K : Oids) (n : Measure) :
-    oblFuels (GF := GF) K n ⊢ oblFuels (K.erase k) n :=
+theorem Obl.fuels_erase (k : Oid) (K : Oids) (n : Measure) :
+    Obl.fuels (GF := GF) K n ⊢ Obl.fuels (K.erase k) n :=
   bigSepS_subseteq fun _ hx => (Std.ExtTreeSet.mem_erase.mp hx).2
 
 @[lantana_alias oblP_fuels_remove_obls]
-theorem oblFuels_remove_obls (K₂ K₁ : Oids) (n : Measure) :
-    oblFuels (GF := GF) K₁ n ⊢ oblFuels (K₁ \ K₂) n :=
+theorem Obl.fuels_diff (K₂ K₁ : Oids) (n : Measure) :
+    Obl.fuels (GF := GF) K₁ n ⊢ Obl.fuels (K₁ \ K₂) n :=
   bigSepS_subseteq diff_subset_left
+
+/-- The fuel of a set of obligations gives that of a subset. -/
+theorem Obl.fuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
+    Obl.fuels (GF := GF) A n ⊢ Obl.fuels B n := by
+  unfold Obl.fuels
+  exact BigSepS.bigSepS_subseteq h
+
+/-- A thread without children pays nothing. -/
+theorem Obl.fuels_empty (n : Measure) : ⊢ Obl.fuels (GF := GF) ∅ n := by
+  unfold Obl.fuels
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
 
 end Fuel
 
@@ -886,14 +890,6 @@ section Witness
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 open BigSepM BigSepS LawfulPartialMap LawfulFiniteMap
-
-omit [ModelGS GF] in
-/-- `Std.ExtTreeMap.insert` is the partial-map insertion of Iris-Lean. -/
-theorem OidMap.insert_eq {V : Type _} (F : OidMap V) (k : Oid) (v : V) :
-    F.insert k v = PartialMap.insert F k v := by
-  refine Std.ExtTreeMap.ext_getElem? fun k' => ?_
-  change (F.insert k v)[k']? = (F.alter k fun _ => some v)[k']?
-  rw [Std.ExtTreeMap.getElem?_insert, Std.ExtTreeMap.getElem?_alter]
 
 omit [ModelGS GF] in
 /-- The union of `Std.ExtTreeMap` is right-biased: `F ∪ G` takes the values of `G`. -/
@@ -1043,9 +1039,35 @@ theorem embedFuels_decr {A : Type} {r : A → A → Prop} (hwf : WellFounded r) 
     embedFuels (GF := GF) hwf a F ⊢
       |==> (embedFuels hwf a' F ∗ [∗map] f ↦ lm ∈ F, Obl.fuel f lm.1 lm.2) := by
   unfold embedFuels
-  exact (bigSepM_mono_of_forall fun {f} {lm : Layer × Measure} => Obl.fuel_mult f lm.1 lm.2
+  exact (bigSepM_mono_of_forall fun {f} {lm : Layer × Measure} => Obl.fuel_mul f lm.1 lm.2
     (Measure.rep_embed_lt lm.1 hwf h)).trans <|
     (bigSepM_bupd _).trans (BIUpdate.mono (BiEntails.of_eq bigSepM_sep_eq).1)
+
+/-- The credits of `m + 1` steps give those of one step. -/
+theorem Wit.creds_of_nat (R : Oids) (m : Nat) :
+    ([∗set] r ∈ R, Wit.cred (GF := GF) r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) ⊢
+      Wit.creds R := by
+  unfold Wit.creds
+  refine BigSepS.bigSepS_mono fun _ => ?_
+  iintro (H | #H)
+  · ileft
+    rw [show ((m + 1 : Nat) : Fuel) = (m : Fuel) +ₕ 1 from (Ordinals.Ordinal.nadd_ofNat m 1).symm]
+    icases (Wit.cred_split _ _ _).mp $$ H with ⟨-, H⟩
+    iexact H
+  · iright
+    iexact H
+
+/-- No witnesses. -/
+theorem Wit.layers_empty : ⊢ Wit.layers (GF := GF) ∅ := by
+  unfold Wit.layers
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
+
+/-- What a step that observes the witness `k` gives back: a credit of `k`, or its discharge. -/
+theorem Wit.creds_singleton (k : Oid) :
+    Wit.creds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
+  unfold Wit.creds
+  exact BigSepS.bigSepS_singleton.mp
 
 end Witness
 
@@ -1087,8 +1109,8 @@ theorem Par.bill_erase_discharged (E : CoPset) (p : Parent) (B : Oids) (k : Oid)
 /-! ### Allocation and moves -/
 
 @[lantana_alias obl_alloc_assigned]
-theorem obl_alloc_assigned (E : CoPset) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+theorem Obl.alloc_assigned (E : CoPset) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
+    Par.le (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
         oblKids k ∅ ∗ Obl.assigned k (Qp.half 1) ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ ∗
         (∀ (E : CoPset) (N : Namespace) (P R : IProp GF), ▷ P ={E}=∗ Obl.inv N k P R) := by
@@ -1107,9 +1129,9 @@ theorem obl_alloc_assigned (E : CoPset) (p : Parent) (K B : Oids) (ℓ : Layer) 
 /-- Moving a set `X` of children of `p₁` below `p₂`, into the bill of `p₂`: one unit of fuel
 each, each at its own layer. -/
 @[lantana_alias obl_move_set_gen]
-theorem obl_move_set_gen (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ X : Oids) (hX : X ⊆ K₁) :
+theorem Obl.move_set_gen (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ X : Oids) (hX : X ⊆ K₁) :
     Par.kids (GF := GF) p₁ K₁ ⊢ Par.kids p₂ K₂ -∗ Par.bill p₂ B₂ -∗
-      ([∗set] k ∈ X, ∃ ℓ : Layer, parBelow p₂ ℓ ∗ Obl.fuel k ℓ 1) -∗
+      ([∗set] k ∈ X, ∃ ℓ : Layer, Par.below p₂ ℓ ∗ Obl.fuel k ℓ 1) -∗
       |={E}=>m ⌜X ## K₂⌝ ∗ Par.kids p₁ (K₁ \ X) ∗ Par.kids p₂ (X ∪ K₂) ∗
         Par.bill p₂ (X ∪ B₂) := by
   induction X using FiniteSet.set_ind with
@@ -1121,7 +1143,7 @@ theorem obl_move_set_gen (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ X : O
     ipureintro
     exact disjoint_empty_left
   | hadd x X hx ih =>
-    have hbig := bigSepS_insert (Φ := fun k => iprop(∃ ℓ : Layer, parBelow (GF := GF) p₂ ℓ ∗
+    have hbig := bigSepS_insert (Φ := fun k => iprop(∃ ℓ : Layer, Par.below (GF := GF) p₂ ℓ ∗
       Obl.fuel k ℓ 1)) hx
     rw [LawfulSet.insert_union] at hX hbig ⊢
     have hxK : x ∈ K₁ \ X :=
@@ -1150,37 +1172,37 @@ theorem obl_move_set_gen (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ X : O
 /-- Moving a set `X` of children of `p₁` below the thread `j`, into its bill: one unit of fuel
 each, at any layer. -/
 @[lantana_alias obl_move_thread_set]
-theorem obl_move_thread_set (E : CoPset) (p₁ : Parent) (j : ThreadId) (K₁ K₂ B₂ X : Oids)
+theorem Obl.move_thread_set (E : CoPset) (p₁ : Parent) (j : ThreadId) (K₁ K₂ B₂ X : Oids)
     (hX : X ⊆ K₁) :
     Par.kids (GF := GF) p₁ K₁ ⊢ thKids j K₂ -∗ thCarriers j B₂ -∗
       ([∗set] k ∈ X, ∃ ℓ : Layer, Obl.fuel k ℓ 1) -∗
       |={E}=>m ⌜X ## K₂⌝ ∗ Par.kids p₁ (K₁ \ X) ∗ thKids j (X ∪ K₂) ∗ thCarriers j (X ∪ B₂) := by
   iintro P1 P2 HB Fs
-  iapply obl_move_set_gen E p₁ (.thread j) K₁ K₂ B₂ X hX $$ P1 P2 HB
+  iapply Obl.move_set_gen E p₁ (.thread j) K₁ K₂ B₂ X hX $$ P1 P2 HB
   iapply bigSepS_impl $$ Fs
   imodintro
   iintro %k %_ ⟨%ℓ, F⟩
   iexists ℓ
   iframe F
-  iapply parBelow_thread j ℓ
+  iapply Par.below_thread j ℓ
 
 /-- Moving a set `X` of children of `p₁` below the obligation `q`: one unit of fuel each, each at
 a layer above the witness layer `ℓq` of `q`. -/
 @[lantana_alias obl_move_obl_set]
-theorem obl_move_obl_set (E : CoPset) (p₁ : Parent) (q : Oid) (K₁ K₂ X : Oids) (ℓq : Layer)
+theorem Obl.move_obl_set (E : CoPset) (p₁ : Parent) (q : Oid) (K₁ K₂ X : Oids) (ℓq : Layer)
     (hX : X ⊆ K₁) :
     Wit.layer (GF := GF) q ℓq ⊢ Par.kids p₁ K₁ -∗ oblKids q K₂ -∗
       ([∗set] k ∈ X, ∃ ℓ : Layer, ⌜ℓq < ℓ⌝ ∗ Obl.fuel k ℓ 1) -∗
       |={E}=>m ⌜X ## K₂⌝ ∗ Par.kids p₁ (K₁ \ X) ∗ oblKids q (X ∪ K₂) := by
   iintro #W P1 P2 Fs
-  imod obl_move_set_gen E p₁ (.obl q) K₁ K₂ ∅ X hX $$ P1 P2 [] [Fs] with ⟨%hdis, P1, P2, -⟩
+  imod Obl.move_set_gen E p₁ (.obl q) K₁ K₂ ∅ X hX $$ P1 P2 [] [Fs] with ⟨%hdis, P1, P2, -⟩
   · iempintro
   · iapply bigSepS_impl $$ Fs
     imodintro
     iintro %k %_ ⟨%ℓ, %hl, F⟩
     iexists ℓ
     iframe F
-    iapply parBelow_obl q hl $$ W
+    iapply Par.below_obl q hl $$ W
   imodintro
   iframe P1 P2
   ipureintro
@@ -1189,7 +1211,7 @@ theorem obl_move_obl_set (E : CoPset) (p₁ : Parent) (q : Oid) (K₁ K₂ X : O
 /-- Moving a set `X` of children of `k` up to the parent `p` of `k`, into the bill of `p`, for
 free. -/
 @[lantana_alias obl_move_up_set]
-theorem obl_move_up_set (E : CoPset) (p : Parent) (K B : Oids) (k : Oid) (Kk X : Oids)
+theorem Obl.move_up_set (E : CoPset) (p : Parent) (K B : Oids) (k : Oid) (Kk X : Oids)
     (hk : k ∈ K) (hX : X ⊆ Kk) :
     Par.kids (GF := GF) p K ⊢ Par.bill p B -∗ oblKids k Kk -∗
       |={E}=>m ⌜X ## K⌝ ∗ Par.kids p (X ∪ K) ∗ Par.bill p (X ∪ B) ∗ oblKids k (Kk \ X) := by
@@ -1225,7 +1247,7 @@ theorem obl_move_up_set (E : CoPset) (p : Parent) (K B : Oids) (k : Oid) (Kk X :
     · exact hdis y ⟨hy, hy₂⟩
 
 @[lantana_alias obl_alloc_discharged]
-theorem obl_alloc_discharged (E : CoPset) (ℓ : Layer) :
+theorem Obl.alloc_discharged (E : CoPset) (ℓ : Layer) :
     ⊢ |={E}=>m ∃ k : Oid, Obl.discharged (GF := GF) k ∗ Wit.layer k ℓ ∗
       (∀ (E : CoPset) (N : Namespace) (P R : IProp GF), ▷ R ={E}=∗ Obl.inv N k P R) := by
   imod Obl.new_discharged E ℓ with ⟨%k, #D, W⟩
@@ -1236,7 +1258,7 @@ theorem obl_alloc_discharged (E : CoPset) (ℓ : Layer) :
   iapply Obl.inv_alloc_discharged E' N k P R $$ D HR
 
 @[lantana_alias obl_check_witnesses]
-theorem obl_check_witnesses (E : CoPset) (R : Oids) :
+theorem Obl.check_witnesses (E : CoPset) (R : Oids) :
     ([∗set] r ∈ R, ∃ ℓ : Layer, Wit.layer (GF := GF) r ℓ) ⊢
       |={E}=>m [∗set] r ∈ R, (Wit.cred r 0 ∨ Obl.discharged r) :=
   (bigSepS_mono_of_forall fun r => exists_elim fun ℓ => Obl.check_witness E r ℓ).trans
@@ -1247,12 +1269,12 @@ theorem obl_check_witnesses (E : CoPset) (R : Oids) :
 /-- Discharging `k` after moving its children up to its parent `p` (for free), which leaves the
 bill of `p`. -/
 @[lantana_alias obl_discharge_lift_kids]
-theorem obl_discharge_lift_kids (E : CoPset) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oids)
+theorem Obl.discharge_lift_kids (E : CoPset) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oids)
     (hk : k ∈ K) :
     Par.kids (GF := GF) p K ⊢ Par.bill p B -∗ oblKids k Kk -∗ Obl.assigned k 1 -∗
       |={E}=>m Par.kids p (Kk ∪ K.erase k) ∗ Par.bill p (Kk ∪ B.erase k) ∗ Obl.discharged k := by
   iintro P HB Ck A
-  imod obl_move_up_set E p K B k Kk Kk hk subset_refl $$ P HB Ck with ⟨%hdis, P, HB, Ck⟩
+  imod Obl.move_up_set E p K B k Kk Kk hk subset_refl $$ P HB Ck with ⟨%hdis, P, HB, Ck⟩
   rw [diff_all]
   imod Obl.discharge_leaf E p (Kk ∪ K) k (mem_union.mpr (.inr hk)) $$ P Ck A with ⟨P, #D⟩
   imod Par.bill_erase_discharged E p (Kk ∪ B) k $$ HB D with HB
@@ -1270,7 +1292,7 @@ theorem obl_discharge_lift_kids (E : CoPset) (p : Parent) (K B : Oids) (k : Oid)
 /-- Discharging `k` with the invariant `Obl.inv N k P R`: `P` is taken out, and once `R` is
 established, `k` (a childless child of `p`) is discharged. -/
 @[lantana_alias obl_discharge_inv]
-theorem obl_discharge_inv (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF)
+theorem Obl.discharge_inv (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF)
     (hN : ↑N ⊆ E) :
     Obl.inv N k P R ⊢ |={E, E \ ↑N}=> ∀ q, Obl.assigned k q -∗
       ▷ (Obl.assigned k q ∗ Obl.assigned k (Qp.half 1) ∗ P) ∗
@@ -1324,7 +1346,7 @@ private theorem bigSepS_kids_diff_discharged (T : Oids) (kids : Oid → Oids) (x
 
 /-- Discharging a childless obligation `x`, a child of one of the roots `ps`: every root loses
 `x`. -/
-private theorem obl_discharge_leaf_roots (E : CoPset) (ps : List Parent) (K : Parent → Oids)
+private theorem Obl.discharge_leaf_roots (E : CoPset) (ps : List Parent) (K : Parent → Oids)
     (x : Oid) (hx : ∃ p, p ∈ ps ∧ x ∈ K p) :
     ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢ oblKids x ∅ -∗ Obl.assigned x 1 -∗
       |={E}=>m ([∗list] p ∈ ps, Par.kids p (K p \ {x})) ∗ Obl.discharged x := by
@@ -1355,8 +1377,8 @@ private theorem obl_discharge_leaf_roots (E : CoPset) (ps : List Parent) (K : Pa
       rw [diff_subset_disj (disjoint_singleton_right.2 hq)]
       iframe Hq Hps
 
-/-- `obl_discharge_forest` for a given rank of the forest. -/
-private theorem obl_discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r : Oid → Fuel)
+/-- `Obl.discharge_forest` for a given rank of the forest. -/
+private theorem Obl.discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r : Oid → Fuel)
     (S : Oids) :
     ∀ (K : Parent → Oids) (kids : Oid → Oids), (∀ k, k ∈ S → kids k ⊆ S) →
       (∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) →
@@ -1402,7 +1424,7 @@ private theorem obl_discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r 
     icases (bigSepS_delete hxS).1 $$ HS with ⟨⟨Hx, Ax⟩, HS⟩
     ihave Hx := hleaf $$ Hx
     rcases hcovered x hxS with hroot | ⟨k, hkS, hxk'⟩
-    · imod obl_discharge_leaf_roots E ps K x hroot $$ Hps Hx Ax with ⟨Hps, #D⟩
+    · imod Obl.discharge_leaf_roots E ps K x hroot $$ Hps Hx Ax with ⟨Hps, #D⟩
       ihave HS := bigSepS_kids_diff_discharged (S \ {x}) kids x $$ HS D
       imod ih $$ Hps HS with ⟨Hps, HD⟩
       imodintro
@@ -1424,7 +1446,7 @@ private theorem obl_discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r 
       iframe D HD
 
 /-- Discharging a whole forest below the roots `ps` in one model update. -/
-theorem obl_discharge_forest (E : CoPset) (ps : List Parent) (K : Parent → Oids) (S : Oids)
+theorem Obl.discharge_forest (E : CoPset) (ps : List Parent) (K : Parent → Oids) (S : Oids)
     (kids : Oid → Oids) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :
     ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢
@@ -1433,18 +1455,18 @@ theorem obl_discharge_forest (E : CoPset) (ps : List Parent) (K : Parent → Oid
   iintro Hps HS
   icases bigSepS_sep.1 $$ HS with ⟨HK, HA⟩
   imod Obl.kids_rank E S kids $$ HK with ⟨%⟨r, hr⟩, HK⟩
-  iapply obl_discharge_forest_of_rank E ps r S K kids hclosed hcovered hr $$ Hps
+  iapply Obl.discharge_forest_of_rank E ps r S K kids hclosed hcovered hr $$ Hps
   iapply bigSepS_sep.2
   iframe HK HA
 
 /-- Discharging a whole forest below one parent `p`. -/
-theorem obl_discharge_forest_single (E : CoPset) (p : Parent) (K S : Oids) (kids : Oid → Oids)
+theorem Obl.discharge_forest_single (E : CoPset) (p : Parent) (K S : Oids) (kids : Oid → Oids)
     (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → x ∈ K ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :
     Par.kids (GF := GF) p K ⊢ ([∗set] k ∈ S, oblKids k (kids k) ∗ Obl.assigned k 1) -∗
       |={E}=>m Par.kids p (K \ S) ∗ [∗set] k ∈ S, Obl.discharged k := by
   iintro Hp HS
-  imod obl_discharge_forest E [p] (fun _ => K) S kids hclosed
+  imod Obl.discharge_forest E [p] (fun _ => K) S kids hclosed
     (fun x hx => (hcovered x hx).imp_left fun h => ⟨p, List.mem_singleton_self p, h⟩)
     $$ [Hp] HS with ⟨Hp, HD⟩
   · iapply BigSepL.bigSepL_singleton.2
@@ -1454,14 +1476,14 @@ theorem obl_discharge_forest_single (E : CoPset) (p : Parent) (K S : Oids) (kids
   iframe Hp HD
 
 /-- Discharging every obligation below the roots `ps`: the roots end without children. -/
-theorem obl_discharge_forest_all (E : CoPset) (ps : List Parent) (K : Parent → Oids) (S : Oids)
+theorem Obl.discharge_forest_all (E : CoPset) (ps : List Parent) (K : Parent → Oids) (S : Oids)
     (kids : Oid → Oids) (hK : ∀ p, p ∈ ps → K p ⊆ S) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :
     ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢
       ([∗set] k ∈ S, oblKids k (kids k) ∗ Obl.assigned k 1) -∗
         |={E}=>m ([∗list] p ∈ ps, Par.kids p ∅) ∗ [∗set] k ∈ S, Obl.discharged k := by
   iintro Hps HS
-  imod obl_discharge_forest E ps K S kids hclosed hcovered $$ Hps HS with ⟨Hps, HD⟩
+  imod Obl.discharge_forest E ps K S kids hclosed hcovered $$ Hps HS with ⟨Hps, HD⟩
   imodintro
   iframe HD
   iapply BigSepL.bigSepL_mono ?_ $$ Hps
@@ -1470,7 +1492,7 @@ theorem obl_discharge_forest_all (E : CoPset) (ps : List Parent) (K : Parent →
   rw [eq_empty_iff.2 fun y hy => (mem_diff.1 hy).2 (hp' y (mem_diff.1 hy).1)]
 
 /-- Discharging every obligation below the threads `js`: the threads end without children. -/
-theorem obl_discharge_forest_threads (E : CoPset) (js : List ThreadId) (K : ThreadId → Oids)
+theorem Obl.discharge_forest_threads (E : CoPset) (js : List ThreadId) (K : ThreadId → Oids)
     (S : Oids) (kids : Oid → Oids) (hK : ∀ j, j ∈ js → K j ⊆ S)
     (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ j, j ∈ js ∧ x ∈ K j) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) :
@@ -1480,7 +1502,7 @@ theorem obl_discharge_forest_threads (E : CoPset) (js : List ThreadId) (K : Thre
   let K' : Parent → Oids := fun p => match p with
     | .thread j => K j
     | .obl _ => ∅
-  have h := obl_discharge_forest_all (GF := GF) (Expr := Expr) (State := State) E
+  have h := Obl.discharge_forest_all (GF := GF) (Expr := Expr) (State := State) E
     (js.map .thread) K' S kids
     (fun p hp => by
       obtain ⟨j, hj, rfl⟩ := List.mem_map.1 hp
@@ -1501,7 +1523,7 @@ variable {GF : BundledGFunctors} [ModelGS GF]
 
 @[lantana_alias mprog_step]
 theorem mprog_step (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
-    (|={∅}=> ∃ B : Oids, thCarriers i B ∗ oblFuels B 1 ∗
+    (|={∅}=> ∃ B : Oids, thCarriers i B ∗ Obl.fuels B 1 ∗
         ∃ R : Oids, ([∗set] r ∈ R, ∃ ℓ : Layer, Wit.layer r ℓ) ∗
           (thCarriers i B ∗ ([∗set] r ∈ R, Wit.cred r 1 ∨ Obl.discharged r) ={∅}=∗ P)) ⊢
       mprog n tc X i P := by
@@ -1510,7 +1532,7 @@ theorem mprog_step (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IPro
   imod H with ⟨%B, T, F, %R, W, H⟩
   imodintro
   have hstep := step_progress (GF := GF) n tc X i B R P
-  simp only [witLayers, witCreds] at hstep
+  simp only [Wit.layers, Wit.creds] at hstep
   iapply hstep $$ T F W
   iintro T C
   iapply H
@@ -1523,7 +1545,7 @@ theorem mprog_step (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IPro
 theorem mphys_step (n₁ n₂ tc₁ tc₂ : Nat) (X : ThreadId → Prop) (P : IProp GF) (hn : n₁ ≤ n₂)
     (htc : tc₁ ≤ tc₂) (hX : ∀ j, tc₁ ≤ j → ¬X j) :
     (|={∅}=> ([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thActive j ∗ thKids j ∅ ∗ thCarriers j ∅)
-      ={∅}=∗ ALC (|=[n₂]=>m P)) ⊢
+      ={∅}=∗ alc (|=[n₂]=>m P)) ⊢
       mphys n₁ n₂ tc₁ tc₂ X X P :=
   (fupd_mono (step_fork n₁ n₂ tc₁ tc₂ X P hn htc hX)).trans (fupd_mphys n₁ n₂ tc₁ tc₂ X X P)
 

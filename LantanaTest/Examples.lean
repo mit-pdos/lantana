@@ -68,7 +68,7 @@ example : Handoff.receive =
   rfl
 
 /-- The end-to-end statement of `flag_fork.v`, liveness and safety. -/
-example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+example (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ)
     (hpos : τ.pos = 0) (hinit : τ.seq 0 = (FlagFork.tp0, FlagFork.σ0)) :
     FlagFork.rMain 0 τ ∧ safetyIris 0 (fun _ v => v = FlagFork.v42) τ :=
   FlagFork.main_liveness_safety τ hbeh hfair hpos hinit
@@ -81,16 +81,16 @@ set_option linter.deprecated false in
 example : @RocqLantana.flag_fork.main_adequacy = @FlagFork.main_adequacy := rfl
 
 set_option linter.deprecated false in
-example : @RocqLantana.handoff_client_adequacy = @HandoffClient.handoffClient_adequacy := rfl
+example : @RocqLantana.handoff_client_adequacy = @HandoffClient.adequacy := rfl
 
 /-- The clients of the stable flag export its stronger property: once the flag is `1`, it stays
 `1`. -/
-example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+example (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ)
     (hpos : τ.pos = 0) (hinit : τ.seq 0 = (FlagClient.tp0, FlagClient.σ0)) :
     FlagStable.flagStaysTr FlagClient.xLoc τ :=
   FlagStable.isFlagTr_stays _ τ (FlagStableClient.flagClient_adequacy τ hbeh hfair hpos hinit).1
 
-example (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+example (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ)
     (hpos : τ.pos = 0) (hinit : τ.seq 0 = (HandoffClient.tp0, HandoffClient.σ0)) :
     (◇ₜ (∃ₜ x : Loc, FlagStable.flagStaysTr x)) τ :=
   HandoffFlagStableClient.handoffClient_flag_stays τ hbeh hfair hpos hinit
@@ -110,9 +110,9 @@ open scoped ExtendedInt
 /-- The representations, the order, and its decision by cases. -/
 example : intoVal ((3 : Int) : ExtInt) = hl_val((#1, #(3 : Int))) := rfl
 example : intoVal -∞ = hl_val((#0, #())) ∧ intoVal +∞ = hl_val((#2, #())) := ⟨rfl, rfl⟩
-example : ltRel -∞ ((-7 : Int) : ExtInt) ∧ ¬ ltRel +∞ +∞ := by decide
-example : decide (ltRel ((2 : Int) : ExtInt) ((5 : Int) : ExtInt)) = true := rfl
-example (x y : ExtInt) : decide (ltRel x y) = ltb x y := decide_ltRel x y
+example : LtRel -∞ ((-7 : Int) : ExtInt) ∧ ¬ LtRel +∞ +∞ := by decide
+example : decide (LtRel ((2 : Int) : ExtInt) ((5 : Int) : ExtInt)) = true := rfl
+example (x y : ExtInt) : decide (LtRel x y) = ltb x y := decide_ltRel x y
 
 /-- `lt` compares the tags, then the integers. -/
 example : ExtendedInt.lt = hl_val(λ a b,
@@ -138,18 +138,18 @@ info: 'Lantana.Examples.FlagFork.main_liveness_safety' depends on axioms:
 #print axioms FlagFork.main_liveness_safety
 
 /--
-info: 'Lantana.Examples.FlagClient.flagClient_liveness_safety' depends on axioms:
+info: 'Lantana.Examples.FlagClient.liveness_safety' depends on axioms:
   [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs (whitespace := lax) in
-#print axioms FlagClient.flagClient_liveness_safety
+#print axioms FlagClient.liveness_safety
 
 /--
-info: 'Lantana.Examples.HandoffClient.handoffClient_liveness_safety' depends on axioms:
+info: 'Lantana.Examples.HandoffClient.liveness_safety' depends on axioms:
   [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs (whitespace := lax) in
-#print axioms HandoffClient.handoffClient_liveness_safety
+#print axioms HandoffClient.liveness_safety
 
 /--
 info: 'Lantana.Examples.FlagStableClient.flagClient_liveness_safety' depends on axioms:

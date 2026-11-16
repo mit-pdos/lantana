@@ -81,9 +81,9 @@ def ECtxItem.fill (Ki : ECtxItem) (e : Exp) : Exp :=
   match Ki with
   | .appL v2        => .app e (.ofVal v2)
   | .appR e1        => .app e1 e
-  | .unOp op        => .unop op e
-  | .binOpL op v2   => .binop op e (.ofVal v2)
-  | .binOpR op e1   => .binop op e1 e
+  | .unOp op        => .unOp op e
+  | .binOpL op v2   => .binOp op e (.ofVal v2)
+  | .binOpR op e1   => .binOp op e1 e
   | .if e1 e2       => .if e e1 e2
   | .pairL v2       => .pair e (.ofVal v2)
   | .pairR e1       => .pair e1 e
@@ -131,19 +131,19 @@ The atoms of temporal properties: predicates on the state and the thread pool. -
 /-- The location `l` holds `v`. The fraction `dq` of the points-to plays no role; it is an
 argument so that the `StateFact` instance for `l ↦{dq} v` can be stated uniformly. -/
 @[lantana_alias heap_lang.pointsto_sat]
-def pointstoSat (l : Loc) (_dq : Iris.DFrac) (v : Val) (σ : State) (_tp : List Exp) : Prop :=
+def PointsToSat (l : Loc) (_dq : Iris.DFrac) (v : Val) (σ : State) (_tp : List Exp) : Prop :=
   σ.heap[l]? = some (some v)
 
 /-- Thread `i` runs `e` in the context `C` (innermost item first). The fold is `fill C e`
 (`threadExprSat_iff`). -/
 @[lantana_alias heap_lang.thread_expr_sat]
-def threadExprSat (i : Nat) (C : List ECtxItem) (e : Exp) (_σ : State) (tp : List Exp) :
+def ThreadExprSat (i : Nat) (C : List ECtxItem) (e : Exp) (_σ : State) (tp : List Exp) :
     Prop :=
   tp[i]? = some (C.foldl (fun e Ki => Ki.fill e) e)
 
 /-- The location `l` has been freed. -/
 @[lantana_alias heap_lang.freed_sat]
-def freedSat (l : Loc) (σ : State) (_tp : List Exp) : Prop :=
+def FreedSat (l : Loc) (σ : State) (_tp : List Exp) : Prop :=
   σ.heap[l]? = some none
 
 @[lantana_alias heap_lang.un_op_eval]
@@ -243,7 +243,8 @@ abbrev allocCells (l : Loc) (n : Nat) (v : Option Val) : HeapF (Option Val) :=
 theorem heapArray_nil {l : Loc} : heapArray l [] = (∅ : HeapF (Option Val)) := rfl
 
 @[lantana_alias heap_lang.heap_array_singleton]
-theorem heapArray_singleton {l : Loc} {v : Option Val} : heapArray l [v] = PartialMap.singleton l v := rfl
+theorem heapArray_singleton {l : Loc} {v : Option Val} :
+    heapArray l [v] = PartialMap.singleton l v := rfl
 
 theorem heapArray_snoc {l : Loc} {vs : List (Option Val)} {v : Option Val} :
     heapArray l (vs ++ [v]) =
@@ -254,12 +255,12 @@ theorem heapArray_snoc {l : Loc} {vs : List (Option Val)} {v : Option Val} :
     simp only [List.cons_append, heapArray, List.length_cons]
     rw [ih, Iris.Std.LawfulPartialMap.insert_insert_comm]
     · congr 1
-      rw [loc_add_assoc]
+      rw [Loc.add_assoc]
       congr 1
       omega
     · intro h
       have := congrArg Loc.n h
-      simp only [loc_add_n] at this
+      simp only [Loc.add_n] at this
       omega
 
 @[lantana_alias heap_lang.heap_array_lookup]
@@ -272,7 +273,7 @@ theorem get?_heapArray {l : Loc} {vs : List (Option Val)} {ow : Option Val} {k :
     rw [heapArray, Iris.Std.LawfulPartialMap.get?_insert]
     have hadd (j : Nat) :
         l + (1 : Int) + (j : Int) = l + ((j + 1 : Nat) : Int) := by
-      rw [loc_add_assoc, Int.add_comm (1 : Int)]
+      rw [Loc.add_assoc, Int.add_comm (1 : Int)]
       congr 1
     constructor
     · split
@@ -289,7 +290,7 @@ theorem get?_heapArray {l : Loc} {vs : List (Option Val)} {ow : Option Val} {k :
         · exact ih.mpr ⟨j, hkj.trans (hadd j).symm, by simpa using hj⟩
         · intro hlk
           have := congrArg Loc.n (hlk.trans hkj)
-          simp only [loc_add_n] at this
+          simp only [Loc.add_n] at this
           omega
 
 @[lantana_alias heap_lang.heap_array_map_disjoint]
@@ -312,7 +313,7 @@ theorem get?_heapArray_self {l : Loc} {vs : List (Option Val)} :
   · rfl
   · obtain ⟨i, hik, hvi⟩ := get?_heapArray.mp hget
     have hi := (List.getElem?_eq_some_iff.mp hvi).1
-    exact False.elim (Nat.ne_of_lt hi (Int.ofNat_inj.mp (loc_add_inj hik).symm))
+    exact False.elim (Nat.ne_of_lt hi (Int.ofNat_inj.mp (Loc.add_inj hik).symm))
 
 theorem get?_foldl_insert (l : Loc) (v : Option Val) (m : HeapF (Option Val)) (n : Nat) (k : Loc) :
     PartialMap.get? (M := HeapF) ((List.range n).foldl
@@ -366,7 +367,8 @@ theorem initHeap_heap_eq {σ : State} {l : Loc} {n : Int} {v : Option Val} :
   intro k
   change PartialMap.get? (M := HeapF) ((List.range n.toNat).foldl
       (fun h (i : Nat) => Iris.Std.insert (M := HeapF) h (l + (i : Int)) v) σ.heap) k = _
-  rw [get?_foldl_insert, Iris.Std.PartialMap.union, Iris.Std.LawfulPartialMap.get?_merge, get?_allocCells]
+  rw [get?_foldl_insert, Iris.Std.PartialMap.union, Iris.Std.LawfulPartialMap.get?_merge,
+    get?_allocCells]
   by_cases hex : ∃ i, i < n.toNat ∧ k = l + (i : Int)
   · simp only [ite_eq_left hex]; cases PartialMap.get? (M := HeapF) σ.heap k <;> rfl
   · simp only [ite_eq_right hex]; cases PartialMap.get? (M := HeapF) σ.heap k <;> rfl
@@ -387,7 +389,7 @@ theorem exists_fresh_block (m : HeapF (Option Val)) (n : Int) :
   intro hmem
   have hle : (Loc.mk ((m.keys.map Loc.n).foldr max 0 + 1) + i).n ≤ (m.keys.map Loc.n).foldr max 0 :=
     List.mem_le_foldr_max _ _ (List.mem_map_of_mem hmem)
-  simp only [loc_add_n] at hle
+  simp only [Loc.add_n] at hle
   grind
 
 /-- Initializing a single cell is a plain insert. Rocq adds `h` on the right in
@@ -407,7 +409,7 @@ theorem State.initHeap_self {σ : State} {l : Loc} {v : Option Val}
     · next heq => exact heq ▸ h.symm
     · rfl
   simp only [State.initHeap, Int.toNat_one, List.range_one, List.foldl_cons, List.foldl_nil,
-    Int.cast_ofNat_Int, loc_add_zero, hins]
+    Int.cast_ofNat_Int, Loc.add_zero, hins]
 
 /-- The base step `BaseStep e σ e' σ' efs`: the redex `e` steps to `e'`, the state `σ` to `σ'`,
 forking the threads `efs`. -/
@@ -426,10 +428,10 @@ inductive BaseStep : Exp → State → Exp → State → List Exp → Prop where
       BaseStep (.app (.ofVal (.rec_ f x e1)) (.ofVal v2)) σ e' σ []
   | unOpS (op : UnOp) (v v' : Val) (σ : State) :
       op.eval v = some v' →
-      BaseStep (.unop op (.ofVal v)) σ (.ofVal v') σ []
+      BaseStep (.unOp op (.ofVal v)) σ (.ofVal v') σ []
   | binOpS (op : BinOp) (v1 v2 v' : Val) (σ : State) :
       op.eval v1 v2 = some v' →
-      BaseStep (.binop op (.ofVal v1) (.ofVal v2)) σ (.ofVal v') σ []
+      BaseStep (.binOp op (.ofVal v1) (.ofVal v2)) σ (.ofVal v') σ []
   | ifTrueS (e1 e2 : Exp) (σ : State) :
       BaseStep (.if (.ofVal (.lit (.bool true))) e1 e2) σ e1 σ []
   | ifFalseS (e1 e2 : Exp) (σ : State) :

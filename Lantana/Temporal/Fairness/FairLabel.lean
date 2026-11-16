@@ -63,7 +63,7 @@ variable {C : Type} [ThreadSystem C] (τ : Trace C)
 
 /-- Position `n` is a claim of thread `i`: `n` is at or after the current position, the thread is
 active at `n`, and the step taken at `n` is one of its steps. -/
-def claim (i n : Nat) : Prop :=
+def Claim (i n : Nat) : Prop :=
   τ.pos ≤ n ∧ ThreadSystem.active i (τ.seq n) ∧
     ThreadSystem.step i (τ.seq n) (τ.seq (n + 1))
 
@@ -73,12 +73,12 @@ the frontier, if it has one, and the frontier moves just past that claim. -/
 noncomputable def front : Nat → Nat
   | 0 => 0
   | k + 1 =>
-    if h : ∃ p, front k ≤ p ∧ claim τ (visit k).2 p then Nat.minWitness h + 1 else front k
+    if h : ∃ p, front k ≤ p ∧ Claim τ (visit k).2 p then Nat.minWitness h + 1 else front k
 
 /-- Visit `k` takes position `n`: `n` is a claim of the visited thread at or beyond the frontier,
 and the frontier moves just past `n`. -/
-def takes (k n : Nat) : Prop :=
-  front τ k ≤ n ∧ claim τ (visit k).2 n ∧ front τ (k + 1) = n + 1
+def Takes (k n : Nat) : Prop :=
+  front τ k ≤ n ∧ Claim τ (visit k).2 n ∧ front τ (k + 1) = n + 1
 
 variable {τ}
 
@@ -96,12 +96,12 @@ theorem front_mono {k k' : Nat} (h : k ≤ k') : front τ k ≤ front τ k' := b
   | step _ ih => exact Nat.le_trans ih (front_le_succ _)
 
 /-- A visited thread with a claim at or beyond the frontier takes the least such claim. -/
-theorem takes_of_exists {k : Nat} (h : ∃ p, front τ k ≤ p ∧ claim τ (visit k).2 p) :
-    takes τ k (Nat.minWitness h) :=
+theorem takes_of_exists {k : Nat} (h : ∃ p, front τ k ≤ p ∧ Claim τ (visit k).2 p) :
+    Takes τ k (Nat.minWitness h) :=
   ⟨(Nat.minWitness_spec h).1, (Nat.minWitness_spec h).2, by rw [front, dite_eq_left h]⟩
 
 /-- Two visits never take the same position. -/
-theorem takes_unique {k k' n : Nat} (h : takes τ k n) (h' : takes τ k' n) : k = k' := by
+theorem takes_unique {k k' n : Nat} (h : Takes τ k n) (h' : Takes τ k' n) : k = k' := by
   obtain ⟨hle, -, hsucc⟩ := h
   obtain ⟨hle', -, hsucc'⟩ := h'
   rcases Nat.lt_trichotomy k k' with hlt | heq | hgt
@@ -112,8 +112,8 @@ theorem takes_unique {k k' n : Nat} (h : takes τ k n) (h' : takes τ k' n) : k 
     omega
 
 /-- A thread with infinitely many claims takes positions as far out as wanted. -/
-theorem exists_takes_ge {i : Nat} (hcl : MissHit.InfOften (claim τ i)) (N : Nat) :
-    ∃ k n, (visit k).2 = i ∧ N ≤ n ∧ takes τ k n := by
+theorem exists_takes_ge {i : Nat} (hcl : MissHit.InfOften (Claim τ i)) (N : Nat) :
+    ∃ k n, (visit k).2 = i ∧ N ≤ n ∧ Takes τ k n := by
   have hfront : ∀ N, ∃ k, (visit k).2 = i ∧ N ≤ front τ k := by
     intro N
     induction N with
@@ -137,12 +137,12 @@ theorem exists_takes_ge {i : Nat} (hcl : MissHit.InfOften (claim τ i)) (N : Nat
 open Classical in
 /-- The schedule: at a taken position, the thread that took it; at any other position at or after
 the current one, some thread that steps there; before the current position, `0`. -/
-noncomputable def sched (hrun : IsBehavior τ) (n : Nat) : ThreadId :=
-  if h : ∃ k, takes τ k n then (visit h.choose).2
+noncomputable def sched (hrun : isBehavior τ) (n : Nat) : ThreadId :=
+  if h : ∃ k, Takes τ k n then (visit h.choose).2
   else if hn : τ.pos ≤ n then Classical.choose (isBehavior_iff.mp hrun n hn) else 0
 
 /-- The schedule names a stepping thread at every position from the current one on. -/
-theorem sched_step (hrun : IsBehavior τ) {n : Nat} (hn : τ.pos ≤ n) :
+theorem sched_step (hrun : isBehavior τ) {n : Nat} (hn : τ.pos ≤ n) :
     ThreadSystem.step (sched hrun n) (τ.seq n) (τ.seq (n + 1)) := by
   rw [sched]
   split
@@ -150,9 +150,9 @@ theorem sched_step (hrun : IsBehavior τ) {n : Nat} (hn : τ.pos ≤ n) :
   · exact Classical.choose_spec (isBehavior_iff.mp hrun n hn)
 
 /-- At a taken position, the schedule names the thread that took it. -/
-theorem sched_of_takes (hrun : IsBehavior τ) {k n : Nat} (h : takes τ k n) :
+theorem sched_of_takes (hrun : isBehavior τ) {k n : Nat} (h : Takes τ k n) :
     sched hrun n = (visit k).2 := by
-  have hex : ∃ k, takes τ k n := ⟨k, h⟩
+  have hex : ∃ k, Takes τ k n := ⟨k, h⟩
   rw [sched, dite_eq_left hex, takes_unique hex.choose_spec h]
 
 end FairLabel
@@ -161,12 +161,12 @@ variable {C : Type} [ThreadSystem C] {τ : Trace C}
 
 /-- **Fair labelling.**  A behavior on which every thread is fairly scheduled admits a schedule
 under which every thread active infinitely often is named infinitely often while active. -/
-theorem exists_fair_schedule (hrun : IsBehavior τ) (hsf : ∀ i, Sched.SF i τ) :
-    ∃ sched : Nat → ThreadId, Schedule sched τ ∧
+theorem exists_fair_schedule (hrun : isBehavior τ) (hsf : ∀ i, Sched.strongFair i τ) :
+    ∃ sched : Nat → ThreadId, schedule sched τ ∧
       ∀ i, (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ := by
   refine ⟨FairLabel.sched hrun, schedule_iff.mpr fun _ hn => FairLabel.sched_step hrun hn, ?_⟩
   intro i hA
-  have hcl : MissHit.InfOften (FairLabel.claim τ i) := by
+  have hcl : MissHit.InfOften (FairLabel.Claim τ i) := by
     intro N
     obtain ⟨m, hm, hAm, hsm⟩ :=
       TrProp.always_eventually_iff.mp (hsf i hA) (max N τ.pos) (Nat.le_max_right _ _)
@@ -180,7 +180,7 @@ theorem exists_fair_schedule (hrun : IsBehavior τ) (hsf : ∀ i, Sched.SF i τ)
 thread, drops where the thread is active and not named, and stays where it is inactive. -/
 theorem Sched.exists_counter_of_fair_schedule {sched : Nat → ThreadId} {i : ThreadId}
     (hfair : (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ) :
-    ∃ δ, AttemptGrant.IsCounter (active i) (scheduled sched i) δ τ :=
+    ∃ δ, AttemptGrant.isCounter (active i) (scheduled sched i) δ τ :=
   AttemptGrant.fair_iff_counter.1 (AttemptGrant.fair_iff_attempt.2 hfair)
 
 end Lantana.Fairness
@@ -195,7 +195,7 @@ variable {C : Type} [ThreadSystem C] {τ : Trace C}
 active, the run has fairness counters. -/
 theorem exists_schedCounters_of_fair_schedule {sched : Nat → ThreadId}
     (hfair : ∀ i, (□ₜ ◇ₜ active i) τ → (□ₜ ◇ₜ (active i ∧ₜ scheduled sched i)) τ) :
-    ∃ γ, SchedCounters sched γ τ :=
+    ∃ γ, schedCounters sched γ τ :=
   ⟨fun m i => Classical.choose (Fairness.Sched.exists_counter_of_fair_schedule (hfair i)) m,
     schedCounters_of_counters fun i =>
       Classical.choose_spec (Fairness.Sched.exists_counter_of_fair_schedule (hfair i))⟩
@@ -203,9 +203,9 @@ theorem exists_schedCounters_of_fair_schedule {sched : Nat → ThreadId}
 /-- A behavior on which every thread is fairly scheduled admits a schedule and fairness counters
 under it. -/
 @[lantana_alias fair_scheduling_fscnt]
-theorem exists_fair_schedule_schedCounters (hrun : IsBehavior τ) (hsf : fairScheduling τ) :
+theorem exists_fair_schedule_schedCounters (hrun : isBehavior τ) (hsf : fairScheduling τ) :
     ∃ (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
-      Schedule sched τ ∧ SchedCounters sched γ τ := by
+      schedule sched τ ∧ schedCounters sched γ τ := by
   obtain ⟨sched, hsch, hfair⟩ := Fairness.exists_fair_schedule hrun hsf
   obtain ⟨γ, hγ⟩ := exists_schedCounters_of_fair_schedule hfair
   exact ⟨sched, γ, hsch, hγ⟩

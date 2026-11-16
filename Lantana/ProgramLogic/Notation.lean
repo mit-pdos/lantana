@@ -18,8 +18,9 @@ public import Lantana.Init
 Rocq `lantana/program_logic/lwp_notation.v`, after Iris-Lean's `WP` notations
 (`Iris.BI.WeakestPre`): `lWP e @ s; i; E {{ Φ }}` is `Lwp.lwp s i E e Φ` for thread `i`;
 without `s`, `NotStuck` (`?{{ Φ }}` for `MaybeStuck`); without `E`, `⊤`. Texan triples
-`l{{{ P }}} e @ i; E l{{{ x y, RET v; Q }}}` are `∀ Φ, P -∗ (∀ x y, Q -∗ Φ v) -∗ lWP e @ i; E {{ Φ }}`
-(persistent, `□`, inside `iprop`; no `▷`, unlike Iris's).
+`l{{{ P }}} e @ i; E l{{{ x y, RET v; Q }}}` are
+`∀ Φ, P -∗ (∀ x y, Q -∗ Φ v) -∗ lWP e @ i; E {{ Φ }}` (persistent, `□`, inside `iprop`; no `▷`,
+unlike Iris's).
 -/
 
 @[expose] public section
@@ -116,7 +117,8 @@ meta def lwpTexanTripleIprop : Macro
 meta def lwpTexanTripleTerm : Macro
   | P => do `(⊢ $(← parseLwpTexanTriple P))
 
-meta def unexpandLwpPostcondInner : TSyntax `term → PrettyPrinter.UnexpandM (TSyntax `lwpPostcondInner)
+meta def unexpandLwpPostcondInner : TSyntax `term →
+    PrettyPrinter.UnexpandM (TSyntax `lwpPostcondInner)
   | `(fun $v:ident => iprop($Φ:term)) => `(lwpPostcondInner|$v:ident, $Φ:term)
   | `(iprop($Φ:term)) => `(lwpPostcondInner| $Φ:term)
   | `(fun $v:ident => $Φ:term) => `(lwpPostcondInner|$v:ident, $Φ:term)

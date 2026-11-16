@@ -27,7 +27,7 @@ the fork, one unit for its move, and the forked thread.
 `heapState_init`, the state interpretation is HeapLang's and forked threads have the
 postcondition `True`. The guarantee `gMain` of the commitments `mainRes` is inferred
 (`IntoGuar`, from the flag's instance `Flag.guarOf_isFlag`): the flag's location is
-trace-visible (the target is a `TrSpec.ex` over `Loc`), its obligation, its layer and the names
+trace-visible (the target is a `TrSpec.exists` over `Loc`), its obligation, its layer and the names
 of the commitments are ghost.
 `main_safety_adequacy` is the safety statement from `lwp_adequacy_safety`.
 
@@ -58,8 +58,8 @@ def main : Val :=
 def v42 : Val := hl_val(#42)
 
 /-- The namespaces of the two commitments of the main thread: to return, to create a flag. -/
-def Nr : Namespace := nroot.@"flag_fork_ret"
-def Nc : Namespace := nroot.@"flag_fork_flag"
+def returnN : Namespace := nroot.@"flag_fork_ret"
+def flagN : Namespace := nroot.@"flag_fork_flag"
 
 /-! ## The specification -/
 
@@ -71,11 +71,11 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&main) #()) ∗ thActive i ∗ thKids i {kr, kc} ∗
           thCarriers i {kr, kc} ∗ ([∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g 1 μ) ∗ ⌜kr ≠ kc⌝ ∗
-          oblKids kr ∅ ∗ oblKids kc ∅ ∗ finallyI Nr kr 1 (exits v42 @ i) ∗
-          finallyI Nc kc 1 iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) }}}
+          oblKids kr ∅ ∗ oblKids kc ∅ ∗ finallyI returnN kr 1 (exits v42 @ i) ∗
+          finallyI flagN kc 1 iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) }}}
         hl(v(&main) #()) @ i
       l{{{ (v : Val), RET v; threadExpr i [] hl(&v) ∗ ⌜v = v42⌝ ∗
-        liftTerm i (fun _ _ => iprop(True)) v }}} := by
+        lwp.liftTerm i (fun _ _ => iprop(True)) v }}} := by
   obtain ⟨μfi, hfi⟩ := Flag.init_thread_spec (GF := GF)
   obtain ⟨μfs, hfs⟩ := Flag.set_thread_spec (GF := GF)
   obtain ⟨μfw, hfw⟩ := Flag.wait_spec (GF := GF)
@@ -83,7 +83,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   iintro %Φ !> ⟨HT, HA, HK, HG, HF, %hne, Hkr, Hkc, HFr, HFc⟩ HΦ
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfw⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfi⟩
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold main
   lwp_step HT HG HF with Hlc : 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hc1, Hc2⟩
@@ -110,11 +110,11 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     grind
   ihave HG := Th.carriers_congr hkc $$ HG
   ihave HK := Par.kids_congr hkc $$ HK
-  ihave HF := oblFuels_subset _ (B := {kr}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
+  ihave HF := Obl.fuels_subset _ (B := {kr}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   icases (Obl.fuel_add k _ _ _).mp $$ Hf with ⟨Hf, Hfr⟩
   icases (Obl.fuel_add k _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
-  icases oblFuels_add 3 6 _ $$ HF with ⟨Hf₃, HF⟩
-  ihave Hf₃ := oblFuels_add_obl _ k 0 _ $$ Hf Hf₃
+  icases Obl.fuels_add 3 6 _ $$ HF with ⟨Hf₃, HF⟩
+  ihave Hf₃ := Obl.fuels_insert _ k 0 _ $$ Hf Hf₃
   lwp_step HT HG Hf₃
   lwp_step HT HG Hf₃
   lwp_expr_simp
@@ -147,7 +147,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
       grind
     imodintro
     iapply HΦ'
-    unfold liftTerm
+    unfold lwp.liftTerm
     isplitl
     · iexact Hdone
     · ipureintro
@@ -155,7 +155,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   · iframe HT HK Hkk Hfj Htk
     isplitl [HG Hf₃]
     · iapply stepPre_nil $$ HG Hf₃
-    · unfold oblFuels
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact Hmv
@@ -190,7 +190,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   rw [show (hl(#42) : Exp) = .val v42 from rfl]
   iapply lwp_value_mupd'.mpr
   ihave Hc2 := tlc_one_nat.mpr $$ Hc2
-  imod threadExpr_terminate_finally i ⊤ v42 kr Nr (fun _ _ => CoPset.mem_full)
+  imod threadExpr_terminate_finally i ⊤ v42 kr returnN (fun _ _ => CoPset.mem_full)
     $$ HT Hc2 HA HK Hkr HFr with ⟨HT, #Hd⟩
   imodintro
   iapply HΦ
@@ -198,7 +198,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   isplitr
   · ipureintro
     rfl
-  unfold liftTerm
+  unfold lwp.liftTerm
   isplitl
   · iexact Hd
   · ipureintro
@@ -206,8 +206,8 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
 
 /-- The commitments of the main thread `i` and its resources (Rocq `Φ_P`). -/
 def mainRes (i : ThreadId) (μ : Measure) : IProp GF :=
-  iprop(∃ kr kc : Oid, finallyI Nr kr 1 (exits v42 @ i) ∗
-    finallyI Nc kc 1 iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ∗
+  iprop(∃ kr kc : Oid, finallyI returnN kr 1 (exits v42 @ i) ∗
+    finallyI flagN kc 1 iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ∗
     (thKids i {kr, kc} ∗ thCarriers i {kr, kc} ∗ oblKids kr ∅ ∗ oblKids kc ∅ ∗ ⌜kr ≠ kc⌝ ∗
       [∗set] g ∈ ({kr, kc} : Oids), Obl.fuel g 1 μ))
 
@@ -220,20 +220,20 @@ bill: its commitments, and its `lWP` from them. -/
 theorem main_pre (i : ThreadId) :
     threadExpr (GF := GF) i [] hl(v(&main) #()) ⊢ thActive i -∗ thKids i ∅ -∗ thCarriers i ∅ -∗
       |={⊤}=>m ∃ μ : Measure, mainRes i μ ∗
-        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ liftTerm i mainPost }}) := by
+        (mainRes i μ -∗ |={⊤}=>m lWP hl(v(&main) #()) @ i; ⊤ {{ lwp.liftTerm i mainPost }}) := by
   obtain ⟨μ, hmain⟩ := main_spec (GF := GF)
   iintro HT HA HG HB
   imod untilI_alloc (E := ⊤) (.thread i) ∅ ∅ 1 μ $$ [] HG HB with
     ⟨%kr, -, HG, HB, Hkr, Fkr, -, Akr⟩
-  · iapply parLe_thread
-  imod Akr $$ %⊤ %Nr %iprop(True) %(exits v42 @ i) [] with Ur
+  · iapply Par.le_thread
+  imod Akr $$ %⊤ %returnN %iprop(True) %(exits v42 @ i) [] with Ur
   · inext
     ipureintro
     trivial
   imod untilI_alloc (E := ⊤) (.thread i) _ _ 1 μ $$ [] HG HB with
     ⟨%kc, %hkc, HG, HB, Hkc, Fkc, -, Akc⟩
-  · iapply parLe_thread
-  imod Akc $$ %⊤ %Nc %iprop(True) %iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) []
+  · iapply Par.le_thread
+  imod Akc $$ %⊤ %flagN %iprop(True) %iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) []
     with Uc
   · inext
     ipureintro
@@ -269,7 +269,7 @@ theorem main_pre (i : ThreadId) :
     ipureintro
     exact hne
   iintro %v ⟨-, %hv, Hd⟩
-  unfold liftTerm
+  unfold lwp.liftTerm
   icases Hd with ⟨Hd, -⟩
   iframe Hd
   ipureintro
@@ -285,18 +285,18 @@ variable {GF : BundledGFunctors}
 /-- The main thread `i` returns `42`, and a flag gets created that is `0` until it is `1`, and
 then `1` (Rocq `R_main`). -/
 def rMain (i : ThreadId) : TrProp (Cfg Exp State) :=
-  ◇ₜ TrProp.state (threadExprSat i [] (.val v42)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
+  ◇ₜ TrProp.state (ThreadExprSat i [] (.val v42)) ∧ₜ ◇ₜ (∃ₜ x : Loc, isFlagTr x)
 
 /-- What the commitments guarantee: eventually the main thread has exited with `42`, and
 eventually a flag exists; the ghost names and the resources do not show (Rocq `G_main`). -/
 def gMain (i : ThreadId) : TrSpec Exp State GF :=
-  ◇ₛ TrSpec.state (threadExprSat i [] (.val v42)) ∧ₛ ◇ₛ (∃ₛ x : Loc, flagTrSpec x) ∧ₛ
+  ◇ₛ TrSpec.state (ThreadExprSat i [] (.val v42)) ∧ₛ ◇ₛ (∃ₛ x : Loc, flagTrSpec x) ∧ₛ
     TrSpec.true
 
 @[lantana_alias flag_fork.G_main_impl]
-theorem gMain_impl (i : ThreadId) : (gMain (GF := GF) i).external ⊆ rMain i := by
+theorem gMain_external_subset (i : ThreadId) : (gMain (GF := GF) i).external ⊆ rMain i := by
   intro τ ⟨hr, ⟨m, hm, ⟨x, hx⟩, hb⟩, _⟩
-  exact ⟨hr, m, hm, ⟨x, Flag.flagTrSpec_impl x _ hx⟩, hb⟩
+  exact ⟨hr, m, hm, ⟨x, Flag.flagTrSpec_external_subset x _ hx⟩, hb⟩
 
 variable [ModelGS GF] [HeapGS GF]
 
@@ -321,9 +321,10 @@ abbrev σ0 : State := ⟨∅⟩
 /-- In every fair behavior from the initial configuration, the main thread returns `42`, and a
 flag gets created that is `0` until it is `1`, and then `1`. -/
 @[lantana_alias flag_fork.main_adequacy]
-theorem main_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ)
+theorem main_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ)
     (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) : rMain 0 τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (rMain 0) (gMain_impl 0) τ hbeh
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (rMain 0)
+    (gMain_external_subset 0) τ hbeh
     hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
@@ -334,7 +335,7 @@ theorem main_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
-  ihave HG := initThreads σ0 tp0 $$ HG
+  ihave HG := init_threads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
@@ -353,7 +354,7 @@ theorem main_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair
 /-- Safety: in every fair behavior from the initial configuration, no thread is ever
 stuck, and once the main thread has returned, its value is `42`. -/
 @[lantana_alias flag_fork.main_safety_adequacy]
-theorem main_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem main_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     safetyIris 0 (fun _ v => v = v42) τ := by
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
@@ -369,7 +370,7 @@ theorem main_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
-  ihave HG := initThreads σ0 tp0 $$ HG
+  ihave HG := init_threads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨HA, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
@@ -381,7 +382,7 @@ theorem main_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
 
 /-- Liveness and safety together, over the same fair behaviors. -/
 @[lantana_alias flag_fork.main_liveness_safety]
-theorem main_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ)
+theorem main_liveness_safety (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rMain 0 τ ∧ safetyIris 0 (fun _ v => v = v42) τ :=
   ⟨main_adequacy τ hbeh hfair hpos hinit, main_safety_adequacy τ hbeh hfair hpos hinit⟩

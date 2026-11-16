@@ -26,6 +26,7 @@ scripts/audit.sh      # no sorry / admit / axiom / native_decide in Lantana/ and
 scripts/check-imports.sh  # layering: Std, Init < Prelude < Temporal < Algebra < BaseLogic
                           #   < ProgramLogic < Trace < HeapLang < Examples; no module imports
                           #   a later layer
+scripts/naming/lint.sh    # naming conventions (docs/naming.md), after lake build and lake test
 scripts/rocq-table.sh     # regenerate docs/rocq-correspondence.md (see below)
 scripts/profile.py        # build-time profile per layer, module and declaration (docs/performance.md)
 ```
@@ -41,13 +42,13 @@ discharged. Lean names are in the namespace `Lantana`, and files in `Lantana/`.
 
 | Concept | Lean | File |
 |---|---|---|
-| Thread-local weakest precondition, a least fixpoint; one step is a model update, the physical step with its progress update, and a model update | `lWP e @ s; i; E {{ Φ }}` (`Lwp.lwp`), texan triples `l{{{ P }}} e @ i; E l{{{ v, RET v; Q }}}`, one step `lwpStep` | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/Notation.lean` |
+| Thread-local weakest precondition, a least fixpoint; one step is a model update, the physical step with its progress update, and a model update | `lWP e @ s; i; E {{ Φ }}` (`Lwp.lwp`), texan triples `l{{{ P }}} e @ i; E l{{{ v, RET v; Q }}}`, one step `lwp.step` | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/Notation.lean` |
 | The obligation predicates and their rules, as a sealed interface that the program logic uses | obligations `Obl.*`, witnesses `Wit.*`, threads `Th.*`, the children `Par.kids p K` of a parent `p` (`thKids i K`, `oblKids k K`), the bill `thCarriers i B` that a step of thread `i` pays for, its running handle `thActive i` | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | The model update, which changes obligations and witnesses | `\|={E₁,E₂}=>m P` (`mupd`) | `ProgramLogic/OblForest.lean` |
 | The model of the interface | `Model.OPreds`, over the obligation model (`ModelGS`) | `BaseLogic/Model/OPreds.lean` |
-| Trace properties, with LTL on traces; the attempt–grant theory of fairness over them, and fair scheduling as the strong fairness of each thread's scheduling action | `TrProp`, `□ₜ` `◇ₜ` `○ₜ` `Uₜ`, entailment `R ⊆ S`; `Fairness.Action.SF`, `Fairness.Sched.SF`, `fairScheduling` | `Temporal/Trace.lean`, `Temporal/TracePropRules.lean`, `Temporal/Fairness/` (fair scheduling in `Fairness/Scheduling.lean`) |
+| Trace properties, with LTL on traces; the attempt–grant theory of fairness over them, and fair scheduling as the strong fairness of each thread's scheduling action | `TrProp`, `□ₜ` `◇ₜ` `○ₜ` `Uₜ`, entailment `R ⊆ S`; `Fairness.Action.strongFair`, `Fairness.Sched.strongFair`, `fairScheduling` | `Temporal/Trace.lean`, `Temporal/TracePropRules.lean`, `Temporal/Fairness/` (fair scheduling in `Fairness/Scheduling.lean`) |
 | Trace specifications: a trace property with an internal, step-indexed reading adequate for it | `TrSpec` (`TrSpec.external`, `TrSpec.internal`), entailment `G ⊑ₛ H` | `Trace/TrSpec.lean` |
-| Guarantees: whenever `P` holds, the rest of the execution satisfies `G` | `P ⊨ₜ G` (`Guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
+| Guarantees: whenever `P` holds, the rest of the execution satisfies `G` | `P ⊨ₜ G` (`guar P G`), inferred by `IntoGuar` | `Trace/Guarantee.lean`, `Trace/GuaranteeInfer.lean` |
 | Temporal formulas, which are `iProp`s with guarantees | `alwaysI N P`, `untilI N k q P Q`, `finallyI N k q Q` | `Trace/TemporalFormula.lean`, `Trace/TemporalFormulaRules.lean` |
 | Adequacy | `lwp_adequacy_temporal`, `lwp_adequacy_safety` | `Trace/Adequacy/Temporal.lean`, `Trace/Adequacy/Safety.lean` |
 | HeapLang: the language, its `lWP` laws, and points-to and thread termination as trace atoms | `HeapLang.lwp_load`, `HeapLang.lwp_store`, `HeapLang.lwp_fork`, …; `l ↦ some v`, `exits v @ i` | `HeapLang/PrimitiveLaws.lean`, `HeapLang/TemporalLaws.lean` |
@@ -79,9 +80,9 @@ forks a thread that sets a flag and waits for the flag.
    formula holds (`untilI_discharge`, `finallyI_discharge`).
 3. Give the initial resources an `iProp` `P` with a guarantee `P ⊨ₜ G`, usually inferred by
    instance search (`IntoGuar.into_guar` in `guar_mainRes`).
-4. Show that `G.external` implies the trace property of interest (`gMain_impl`), and apply
-   `lwp_adequacy_temporal` (`main_adequacy`). `lwp_adequacy_safety` gives safety in the same way
-   (`main_safety_adequacy`), and `main_liveness_safety` states both.
+4. Show that `G.external` implies the trace property of interest (`gMain_external_subset`), and
+   apply `lwp_adequacy_temporal` (`main_adequacy`). `lwp_adequacy_safety` gives safety in the same
+   way (`main_safety_adequacy`), and `main_liveness_safety` states both.
 
 ## Layout
 
@@ -109,9 +110,9 @@ All are proved; the clients have end-to-end corollaries through the adequacy the
   freedom with no hypothesis on `next`), `TicketLock2` and `TicketLock2Client`
   (starvation-free), `ExtendedInt`;
 - `Queue` (§7.2: a queue protected by the ticket lock whose elements carry obligations;
-  `queue_release_progress`), `TaskQueue` (§7.3: a task queue run by a forked worker thread;
-  `taskQueue_release_progress`), `TaskQueueClient` (a reentrant task;
-  `taskQueueClient_liveness_safety`) and `TaskQueueFlagStableClient` (the same over the stable
+  `release_progress`), `TaskQueue` (§7.3: a task queue run by a forked worker thread;
+  `release_progress`), `TaskQueueClient` (a reentrant task;
+  `TaskQueueClient.liveness_safety`) and `TaskQueueFlagStableClient` (the same over the stable
   flag; `taskQueueClient_flag_stays`).
 
 `Lib`, `GhostMapP`, `LockLevel` and `World` (the closed world `ExGF`) are shared infrastructure.
@@ -139,13 +140,17 @@ that are neither aliased nor ignored, which is no longer maintained.
 - Rocq's `oblP_*`, `witP_*`, `thP_*` and `parP_*` are `Obl.*`, `Wit.*`, `Th.*` and `Par.*`
   (`oblP_fuel` is `Obl.fuel`); `thP_kids i K` and `oblP_kids k K` are the notations `thKids i K`
   and `oblKids k K`.
-- Definitions are lowerCamelCase and types UpperCamelCase (`untilI_done` is `untilIDone`,
-  `is_flag` is `isFlag`); lemmas keep Rocq's snake_case over the Lean names (`guar_untilI_done`
-  is `guar_untilIDone`).
+- Names follow Iris-Lean's conventions (Mathlib's), not Rocq's: `docs/naming.md` states them and
+  `scripts/naming/lint.sh` checks them.  Definitions are lowerCamelCase, and types and
+  Prop-valued definitions UpperCamelCase (`untilI_done` is `untilIDone`, `obl_step` is
+  `Model.Obligation.Step`); lemmas are snake_case over the Lean names (`guar_untilI_done` is
+  `guar_untilIDone`, `reg_check` stays `reg_check`).
 - Rocq's `trSpec_*`, `trI_*` and `tr_*` are in the namespaces `TrSpec`, `TrIProp` and `TrProp`
-  (`trSpec_always` is `TrSpec.always`); `reg_*` are `reg*` (`reg_check` is `regCheck`).
+  (`trSpec_always` is `TrSpec.always`, `tr_exist` is `TrProp.exists`).
 - A case study's names are in `Lantana.Examples.<File>`, without Rocq's module prefix
-  (`Flag_set_spec` is `Examples.Flag.set_spec`).
+  (`Flag_set_spec` is `Examples.Flag.set_spec`, `flag_client_adequacy` is
+  `Examples.FlagClient.adequacy`).
+- `docs/rocq-correspondence.md` maps every Rocq name to its Lean name.
 
 ## Design (the main departures from Rocq)
 
@@ -162,8 +167,8 @@ that are neither aliased nor ignored, which is no longer maintained.
 - **Fixed concrete choices**: the fair-scheduler bound `η a := ω ×ⱼ a +ₕ ω` and fuel `Ordinal.{1}`
   instead of classes; fairness counters are an explicit sequence instead of a coinductive
   predicate, read under a schedule the adequacy proof chooses by the fair-labelling theorem of
-  `Lantana/Temporal/Fairness/FairLabel.lean`; `always` reads a single formula and safety is derived from the
-  generalised single step `run_step`.
+  `Lantana/Temporal/Fairness/FairLabel.lean`; `always` reads a single formula and safety is
+  derived from the generalised single step `run_step`.
 - **Allocation exposes ghost names**: the ghost-state classes are too large for the existential
   property of the step index, so allocation lemmas return records of names from which the
   instances are rebuilt (used by both adequacy theorems).
@@ -194,6 +199,9 @@ All documents live in `docs/`:
   declaration, and how to measure it (`scripts/profile.py`).
 - [`docs/iris-lean-proposal.md`](docs/iris-lean-proposal.md): changes to Iris-Lean that would
   remove code Lantana-Lean had to copy or work around.
+- [`docs/naming.md`](docs/naming.md): the naming conventions (Iris-Lean's, which are Mathlib's,
+  and the choices specific to Lantana), the lint that checks them, and the renaming that
+  aligned the library with them.
 
 ## Credits
 

@@ -124,7 +124,7 @@ theorem alwaysIGuar_register {G : TrSpec Expr State GF} (hN : ↑N ⊆ E) :
   imod Hclose $$ HP with -
   imod savedTrI_alloc G.internal with ⟨%γ, #Hγ⟩
   iunfold regState at TI
-  imod regRegister regEntryInterp (.always N γ) h n σ tp $$ TI [] HI with ⟨HI, TI, %j, #Hj⟩
+  imod reg_register regEntryInterp (.always N γ) h n σ tp $$ TI [] HI with ⟨HI, TI, %j, #Hj⟩
   · iintro %st -
     simp only [regEntryInterp]
     iexists P, G
@@ -165,7 +165,7 @@ theorem alwaysIGuar_alloc {G : TrSpec Expr State GF} :
   imod savedTrI_alloc G.internal with ⟨%γ, #Hγ⟩
   imod inv_alloc N E P $$ HP with #Hinv
   iunfold regState at TI
-  imod regRegister regEntryInterp (.always N γ) h n σ tp $$ TI [] HI with ⟨HI, TI, %j, #Hj⟩
+  imod reg_register regEntryInterp (.always N γ) h n σ tp $$ TI [] HI with ⟨HI, TI, %j, #Hj⟩
   · iintro %st -
     simp only [regEntryInterp]
     iexists P, G
@@ -208,7 +208,7 @@ theorem guar_alwaysIGuar {G : TrSpec Expr State GF} :
   iapply record_intro
   imodintro
   iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' #ST %⟨hsch, hfs, hlb, hht⟩ #B HS
-  ihave #C := bundleAlwaysCert l n j r N γa G hrn $$ B Hj Hγ []
+  ihave #C := bundle_always_cert l n j r N γa G hrn $$ B Hj Hγ []
   · iintro %hr'
     subst hr'
     iexact AC
@@ -219,7 +219,7 @@ theorem guar_alwaysIGuar {G : TrSpec Expr State GF} :
   inext
   isplit
   · iapply record_elim G $$ C ST %⟨hsch, hfs, hlb, hht⟩ B HS
-  · iapply alwaysRun Sys N γa G j r $$ ST Hj Hγ %h' %(n + 1) %σ' %tp' %g %v %Ω' %W' %τf %sched
+  · iapply always_run Sys N γa G j r $$ ST Hj Hγ %h' %(n + 1) %σ' %tp' %g %v %Ω' %W' %τf %sched
       %γ %⟨by omega, hsch, hfs, hlb, hht⟩ HS
 
 @[lantana_alias guar_alwaysI_as]
@@ -302,7 +302,7 @@ theorem untilIGuar_init {G₁ G₂ : TrSpec Expr State GF} :
   imod savedTrI_alloc G₁.internal with ⟨%γP, #HγP⟩
   imod savedTrI_alloc G₂.internal with ⟨%γQ, #HγQ⟩
   iunfold regState at TI
-  imod regRegister regEntryInterp (.until N k γP γQ) h n σ tp $$ TI [] HI
+  imod reg_register regEntryInterp (.until N k γP γQ) h n σ tp $$ TI [] HI
     with ⟨HI, TI, %j, #Hj⟩
   · iintro %st -
     simp only [regEntryInterp]
@@ -333,7 +333,7 @@ theorem untilI_init : Obl.assigned k 1 ⊢ ▷ P -∗ |={E}=>m untilI N k 1 P Q 
 and the formulas are chosen once `k` is known. -/
 @[lantana_alias untilI_guar_alloc]
 theorem untilIGuar_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+    Par.le (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
         oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ ∗
         ∀ (E' : CoPset) (N : Namespace) (P Q : IProp GF) (G₁ G₂ : TrSpec Expr State GF),
@@ -355,7 +355,7 @@ theorem untilIGuar_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) 
 witness, and the right to turn it into an until with any formulas. -/
 @[lantana_alias untilI_alloc]
 theorem untilI_alloc (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
+    Par.le (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
         oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ ∗
         ∀ (E' : CoPset) (N : Namespace) (P Q : IProp GF), ▷ P -∗ |={E'}=>m untilI N k 1 P Q := by
@@ -799,7 +799,7 @@ theorem untilIGuar_discharge_opened_forest {G₂ : Oid → TrSpec Expr State GF}
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
   iintro Hps HS HX
   icases bigSepS_sep.1 $$ HS with ⟨#HG, HS⟩
-  imod obl_discharge_forest E ps K S kids hclosed hcovered $$ Hps [HS] with ⟨Hps, #HD⟩
+  imod Obl.discharge_forest E ps K S kids hclosed hcovered $$ Hps [HS] with ⟨Hps, #HD⟩
   · iapply bigSepS_mono_of_forall (fun _ => sep_comm.1) $$ HS
   imod untilIGuar_record_discharged_set (P := P) E hX $$ [] HX with ⟨HX, HV⟩
   · iapply bigSepS_sep.2
@@ -1032,7 +1032,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
   imodintro
   iintro %Sys %l %h' %g %v' %Ω' %W' %τf %sched %γ %σ' %tp' #ST %⟨hsch, hfs, hlb, hht⟩ #B
     ⟨HI', MI', Sy'⟩
-  icases bundleUntilCert l n j r N k γP γQ G₁ G₂ hrn $$ B Hj HγP HγQ [] with #C
+  icases bundle_until_cert l n j r N k γP γQ G₁ G₂ hrn $$ B Hj HγP HγQ [] with #C
   · iintro %hr'
     subst hr'
     inext
@@ -1058,8 +1058,8 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
   imodintro
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
   iintro Hcl
-  iapply (ALC_credits (Ordinals.Ordinal.ofNat 1)).mpr
-  iapply ALC_intro
+  iapply (alc_credits (Ordinals.Ordinal.ofNat 1)).mpr
+  iapply alc_intro
   iintro LC
   imod Hcl with -
   icases C with ((#TrecP | #TrecQ) | ⟨%n', %i', %Ω'', %hn', #EF, #TQ'⟩)
@@ -1068,10 +1068,10 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
     imod lc_fupd_elim_later $$ LC Var with Var
     icases (Obl.variant_unfold k P _).1 $$ Var with (⟨Oa', HP'⟩ | ⟨#Of, #R⟩)
     · icases Obl.assigned_modelInterp_lookup k _ g v' Ω' W' (n + 1) tp'.length
-        (Cfg.crashed (tp', σ')) $$ [Oa' MI'] with %hk'
+        (Cfg.Crashed (tp', σ')) $$ [Oa' MI'] with %hk'
       · iframe Oa' MI'
       obtain ⟨fu', o', hk'⟩ := hk'
-      icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) i
+      icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) i
         (n, Ω) k (.assigned fu o) $$ [MI' EA] with %⟨-, -, -, -, hle⟩
       · iframe MI' EA
       have hfu : fu' ≤ fu := by
@@ -1093,14 +1093,14 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
         · ipureintro
           refine Ordinals.Ordinal.succ_lt_succ_iff.mpr (Ordinals.Ordinal.lt_succ_iff.mpr ?_)
           exact Ordinals.Ordinal.le_trans (fairMeasure_le_ub _ o' fu') (fairMeasureUb_le_mono hfu)
-        · iapply untilRun Sys N k γP γQ j r P G₁ G₂ $$ ST Hj HγP HγQ OI %h' %(n + 1) %σ' %tp' %g
+        · iapply until_run Sys N k γP γQ j r P G₁ G₂ $$ ST Hj HγP HγQ OI %h' %(n + 1) %σ' %tp' %g
             %v' %Ω' %W' %τf %sched %γ %fu' %o' %⟨by omega, hsch, hfs, hlb, hht, hk'⟩
             [HI' MI' Sy']
           iframe HI' MI' Sy'
     · -- discharged during the step
       iunfold untilDischarged at R
       icases R with ⟨%n', %i', %Ω'', #EF, #TQ'⟩
-      icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ'))
+      icases modelInterp_eventObl_lookup g v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ'))
         i' (n', Ω'') k .discharged $$ [MI' EF] with %⟨-, -, -, hn₁, -⟩
       · iframe MI' EF
       icases eventObl_assigned_discharged_le $$ [EA EF] with %hn₂
@@ -1130,7 +1130,7 @@ theorem guar_untilIGuar {G₁ G₂ : TrSpec Expr State GF} :
           isplit
           · ipureintro
             exact Ordinals.Ordinal.zero_lt_succ _
-          · iapply untilRunDischarged Sys G₁.internal G₂ 0 h' (n + 1) σ' tp' g v' Ω' W' τf sched γ
+          · iapply until_run_discharged Sys G₁.internal G₂ 0 h' (n + 1) σ' tp' g v' Ω' W' τf sched γ
               ⟨hsch, hfs, hlb, hht⟩ $$ ST TQ' [HI' MI' Sy']
             iframe HI' MI' Sy'
   · -- `Q` holds at `n`
@@ -1170,7 +1170,7 @@ instance guarOf_untilIDone (G₂ : TrSpec Expr State GF) [GuarOf Q G₂] :
     GuarOf (untilIDone k Q) (◇ₛ G₂) :=
   ⟨guar_untilIDone_valid TrSpec.true GuarOf.guar_of⟩
 instance guarOf_stateFact (φ : State → ThreadPool Expr → Prop) [StateFact P φ] :
-    GuarOf P (TrSpec.state φ) := ⟨guar_state_fact P φ⟩
+    GuarOf P (TrSpec.state φ) := ⟨guar_stateFact P φ⟩
 instance guarOf_sep (G₁ G₂ : TrSpec Expr State GF) [GuarOf P G₁] [GuarOf Q G₂] :
     GuarOf iprop(P ∗ Q) (G₁ ∧ₛ G₂) := by
   have h₁ : ⊢ P ⊨ₜ G₁ := GuarOf.guar_of

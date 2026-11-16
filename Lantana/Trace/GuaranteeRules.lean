@@ -15,7 +15,7 @@ atoms (`StateFact`), implications and big separating conjunctions. Guarantees ar
 the shape of `P` (`GuarOf`) and checked against a target (`IntoGuar`). The rules for the
 temporal formulas `alwaysI` and `untilI` are in `Lantana.Trace.TemporalFormulaRules`.
 
-The rules for the connectives combine records (`record_and`, `record_all`, `record_mono`): a
+The rules for the connectives combine records (`record_and`, `record_forall`, `record_mono`): a
 record of a conjunction or a universal is assembled from the records of its parts, against
 the same system and bundle.
 -/
@@ -37,14 +37,14 @@ variable [Language Expr State Obs Val] [Crash Expr State Obs Val] [ModelGS GF]
 
 section Records
 
-theorem recordTrI_all {X : Sort _} (f : X → Trace (Cfg Expr State) → IProp GF) (n : Nat) :
+theorem recordTrI_forall {X : Sort _} (f : X → Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(∀ x, recordTrI (f x) n) ⊢ recordTrI (fun τ => iprop(∀ x, f x τ)) n := by
   iintro #H
   iapply recordTrI_intro
   imodintro
-  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %Hf #B HW
+  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %hf #B HW
   iintro %x
-  iapply recordTrI_elim (f x) $$ [H] ST %Hf B HW
+  iapply recordTrI_elim (f x) $$ [H] ST %hf B HW
   iapply H
 
 theorem recordTrI_and (f₁ f₂ : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
@@ -52,14 +52,14 @@ theorem recordTrI_and (f₁ f₂ : Trace (Cfg Expr State) → IProp GF) (n : Nat
   iintro ⟨#H₁, #H₂⟩
   iapply recordTrI_intro
   imodintro
-  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %Hf #B HW
+  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %hf #B HW
   isplit
-  · iapply recordTrI_elim f₁ $$ H₁ ST %Hf B HW
-  · iapply recordTrI_elim f₂ $$ H₂ ST %Hf B HW
+  · iapply recordTrI_elim f₁ $$ H₁ ST %hf B HW
+  · iapply recordTrI_elim f₂ $$ H₂ ST %hf B HW
 
-theorem record_all {X : Type _} (G : X → TrSpec Expr State GF) (n : Nat) :
-    iprop(∀ x, record (G x) n) ⊢ record (TrSpec.all G) n :=
-  recordTrI_all (fun x => (G x).internal) n
+theorem record_forall {X : Type _} (G : X → TrSpec Expr State GF) (n : Nat) :
+    iprop(∀ x, record (G x) n) ⊢ record (TrSpec.forall G) n :=
+  recordTrI_forall (fun x => (G x).internal) n
 
 theorem record_and (G₁ G₂ : TrSpec Expr State GF) (n : Nat) :
     iprop(record G₁ n ∧ record G₂ n) ⊢ record (G₁ ∧ₛ G₂) n :=
@@ -72,7 +72,7 @@ theorem record_until_now (G₁ G₂ : TrSpec Expr State GF) (n : Nat) :
   iintro #H
   iapply record_intro
   imodintro
-  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %Hf #B HW
+  iintro %Sys %l %h %g %v %Ω %W %τf %sched %γ %σ %tp #ST %hf #B HW
   have hU : ▷ G₂.internal ⟨n, τf⟩ ⊢ (G₁ Uₛ G₂).internal ⟨n, τf⟩ :=
     (later_mono or_intro_l).trans <| TrIProp.defer_intro_later.trans <|
       (TrIProp.until_unfold G₁.internal G₂.internal 0 _).mpr.trans <|
@@ -80,7 +80,7 @@ theorem record_until_now (G₁ G₂ : TrSpec Expr State GF) (n : Nat) :
           TrIProp.strongUntil G₁.internal G₂.internal a ⟨n, τf⟩) 0
   iapply hU
   inext
-  iapply record_elim G₂ $$ H ST %Hf B HW
+  iapply record_elim G₂ $$ H ST %hf B HW
 
 end Records
 
@@ -91,7 +91,7 @@ variable {P Q : IProp GF} {G G₁ G₂ H : TrSpec Expr State GF}
 
 @[lantana_alias guar_weaken]
 theorem guar_weaken (h : G ⊑ₛ H) : (P ⊨ₜ G) ⊢ P ⊨ₜ H := by
-  unfold Guar
+  unfold guar
   refine intuitionistically_mono ?_
   iterate 10 refine forall_mono fun _ => ?_
   exact wand_mono_right (record_mono h _)
@@ -195,13 +195,13 @@ theorem guar_until_now : ▷ (P ⊨ₜ G₂) ⊢ P ⊨ₜ (G₁ Uₛ G₂) := by
 
 /-- Universal quantification over any type. -/
 @[lantana_alias guar_forall]
-theorem guar_all {X : Type _} (P : X → IProp GF) (G : X → TrSpec Expr State GF) :
-    (∀ x, P x ⊨ₜ G x) ⊢ iprop(∀ x, P x) ⊨ₜ TrSpec.all G := by
+theorem guar_forall {X : Type _} (P : X → IProp GF) (G : X → TrSpec Expr State GF) :
+    (∀ x, P x ⊨ₜ G x) ⊢ iprop(∀ x, P x) ⊨ₜ TrSpec.forall G := by
   iintro #HG
   iapply guar_intro
   imodintro
   iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, HP⟩
-  iapply record_all
+  iapply record_forall
   iintro %x
   iapply guar_elim (P x) (G x) h n σ tp m i Ω W tc X $$ HG
   iframe HI MI
@@ -209,8 +209,9 @@ theorem guar_all {X : Type _} (P : X → IProp GF) (G : X → TrSpec Expr State 
 
 /-- Trace-visible existential quantification, over small types. -/
 @[lantana_alias guar_exist]
-theorem guar_ex {X : Type _} [SIdxLarge SI X] (P : X → IProp GF) (G : X → TrSpec Expr State GF) :
-    (∀ x, P x ⊨ₜ G x) ⊢ iprop(∃ x, P x) ⊨ₜ TrSpec.ex G := by
+theorem guar_exists {X : Type _} [SIdxLarge SI X] (P : X → IProp GF)
+    (G : X → TrSpec Expr State GF) :
+    (∀ x, P x ⊨ₜ G x) ⊢ iprop(∃ x, P x) ⊨ₜ TrSpec.exists G := by
   iintro #HG
   iapply guar_intro
   imodintro
@@ -221,7 +222,7 @@ theorem guar_ex {X : Type _} [SIdxLarge SI X] (P : X → IProp GF) (G : X → Tr
 
 /-- A ghost existential: the witness is not trace-visible. -/
 @[lantana_alias guar_exist_ghost]
-theorem guar_ex_ghost {X : Type _} (P : X → IProp GF) :
+theorem guar_exists_ghost {X : Type _} (P : X → IProp GF) :
     (∀ x, P x ⊨ₜ G) ⊢ iprop(∃ x, P x) ⊨ₜ G := by
   iintro #HG
   iapply guar_intro
@@ -316,7 +317,7 @@ theorem guar_canon (Q : IProp GF) :
     iexact HQ
   · have hall : (∀ G : {G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G}, Q ⊨ₜ G.1) ⊢
         iprop(∀ _ : {G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G}, Q) ⊨ₜ TrSpec.canon Q :=
-      guar_all _ _
+      guar_forall _ _
     iapply hall
     iintro %G
     have hG : ⊢ Q ⊨ₜ G.1 := G.2
@@ -347,7 +348,7 @@ validly guarantees. -/
 def trCanon (Q : IProp GF) : TrProp (Cfg Expr State) := (TrSpec.canon Q).external
 
 @[lantana_alias tr_canon_le]
-theorem trCanon_le (Q : IProp GF) (R : TrProp (Cfg Expr State)) :
+theorem trCanon_subset_iff (Q : IProp GF) (R : TrProp (Cfg Expr State)) :
     trCanon Q ⊆ R ↔ ∃ G : TrSpec Expr State GF, (⊢ Q ⊨ₜ G) ∧ G.external ⊆ R := by
   constructor
   · intro hR
@@ -361,14 +362,14 @@ end Canon
 
 The atoms of temporal properties are facts about the current state: an iProp `P` determines
 `φ` when the state interpretation and `P` entail `φ` (`StateFact`), and then `P` guarantees
-`TrSpec.state φ` (`guar_state_fact`). A language provides the facts of its assertions, e.g.
+`TrSpec.state φ` (`guar_stateFact`). A language provides the facts of its assertions, e.g.
 `l ↦ v` for HeapLang (`Lantana.HeapLang.TemporalLaws`). -/
 
 section State
 
 /-- The state fact is read now from the history interpretation; the position is pinned by a
 history event, which after the step is looked up in the new history and, through
-`histTrace`, on the trace. -/
+`HistTrace`, on the trace. -/
 @[lantana_alias guar_state]
 theorem guar_state (φ : State → ThreadPool Expr → Prop) (P : IProp GF)
     (hφ : ∀ σ tp, stateInterp σ tp ∗ P ⊢ ⌜φ σ tp⌝) :
@@ -388,12 +389,12 @@ theorem guar_state (φ : State → ThreadPool Expr → Prop) (P : IProp GF)
   · iframe
   iapply record_intro
   imodintro
-  iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - %Hf - ⟨HI', -, -⟩
+  iintro %Sys %l %h' %g %v %Ω' %W' %τf %sched %γ %σ' %tp' - %hf - ⟨HI', -, -⟩
   ihave %hh := historyInterp_histEvent_lookup h' (n + 1) σ' tp' n (σ, tp) $$ [HI']
   · isplitl [HI']
     · iexact HI'
     · iexact HE
-  have hτ := Hf.2.2.2 n σ tp hh
+  have hτ := hf.2.2.2 n σ tp hh
   have hst : ⊢@{IProp GF} (TrSpec.state φ).internal (⟨n, τf⟩ : Trace (Cfg Expr State)) := by
     change ⊢@{IProp GF} iprop(⌜φ (τf n).2 (τf n).1⌝)
     rw [hτ]
@@ -401,7 +402,7 @@ theorem guar_state (φ : State → ThreadPool Expr → Prop) (P : IProp GF)
   iapply hst
 
 @[lantana_alias guar_state_fact]
-theorem guar_state_fact (P : IProp GF) (φ : State → ThreadPool Expr → Prop) [StateFact P φ] :
+theorem guar_stateFact (P : IProp GF) (φ : State → ThreadPool Expr → Prop) [StateFact P φ] :
     ⊢@{IProp GF} P ⊨ₜ TrSpec.state φ :=
   guar_state φ P StateFact.state_fact
 
@@ -425,9 +426,9 @@ theorem guar_bigSepL {A : Type _} (l : List A) (Φ : Nat → A → IProp GF)
   · imodintro
     iintro H %k %x %hk
     iapply BigSepL.bigSepL_lookup hk $$ H
-  · iapply guar_all
+  · iapply guar_forall
     iintro %k
-    iapply guar_all
+    iapply guar_forall
     iintro %x
     iapply guar_imp
     iapply HG
@@ -442,9 +443,9 @@ theorem guar_bigSepM {K V : Type _} {M : Type _ → Type _} [LawfulFiniteMap M K
   · imodintro
     iintro H %k %x %hk
     iapply BigSepM.bigSepM_lookup hk $$ H
-  · iapply guar_all
+  · iapply guar_forall
     iintro %k
-    iapply guar_all
+    iapply guar_forall
     iintro %x
     iapply guar_imp
     iapply HG
@@ -458,7 +459,7 @@ theorem guar_bigSepS {S A : Type _} [LawfulFiniteSet S A] (X : S) (Φ : A → IP
   · imodintro
     iintro H %x %hx
     iapply BigSepS.bigSepS_elem_of hx $$ H
-  · iapply guar_all
+  · iapply guar_forall
     iintro %x
     iapply guar_imp
     iapply HG

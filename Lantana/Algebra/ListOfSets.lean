@@ -10,10 +10,10 @@ public import Lantana.Init
 /-! # Lists of finite sets
 
 Rocq `lantana/algebra/list_of_sets.v`: the union `unionList L` of a list of sets and their
-pairwise disjointness `disjointList L`, under list operations. The sets are those of Iris-Lean's
+pairwise disjointness `DisjointList L`, under list operations. The sets are those of Iris-Lean's
 `LawfulSet` interface (used with `Oids` by the queue of `Lantana.Examples.Queue`).
 
-`disjointList` is `List.Pairwise (· ## ·)`; Rocq's definition by lookups is the lemma
+`DisjointList` is `List.Pairwise (· ## ·)`; Rocq's definition by lookups is the lemma
 `disjointList_iff_lookup`. The lemmas about `delete j L` and `<[j := s]> L` (lists updated at
 an index) are not ported: the examples only add at the end and remove at the front.
 -/
@@ -33,7 +33,7 @@ def unionList (L : List S) : S := L.foldr (· ∪ ·) ∅
 /-- The sets of a list are pairwise disjoint (Rocq `disjoint_list_of_sets`, stated with
 lookups there: `disjointList_iff_lookup`). -/
 @[lantana_alias disjoint_list_of_sets]
-def disjointList (L : List S) : Prop := L.Pairwise (· ## ·)
+def DisjointList (L : List S) : Prop := L.Pairwise (· ## ·)
 
 /-! ## The union -/
 
@@ -109,9 +109,9 @@ theorem unionList_sublist {L₁ L₂ : List S} (h : L₁.Sublist L₂) : unionLi
 
 /-- Rocq's definition of `disjoint_list_of_sets`, by lookups. -/
 theorem disjointList_iff_lookup {L : List S} :
-    disjointList L ↔ ∀ (j₁ j₂ : Nat) (s₁ s₂ : S), j₁ ≠ j₂ → L[j₁]? = some s₁ →
+    DisjointList L ↔ ∀ (j₁ j₂ : Nat) (s₁ s₂ : S), j₁ ≠ j₂ → L[j₁]? = some s₁ →
       L[j₂]? = some s₂ → s₁ ## s₂ := by
-  unfold disjointList
+  unfold DisjointList
   rw [List.pairwise_iff_getElem]
   constructor
   · intro h j₁ j₂ s₁ s₂ hne h₁ h₂
@@ -125,15 +125,15 @@ theorem disjointList_iff_lookup {L : List S} :
       (List.getElem?_eq_getElem hj₂)
 
 @[lantana_alias disjoint_list_of_sets_lookup]
-theorem disjointList_lookup {L : List S} {j₁ j₂ : Nat} {s₁ s₂ : S} (h : disjointList L)
+theorem disjointList_lookup {L : List S} {j₁ j₂ : Nat} {s₁ s₂ : S} (h : DisjointList L)
     (hne : j₁ ≠ j₂) (h₁ : L[j₁]? = some s₁) (h₂ : L[j₂]? = some s₂) : s₁ ## s₂ :=
   disjointList_iff_lookup.mp h j₁ j₂ s₁ s₂ hne h₁ h₂
 
 @[lantana_alias disjoint_list_of_sets_nil]
-theorem disjointList_nil : disjointList ([] : List S) := List.Pairwise.nil
+theorem disjointList_nil : DisjointList ([] : List S) := List.Pairwise.nil
 
 @[lantana_alias disjoint_list_of_sets_singleton]
-theorem disjointList_singleton (s : S) : disjointList [s] := List.pairwise_singleton _ s
+theorem disjointList_singleton (s : S) : DisjointList [s] := List.pairwise_singleton _ s
 
 /-- Disjoint from every set of a list is disjoint from the union (Rocq
 `Forall_disjoint_union_list_of_sets`). -/
@@ -149,46 +149,46 @@ theorem forall_disjoint_unionList {L : List S} {s : S} :
 
 @[lantana_alias disjoint_list_of_sets_cons_iff]
 theorem disjointList_cons_iff {s : S} {L : List S} :
-    disjointList (s :: L) ↔ (∀ s' ∈ L, s ## s') ∧ disjointList L :=
+    DisjointList (s :: L) ↔ (∀ s' ∈ L, s ## s') ∧ DisjointList L :=
   List.pairwise_cons
 
 @[lantana_alias disjoint_list_of_sets_cons_union_list_of_sets]
 theorem disjointList_cons {s : S} {L : List S} :
-    disjointList (s :: L) ↔ s ## unionList L ∧ disjointList L := by
+    DisjointList (s :: L) ↔ s ## unionList L ∧ DisjointList L := by
   rw [disjointList_cons_iff, forall_disjoint_unionList]
 
 @[lantana_alias disjoint_list_of_sets_cons_2]
-theorem disjointList_cons_2 {s : S} {L : List S} (h₁ : s ## unionList L) (h₂ : disjointList L) :
-    disjointList (s :: L) :=
+theorem disjointList_cons_mpr {s : S} {L : List S} (h₁ : s ## unionList L) (h₂ : DisjointList L) :
+    DisjointList (s :: L) :=
   disjointList_cons.mpr ⟨h₁, h₂⟩
 
 @[lantana_alias disjoint_list_of_sets_cons_inv]
-theorem disjointList_cons_inv {s : S} {L : List S} (h : disjointList (s :: L)) :
-    s ## unionList L ∧ disjointList L :=
+theorem disjointList_cons_inv {s : S} {L : List S} (h : DisjointList (s :: L)) :
+    s ## unionList L ∧ DisjointList L :=
   disjointList_cons.mp h
 
 @[lantana_alias disjoint_list_of_sets_app_iff]
 theorem disjointList_append_iff {L₁ L₂ : List S} :
-    disjointList (L₁ ++ L₂) ↔
-      disjointList L₁ ∧ disjointList L₂ ∧ ∀ s ∈ L₁, s ## unionList L₂ := by
-  unfold disjointList
+    DisjointList (L₁ ++ L₂) ↔
+      DisjointList L₁ ∧ DisjointList L₂ ∧ ∀ s ∈ L₁, s ## unionList L₂ := by
+  unfold DisjointList
   rw [List.pairwise_append]
   simp only [← forall_disjoint_unionList]
 
 @[lantana_alias disjoint_list_of_sets_app_inv]
-theorem disjointList_append_inv {L₁ L₂ : List S} (h : disjointList (L₁ ++ L₂)) :
-    disjointList L₁ ∧ disjointList L₂ ∧ ∀ s ∈ L₁, s ## unionList L₂ :=
+theorem disjointList_append_inv {L₁ L₂ : List S} (h : DisjointList (L₁ ++ L₂)) :
+    DisjointList L₁ ∧ DisjointList L₂ ∧ ∀ s ∈ L₁, s ## unionList L₂ :=
   disjointList_append_iff.mp h
 
 @[lantana_alias disjoint_list_of_sets_app]
-theorem disjointList_append {L₁ L₂ : List S} (h₁ : disjointList L₁) (h₂ : disjointList L₂)
-    (h : ∀ s ∈ L₁, s ## unionList L₂) : disjointList (L₁ ++ L₂) :=
+theorem disjointList_append {L₁ L₂ : List S} (h₁ : DisjointList L₁) (h₂ : DisjointList L₂)
+    (h : ∀ s ∈ L₁, s ## unionList L₂) : DisjointList (L₁ ++ L₂) :=
   disjointList_append_iff.mpr ⟨h₁, h₂, h⟩
 
 @[lantana_alias disjoint_list_of_sets_app_disjoint_iff]
 theorem disjointList_append_disjoint_iff {L₁ L₂ : List S} :
-    disjointList (L₁ ++ L₂) ↔
-      disjointList L₁ ∧ disjointList L₂ ∧ unionList L₁ ## unionList L₂ := by
+    DisjointList (L₁ ++ L₂) ↔
+      DisjointList L₁ ∧ DisjointList L₂ ∧ unionList L₁ ## unionList L₂ := by
   rw [disjointList_append_iff]
   refine and_congr_right fun _ => and_congr_right fun _ => ?_
   constructor

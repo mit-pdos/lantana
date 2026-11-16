@@ -65,7 +65,7 @@ theorem adequacy_alloc_names (σ : State) (tp : ThreadPool Expr) (X : ThreadId �
   imod historyInterp_init_names (GF := GF) σ tp with ⟨%γh, HH⟩
   imod regGS_alloc_names (Expr := Expr) (State := State) (GF := GF) with ⟨%γr, HR⟩
   letI := ModelGS.ofNames (GF := GF) γm
-  have hk := thKids_alloc_threads (GF := GF) ∅ 0 tp.length X
+  have hk := Th.alloc_threads (GF := GF) ∅ 0 tp.length X
   rw [Nat.zero_add, ← List.range_eq_range'] at hk
   unfold Model.modelInterp
   icases HM with ⟨HMH, Hs, Hf, Hwit, %hI⟩

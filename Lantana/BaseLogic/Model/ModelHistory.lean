@@ -12,7 +12,7 @@ public import Lantana.BaseLogic.Obligation
 Rocq `lantana/base_logic/model_history.v`: an append-only list of events `(n, Ω)` (physical step
 index, obligation map), owned authoritatively by the model interpretation, so that users can
 take persistent snapshots `eventObl i e k o` ("at event `i`, obligation `k` was `o`") and compare
-snapshots across time through the order `Obls.le`. Every model round appends an event
+snapshots across time through the order `Obligations.le`. Every model round appends an event
 (`modelHistoryInterp_step`); the trace layer reads the snapshots.
 -/
 
@@ -24,60 +24,42 @@ open Iris Iris.BI Iris.ProofMode Iris.Std LawfulPartialMap
 open scoped Lantana.MonoListP
 
 /-- An event of the model history: a physical step index and an obligation map. -/
-abbrev MEvent := Nat × Obls
+abbrev MEvent := Nat × Obligations
 
-/-- Events are ordered by index and by `Obls.le` (Rocq `event_le`). -/
+/-- Events are ordered by index and by `Obligations.le` (Rocq `event_le`). -/
 @[lantana_alias event_le]
-def eventLe (e₁ e₂ : MEvent) : Prop := e₁.1 ≤ e₂.1 ∧ Obls.le e₁.2 e₂.2
+def EventLe (e₁ e₂ : MEvent) : Prop := e₁.1 ≤ e₂.1 ∧ Obligations.le e₁.2 e₂.2
 
 @[lantana_alias event_le_reflexive]
-theorem eventLe_refl (e : MEvent) : eventLe e e := ⟨Nat.le_refl _, Obls.le_refl _⟩
+theorem eventLe_refl (e : MEvent) : EventLe e e := ⟨Nat.le_refl _, Obligations.le_refl _⟩
 
 @[lantana_alias event_le_transitive]
-theorem eventLe_trans {e₁ e₂ e₃ : MEvent} (h₁₂ : eventLe e₁ e₂) (h₂₃ : eventLe e₂ e₃) :
-    eventLe e₁ e₃ :=
-  ⟨Nat.le_trans h₁₂.1 h₂₃.1, Obls.le_trans h₁₂.2 h₂₃.2⟩
-
-theorem lt_length_of_getElem? {α : Type _} {l : List α} {i : Nat} {a : α}
-    (h : l[i]? = some a) : i < l.length := by
-  obtain ⟨hlt, -⟩ := List.getElem?_eq_some_iff.mp h
-  exact hlt
-
-/-- The last entry of a list of length `i + 1` is its `i`-th. -/
-theorem getLast?_eq_getElem?_of_length {α : Type _} {l : List α} {i : Nat} {a : α}
-    (hlen : l.length = i + 1) (hlast : l.getLast? = some a) : l[i]? = some a := by
-  rw [List.getLast?_eq_getElem?, hlen] at hlast
-  simpa using hlast
-
-theorem getLast?_take {α : Type _} {l : List α} {i : Nat} {a : α} (h : l[i]? = some a) :
-    (l.take (i + 1)).getLast? = some a := by
-  have hlt := lt_length_of_getElem? h
-  rw [List.getLast?_eq_getElem?, List.length_take, Nat.min_eq_left (by omega),
-    Nat.add_sub_cancel, List.getElem?_take_of_lt (Nat.lt_succ_self i)]
-  exact h
+theorem eventLe_trans {e₁ e₂ e₃ : MEvent} (h₁₂ : EventLe e₁ e₂) (h₂₃ : EventLe e₂ e₃) :
+    EventLe e₁ e₃ :=
+  ⟨Nat.le_trans h₁₂.1 h₂₃.1, Obligations.le_trans h₁₂.2 h₂₃.2⟩
 
 /-- A well-formed history: consecutive events are ordered (Rocq `model_history_wf`). -/
 @[lantana_alias model_history_wf]
 def ModelHistoryWf (h : List MEvent) : Prop :=
-  ∀ i e₁ e₂, h[i]? = some e₁ → h[i + 1]? = some e₂ → eventLe e₁ e₂
+  ∀ i e₁ e₂, h[i]? = some e₁ → h[i + 1]? = some e₂ → EventLe e₁ e₂
 
 namespace ModelHistoryWf
 
 theorem lookup_add {h : List MEvent} (wf : ModelHistoryWf h) {i : Nat} {e₁ : MEvent}
-    (hi : h[i]? = some e₁) : ∀ d e₂, h[i + d]? = some e₂ → eventLe e₁ e₂ := by
+    (hi : h[i]? = some e₁) : ∀ d e₂, h[i + d]? = some e₂ → EventLe e₁ e₂ := by
   intro d
   induction d with
   | zero => intro e₂ hj; rw [Nat.add_zero, hi] at hj; cases hj; exact eventLe_refl _
   | succ d ih =>
     intro e₂ hj
-    have hlt : i + d < h.length := by have := lt_length_of_getElem? hj; omega
+    have hlt : i + d < h.length := by have := List.lt_length_of_getElem? hj; omega
     exact eventLe_trans (ih _ (List.getElem?_eq_getElem hlt))
       (wf _ _ _ (List.getElem?_eq_getElem hlt) hj)
 
 /-- Any two events of a well-formed history are ordered (Rocq `model_history_wf_lookup_1`). -/
 @[lantana_alias model_history_wf_lookup_1]
 theorem lookup {h : List MEvent} (wf : ModelHistoryWf h) {i j : Nat} {e₁ e₂ : MEvent}
-    (hi : h[i]? = some e₁) (hj : h[j]? = some e₂) (hij : i ≤ j) : eventLe e₁ e₂ := by
+    (hi : h[i]? = some e₁) (hj : h[j]? = some e₂) (hij : i ≤ j) : EventLe e₁ e₂ := by
   obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le hij
   exact wf.lookup_add hi d e₂ hj
 
@@ -94,9 +76,9 @@ theorem isPrefix {h h' : List MEvent} (wf : ModelHistoryWf h) (hp : h' <+: h) :
 (Rocq `model_history_wf_app`, the case of one event). -/
 @[lantana_alias model_history_wf_app]
 theorem append_one {h : List MEvent} (wf : ModelHistoryWf h) {e : MEvent}
-    (hlast : ∀ e', h.getLast? = some e' → eventLe e' e) : ModelHistoryWf (h ++ [e]) := by
+    (hlast : ∀ e', h.getLast? = some e' → EventLe e' e) : ModelHistoryWf (h ++ [e]) := by
   intro i e₁ e₂ h₁ h₂
-  have hlt₂ := lt_length_of_getElem? h₂
+  have hlt₂ := List.lt_length_of_getElem? h₂
   rw [List.length_append, List.length_singleton] at hlt₂
   rcases Nat.lt_or_ge (i + 1) h.length with hlt | hge
   · rw [List.getElem?_append_left (by omega)] at h₁ h₂
@@ -115,7 +97,7 @@ end ModelHistoryWf
 /-- The ghost state of the model history: a monotone list of events. -/
 @[lantana_alias mhistGS]
 class MHistGS (GF : BundledGFunctors) where
-  [elemG : MonoListGP GF MEvent]
+  [elemG : MonoListPG GF MEvent]
   /-- The ghost name of the model history. -/
   name : GName
 
@@ -123,7 +105,7 @@ attribute [reducible, instance] MHistGS.elemG
 
 /-- The pre-allocation class of the model history. -/
 @[lantana_alias mhistGpreS]
-abbrev MHistGpreS (GF : BundledGFunctors) := MonoListGP GF MEvent
+abbrev MHistGpreS (GF : BundledGFunctors) := MonoListPG GF MEvent
 
 namespace MHist
 
@@ -166,11 +148,11 @@ theorem auth_wf (h : List MEvent) : auth (GF := GF) h ⊢ ⌜ModelHistoryWf h⌝
 /-- Append one event above the last (Rocq `mhG_history_auth_app`). -/
 @[lantana_alias mhG_history_auth_app]
 theorem auth_append (h : List MEvent) (e : MEvent)
-    (hlast : ∀ e', h.getLast? = some e' → eventLe e' e) :
+    (hlast : ∀ e', h.getLast? = some e' → EventLe e' e) :
     auth (GF := GF) h ⊢ |==> auth (h ++ [e]) := by
   unfold auth
   iintro ⟨%wf, H⟩
-  imod auth_own_update_app _ [e] $$ H with ⟨$, -⟩
+  imod authOwn_update_app _ [e] $$ H with ⟨$, -⟩
   ipureintro
   exact wf.append_one hlast
 
@@ -183,12 +165,12 @@ theorem auth_event {h : List MEvent} {i : Nat} {e : MEvent} (hi : h[i]? = some e
   iexists h.take (i + 1)
   isplit
   · ipureintro
-    refine ⟨?_, getLast?_take hi, wf.isPrefix (List.take_prefix _ _)⟩
-    have := lt_length_of_getElem? hi
+    refine ⟨?_, List.getLast?_take_succ_of_getElem? hi, wf.isPrefix (List.take_prefix _ _)⟩
+    have := List.lt_length_of_getElem? hi
     rw [List.length_take]
     omega
-  · iapply lb_own_le _ _ (List.take_prefix _ _)
-    iapply lb_own_get $$ H
+  · iapply lbOwn_le _ _ (List.take_prefix _ _)
+    iapply lbOwn_get $$ H
 
 /-- A snapshot is an entry of the history (Rocq `mhG_event_history_lookup`), from the raw
 authoritative list. -/
@@ -196,9 +178,9 @@ theorem event_lookup_raw (h : List MEvent) (i : Nat) (e : MEvent) :
     (name GF ↪●MLP h) ⊢@{IProp GF} event i e -∗ ⌜h[i]? = some e⌝ := by
   unfold event
   iintro H ⟨%h', %⟨hlen, hlast, -⟩, E⟩
-  icases auth_lb_own_valid _ _ h h' $$ H E with %⟨-, hp⟩
+  icases authOwn_lbOwn_valid _ _ h h' $$ H E with %⟨-, hp⟩
   ipureintro
-  exact prefix_getElem? hp (getLast?_eq_getElem?_of_length hlen hlast)
+  exact prefix_getElem? hp (List.getLast?_eq_getElem?_of_length hlen hlast)
 
 @[lantana_alias mhG_event_history_lookup]
 theorem event_lookup (h : List MEvent) (i : Nat) (e : MEvent) :
@@ -210,13 +192,13 @@ theorem event_lookup (h : List MEvent) (i : Nat) (e : MEvent) :
 /-- Snapshots are ordered in time (Rocq `mhG_event_compare`). -/
 @[lantana_alias mhG_event_compare]
 theorem event_compare {i j : Nat} (e₁ e₂ : MEvent) (hij : i ≤ j) :
-    event (GF := GF) i e₁ ⊢ event j e₂ -∗ ⌜eventLe e₁ e₂⌝ := by
+    event (GF := GF) i e₁ ⊢ event j e₂ -∗ ⌜EventLe e₁ e₂⌝ := by
   unfold event
   iintro ⟨%h₁, %⟨hlen₁, hlast₁, -⟩, E₁⟩ ⟨%h₂, %⟨hlen₂, hlast₂, wf₂⟩, E₂⟩
-  icases lb_own_valid _ h₁ h₂ $$ E₁ E₂ with %hp
+  icases lbOwn_valid _ h₁ h₂ $$ E₁ E₂ with %hp
   ipureintro
-  have h₁e : h₁[i]? = some e₁ := getLast?_eq_getElem?_of_length hlen₁ hlast₁
-  have h₂e : h₂[j]? = some e₂ := getLast?_eq_getElem?_of_length hlen₂ hlast₂
+  have h₁e : h₁[i]? = some e₁ := List.getLast?_eq_getElem?_of_length hlen₁ hlast₁
+  have h₂e : h₂[j]? = some e₂ := List.getLast?_eq_getElem?_of_length hlen₂ hlast₂
   have hp' : h₁ <+: h₂ := by
     rcases hp with hp | hp
     · exact hp
@@ -233,31 +215,31 @@ variable {GF : BundledGFunctors} [MHistGS GF]
 /-- The model history interpretation: `h` has `i + 1` events ending with `(n, Ω)`
 (Rocq `model_history_interp`). -/
 @[lantana_alias model_history_interp]
-def modelHistoryInterp (h : List MEvent) (i n : Nat) (Ω : Obls) : IProp GF :=
+def modelHistoryInterp (h : List MEvent) (i n : Nat) (Ω : Obligations) : IProp GF :=
   iprop(⌜h.length = i + 1 ∧ h.getLast? = some (n, Ω)⌝ ∗ MHist.auth h)
 
 /-- At event `i` (which was `e`), obligation `k` was `o` (Rocq `event_obl`). -/
 @[lantana_alias event_obl]
-def eventObl (i : Nat) (e : MEvent) (k : Oid) (o : Obl) : IProp GF :=
+def eventObl (i : Nat) (e : MEvent) (k : Oid) (o : Obligation) : IProp GF :=
   iprop(MHist.event i e ∗ ⌜get? e.2 k = some o⌝)
 
 @[lantana_alias model_history_interp_timeless]
-instance modelHistoryInterp_timeless (h : List MEvent) (i n : Nat) (Ω : Obls) :
+instance modelHistoryInterp_timeless (h : List MEvent) (i n : Nat) (Ω : Obligations) :
     Timeless (modelHistoryInterp (GF := GF) h i n Ω) := by
   unfold modelHistoryInterp; infer_instance
 
 @[lantana_alias event_obl_persistent]
-instance eventObl_persistent (i : Nat) (e : MEvent) (k : Oid) (o : Obl) :
+instance eventObl_persistent (i : Nat) (e : MEvent) (k : Oid) (o : Obligation) :
     Persistent (eventObl (GF := GF) i e k o) := by
   unfold eventObl; infer_instance
 
 @[lantana_alias event_obl_timeless]
-instance eventObl_timeless (i : Nat) (e : MEvent) (k : Oid) (o : Obl) :
+instance eventObl_timeless (i : Nat) (e : MEvent) (k : Oid) (o : Obligation) :
     Timeless (eventObl (GF := GF) i e k o) := by
   unfold eventObl; infer_instance
 
 @[lantana_alias model_history_interp_wf]
-theorem modelHistoryInterp_wf (h : List MEvent) (i n : Nat) (Ω : Obls) :
+theorem modelHistoryInterp_wf (h : List MEvent) (i n : Nat) (Ω : Obligations) :
     modelHistoryInterp (GF := GF) h i n Ω ⊢
       ⌜h.length = i + 1 ∧ h.getLast? = some (n, Ω) ∧ ModelHistoryWf h⌝ := by
   unfold modelHistoryInterp MHist.auth
@@ -266,23 +248,23 @@ theorem modelHistoryInterp_wf (h : List MEvent) (i n : Nat) (Ω : Obls) :
   exact ⟨hlen, hlast, wf⟩
 
 @[lantana_alias model_history_interp_lookup]
-theorem modelHistoryInterp_lookup (h : List MEvent) (i n : Nat) (Ω : Obls) :
+theorem modelHistoryInterp_lookup (h : List MEvent) (i n : Nat) (Ω : Obligations) :
     modelHistoryInterp (GF := GF) h i n Ω ⊢ ⌜h[i]? = some (n, Ω)⌝ := by
   unfold modelHistoryInterp
   iintro ⟨%⟨hlen, hlast⟩, -⟩
   ipureintro
-  exact getLast?_eq_getElem?_of_length hlen hlast
+  exact List.getLast?_eq_getElem?_of_length hlen hlast
 
-/-- A round appends an event: the index does not decrease and the obligations grow in `Obls.le`
-(Rocq `model_history_interp_step`; called by every round). -/
+/-- A round appends an event: the index does not decrease and the obligations grow in
+`Obligations.le` (Rocq `model_history_interp_step`; called by every round). -/
 @[lantana_alias model_history_interp_step]
-theorem modelHistoryInterp_step (h : List MEvent) (i : Nat) {n₁ n₂ : Nat} {Ω₁ Ω₂ : Obls}
-    (hn : n₁ ≤ n₂) (hΩ : Obls.le Ω₁ Ω₂) :
+theorem modelHistoryInterp_step (h : List MEvent) (i : Nat) {n₁ n₂ : Nat} {Ω₁ Ω₂ : Obligations}
+    (hn : n₁ ≤ n₂) (hΩ : Obligations.le Ω₁ Ω₂) :
     modelHistoryInterp (GF := GF) h i n₁ Ω₁ ⊢
       |==> modelHistoryInterp (h ++ [(n₂, Ω₂)]) (i + 1) n₂ Ω₂ := by
   unfold modelHistoryInterp
   iintro ⟨%⟨hlen, hlast⟩, Ha⟩
-  have hlink : ∀ e', h.getLast? = some e' → eventLe e' (n₂, Ω₂) := by
+  have hlink : ∀ e', h.getLast? = some e' → EventLe e' (n₂, Ω₂) := by
     intro e' he'
     rw [hlast] at he'
     cases he'
@@ -294,20 +276,20 @@ theorem modelHistoryInterp_step (h : List MEvent) (i : Nat) {n₁ n₂ : Nat} {�
 
 /-- A snapshot of the current obligation `k` (Rocq `model_history_interp_event_obl_now`). -/
 @[lantana_alias model_history_interp_event_obl_now]
-theorem modelHistoryInterp_eventObl_now (h : List MEvent) (i n : Nat) (Ω : Obls) {k : Oid}
-    {o : Obl} (hk : get? Ω k = some o) :
+theorem modelHistoryInterp_eventObl_now (h : List MEvent) (i n : Nat) (Ω : Obligations) {k : Oid}
+    {o : Obligation} (hk : get? Ω k = some o) :
     modelHistoryInterp (GF := GF) h i n Ω ⊢ eventObl i (n, Ω) k o := by
   unfold modelHistoryInterp eventObl
   iintro ⟨%⟨hlen, hlast⟩, Ha⟩
   isplitl [Ha]
-  · iapply MHist.auth_event (getLast?_eq_getElem?_of_length hlen hlast) $$ Ha
+  · iapply MHist.auth_event (List.getLast?_eq_getElem?_of_length hlen hlast) $$ Ha
   · ipureintro
     exact hk
 
 /-- A snapshot of a past obligation (Rocq `model_history_interp_event_obl_any`). -/
 @[lantana_alias model_history_interp_event_obl_any]
-theorem modelHistoryInterp_eventObl_any (h : List MEvent) (i n : Nat) (Ω : Obls) {j : Nat}
-    {e : MEvent} {k : Oid} {o : Obl} (hj : h[j]? = some e) (hk : get? e.2 k = some o) :
+theorem modelHistoryInterp_eventObl_any (h : List MEvent) (i n : Nat) (Ω : Obligations) {j : Nat}
+    {e : MEvent} {k : Oid} {o : Obligation} (hj : h[j]? = some e) (hk : get? e.2 k = some o) :
     modelHistoryInterp (GF := GF) h i n Ω ⊢ eventObl j e k o := by
   unfold modelHistoryInterp eventObl
   iintro ⟨-, Ha⟩
@@ -319,23 +301,23 @@ theorem modelHistoryInterp_eventObl_any (h : List MEvent) (i n : Nat) (Ω : Obls
 /-- What a snapshot says about the current history
 (Rocq `event_obl_model_history_interp_lookup`). -/
 @[lantana_alias event_obl_model_history_interp_lookup]
-theorem eventObl_modelHistoryInterp_lookup (h : List MEvent) (i n : Nat) (Ω : Obls) (j : Nat)
-    (e : MEvent) (k : Oid) (o : Obl) :
+theorem eventObl_modelHistoryInterp_lookup (h : List MEvent) (i n : Nat) (Ω : Obligations) (j : Nat)
+    (e : MEvent) (k : Oid) (o : Obligation) :
     modelHistoryInterp (GF := GF) h i n Ω ∗ eventObl j e k o ⊢
-      ⌜h[j]? = some e ∧ get? e.2 k = some o ∧ j ≤ i ∧ e.1 ≤ n ∧ Obls.le e.2 Ω⌝ := by
+      ⌜h[j]? = some e ∧ get? e.2 k = some o ∧ j ≤ i ∧ e.1 ≤ n ∧ Obligations.le e.2 Ω⌝ := by
   unfold modelHistoryInterp eventObl MHist.auth
   iintro ⟨⟨%⟨hlen, hlast⟩, %wf, Ha⟩, ⟨He, %hk⟩⟩
   icases MHist.event_lookup_raw h j e $$ Ha He with %hj
   ipureintro
-  have hji : j ≤ i := by have := lt_length_of_getElem? hj; omega
-  have hle := wf.lookup hj (getLast?_eq_getElem?_of_length hlen hlast) hji
+  have hji : j ≤ i := by have := List.lt_length_of_getElem? hj; omega
+  have hle := wf.lookup hj (List.getLast?_eq_getElem?_of_length hlen hlast) hji
   exact ⟨hj, hk, hji, hle.1, hle.2⟩
 
 /-- Snapshots of the same obligation are ordered in time (Rocq `event_obl_compare`). -/
 @[lantana_alias event_obl_compare]
-theorem eventObl_compare {i j : Nat} (e₁ e₂ : MEvent) (k : Oid) (o₁ o₂ : Obl) (hij : i ≤ j) :
+theorem eventObl_compare {i j : Nat} (e₁ e₂ : MEvent) (k : Oid) (o₁ o₂ : Obligation) (hij : i ≤ j) :
     eventObl (GF := GF) i e₁ k o₁ ∗ eventObl j e₂ k o₂ ⊢
-      ⌜e₁.1 ≤ e₂.1 ∧ Obls.le e₁.2 e₂.2 ∧ Obl.le o₁ o₂⌝ := by
+      ⌜e₁.1 ≤ e₂.1 ∧ Obligations.le e₁.2 e₂.2 ∧ Obligation.le o₁ o₂⌝ := by
   unfold eventObl
   iintro ⟨⟨E₁, %h₁⟩, ⟨E₂, %h₂⟩⟩
   icases MHist.event_compare e₁ e₂ hij $$ E₁ E₂ with %⟨hn, hΩ⟩
@@ -353,7 +335,7 @@ small enough for the existential property of satisfiability, unlike `MHistGS GF`
 /-- Allocating the model history with its first event, at the name `γ` (small enough for the
 existential property of satisfiability). -/
 theorem modelHistoryInterp_init_names {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat)
-    (Ω : Obls) :
+    (Ω : Obligations) :
     ⊢@{IProp GF} |==> ∃ γ : GName, letI := MHistGS.ofName (GF := GF) γ;
       modelHistoryInterp [(n, Ω)] 0 n Ω := by
   iintro
@@ -368,7 +350,8 @@ theorem modelHistoryInterp_init_names {GF : BundledGFunctors} [MHistGpreS GF] (n
 
 /-- Allocating the model history with its first event (Rocq `model_history_interp_init`). -/
 @[lantana_alias model_history_interp_init]
-theorem modelHistoryInterp_init {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat) (Ω : Obls) :
+theorem modelHistoryInterp_init {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat)
+    (Ω : Obligations) :
     ⊢@{IProp GF} |==> ∃ _ : MHistGS GF, modelHistoryInterp [(n, Ω)] 0 n Ω := by
   imod modelHistoryInterp_init_names (GF := GF) n Ω with ⟨%γ, H⟩
   imodintro

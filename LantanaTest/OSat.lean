@@ -60,9 +60,10 @@ variable [OSatGS TestGF]
 
 /-- The life of an obligation at a fresh id: allocation with fuel `1`, one step of progress
 with the unit of fuel, and discharge. -/
-example (Ω : Obls) : osat Ω ⊢@{IProp TestGF} |==> ∃ Ω', osat Ω' ∗ OSat.discharged Ω.fresh := by
+example (Ω : Obligations) :
+    osat Ω ⊢@{IProp TestGF} |==> ∃ Ω', osat Ω' ∗ OSat.discharged Ω.fresh := by
   iintro Hs
-  imod osat_alloc_obl_assigned (Obls.get?_fresh Ω) (1 : Ordinal.{1}) 0 $$ Hs
+  imod osat_alloc_obl_assigned (Obligations.get?_fresh Ω) (1 : Ordinal.{1}) 0 $$ Hs
     with ⟨Hs, -, -, Ha, Hf, -⟩
   imod osat_progress_one (get?_insert_eq rfl) Ordinal.zero_lt_one $$ [$Hs $Hf]
     with ⟨%a', Hs, -⟩
@@ -78,7 +79,7 @@ example (k : Oid) (a b : Fuel) :
   iframe
 
 /-- The cash of an obligation is at most its model fuel. -/
-example (Ω : Obls) (k : Oid) (a f : Fuel) (t : ThreadId)
+example (Ω : Obligations) (k : Oid) (a f : Fuel) (t : ThreadId)
     (hk : get? Ω k = some (.assigned f t)) :
     osat Ω ∗ OSat.fuel k a ⊢@{IProp TestGF} ⌜a ≤ f⌝ := by
   iintro H

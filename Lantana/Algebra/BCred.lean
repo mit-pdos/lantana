@@ -204,7 +204,7 @@ theorem valid_iff {p : Option α} {q : α} : ✓ (⟨p, q⟩ : BCred α) ↔ ∀
   .rfl
 
 @[lantana_alias bcred_included]
-theorem included_iff {p₀ p₁ : Option α} {q₀ q₁ : α} :
+theorem inc_iff {p₀ p₁ : Option α} {q₀ q₁ : α} :
     (⟨p₀, q₀⟩ : BCred α) ≼ ⟨p₁, q₁⟩ ↔ ∃ p₂ q₂, p₁ = boundMin p₀ p₂ ∧ q₁ = q₀ +ₒ q₂ := by
   constructor
   · rintro ⟨⟨p₂, q₂⟩, hz⟩
@@ -248,7 +248,7 @@ theorem creditBound_op_creditBound (a₁ a₂ : α) :
   rw [OCM.zero_add (0 : α), boundMin_some_some]
 
 @[lantana_alias credit_bound_included]
-theorem creditBound_included {a₀ a₁ : α} (h : a₀ ≤ a₁) : creditBound a₁ ≼ creditBound a₀ :=
+theorem creditBound_inc {a₀ a₁ : α} (h : a₀ ≤ a₁) : creditBound a₁ ≼ creditBound a₀ :=
   ⟨creditBound a₀, by rw [creditBound_op_creditBound, OCM.min_eq_right h]⟩
 
 @[lantana_alias credit_bound_op]

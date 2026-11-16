@@ -11,8 +11,8 @@ ten-line change that made Lantana's build a quarter faster.
 ## 1. Universe-polymorphic constant functor (`constOF`)
 
 - **Now:** `Iris.constOF (B : Type)`. Lantana's ordinal-valued cameras (`Auth Ordinal.{1}` credits,
-  `Bank Fuel`, `BCred Fuel`, `Agree (DiscreteO Fuel)`, `MonoList (Nat × Obls)`) live in `Type 2`, so
-  Lantana defines `Lantana.constOFP (B : Type v)` with its four functor instances
+  `Bank Fuel`, `BCred Fuel`, `Agree (DiscreteO Fuel)`, `MonoList (Nat × Obligations)`) live in
+  `Type 2`, so Lantana defines `Lantana.constOFP (B : Type v)` with its four functor instances
   (`Lantana/BaseLogic/LaterCredits.lean`) and includes the cameras through `ULiftOF.{4}` slots.
 - **Proposal:** make `constOF` universe-polymorphic (`B : Type v`), keeping `constOFU` for the
   universe-lifted case. Check `ElemG.ofEqLift`/`ofLift` for the `ULiftOF` level inference
@@ -23,8 +23,8 @@ ten-line change that made Lantana's build a quarter faster.
 
 - **Now:** `GhostMapG GF K V H` and `MonoListG GF α` use `constOF`, so they store `Type 0` data
   only. Lantana copies them: `Lantana/BaseLogic/MonoListP.lean` (253 lines, the model history of
-  `Nat × Obls`) and `Lantana/Examples/GhostMapP.lean` (199 lines, maps to layers/measures in the
-  ticket lock). Lantana's obligation model also keeps its ordinal-valued cells under
+  `Nat × Obligations`) and `Lantana/Examples/GhostMapP.lean` (199 lines, maps to layers/measures in
+  the ticket lock). Lantana's obligation model also keeps its ordinal-valued cells under
   per-obligation ghost names, rather than in a single ghost map, for this reason.
 - **Proposal:** after (1), generalise the value type of `GhostMapG`/`MonoListG` (and `GhostVarG`,
   `SavedPropG` if they share the pattern) to `Type v`.
@@ -51,7 +51,7 @@ ten-line change that made Lantana's build a quarter faster.
 ## 4. Ordinal later credits and the relational update in Iris-Lean
 
 - **Now:** Lantana has its own relational update `|==>r` over a well-founded credit camera
-  (`BaseLogic/RUpd.lean`, 305 lines), ordinal later credits `£ₒ α` with `ALC`
+  (`BaseLogic/RUpd.lean`, 305 lines), ordinal later credits `£ₒ α` with `alc`
   (`LaterCredits.lean`, 576), the fancy update built on `|==>r` with an explicit `◇`
   (`FUpd.lean`, 355), and re-instantiations of Iris-Lean's invariants (`Invariants.lean`, 501) and
   invariant heaps (`InvHeap.lean`, 320) over it — about 2 050 lines, most of them adapted copies.
@@ -66,7 +66,7 @@ ten-line change that made Lantana's build a quarter faster.
   (`Satisfiable.lean`, 461 lines: `SatPred`, `satFrame`, `rupd_satisfiable`, `satAt`) would move
   with it, since adequacy statements need it.
 - **Removes:** most of the ~2 050 lines above (Lantana would keep only its credit instance and the
-  `ALC` modality); makes all of Iris-Lean's update-level libraries usable in Lantana.
+  `alc` modality); makes all of Iris-Lean's update-level libraries usable in Lantana.
 - **Cost/risk:** touches Iris-Lean's core update and adequacy files; the transfinite branch's
   existing users of `£ n` must keep their statements (instantiate at `Nat`).
 

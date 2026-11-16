@@ -50,15 +50,15 @@ abbrev hit (a : FairnessAssumption C) : TrProp C := AttemptGrant.hit a.attempted
 abbrev miss (a : FairnessAssumption C) : TrProp C := AttemptGrant.miss a.attempted a.granted
 
 /-- The assumption holds of the run: the core's fairness of its pair. -/
-def holds (a : FairnessAssumption C) : TrProp C := AttemptGrant.Fair a.attempted a.granted
+def holds (a : FairnessAssumption C) : TrProp C := AttemptGrant.fair a.attempted a.granted
 
 /-- The counter of the assumption: zero at a granted attempt, one more at a refused attempt than
 at the next position, unchanged where there is no attempt. -/
-abbrev IsCounter (a : FairnessAssumption C) (δ : Nat → Nat) : TrProp C :=
-  AttemptGrant.IsCounter a.attempted a.granted δ
+abbrev isCounter (a : FairnessAssumption C) (δ : Nat → Nat) : TrProp C :=
+  AttemptGrant.isCounter a.attempted a.granted δ
 
 /-- The grant is certain: every attempt is granted, from the current position on. -/
-abbrev Certain (a : FairnessAssumption C) : TrProp C := AttemptGrant.Certain a.attempted a.granted
+abbrev certain (a : FairnessAssumption C) : TrProp C := AttemptGrant.certain a.attempted a.granted
 
 /-- What a transition does to the counter: a granted attempt resets it, a refused attempt drops
 it, no attempt leaves it. -/
@@ -105,40 +105,40 @@ theorem holds_iff_attempted : a.holds τ ↔ ((□ₜ ◇ₜ a.attempted) τ →
   AttemptGrant.fair_iff_attempt
 
 /-- The assumption holds exactly when it has a counter. -/
-theorem holds_iff_counter : a.holds τ ↔ ∃ δ, a.IsCounter δ τ := AttemptGrant.fair_iff_counter
+theorem holds_iff_counter : a.holds τ ↔ ∃ δ, a.isCounter δ τ := AttemptGrant.fair_iff_counter
 
 /-- The assumption gives a counter. -/
-theorem counter_of_holds (hag : a.holds τ) : ∃ δ, a.IsCounter δ τ := holds_iff_counter.1 hag
+theorem counter_of_holds (hag : a.holds τ) : ∃ δ, a.isCounter δ τ := holds_iff_counter.1 hag
 
 /-- A counter gives the assumption. -/
-theorem holds_of_counter (hδ : a.IsCounter δ τ) : a.holds τ := holds_iff_counter.2 ⟨δ, hδ⟩
+theorem holds_of_counter (hδ : a.isCounter δ τ) : a.holds τ := holds_iff_counter.2 ⟨δ, hδ⟩
 
 /-! ### The counter's rules, in terms of the move -/
 
 /-- A counter from `τ` is a counter from every later position. -/
-theorem IsCounter.mono (hδ : a.IsCounter δ τ) {m : Nat} (hm : τ.pos ≤ m) :
-    a.IsCounter δ { τ with pos := m } :=
-  AttemptGrant.IsCounter.mono hδ hm
+theorem isCounter.mono (hδ : a.isCounter δ τ) {m : Nat} (hm : τ.pos ≤ m) :
+    a.isCounter δ { τ with pos := m } :=
+  AttemptGrant.isCounter.mono hδ hm
 
 /-- Reset: the counter is zero where the transition resets it. -/
-theorem counter_reset (hδ : a.IsCounter δ τ) (h : a.counterMove τ.now τ.next.now = .reset) :
+theorem counter_reset (hδ : a.isCounter δ τ) (h : a.counterMove τ.now τ.next.now = .reset) :
     δ τ.pos = 0 :=
   have ⟨ha, hg⟩ := counterMove_eq_reset_iff.1 h
   AttemptGrant.counter_reset hδ ha hg
 
 /-- Drop: where the transition drops the counter, it is one more than at the next position. -/
-theorem counter_drop (hδ : a.IsCounter δ τ) (h : a.counterMove τ.now τ.next.now = .drop) :
+theorem counter_drop (hδ : a.isCounter δ τ) (h : a.counterMove τ.now τ.next.now = .drop) :
     δ τ.pos = δ (τ.pos + 1) + 1 :=
   have ⟨ha, hg⟩ := counterMove_eq_drop_iff.1 h
   AttemptGrant.counter_drop hδ ha hg
 
 /-- Stay: where the transition leaves the counter, it is unchanged. -/
-theorem counter_stay (hδ : a.IsCounter δ τ) (h : a.counterMove τ.now τ.next.now = .stay) :
+theorem counter_stay (hδ : a.isCounter δ τ) (h : a.counterMove τ.now τ.next.now = .stay) :
     δ τ.pos = δ (τ.pos + 1) :=
   AttemptGrant.counter_stay hδ (counterMove_eq_stay_iff.1 h)
 
 /-- The counter, by the move of the transition at every position from the current one on. -/
-theorem isCounter_iff_counterMove : a.IsCounter δ τ ↔
+theorem isCounter_iff_counterMove : a.isCounter δ τ ↔
     ∀ m, τ.pos ≤ m →
       (a.counterMove (τ.seq m) (τ.seq (m + 1)) = .reset → δ m = 0) ∧
       (a.counterMove (τ.seq m) (τ.seq (m + 1)) = .drop → δ m = δ (m + 1) + 1) ∧
@@ -156,10 +156,10 @@ theorem isCounter_iff_counterMove : a.IsCounter δ τ ↔
 /-! ### A certain grant -/
 
 /-- A certain grant gives the assumption outright. -/
-theorem holds_of_certain : a.Certain ⊆ a.holds := AttemptGrant.fair_of_certain
+theorem holds_of_certain : a.certain ⊆ a.holds := AttemptGrant.fair_of_certain
 
 /-- With a certain grant the zero function is a counter. -/
-theorem counter_zero_of_certain (hc : a.Certain τ) : a.IsCounter (fun _ => 0) τ :=
+theorem counter_zero_of_certain (hc : a.certain τ) : a.isCounter (fun _ => 0) τ :=
   AttemptGrant.counter_zero_of_certain hc
 
 end FairnessAssumption

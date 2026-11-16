@@ -17,7 +17,7 @@ and *credits* (the bounded-credit camera `BCred Fuel` of `Algebra/BCred.lean`, u
 per-obligation ghost name recorded in a persistent name map). The invariant `owit W` holds, for
 every assigned witness `k` with bound `b`, credits `α ≥ b` (so credits can be split off whenever
 a witness makes progress); for discharged witnesses it holds the persistent `OSat.discharged k`.
-The pure relation between obligations and witnesses is `owitInv` (`ModelRel.lean`).
+The pure relation between obligations and witnesses is `OWitInv` (`ModelRel.lean`).
 -/
 
 @[expose] public noncomputable section
@@ -211,7 +211,7 @@ private theorem cred_update' {k : Oid} {x y : BCred Fuel} (h : x ~~> y) :
 #lantana_ignore witG_witness_eq "Leibniz equality"
 
 @[lantana_alias witG_witness_mon]
-theorem cred_mon {k : Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
+theorem cred_mono {k : Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
     cred k a₁ ⊢@{IProp GF} |==> cred k a₀ :=
   cred_update' (BCred.credit_update h)
 
@@ -222,9 +222,9 @@ theorem cred_split (k : Oid) (a₀ a₁ : Fuel) :
     cred_combine k (BCred.credit a₀) (BCred.credit a₁)⟩
 
 @[lantana_alias witG_witness_mon_split]
-theorem cred_mon_split {k : Oid} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
+theorem cred_mono_split {k : Oid} {a₀ a₁ a₂ : Fuel} (h : a₀ +ₕ a₁ ≤ a₂) :
     cred k a₂ ⊢@{IProp GF} |==> (cred k a₀ ∗ cred k a₁) :=
-  (cred_mon h).trans (BIUpdate.mono (cred_split k a₀ a₁).mp)
+  (cred_mono h).trans (BIUpdate.mono (cred_split k a₀ a₁).mp)
 
 /-- Split off a positive credit. -/
 @[lantana_alias witG_witness_lt]
@@ -232,7 +232,7 @@ theorem cred_lt {k : Oid} {a₀ a₁ : Fuel} (h : a₀ < a₁) :
     cred k a₁ ⊢@{IProp GF} |==> (cred k a₀ ∗ ∃ c, ⌜0 < c⌝ ∗ cred k c) := by
   obtain ⟨c, hc, hle⟩ := Ordinal.lt_exists_left.mpr h
   iintro H
-  imod cred_mon_split hle $$ H with ⟨H₀, Hc⟩
+  imod cred_mono_split hle $$ H with ⟨H₀, Hc⟩
   imodintro
   iframe H₀
   iexists c
@@ -258,13 +258,13 @@ theorem cred_zero (k : Oid) (a : Fuel) : cred k a ⊢@{IProp GF} cred k a ∗ cr
 /-- A bound may be raised (`creditBound a₁ ≼ creditBound a₀` for `a₀ ≤ a₁`; Rocq
 `witG_bound_mon`, there under an update). -/
 @[lantana_alias witG_bound_mon]
-theorem bound_mon {k : Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
+theorem bound_mono {k : Oid} {a₀ a₁ : Fuel} (h : a₀ ≤ a₁) :
     bound k a₀ ⊢@{IProp GF} bound k a₁ := by
   unfold bound
   iintro ⟨%γ, #Hn, H⟩
   iexists γ
   iframe Hn
-  iapply credOwn_mono (BCred.creditBound_included h) $$ H
+  iapply credOwn_mono (BCred.creditBound_inc h) $$ H
 
 /-- The credits are below the bound (Rocq `witG_compare`). -/
 @[lantana_alias witG_compare]
@@ -409,10 +409,10 @@ theorem owit_alloc_witness_discharged {W : Witnesses} {k : Oid} (hk : get? W k =
 
 /-! ### Rounds -/
 
-/-- Witnesses may decrease (Rocq `owit_mon`): the lemma every round uses to re-establish the
+/-- Witnesses may decrease (Rocq `owit_mono`): the lemma every round uses to re-establish the
 invariant for the environment's choice of witnesses. -/
 @[lantana_alias owit_mon]
-theorem owit_mon {W₁ W₂ : Witnesses} (h : Witnesses.mono W₁ W₂) :
+theorem owit_mono {W₁ W₂ : Witnesses} (h : Witnesses.Mono W₁ W₂) :
     owit W₁ ⊢@{IProp GF} owit W₂ := by
   unfold owit
   iintro ⟨%Ns, %hdom, HN, HM⟩
@@ -423,10 +423,10 @@ theorem owit_mon {W₁ W₂ : Witnesses} (h : Witnesses.mono W₁ W₂) :
     intro k
     rw [← h.isSome_iff k]
     exact hdom k
-  · have hpt : ∀ k w₁ w₂, Witness.ndLe w₁ w₂ →
+  · have hpt : ∀ k w₁ w₂, Witness.NoDischargeLe w₁ w₂ →
         OWit.witInv (GF := GF) k w₁ ⊢ OWit.witInv k w₂ := by
       intro k w₁ w₂ hw
-      cases w₁ <;> cases w₂ <;> simp only [Witness.ndLe] at hw
+      cases w₁ <;> cases w₂ <;> simp only [Witness.NoDischargeLe] at hw
       · -- assigned → assigned, the bound decreased
         iintro ⟨%α, %hα, Hc⟩
         iexists α
@@ -440,15 +440,15 @@ theorem owit_mon {W₁ W₂ : Witnesses} (h : Witnesses.mono W₁ W₂) :
 (Rocq `owit_progress`). -/
 @[lantana_alias owit_progress]
 theorem owit_progress {W₁ W₂ : Witnesses}
-    (h : Witnesses.condProgress Witness.condAssigned W₁ W₂) :
+    (h : Witnesses.CondProgress Witness.CondAssigned W₁ W₂) :
     owit W₁ ⊢@{IProp GF} |==> (owit W₂ ∗ [∗map] k ↦ w ∈ W₁, OWit.witCredit k w) := by
   unfold owit
-  have hR : mapForall2 (fun k w₁ w₂ =>
-      ((Witness.condAssigned k w₁ ∧ Witness.step w₁ w₂) ∨
-        (¬Witness.condAssigned k w₁ ∧ w₁ = w₂)) ∧ Witness.keep w₁ w₂) W₁ W₂ :=
+  have hR : MapForall2 (fun k w₁ w₂ =>
+      ((Witness.CondAssigned k w₁ ∧ Witness.Step w₁ w₂) ∨
+        (¬Witness.CondAssigned k w₁ ∧ w₁ = w₂)) ∧ Witness.Keep w₁ w₂) W₁ W₂ :=
     h.1.and h.2
-  have hpt : ∀ k w₁ w₂, (((Witness.condAssigned k w₁ ∧ Witness.step w₁ w₂) ∨
-        (¬Witness.condAssigned k w₁ ∧ w₁ = w₂)) ∧ Witness.keep w₁ w₂) →
+  have hpt : ∀ k w₁ w₂, (((Witness.CondAssigned k w₁ ∧ Witness.Step w₁ w₂) ∨
+        (¬Witness.CondAssigned k w₁ ∧ w₁ = w₂)) ∧ Witness.Keep w₁ w₂) →
       OWit.witInv (GF := GF) k w₁ ⊢ |==> (OWit.witInv k w₂ ∗ OWit.witCredit k w₁) := by
     intro k w₁ w₂ ⟨hw, hkeep⟩
     rcases hw with ⟨hC, hs | hs⟩ | ⟨hC, rfl⟩
@@ -462,7 +462,7 @@ theorem owit_progress {W₁ W₂ : Witnesses}
           change b₂ < b₁ at hs
           iintro ⟨%α, %hα, Hc⟩
           obtain ⟨c, hc, hle⟩ := Ordinal.lt_exists_left.mpr (Ordinal.lt_of_lt_of_le hs hα)
-          imod OWit.cred_mon_split hle $$ Hc with ⟨Hα, Hc⟩
+          imod OWit.cred_mono_split hle $$ Hc with ⟨Hα, Hc⟩
           imodintro
           isplitl [Hα]
           · iexists b₂
@@ -473,7 +473,7 @@ theorem owit_progress {W₁ W₂ : Witnesses}
             iframe Hc
             ipureintro
             exact hc
-    · -- a discharge step is excluded by `keep`
+    · -- a discharge step is excluded by `Keep`
       exact (by cases w₁ <;> cases w₂ <;> first | exact hs.elim | exact hkeep.elim : False).elim
     · -- an unchanged (discharged) witness
       cases w₁ with
@@ -496,8 +496,8 @@ theorem owit_progress {W₁ W₂ : Witnesses}
 /-- Any progress round keeps the invariant (Rocq `owit_progress_any`). -/
 @[lantana_alias owit_progress_any]
 theorem owit_progress_any {C : Oid → Witness → Prop} {W₁ W₂ : Witnesses}
-    (h : Witnesses.condProgress C W₁ W₂) : owit W₁ ⊢@{IProp GF} owit W₂ :=
-  owit_mon (Witnesses.condProgress_mono h)
+    (h : Witnesses.CondProgress C W₁ W₂) : owit W₁ ⊢@{IProp GF} owit W₂ :=
+  owit_mono (Witnesses.condProgress_mono h)
 
 /-- Discharging a witness needs no update: the credits are dropped (Rocq `owit_discharge`). -/
 @[lantana_alias owit_discharge]

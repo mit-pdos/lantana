@@ -51,20 +51,20 @@ def v0 : Val := hl_val(#0)
 def v1 : Val := hl_val(#1)
 
 /-- The namespaces of the flag's invariant and of its until. -/
-def N : Namespace := nroot.@"flag"
-def Na : Namespace := N.@"always"
-def Np : Namespace := N.@"pointsto"
+def flagN : Namespace := nroot.@"flag"
+def alwaysN : Namespace := flagN.@"always"
+def pointsToN : Namespace := flagN.@"pointsto"
 
 /-- A namespace is outside its siblings. -/
-theorem ndot_subseteq_diff (N : Namespace) {x y : String} (h : x ≠ y) :
+theorem ndot_subset_diff (N : Namespace) {x y : String} (h : x ≠ y) :
     (↑(N.@x) : CoPset) ⊆ ⊤ \ ↑(N.@y) := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
   exact ndot_ne_disjoint N h p ⟨hp, h'⟩
 
 /-- The until's namespace is outside the invariant's. -/
-theorem Np_subseteq : (↑Np : CoPset) ⊆ ⊤ \ ↑Na :=
-  ndot_subseteq_diff N (by decide)
+theorem pointsToN_subset : (↑pointsToN : CoPset) ⊆ ⊤ \ ↑alwaysN :=
+  ndot_subset_diff flagN (by decide)
 
 /-! ## The invariant -/
 
@@ -74,18 +74,18 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 /-- The flag is `0` until it is `1` (half of the until on `k`), after which it stays `1`. -/
 @[lantana_alias flag_inv]
 def flagInv (l : Loc) (k : Oid) : IProp GF :=
-  iprop(untilI Np k (1 : Qp).half iprop(l ↦ some v0) iprop(l ↦ some v1) ∨
+  iprop(untilI pointsToN k (1 : Qp).half iprop(l ↦ some v0) iprop(l ↦ some v1) ∨
     (Obl.discharged k ∗ l ↦ some v1))
 
 /-- The flag `l` on the obligation `k` with witness layer `ℓ` (persistent). -/
 @[lantana_alias is_flag]
 def isFlag (l : Loc) (k : Oid) (ℓ : Layer) : IProp GF :=
-  iprop(Wit.layer k ℓ ∗ alwaysI Na (flagInv l k))
+  iprop(Wit.layer k ℓ ∗ alwaysI alwaysN (flagInv l k))
 
 /-- The setter's token: the other half of the until. -/
 @[lantana_alias flag_tk]
 def flagTk (l : Loc) (k : Oid) : IProp GF :=
-  untilI Np k (1 : Qp).half iprop(l ↦ some v0) iprop(l ↦ some v1)
+  untilI pointsToN k (1 : Qp).half iprop(l ↦ some v0) iprop(l ↦ some v1)
 
 instance isFlag_persistent (l : Loc) (k : Oid) (ℓ : Layer) :
     Persistent (isFlag (GF := GF) l k ℓ) := by
@@ -93,7 +93,7 @@ instance isFlag_persistent (l : Loc) (k : Oid) (ℓ : Layer) :
 
 /-- `l ↦ v` as a trace specification. -/
 abbrev pointsToSpec (l : Loc) (v : Val) : TrSpec Exp State GF :=
-  TrSpec.state (pointstoSat l (DFrac.own 1) v)
+  TrSpec.state (PointsToSat l (DFrac.own 1) v)
 
 /-- The specification inferred from `isFlag`: always, `0` until `1` or `1`. -/
 @[lantana_alias flag_trSpec]
@@ -131,7 +131,7 @@ instance guarOf_flagTk (l : Loc) (k : Oid) :
 
 /-- `l ↦ v` as a trace property. -/
 abbrev pointsToTr (l : Loc) (v : Val) : TrProp (Cfg Exp State) :=
-  TrProp.state (pointstoSat l (DFrac.own 1) v)
+  TrProp.state (PointsToSat l (DFrac.own 1) v)
 
 /-- The response property: whenever the flag is `0`, it is eventually `1`. -/
 @[lantana_alias flag_response]
@@ -158,7 +158,7 @@ theorem isFlag_response (l : Loc) (k : Oid) (ℓ : Layer) :
   (guar_isFlag l k ℓ).trans (guar_cast _ _)
 
 /-- A flag exists: its location is trace-visible, its obligation and layer are not. -/
-theorem guar_exFlag :
+theorem guar_exists_flag :
     ⊢@{IProp GF} iprop(∃ (x : Loc) (k : Oid) (ℓ : Layer), isFlag x k ℓ) ⊨ₜ
       (∃ₛ x : Loc, flagTrSpec x) :=
   IntoGuar.into_guar
@@ -167,17 +167,17 @@ theorem guar_exFlag :
 @[lantana_alias is_flag_init]
 theorem isFlag_init (E : CoPset) (l : Loc) (p : Parent) (K B : Oids) (ℓ : Layer)
     (μ : Measure) :
-    parLe (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗ Par.bill p B -∗
+    Par.le (GF := GF) p ℓ ⊢ l ↦ some v0 -∗ Par.kids p K -∗ Par.bill p B -∗
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
         oblKids k ∅ ∗ Obl.fuel k ℓ μ ∗ flagTk l k ∗ isFlag l k ℓ := by
   iintro #Hle Ptr Kp HB
   imod untilI_alloc (E := E) p K B ℓ μ $$ Hle Kp HB with ⟨%k, %hk, Kp, HB, Kk, Fk, #Wk, H⟩
-  imod H $$ %E %Np %iprop(l ↦ some v0) %iprop(l ↦ some v1) [Ptr] with H
+  imod H $$ %E %pointsToN %iprop(l ↦ some v0) %iprop(l ↦ some v1) [Ptr] with H
   · inext
     iexact Ptr
   icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half)
     (Qp.half_add_half 1).symm $$ H with ⟨H1, H2⟩
-  imod alwaysI_alloc (E := E) (N := Na) (P := flagInv l k) $$ [H1] with #HA
+  imod alwaysI_alloc (E := E) (N := alwaysN) (P := flagInv l k) $$ [H1] with #HA
   · inext
     unfold flagInv
     ileft
@@ -204,7 +204,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (p : Parent)
     (K B : Oids) (ℓ : Layer) (m : Measure) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thCarriers i G ∗
-          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ parLe p ℓ ∗ Par.kids p K ∗ Par.bill p B }}}
+          ([∗set] g ∈ G, Obl.fuel g 0 μ) ∗ Par.le p ℓ ∗ Par.kids p K ∗ Par.bill p B }}}
         hl(v(&init) #()) @ i
       l{{{ (x : Loc) (k : Oid), RET hl_val(#x); threadExpr i C hl(#x) ∗ £ₒ lc ∗
         thCarriers i G ∗ ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
@@ -212,12 +212,12 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
         flagTk x k ∗ isFlag x k ℓ }}} := by
   refine ⟨10, fun lc i G p K B ℓ m C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, #HB, HK, Hb⟩ HΦ
-  ihave HF := oblFuels_init G 10 0 $$ HF
+  ihave HF := Obl.fuels_init G 10 0 $$ HF
   unfold init
   lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
   iapply lwp_mupd
-  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  icases Obl.fuels_add 1 8 G $$ HF with ⟨HF, -⟩
   iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
   · iframe HT
     iapply stepPre_nil $$ HG HF
@@ -243,15 +243,15 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
         Par.kids p (K.erase k) ∗ Obl.discharged k }}} := by
   refine ⟨10, fun lc i l G p K k ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, HK, %hk, Hkk, HU, #Hflag⟩ HΦ
-  ihave HF := oblFuels_init G 10 0 $$ HF
+  ihave HF := Obl.fuels_init G 10 0 $$ HF
   unfold isFlag set
   icases Hflag with ⟨#Wk, #HA⟩
   lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
-  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
-  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+  icases Obl.fuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨Hinv, Hclose⟩
@@ -263,7 +263,7 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
   · iexfalso
     iapply untilI_discharged_false $$ HU Hd
   ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
-  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Np_subseteq $$ HU
+  ihave HU := untilI_discharge (E := ⊤ \ ↑alwaysN) pointsToN_subset $$ HU
   ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
   imod HU
   iapply lwp_credit_later $$ Hc2
@@ -299,12 +299,12 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
         Obl.fuel k ℓ m ∗ flagTk x k ∗ isFlag x k ℓ }}} := by
   refine ⟨10, fun lc i G ℓ m C => ?_⟩
   iintro %Φ !> ⟨HT, HK, HG, HF⟩ HΦ
-  ihave HF := oblFuels_init G 10 0 $$ HF
+  ihave HF := Obl.fuels_init G 10 0 $$ HF
   unfold init
   lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
   iapply lwp_mupd
-  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  icases Obl.fuels_add 1 8 G $$ HF with ⟨HF, -⟩
   iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
   · iframe HT
     iapply stepPre_nil $$ HG HF
@@ -312,7 +312,7 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
   rw [show (hl_val(#0) : Val) = v0 from rfl]
   imod isFlag_init ⊤ x (.thread i) G G ℓ m $$ [] Hx HK HG with
     ⟨%k, %hk, HK, HG, Hkk, Hf, Htk, #Hflag⟩
-  · iapply parLe_thread
+  · iapply Par.le_thread
   imodintro
   iapply HΦ $$ %x %k
   iframe
@@ -332,15 +332,15 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
         thCarriers i (G.erase k) ∗ Obl.discharged k }}} := by
   refine ⟨10, fun lc i l G k ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HK, HG, HF, %hk, Hkk, HU, #Hflag⟩ HΦ
-  ihave HF := oblFuels_init G 10 0 $$ HF
+  ihave HF := Obl.fuels_init G 10 0 $$ HF
   unfold isFlag set
   icases Hflag with ⟨#Wk, #HA⟩
   lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
-  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
-  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+  icases Obl.fuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨Hinv, Hclose⟩
@@ -352,7 +352,7 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   · iexfalso
     iapply untilI_discharged_false $$ HU Hd
   ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
-  ihave HU := untilI_discharge (E := ⊤ \ ↑Na) Np_subseteq $$ HU
+  ihave HU := untilI_discharge (E := ⊤ \ ↑alwaysN) pointsToN_subset $$ HU
   ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
   imod HU
   iapply lwp_credit_later $$ Hc2
@@ -401,13 +401,13 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       iintro IH
       imodintro
       iintro HT HG HΦ HF
-      ihave HF := oblFuels_init G 5 ℓ.succ $$ HF
+      ihave HF := Obl.fuels_init G 5 ℓ.succ $$ HF
       unfold wait
       lwp_step with Hc : 1 +ₕ 1
       icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
       lwp_expr_simp
       lwp_bind hl(!#l)
-      ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := flagInv l k)
+      ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := flagInv l k)
         (fun _ _ => CoPset.mem_full) $$ HA
       ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
       imod Hacc with ⟨Hinv, Hclose⟩
@@ -415,18 +415,18 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       inext
       unfold flagInv
       icases Hinv with (Hinv | ⟨#Hd, Hl⟩)
-      · ihave Hu := untilI_acc (E := ⊤ \ ↑Na) Np_subseteq $$ Hinv
+      · ihave Hu := untilI_acc (E := ⊤ \ ↑alwaysN) pointsToN_subset $$ Hinv
         ihave Hu := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hu
         imod Hu
         iapply lwp_credit_later $$ Hc2
         inext
         icases Hu with ⟨Hl, Hucl⟩
-        icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+        icases Obl.fuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
         iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := {k}) $$ [HT HG HF1 Hl]
         · iframe HT Hl
           iapply stepPre_wit $$ HG HF1 Wk
         iintro ⟨HT, ⟨-, HG, HW⟩, Hl⟩
-        icases witCreds_singleton k $$ HW with (Hwc | #Hd)
+        icases Wit.creds_singleton k $$ HW with (Hwc | #Hd)
         rotate_left
         · imod Hucl $$ [Hl] with Hu
           · inext
@@ -449,7 +449,7 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         lwp_step
         imod IH $$ Hwc with ⟨HF, HP⟩
         iapply HP $$ HT HG HΦ HF
-      · icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+      · icases Obl.fuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
         iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hl]
         · iframe HT Hl
           iapply stepPre_nil $$ HG HF1
@@ -488,7 +488,7 @@ def isFlagTr (l : Loc) : TrProp (Cfg Exp State) :=
   □ₜ ((pointsToTr l v0 Uₜ pointsToTr l v1) ∨ₜ pointsToTr l v1)
 
 @[lantana_alias flag_trSpec_impl]
-theorem flagTrSpec_impl (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l :=
+theorem flagTrSpec_external_subset (l : Loc) : (flagTrSpec (GF := GF) l).external ⊆ isFlagTr l :=
   fun _ ⟨_, h⟩ m hm => (h m hm).imp id And.right
 
 /-- The run `0, 1, 0, 1, 1, …` of the flag, with an empty pool. -/
@@ -500,7 +500,7 @@ def flagRun (l : Loc) (n : Nat) : Cfg Exp State :=
 @[lantana_alias flag_run_at]
 theorem flagRun_at (l : Loc) (m : Nat) (v : Val) :
     pointsToTr l v ⟨m, flagRun l⟩ ↔ v = if m = 0 ∨ m = 2 then v0 else v1 := by
-  simp only [TrProp.state, Trace.now, flagRun, pointstoSat]
+  simp only [TrProp.state, Trace.now, flagRun, PointsToSat]
   rw [Std.ExtTreeMap.getElem?_insert_self]
   simp [eq_comm]
 

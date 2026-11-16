@@ -52,11 +52,11 @@ def imp (P : TrProp (Cfg Expr State)) (Q : TrIProp Expr State GF) : TrIProp Expr
   fun τ => iprop(⌜P τ⌝ → Q τ)
 
 @[lantana_alias trI_forall]
-def all {A : Type _} (P : A → TrIProp Expr State GF) : TrIProp Expr State GF :=
+def «forall» {A : Type _} (P : A → TrIProp Expr State GF) : TrIProp Expr State GF :=
   fun τ => iprop(∀ a, P a τ)
 
 @[lantana_alias trI_exist]
-def ex {A : Type _} (P : A → TrIProp Expr State GF) : TrIProp Expr State GF :=
+def «exists» {A : Type _} (P : A → TrIProp Expr State GF) : TrIProp Expr State GF :=
   fun τ => iprop(∃ a, P a τ)
 
 section Fixpoints
@@ -65,10 +65,10 @@ variable [ModelGS GF]
 /-- The deferred shape: the check at the current position (a later under a fancy update), then
 the step (a fancy update that allocates later credits). -/
 def defer (P : IProp GF) : IProp GF :=
-  iprop(|={⊤,∅}=> ▷ |={∅,⊤}=> |={⊤,∅}=> ALC iprop(|={∅,⊤}=> P))
+  iprop(|={⊤,∅}=> ▷ |={∅,⊤}=> |={⊤,∅}=> alc iprop(|={∅,⊤}=> P))
 
 theorem defer_mono {P Q : IProp GF} (h : P ⊢ Q) : defer P ⊢ defer Q :=
-  fupd_mono <| later_mono <| fupd_mono <| fupd_mono <| ALC_mono <| fupd_mono h
+  fupd_mono <| later_mono <| fupd_mono <| fupd_mono <| alc_mono <| fupd_mono h
 
 /-- The argument of `defer` is only needed one step later. -/
 theorem defer_intro_later {P : IProp GF} : ▷ P ⊢ defer P := by
@@ -81,7 +81,7 @@ theorem defer_intro_later {P : IProp GF} : ▷ P ⊢ defer P := by
   imodintro
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
   iintro Hclose
-  iapply ALC_intro
+  iapply alc_intro
   imod Hclose
   imodintro
   iexact HP
@@ -92,7 +92,7 @@ theorem defer_intro {P : IProp GF} : P ⊢ defer P :=
 /-- `defer` is contractive: its argument sits under a `▷`. -/
 instance defer_contractive : OFE.Contractive (defer (GF := GF)) where
   distLater_dist h := fupd_ne.ne <| OFE.Contractive.distLater_dist (f := BIBase.later) fun m hm =>
-    fupd_ne.ne <| fupd_ne.ne <| ALC_ne.ne <| fupd_ne.ne (h m hm)
+    fupd_ne.ne <| fupd_ne.ne <| alc_ne.ne <| fupd_ne.ne (h m hm)
 
 instance defer_ne : OFE.NonExpansive (defer (GF := GF)) := inferInstance
 
@@ -116,7 +116,7 @@ theorem defer_wand_later {P Q : IProp GF} : ▷ (P -∗ Q) ⊢ defer P -∗ defe
 /-- Satisfiability eliminates the deferred shape. -/
 theorem sat_defer {F P : IProp GF} (h : (iPropSatLcAtFrame F ⊤).sat (defer P)) :
     (iPropSatLcAtFrame F ⊤).sat P :=
-  SatFUpd.fupd (sat_ALC (SatFUpd.fupd (SatFUpd.fupd (SatPred.sat_later _ (SatFUpd.fupd h)))))
+  SatFUpd.fupd (sat_alc (SatFUpd.fupd (SatFUpd.fupd (SatPred.sat_later _ (SatFUpd.fupd h)))))
 
 /-- One unfolding of `always`: `P` now, and `always P` at the next position, deferred. (Rocq's
 `trI_always_pre` carries two formulas; the second is only used with `True`, so it is dropped.) -/
@@ -214,7 +214,7 @@ theorem until_tr_until (F : IProp GF) (P Q : TrIProp Expr State GF) (R S : TrPro
     (hP : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (P τ) → R τ)
     (hQ : ∀ τ, (iPropSatLcAtFrame F ⊤).sat (Q τ) → S τ)
     (τ : Trace (Cfg Expr State))
-    (hs : (iPropSatLcAtFrame F ⊤).sat (ex (fun a => strongUntil P Q a) τ)) :
+    (hs : (iPropSatLcAtFrame F ⊤).sat («exists» (fun a => strongUntil P Q a) τ)) :
     (R Uₜ S) τ := by
   obtain ⟨a, ha⟩ := SatPred.sat_exists _ hs
   clear hs

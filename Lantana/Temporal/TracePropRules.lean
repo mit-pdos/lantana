@@ -26,8 +26,8 @@ open scoped Lantana.TrProp
 
 #lantana_ignore tr_unfold "the definitions are a local simp set"
 
-attribute [local simp] le HasSubset.Subset pure and or imp all ex always strongUntil eventually next
-  atomic step not atPos
+attribute [local simp] TrProp.Subset HasSubset.Subset pure and or imp «forall» «exists» always
+  strongUntil eventually next atomic step not atPos
 
 @[simp] theorem pos_set_pos (τ : Trace C) (m : Nat) :
     ({ τ with pos := m } : Trace C).pos = m := rfl
@@ -39,11 +39,11 @@ theorem next_eq_set_pos (τ : Trace C) :
 /-! ## Entailment -/
 
 @[lantana_alias tr_le_preorder, refl]
-theorem le_refl (R : TrProp C) : R ⊆ R := fun _ h => h
+theorem subset_refl (R : TrProp C) : R ⊆ R := fun _ h => h
 
-theorem le_trans (h₁ : R ⊆ S) (h₂ : S ⊆ X) : R ⊆ X := fun τ h => h₂ τ (h₁ τ h)
+theorem subset_trans (h₁ : R ⊆ S) (h₂ : S ⊆ X) : R ⊆ X := fun τ h => h₂ τ (h₁ τ h)
 
-instance : Trans (α := TrProp C) (· ⊆ ·) (· ⊆ ·) (· ⊆ ·) := ⟨le_trans⟩
+instance : Trans (α := TrProp C) (· ⊆ ·) (· ⊆ ·) (· ⊆ ·) := ⟨subset_trans⟩
 
 /-! ## Pure -/
 
@@ -63,7 +63,7 @@ theorem true_intro : R ⊆ ⌜True⌝ₜ := fun _ _ => trivial
 theorem false_elim : (⌜False⌝ₜ : TrProp C) ⊆ S := fun _ h => h.elim
 
 @[lantana_alias tr_pure_elim_l]
-theorem pure_elim_l {φ : Prop} (h : φ → R ⊆ S) : (⌜φ⌝ₜ ∧ₜ R) ⊆ S :=
+theorem pure_elim_left {φ : Prop} (h : φ → R ⊆ S) : (⌜φ⌝ₜ ∧ₜ R) ⊆ S :=
   fun τ ⟨hφ, hR⟩ => h hφ τ hR
 
 /-! ## Conjunction and disjunction -/
@@ -72,10 +72,10 @@ theorem pure_elim_l {φ : Prop} (h : φ → R ⊆ S) : (⌜φ⌝ₜ ∧ₜ R) �
 theorem and_intro (h₁ : R ⊆ S) (h₂ : R ⊆ X) : R ⊆ (S ∧ₜ X) := fun τ h => ⟨h₁ τ h, h₂ τ h⟩
 
 @[lantana_alias tr_and_elim_l]
-theorem and_elim_l : (R ∧ₜ S) ⊆ R := fun _ h => h.1
+theorem and_elim_left : (R ∧ₜ S) ⊆ R := fun _ h => h.1
 
 @[lantana_alias tr_and_elim_r]
-theorem and_elim_r : (R ∧ₜ S) ⊆ S := fun _ h => h.2
+theorem and_elim_right : (R ∧ₜ S) ⊆ S := fun _ h => h.2
 
 @[lantana_alias tr_and_mono]
 theorem and_mono (h₁ : R ⊆ R') (h₂ : S ⊆ S') : (R ∧ₜ S) ⊆ (R' ∧ₜ S') :=
@@ -91,14 +91,14 @@ theorem and_assoc : ((R ∧ₜ S) ∧ₜ X) ⊆ (R ∧ₜ (S ∧ₜ X)) := fun _
 theorem and_assoc' : (R ∧ₜ (S ∧ₜ X)) ⊆ ((R ∧ₜ S) ∧ₜ X) := fun _ h => ⟨⟨h.1, h.2.1⟩, h.2.2⟩
 
 @[lantana_alias tr_exist_elim_l]
-theorem ex_elim_l {α : Sort _} {P : α → TrProp C} (h : ∀ a, (P a ∧ₜ R) ⊆ S) :
+theorem exists_elim_left {α : Sort _} {P : α → TrProp C} (h : ∀ a, (P a ∧ₜ R) ⊆ S) :
     ((∃ₜ a, P a) ∧ₜ R) ⊆ S := fun τ ⟨⟨a, ha⟩, hR⟩ => h a τ ⟨ha, hR⟩
 
 @[lantana_alias tr_or_intro_l]
-theorem or_intro_l : R ⊆ (R ∨ₜ S) := fun _ h => .inl h
+theorem or_intro_left : R ⊆ (R ∨ₜ S) := fun _ h => .inl h
 
 @[lantana_alias tr_or_intro_r]
-theorem or_intro_r : S ⊆ (R ∨ₜ S) := fun _ h => .inr h
+theorem or_intro_right : S ⊆ (R ∨ₜ S) := fun _ h => .inr h
 
 @[lantana_alias tr_or_elim]
 theorem or_elim (h₁ : R ⊆ X) (h₂ : S ⊆ X) : (R ∨ₜ S) ⊆ X :=
@@ -127,27 +127,27 @@ theorem imp_mono (h₁ : A' ⊆ A) (h₂ : S ⊆ S') : (A →ₜ S) ⊆ (A' →�
 /-! ## Quantifiers -/
 
 @[lantana_alias tr_forall_intro]
-theorem all_intro {α : Sort _} {P : α → TrProp C} (h : ∀ a, R ⊆ P a) :
+theorem forall_intro {α : Sort _} {P : α → TrProp C} (h : ∀ a, R ⊆ P a) :
     R ⊆ (∀ₜ a, P a) := fun τ hR a => h a τ hR
 
 @[lantana_alias tr_forall_elim]
-theorem all_elim {α : Sort _} {P : α → TrProp C} (a : α) : (∀ₜ a, P a) ⊆ P a :=
+theorem forall_elim {α : Sort _} {P : α → TrProp C} (a : α) : (∀ₜ a, P a) ⊆ P a :=
   fun _ h => h a
 
 @[lantana_alias tr_forall_mono]
-theorem all_mono {α : Sort _} {P Q : α → TrProp C} (h : ∀ a, P a ⊆ Q a) :
+theorem forall_mono {α : Sort _} {P Q : α → TrProp C} (h : ∀ a, P a ⊆ Q a) :
     (∀ₜ a, P a) ⊆ (∀ₜ a, Q a) := fun τ hP a => h a τ (hP a)
 
 @[lantana_alias tr_exist_intro]
-theorem ex_intro {α : Sort _} {P : α → TrProp C} (a : α) : P a ⊆ (∃ₜ a, P a) :=
+theorem exists_intro {α : Sort _} {P : α → TrProp C} (a : α) : P a ⊆ (∃ₜ a, P a) :=
   fun _ h => ⟨a, h⟩
 
 @[lantana_alias tr_exist_elim]
-theorem ex_elim {α : Sort _} {P : α → TrProp C} (h : ∀ a, P a ⊆ S) :
+theorem exists_elim {α : Sort _} {P : α → TrProp C} (h : ∀ a, P a ⊆ S) :
     (∃ₜ a, P a) ⊆ S := fun τ ⟨a, ha⟩ => h a τ ha
 
 @[lantana_alias tr_exist_mono]
-theorem ex_mono {α : Sort _} {P Q : α → TrProp C} (h : ∀ a, P a ⊆ Q a) :
+theorem exists_mono {α : Sort _} {P Q : α → TrProp C} (h : ∀ a, P a ⊆ Q a) :
     (∃ₜ a, P a) ⊆ (∃ₜ a, Q a) := fun τ ⟨a, ha⟩ => ⟨a, h a τ ha⟩
 
 /-! ## Atoms and negation -/
@@ -185,7 +185,7 @@ theorem always_next : (□ₜ R) ⊆ (○ₜ □ₜ R) :=
   fun _ h m hm => h m (Nat.le_of_succ_le hm)
 
 @[lantana_alias tr_always_idemp]
-theorem always_idemp : (□ₜ R) ⊆ (□ₜ □ₜ R) :=
+theorem always_idem : (□ₜ R) ⊆ (□ₜ □ₜ R) :=
   fun _ h m hm l hl => by simpa using h l (Nat.le_trans hm hl)
 
 @[lantana_alias tr_always_mono]
@@ -256,16 +256,16 @@ theorem until_mono (h₁ : R ⊆ R') (h₂ : S ⊆ S') : (R Uₜ S) ⊆ (R' Uₜ
   fun _ ⟨m, hm, hS, hb⟩ => ⟨m, hm, h₂ _ hS, fun l hl hlm => h₁ _ (hb l hl hlm)⟩
 
 @[lantana_alias tr_until_finally]
-theorem until_eventually : (R Uₜ S) ⊆ (◇ₜ S) := until_mono true_intro (le_refl _)
+theorem until_eventually : (R Uₜ S) ⊆ (◇ₜ S) := until_mono true_intro (subset_refl _)
 
 @[lantana_alias tr_finally_intro]
 theorem eventually_intro : S ⊆ (◇ₜ S) := until_now
 
 @[lantana_alias tr_finally_mono]
-theorem eventually_mono (h : S ⊆ S') : (◇ₜ S) ⊆ (◇ₜ S') := until_mono (le_refl _) h
+theorem eventually_mono (h : S ⊆ S') : (◇ₜ S) ⊆ (◇ₜ S') := until_mono (subset_refl _) h
 
 @[lantana_alias tr_finally_idemp]
-theorem eventually_idemp : (◇ₜ ◇ₜ S) ⊆ (◇ₜ S) := by
+theorem eventually_idem : (◇ₜ ◇ₜ S) ⊆ (◇ₜ S) := by
   intro τ ⟨m, hm, ⟨m', hm', hS, _⟩, _⟩
   exact ⟨m', Nat.le_trans hm (by simpa using hm'), by simpa using hS, fun _ _ _ => trivial⟩
 
@@ -339,33 +339,33 @@ theorem next_eventually_always : (○ₜ ◇ₜ □ₜ R) ⊆ (◇ₜ □ₜ R) 
   exact eventually_always_iff.mpr ⟨n, Nat.le_of_succ_le (by simpa using hn), hR⟩
 
 /-- Eventually always gives infinitely often. -/
-theorem eventually_always_le : (◇ₜ □ₜ R) ⊆ (□ₜ ◇ₜ R) := by
+theorem eventually_always_subset : (◇ₜ □ₜ R) ⊆ (□ₜ ◇ₜ R) := by
   intro τ h
   obtain ⟨n, -, hR⟩ := eventually_always_iff.mp h
   exact always_eventually_iff.mpr fun m _ =>
     ⟨max m n, Nat.le_max_left _ _, hR _ (Nat.le_max_right _ _)⟩
 
 /-- Not infinitely often is eventually never (classical). -/
-theorem not_always_eventually_le : (¬ₜ □ₜ ◇ₜ R) ⊆ (◇ₜ □ₜ ¬ₜ R) := by
+theorem not_always_eventually_subset : (¬ₜ □ₜ ◇ₜ R) ⊆ (◇ₜ □ₜ ¬ₜ R) := by
   intro τ h
   refine eventually_always_iff.mpr (Classical.byContradiction fun hn => h ?_)
   refine always_eventually_iff.mpr fun n hn' => Classical.byContradiction fun hm => hn ?_
   exact ⟨n, hn', fun m hnm hR => hm ⟨m, hnm, hR⟩⟩
 
 /-- Not eventually always is infinitely often not (classical). -/
-theorem not_eventually_always_le : (¬ₜ ◇ₜ □ₜ R) ⊆ (□ₜ ◇ₜ ¬ₜ R) := by
+theorem not_eventually_always_subset : (¬ₜ ◇ₜ □ₜ R) ⊆ (□ₜ ◇ₜ ¬ₜ R) := by
   intro τ h
   refine always_eventually_iff.mpr fun n hn => Classical.byContradiction fun hm => h ?_
   exact eventually_always_iff.mpr ⟨n, hn, fun m hnm =>
     Classical.byContradiction fun hR => hm ⟨m, hnm, hR⟩⟩
 
-theorem eventually_always_not_le : (◇ₜ □ₜ ¬ₜ R) ⊆ (¬ₜ □ₜ ◇ₜ R) := by
+theorem eventually_always_not_subset : (◇ₜ □ₜ ¬ₜ R) ⊆ (¬ₜ □ₜ ◇ₜ R) := by
   intro τ h hR
   obtain ⟨n, hn, hnR⟩ := eventually_always_iff.mp h
   obtain ⟨m, hnm, hm⟩ := always_eventually_iff.mp hR n hn
   exact hnR m hnm hm
 
-theorem always_eventually_not_le : (□ₜ ◇ₜ ¬ₜ R) ⊆ (¬ₜ ◇ₜ □ₜ R) := by
+theorem always_eventually_not_subset : (□ₜ ◇ₜ ¬ₜ R) ⊆ (¬ₜ ◇ₜ □ₜ R) := by
   intro τ h hR
   obtain ⟨n, hn, hnR⟩ := eventually_always_iff.mp hR
   obtain ⟨m, hnm, hm⟩ := always_eventually_iff.mp h n hn
@@ -384,7 +384,7 @@ def Absolute (P : TrProp C) : Prop := ∀ τ m, P τ ↔ P { τ with pos := m }
 theorem Absolute.next (h : Absolute P) {τ : Trace C} : P τ ↔ P τ.next := h τ (τ.pos + 1)
 
 /-- An absolute property, once true, is true at every position. -/
-theorem Absolute.le_always (h : Absolute P) : P ⊆ (□ₜ P) := fun τ hP m _ => (h τ m).mp hP
+theorem Absolute.subset_always (h : Absolute P) : P ⊆ (□ₜ P) := fun τ hP m _ => (h τ m).mp hP
 
 theorem absolute_always_eventually : Absolute (□ₜ ◇ₜ P) := by
   intro τ k
@@ -421,10 +421,10 @@ theorem absolute_or (hP : Absolute P) (hQ : Absolute Q) : Absolute (P ∨ₜ Q) 
 
 theorem absolute_not (hP : Absolute P) : Absolute (¬ₜ P) := absolute_imp hP absolute_pure
 
-theorem absolute_all {α : Sort _} {P : α → TrProp C} (h : ∀ a, Absolute (P a)) :
+theorem absolute_forall {α : Sort _} {P : α → TrProp C} (h : ∀ a, Absolute (P a)) :
     Absolute (∀ₜ a, P a) := fun τ m => forall_congr' fun a => h a τ m
 
-theorem absolute_ex {α : Sort _} {P : α → TrProp C} (h : ∀ a, Absolute (P a)) :
+theorem absolute_exists {α : Sort _} {P : α → TrProp C} (h : ∀ a, Absolute (P a)) :
     Absolute (∃ₜ a, P a) := fun τ m => exists_congr fun a => h a τ m
 
 /-! ## Fixpoints -/
@@ -434,27 +434,27 @@ theorem gfp_coind {Φ : TrProp C → TrProp C} (h : ∀ τ, R τ → Φ R τ) :
     ∀ τ, R τ → gfp Φ τ := fun _ hR => ⟨R, h, hR⟩
 
 @[lantana_alias tr_gfp_unfold_l]
-theorem gfp_unfold_l {Φ : TrProp C → TrProp C} (hΦ : Mono Φ) :
+theorem gfp_unfold_left {Φ : TrProp C → TrProp C} (hΦ : Mono Φ) :
     ∀ τ, gfp Φ τ → Φ (gfp Φ) τ :=
   fun τ ⟨R, hR, hτ⟩ => hΦ R (gfp Φ) (fun _ h => ⟨R, hR, h⟩) τ (hR τ hτ)
 
 @[lantana_alias tr_gfp_unfold_r]
-theorem gfp_unfold_r {Φ : TrProp C → TrProp C} (hΦ : Mono Φ) :
+theorem gfp_unfold_right {Φ : TrProp C → TrProp C} (hΦ : Mono Φ) :
     ∀ τ, Φ (gfp Φ) τ → gfp Φ τ :=
-  fun _ h => ⟨Φ (gfp Φ), fun τ' h' => hΦ _ _ (gfp_unfold_l hΦ) τ' h', h⟩
+  fun _ h => ⟨Φ (gfp Φ), fun τ' h' => hΦ _ _ (gfp_unfold_left hΦ) τ' h', h⟩
 
 @[lantana_alias tr_lfp_ind]
 theorem lfp_ind {Φ : TrProp C → TrProp C} (h : ∀ τ, Φ R τ → R τ) :
     ∀ τ, lfp Φ τ → R τ := fun _ hτ => hτ R h
 
 @[lantana_alias tr_lfp_unfold_r]
-theorem lfp_unfold_r {Φ : TrProp C → TrProp C} (hΦ : Mono Φ) :
+theorem lfp_unfold_right {Φ : TrProp C → TrProp C} (hΦ : Mono Φ) :
     ∀ τ, Φ (lfp Φ) τ → lfp Φ τ :=
   fun τ h R hR => hR τ (hΦ _ _ (fun _ h' => h' R hR) τ h)
 
 @[lantana_alias tr_lfp_unfold_l]
-theorem lfp_unfold_l {Φ : TrProp C → TrProp C} (hΦ : Mono Φ) :
+theorem lfp_unfold_left {Φ : TrProp C → TrProp C} (hΦ : Mono Φ) :
     ∀ τ, lfp Φ τ → Φ (lfp Φ) τ :=
-  fun _ h => h (Φ (lfp Φ)) fun τ' h' => hΦ _ _ (lfp_unfold_r hΦ) τ' h'
+  fun _ h => h (Φ (lfp Φ)) fun τ' h' => hΦ _ _ (lfp_unfold_right hΦ) τ' h'
 
 end Lantana.TrProp

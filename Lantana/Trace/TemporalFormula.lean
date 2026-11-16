@@ -33,7 +33,7 @@ variable [Crash Expr State Obs Val] [ModelGS GF] [TemporalGS Expr State GF]
 reading at the discharge. -/
 @[lantana_alias until_discharged]
 def untilDischarged (k : Oid) (G₂ : TrSpec Expr State GF) : IProp GF :=
-  iprop(∃ (n' i' : Nat) (Ω' : Obls), eventObl i' (n', Ω') k .discharged ∗ record G₂ n')
+  iprop(∃ (n' i' : Nat) (Ω' : Obligations), eventObl i' (n', Ω') k .discharged ∗ record G₂ n')
 
 instance untilDischarged_persistent (k : Oid) (G₂ : TrSpec Expr State GF) :
     Persistent (untilDischarged k G₂) := by
@@ -112,7 +112,7 @@ registration. -/
 @[lantana_alias untilI_guar_pers]
 def untilIGuarPers (N : Namespace) (k : Oid) (P Q : IProp GF)
     (G₁ G₂ : TrSpec Expr State GF) : IProp GF :=
-  iprop(∃ (j r : Nat) (γP γQ : GName) (st : HistEntry Expr State) (v : Nat) (Ω : Obls)
+  iprop(∃ (j r : Nat) (γP γQ : GName) (st : HistEntry Expr State) (v : Nat) (Ω : Obligations)
       (fu : Fuel) (o : ThreadId),
     regIdx j r (.until N k γP γQ) ∗ histEvent r st ∗
     savedTrI γP G₁.internal ∗ savedTrI γQ G₂.internal ∗
@@ -189,7 +189,8 @@ returns unchanged. -/
 @[lantana_alias sfmupd_read_fupd]
 theorem mupd_read_fupd :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr),
-      historyInterp h n σ tp -∗ regState -∗ |={E,∅}=> ∀ (g : List MEvent) (i : Nat) (Ω : Obls)
+      historyInterp h n σ tp -∗ regState -∗
+        |={E,∅}=> ∀ (g : List MEvent) (i : Nat) (Ω : Obligations)
         (W : Witnesses) (tc : Nat) (X : ThreadId → Prop), modelInterp g i Ω W n tc X -∗
           modelInterp g i Ω W n tc X ∗ |={∅,E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
       |={E}=>m P := by
@@ -212,7 +213,8 @@ registry. -/
 @[lantana_alias sfmupd_read]
 theorem mupd_read :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (g : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
+      (g : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
+      (X : ThreadId → Prop),
       historyInterp h n σ tp -∗ regState -∗ modelInterp g i Ω W n tc X -∗
         modelInterp g i Ω W n tc X ∗ |={E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
       |={E}=>m P := by

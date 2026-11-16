@@ -98,32 +98,32 @@ theorem toInvHeap_insert [DecidableEq L] (l : L) (v : V) (I : V → Prop) (h : H
 end toInvHeap
 
 @[lantana_alias inv_heapGpreS]
-class invHeapPreS (L V : Type _) (GF : BundledGFunctors.{u}) (H : outParam <| Type _ → Type _)
+class InvHeapGpreS (L V : Type _) (GF : BundledGFunctors.{u}) (H : outParam <| Type _ → Type _)
     [LawfulFiniteMap H L] where
   invHeap : ElemG GF (constOF (Auth (InvHeapMapUR V H)))
 
-attribute [reducible, instance] invHeapPreS.invHeap
+attribute [reducible, instance] InvHeapGpreS.invHeap
 
 @[lantana_alias inv_heapGS]
-class invHeapGS (L V : outParam <| Type _) (GF : outParam <| BundledGFunctors.{u})
+class InvHeapGS (L V : outParam <| Type _) (GF : outParam <| BundledGFunctors.{u})
     (H : outParam <| Type _ → Type _) [LawfulFiniteMap H L]
-    extends invHeapPreS L V GF H where
+    extends InvHeapGpreS L V GF H where
   invHeapName : GName
 
 #lantana_ignore «inv_heapΣ» "Subsumed by BundledGFunctors typeclass synthesis"
 #lantana_ignore «subG_inv_heapGpreS» "Subsumed by BundledGFunctors typeclass synthesis"
 
-open invHeapGS
+open InvHeapGS
 
 section definitions
 
 variable {GF : BundledGFunctors.{u}} {L V : Type _} {H : Type _ → Type _} [LawfulFiniteMap H L]
-variable [InvGS GF] [genHeapGS L V GF H] [invHeapGS L V GF H]
+variable [InvGS GF] [genHeapGS L V GF H] [InvHeapGS L V GF H]
 
 @[reducible, lantana_alias inv_heap_inv_P]
 def invHeapInvP : IProp GF := iprop%
   ∃ h : H (V × (V → Prop)),
-    iOwn (E := invHeapPreS.invHeap) invHeapName (● toInvHeap h) ∗
+    iOwn (E := InvHeapGpreS.invHeap) invHeapName (● toInvHeap h) ∗
     [∗map] l ↦ p ∈ h, ⌜p.2 p.1⌝ ∗ l ↦ p.1
 
 @[lantana_alias inv_heap_inv]
@@ -131,11 +131,11 @@ def invHeapInv : IProp GF := inv invHeapN invHeapInvP
 
 @[lantana_alias inv_pointsto_own]
 def invPointsToOwn (l : L) (v : V) (I : V → Prop) : IProp GF :=
-  iOwn (E := invHeapPreS.invHeap (L := L)) invHeapName (◯ {[l := (some (.excl ⟨v⟩), toAgree ⟨I⟩)]})
+  iOwn (E := InvHeapGpreS.invHeap (L := L)) invHeapName (◯ {[l := (some (.excl ⟨v⟩), toAgree ⟨I⟩)]})
 
 @[lantana_alias inv_pointsto]
 def invPointsTo (l : L) (I : V → Prop) : IProp GF :=
-  iOwn (E := invHeapPreS.invHeap (L := L)) invHeapName (◯ {[l := (none, toAgree ⟨I⟩)]})
+  iOwn (E := InvHeapGpreS.invHeap (L := L)) invHeapName (◯ {[l := (none, toAgree ⟨I⟩)]})
 
 end definitions
 
@@ -147,30 +147,30 @@ scoped notation:50 l:50 " ↦_" I:max "□" => invPointsTo l I
 section lemmas
 
 variable {GF : BundledGFunctors.{u}} {L V : Type _} {H : Type _ → Type _} [LawfulFiniteMap H L]
-variable [InvGS GF] [invHeapGS L V GF H]
+variable [InvGS GF] [InvHeapGS L V GF H]
 
 omit [InvGS GF] in
 @[lantana_alias inv_pointsto_lookup_Some]
 theorem invPointsTo_get?_some (l : L) (h : H (V × (V → Prop))) (I : V → Prop) :
-    l ↦_I □ -∗ iOwn (E := invHeapPreS.invHeap) invHeapName (● toInvHeap h) -∗
+    l ↦_I □ -∗ iOwn (E := InvHeapGpreS.invHeap) invHeapName (● toInvHeap h) -∗
       ⌜∃ v I', get? h l = some (v, I') ∧ I = I'⌝ := by
   iintro Hl Hauth
   unfold invPointsTo
-  icombine Hauth Hl gives %Hvalid
+  icombine Hauth Hl gives %hvalid
   ipureintro
-  obtain ⟨v, hh, -⟩ := singleton_inc_toInvHeap (auth_both_valid_discrete.mp Hvalid).1
+  obtain ⟨v, hh, -⟩ := singleton_inc_toInvHeap (auth_both_valid_discrete.mp hvalid).1
   exact ⟨v, I, hh, rfl⟩
 
 omit [InvGS GF] in
 @[lantana_alias inv_pointsto_own_lookup_Some]
 theorem invPointsToOwn_get?_some (l : L) (v : V) (h : H (V × (V → Prop))) (I : V → Prop) :
-    l ↦_I v -∗ iOwn (E := invHeapPreS.invHeap) invHeapName (● toInvHeap h) -∗
+    l ↦_I v -∗ iOwn (E := InvHeapGpreS.invHeap) invHeapName (● toInvHeap h) -∗
       ⌜∃ I', get? h l = some (v, I') ∧ I = I'⌝ := by
   iintro Hl Hauth
   unfold invPointsToOwn
-  icombine Hauth Hl gives %Hvalid
+  icombine Hauth Hl gives %hvalid
   ipureintro
-  obtain ⟨v', hh, hv⟩ := singleton_inc_toInvHeap (auth_both_valid_discrete.mp Hvalid).1
+  obtain ⟨v', hh, hv⟩ := singleton_inc_toInvHeap (auth_both_valid_discrete.mp hvalid).1
   cases DiscreteO.eqv_inj (excl_included.mp hv)
   exact ⟨I, hh, rfl⟩
 
@@ -280,7 +280,8 @@ theorem invPointsToOwn_acc_strong {E : CoPset} (hN : (↑invHeapN : CoPset) ⊆ 
   iintro %w %hIw Hl
   imod iOwn_update_op (auth_update (singleton_local_update
       (get?_heap_some_toInvHeap hh)
-      (LocalUpdate.prod_1 _ _ (LocalUpdate.option (LocalUpdate.exclusive (x' := excl ⟨w⟩) trivial)))))
+      (LocalUpdate.prod_1 _ _
+        (LocalUpdate.option (LocalUpdate.exclusive (x' := excl ⟨w⟩) trivial)))))
     $$ [$Hauth $Hl_inv] with ⟨Hauth, Hfrag⟩
   iunfold invPointsToOwn
   iframe Hfrag
@@ -308,12 +309,12 @@ end lemmas
 @[lantana_alias inv_heap_init]
 theorem invHeap_init (L V : Type _) {GF : BundledGFunctors.{u}} {H : Type _ → Type _}
     [LawfulFiniteMap H L] [DecidableEq L] [InvGS GF] [genHeapGS L V GF H]
-    [invHeapPreS L V GF H] (E : CoPset) :
-    ⊢ |==> ∃ _ : invHeapGS L V GF H, |={E}=> invHeapInv := by
-  imod (iOwn_alloc (E := invHeapPreS.invHeap)
+    [InvHeapGpreS L V GF H] (E : CoPset) :
+    ⊢ |==> ∃ _ : InvHeapGS L V GF H, |={E}=> invHeapInv := by
+  imod (iOwn_alloc (E := InvHeapGpreS.invHeap)
     (● toInvHeap (∅ : H (V × (V → Prop)))) (auth_valid.mpr (toInvHeap_valid ∅)))
     with ⟨%γ, Hauth⟩
-  letI G : invHeapGS L V GF H := ⟨γ⟩
+  letI G : InvHeapGS L V GF H := ⟨γ⟩
   imodintro
   iexists G
   unfold invHeapInv

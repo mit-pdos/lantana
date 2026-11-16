@@ -19,7 +19,7 @@ public import Iris.Algebra.OrdinalCamera
 /-! # Transfinite later credits `£ₒ α`
 
 A generic theory of credits for relational updates (Rocq: `lantana/base_logic/later_credits.v`,
-after the artifact of "Later Credits", Spies et al. 2022), the allocation modality `ALC`, and the
+after the artifact of "Later Credits", Spies et al. 2022), the allocation modality `alc`, and the
 instance with ordinals (camera operation the natural sum `+ₕ`).
 
 The credits of a discrete camera `A` with a well-founded relation `rel` (`CreditCamera A`) live
@@ -28,8 +28,8 @@ total supply and `£ₒ a` are credits. Spending credits along `rel` eliminates 
 relational update (`auth_rupd_step`).
 
 The notations are `£ₒ α` and `£ₙ n`: Iris-Lean's global `£ n` is reserved for its `Nat` credits.
-The credit type is an `outParam` of `CreditGS`, so that `ALC P` finds it from the ghost state in
-scope; `credit`, `supply` and `ALC` take their camera instance as an implicit argument
+The credit type is an `outParam` of `CreditGS`, so that `alc P` finds it from the ghost state in
+scope; `credit`, `supply` and `alc` take their camera instance as an implicit argument
 (`{_ : UCMRA A}`), determined by the `CreditGS` instance.
 
 Transfinite later credits (`TlcGS`) are over `Ordinal.{1}` itself, with the camera of
@@ -271,18 +271,18 @@ end Credits
 
 section Allocation
 
-/-- `ALC P` allocates any number of new credits for the proof of `P` (used in the weakest
+/-- `alc P` allocates any number of new credits for the proof of `P` (used in the weakest
 precondition). -/
 @[lantana_alias ALC]
-def ALC {GF : BundledGFunctors.{u}} {A : Type v} {_ : UCMRA A} [CreditGS GF A] [CreditCamera A]
+def alc {GF : BundledGFunctors.{u}} {A : Type v} {_ : UCMRA A} [CreditGS GF A] [CreditCamera A]
     (P : IProp GF) : IProp GF :=
   iprop(∃ x : A, £ₒ x -∗ |==>r P)
 
 variable {GF : BundledGFunctors.{u}} {A : Type v} [UCMRA A] [CreditGS GF A] [CreditCamera A]
 
 @[lantana_alias ALC_later]
-theorem ALC_later {P : IProp GF} : ALC P ⊣⊢ ALC iprop(▷ P) := by
-  unfold ALC
+theorem alc_later {P : IProp GF} : alc P ⊣⊢ alc iprop(▷ P) := by
+  unfold alc
   constructor
   · iintro ⟨%x, H⟩
     iexists x
@@ -301,8 +301,8 @@ theorem ALC_later {P : IProp GF} : ALC P ⊣⊢ ALC iprop(▷ P) := by
     iapply rupd_intro $$ HP
 
 @[lantana_alias ALC_rupd]
-theorem ALC_rupd {P : IProp GF} : ALC P ⊣⊢ ALC iprop(|==>r P) := by
-  unfold ALC
+theorem alc_rupd {P : IProp GF} : alc P ⊣⊢ alc iprop(|==>r P) := by
+  unfold alc
   constructor
   · iintro ⟨%x, H⟩
     iexists x
@@ -314,8 +314,8 @@ theorem ALC_rupd {P : IProp GF} : ALC P ⊣⊢ ALC iprop(|==>r P) := by
     iapply rupd_trans $$ (H $$ Hx)
 
 @[lantana_alias ALC_bupd]
-theorem ALC_bupd {P : IProp GF} : ALC P ⊣⊢ ALC iprop(|==> P) := by
-  unfold ALC
+theorem alc_bupd {P : IProp GF} : alc P ⊣⊢ alc iprop(|==> P) := by
+  unfold alc
   constructor
   · iintro ⟨%x, H⟩
     iexists x
@@ -327,11 +327,11 @@ theorem ALC_bupd {P : IProp GF} : ALC P ⊣⊢ ALC iprop(|==> P) := by
   · iintro ⟨%x, H⟩
     iexists x
     iintro Hx
-    iapply rupd_bupd_r $$ (H $$ Hx)
+    iapply rupd_bupd_right $$ (H $$ Hx)
 
 @[lantana_alias ALC_credits]
-theorem ALC_credits (x : A) {P : IProp GF} : ALC P ⊣⊢ ALC iprop(£ₒ x -∗ P) := by
-  unfold ALC
+theorem alc_credits (x : A) {P : IProp GF} : alc P ⊣⊢ alc iprop(£ₒ x -∗ P) := by
+  unfold alc
   constructor
   · iintro ⟨%y, H⟩
     iexists y
@@ -349,8 +349,8 @@ theorem ALC_credits (x : A) {P : IProp GF} : ALC P ⊣⊢ ALC iprop(£ₒ x -∗
     iapply HP $$ Hx
 
 @[lantana_alias ALC_fmap]
-theorem ALC_fmap {P Q : IProp GF} : ALC iprop(P -∗ Q) ⊢ ALC P -∗ ALC Q := by
-  unfold ALC
+theorem alc_fmap {P Q : IProp GF} : alc iprop(P -∗ Q) ⊢ alc P -∗ alc Q := by
+  unfold alc
   iintro ⟨%x1, HPQ⟩ ⟨%x2, HP⟩
   iexists x1 • x2
   iintro Hx
@@ -361,8 +361,8 @@ theorem ALC_fmap {P Q : IProp GF} : ALC iprop(P -∗ Q) ⊢ ALC P -∗ ALC Q := 
   iapply HPQ $$ HP
 
 @[lantana_alias ALC_intro]
-theorem ALC_intro {P : IProp GF} : P ⊢ ALC P := by
-  unfold ALC
+theorem alc_intro {P : IProp GF} : P ⊢ alc P := by
+  unfold alc
   iintro HP
   iexists UORA.unit
   iintro _
@@ -370,54 +370,54 @@ theorem ALC_intro {P : IProp GF} : P ⊢ ALC P := by
   iexact HP
 
 @[lantana_alias ALC_alloc]
-theorem ALC_alloc (x : A) {P : IProp GF} : (£ₒ x -∗ |==>r P) ⊢ ALC P :=
-  ALC_intro.trans <| ALC_credits x |>.mpr.trans ALC_rupd.mpr
+theorem alc_alloc (x : A) {P : IProp GF} : (£ₒ x -∗ |==>r P) ⊢ alc P :=
+  alc_intro.trans <| alc_credits x |>.mpr.trans alc_rupd.mpr
 
 @[lantana_alias ALC_wand]
-theorem ALC_wand {P Q : IProp GF} : (P -∗ Q) ⊢ ALC P -∗ ALC Q :=
-  ALC_intro.trans ALC_fmap
+theorem alc_wand {P Q : IProp GF} : (P -∗ Q) ⊢ alc P -∗ alc Q :=
+  alc_intro.trans alc_fmap
 
 @[lantana_alias ALC_mono]
-theorem ALC_mono {P Q : IProp GF} (h : P ⊢ Q) : ALC P ⊢ ALC Q :=
-  wand_entails <| (entails_wand h).trans ALC_wand
+theorem alc_mono {P Q : IProp GF} (h : P ⊢ Q) : alc P ⊢ alc Q :=
+  wand_entails <| (entails_wand h).trans alc_wand
 
-#lantana_ignore ALC_ent_proper "Subsumed by `ALC_mono`."
-#lantana_ignore ALC_flip_ent_proper "Subsumed by `ALC_mono`."
-#lantana_ignore ALC_equiv_proper "Subsumed by the `NonExpansive` instance `ALC_ne`."
+#lantana_ignore ALC_ent_proper "Subsumed by `alc_mono`."
+#lantana_ignore ALC_flip_ent_proper "Subsumed by `alc_mono`."
+#lantana_ignore ALC_equiv_proper "Subsumed by the `NonExpansive` instance `alc_ne`."
 
 @[lantana_alias ALC_ne]
-instance ALC_ne : NonExpansive (ALC (GF := GF) (A := A)) where
+instance alc_ne : NonExpansive (alc (GF := GF) (A := A)) where
   ne {_ _ _} H := exists_ne fun _ => wand_ne.ne .rfl (rupd_ne.ne H)
 
 @[lantana_alias ALC_contractive]
-instance ALC_contractive : Contractive (ALC (GF := GF) (A := A)) where
+instance alc_contractive : Contractive (alc (GF := GF) (A := A)) where
   distLater_dist {_ _ _} H :=
-    (equiv_iff.mpr ALC_later).dist.trans <| .trans (ALC_ne.ne (Contractive.distLater_dist H))
-      (equiv_iff.mpr ALC_later).dist.symm
+    (equiv_iff.mpr alc_later).dist.trans <| .trans (alc_ne.ne (Contractive.distLater_dist H))
+      (equiv_iff.mpr alc_later).dist.symm
 
 @[lantana_alias from_modal_ALC]
-instance fromModal_ALC {io} {P : IProp GF} : FromModal io modality_id True (ALC P) (ALC P) P where
-  from_modal _ := ALC_intro
+instance fromModal_alc {io} {P : IProp GF} : FromModal io modality_id True (alc P) (alc P) P where
+  from_modal _ := alc_intro
 
 @[lantana_alias from_pure_ALC]
-instance fromPure_ALC {a io φ} {P : IProp GF} [h : FromPure a P io φ] :
-    FromPure a (ALC P) io φ where
-  from_pure := h.1.trans ALC_intro
+instance fromPure_alc {a io φ} {P : IProp GF} [h : FromPure a P io φ] :
+    FromPure a (alc P) io φ where
+  from_pure := h.1.trans alc_intro
 
 @[lantana_alias elim_rupd_ALC]
-instance elimModal_ALC {p io} {P Q : IProp GF} :
-    ElimModal True p io false (ALC P) P (ALC Q) Q where
+instance elimModal_alc {p io} {P Q : IProp GF} :
+    ElimModal True p io false (alc P) P (alc Q) Q where
   elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
-    sep_comm.mp.trans <| (sep_mono_left ALC_wand).trans wand_elim_left
+    sep_comm.mp.trans <| (sep_mono_left alc_wand).trans wand_elim_left
 
 @[lantana_alias frame_ALC]
-instance frame_ALC {p} {R P Q : IProp GF} [h : Frame p R P Q] : Frame p R (ALC P) (ALC Q) where
-  frame := (sep_mono_left ((wand_intro h.frame).trans ALC_wand)).trans wand_elim_left
+instance frame_alc {p} {R P Q : IProp GF} [h : Frame p R P Q] : Frame p R (alc P) (alc Q) where
+  frame := (sep_mono_left ((wand_intro h.frame).trans alc_wand)).trans wand_elim_left
 
 @[lantana_alias into_wand_ALC]
-instance intoWand_ALC {m} {R P Q : IProp GF} [h : IntoWand false false R m P Q] :
-    IntoWand false false (ALC R) m (ALC P) (ALC Q) where
-  into_wand := (ALC_mono h.into_wand).trans ALC_fmap
+instance intoWand_alc {m} {R P Q : IProp GF} [h : IntoWand false false R m P Q] :
+    IntoWand false false (alc R) m (alc P) (alc Q) where
+  into_wand := (alc_mono h.into_wand).trans alc_fmap
 
 end Allocation
 

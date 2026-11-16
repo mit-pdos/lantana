@@ -26,7 +26,7 @@ example : TicketLock.delete = hl_val(λ lnc, let next := fst(lnc); let curr := s
     curr ← !curr + #1; free(next); free(curr)) := rfl
 
 /-- The contractivity of a ghost variable's functor, as `GhostVarG` expects it. -/
-abbrev ghostVarF_contractive (A : Type) : RFunctorContractive (GhostVarF A) :=
+abbrev ghostVarFContractive (A : Type) : RFunctorContractive (GhostVarF A) :=
   @instRFunctorContractiveProdOF _ _ OFunctor.constOF_RFunctorContractive
     instRFunctorContractiveAgreeRFOfOFunctorContractive
 
@@ -37,10 +37,10 @@ noncomputable def TLGF : BundledGFunctors.{0} := fun n =>
   | 1 => { F := ULiftOF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TMap))
            contractive := @ULiftOF.instRFunctorContractive _ OFunctor.constOF_RFunctorContractive }
   | 2 => { F := ULiftOF (GhostVarF Int)
-           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarF_contractive Int) }
+           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarFContractive Int) }
   | 3 => ⟨ULiftOF.{4} (constOFP (AuthMra (α := Layer) (· ≤ ·)))⟩
   | 4 => { F := ULiftOF (GhostVarF Unit)
-           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarF_contractive Unit) }
+           contractive := @ULiftOF.instRFunctorContractive _ (ghostVarFContractive Unit) }
   | _ => ⟨constOFU Unit⟩
 
 noncomputable instance : TicketLockG TLGF where
@@ -49,11 +49,11 @@ noncomputable instance : TicketLockG TLGF where
   oblG := ⟨@ElemG.ofEqLift TLGF (constOF (HeapView Int (Agree (DiscreteO (Option Oid))) TMap))
     OFunctor.constOF_RFunctorContractive _ 1 (by unfold TLGF; rfl)⟩
   tokenG := { elemG :=
-    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarF_contractive Int) _ 2 (by unfold TLGF; rfl) }
+    @ElemG.ofEqLift _ (GhostVarF Int) (ghostVarFContractive Int) _ 2 (by unfold TLGF; rfl) }
   configG := (ElemG.ofEq 3 (by unfold TLGF; rfl) : ElemG TLGF (ULiftOF.{4}
     (constOFP (AuthMra (α := Layer) (· ≤ ·))))).ofLift
   aliveG := { elemG :=
-    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarF_contractive Unit) _ 4 (by unfold TLGF; rfl) }
+    @ElemG.ofEqLift _ (GhostVarF Unit) (ghostVarFContractive Unit) _ 4 (by unfold TLGF; rfl) }
 
 variable {GF : BundledGFunctors}
 
@@ -62,7 +62,7 @@ ticket is served. -/
 example (tl : Val) (τ : Trace (Cfg Exp State)) (h : (aliveFairLockTrSpec (GF := GF) tl).external τ)
     (hmon : ∀ next curr : Loc, tl = vLock next curr → nextMonotone next τ) :
     ∃ next curr : Loc, tl = vLock next curr ∧ starvationFree next curr τ := by
-  obtain ⟨next, curr, htl, hrp⟩ := aliveFairLock_release_progress tl τ h
+  obtain ⟨next, curr, htl, hrp⟩ := aliveFairLock_releaseProgress tl τ h
   exact ⟨next, curr, htl, releaseProgress_starvationFree next curr τ hrp (hmon next curr htl)⟩
 
 set_option linter.deprecated false in

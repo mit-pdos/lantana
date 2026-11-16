@@ -33,6 +33,29 @@ abbrev Oids := Std.ExtTreeSet Oid compare
 /-- Finite maps from obligation ids. -/
 abbrev OidMap (V : Type _) := Std.ExtTreeMap Oid V compare
 
+/-! ## Sets and maps of obligations -/
+
+open Iris.Std in
+/-- `Std.ExtTreeSet.insert` as the union with a singleton. -/
+theorem Oids.insert_eq_singleton_union (K : Oids) (k : Oid) : K.insert k = {k} ∪ K :=
+  insert_eq_singleton_union_extTreeSet
+
+open Iris.Std in
+/-- `Std.ExtTreeSet.erase` as a set difference. -/
+theorem Oids.erase_eq_diff (K : Oids) (k : Oid) : K.erase k = K \ {k} :=
+  LawfulSet.ext fun x => by
+    rw [Std.ExtTreeSet.mem_erase, LawfulSet.mem_diff, LawfulSet.mem_singleton, Ne,
+      Std.LawfulEqCmp.compare_eq_iff_eq]
+    grind
+
+open Iris.Std in
+/-- `Std.ExtTreeMap.insert` is the partial-map insertion of Iris-Lean. -/
+theorem OidMap.insert_eq {V : Type _} (F : OidMap V) (k : Oid) (v : V) :
+    F.insert k v = PartialMap.insert F k v := by
+  refine Std.ExtTreeMap.ext_getElem? fun k' => ?_
+  change (F.insert k v)[k']? = (F.alter k fun _ => some v)[k']?
+  rw [Std.ExtTreeMap.getElem?_insert, Std.ExtTreeMap.getElem?_alter]
+
 /-- A parent in the obligation forest: a thread or an obligation. -/
 @[lantana_alias parent]
 inductive Parent where

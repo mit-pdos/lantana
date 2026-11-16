@@ -101,7 +101,7 @@ def Shape (tp : ThreadPool Exp) : Prop :=
 abbrev TrPredF : COFE.OFunctorPre := DiscreteFunOF fun _ : Trace (Cfg Exp St) => LaterOF IdOF
 
 /-- The contractivity of the ghost variable's functor, as `GhostVarG` expects it. -/
-abbrev ghostVarF_contractive : RFunctorContractive (GhostVarF (Bool × Bool)) :=
+abbrev ghostVarFContractive : RFunctorContractive (GhostVarF (Bool × Bool)) :=
   @instRFunctorContractiveProdOF _ _ OFunctor.constOF_RFunctorContractive
     instRFunctorContractiveAgreeRFOfOFunctorContractive
 
@@ -126,7 +126,7 @@ def CrashGF : BundledGFunctors.{0} := fun n =>
   | 15 => ⟨ULiftOF (constOF (MonoList (DiscreteO (HistEntry Exp St))))⟩
   | 16 => ⟨ULiftOF (constOF (HeapView ThreadId (Agree (DiscreteO Oids)) ThreadMap))⟩
   | 17 => { F := ULiftOF (GhostVarF (Bool × Bool))
-            contractive := @ULiftOF.instRFunctorContractive _ ghostVarF_contractive }
+            contractive := @ULiftOF.instRFunctorContractive _ ghostVarFContractive }
   | _ => ⟨constOFU Unit⟩
 
 instance : WsatGpreS CrashGF where
@@ -175,7 +175,7 @@ instance : MonoListG CrashGF (HistEntry Exp St) :=
 instance : TemporalGpreS Exp St CrashGF where
 
 instance : GhostVarG CrashGF (Bool × Bool) where
-  elemG := @ElemG.ofEqLift _ (GhostVarF (Bool × Bool)) ghostVarF_contractive _ 17
+  elemG := @ElemG.ofEqLift _ (GhostVarF (Bool × Bool)) ghostVarFContractive _ 17
     (by unfold CrashGF; rfl)
 
 /-! ## The ghost state and the state interpretation -/

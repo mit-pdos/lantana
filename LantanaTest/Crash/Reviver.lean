@@ -25,24 +25,24 @@ variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 
 /-- The reviver revives, from any state of the protocol. -/
 theorem reviver_spec (k : Oid) (S : Oids) (kids : Oid → Oids) :
-    inv Ninv (crashInv (GF := GF) k S kids) ⊢ £ₙ 1 -∗ thActive 2 -∗ thKids 2 ∅ -∗ thCarriers 2 ∅ -∗
+    inv invN (crashInv (GF := GF) k S kids) ⊢ £ₙ 1 -∗ thActive 2 -∗ thKids 2 ∅ -∗ thCarriers 2 ∅ -∗
       lWP Exp.revive @ 2; ⊤ {{ fun _ => Th.done 2 }} := by
   iintro #HI Hc Ha2 Hk2 HG
   iapply lwp_step (rfl : toVal Exp.revive = none)
   simp only [stateInterp_eq]
   iintro %σ₁ %tp %hi ⟨%hS, Hs⟩
-  imod inv_acc Ninv_subseteq $$ HI with ⟨HC, Hclose⟩
+  imod inv_acc invN_subset $$ HI with ⟨HC, Hclose⟩
   imod Lantana.lc_fupd_elim_later $$ Hc HC with HC
   iunfold crashInv at HC
   icases HC with ⟨%b, %f, Hv, HC⟩
   icombine Hs Hv gives %⟨-, hbf⟩
   obtain ⟨hb, hf⟩ : σ₁ = b ∧ fin tp = f := Prod.mk.inj hbf
   subst hb
-  have hred : Stuckness.maybeReducible .NotStuck Exp.revive σ₁ :=
+  have hred : Stuckness.MaybeReducible .NotStuck (Exp.revive, σ₁) :=
     ⟨[], .ret, true, [], .revive σ₁, rfl⟩
   have hfin : fin (tp.set 2 .ret) = fin tp := fin_set_ne (by decide) _
   have hS' : Shape (tp.set 2 .ret) := hS.set_ne (by decide) fun _ h => Exp.noConfusion h
-  have hkeep : ∀ σ, Cfg.crashed (tp.set 2 .ret, σ) = Cfg.crashed (tp, σ) := fun _ =>
+  have hkeep : ∀ σ, Cfg.Crashed (tp.set 2 .ret, σ) = Cfg.Crashed (tp, σ) := fun _ =>
     crashed_set_eq hi (fun _ h => Exp.noConfusion h) (fun _ h => Exp.noConfusion h)
   have hlen : 0 < tp.length := by
     rcases hS.2 with ⟨n, h⟩ | h <;> exact (List.getElem?_eq_some_iff.mp h).1
@@ -68,7 +68,7 @@ theorem reviver_spec (k : Oid) (S : Oids) (kids : Oid → Oids) :
       ipureintro
       exact hS'
     iintro HG
-    iapply ALC_intro
+    iapply alc_intro
     imodintro
     cases f <;> cases σ₁
     · -- crashed: the step recovers the worker

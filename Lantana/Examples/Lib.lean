@@ -11,9 +11,7 @@ public import Lantana.Trace
 
 /-! # Lemmas shared by the examples
 
-* `bigSepS_pair`, `bigSepS_insert_oids`, `oblFuels_subset`: big separating conjunctions over
-  two obligations and over a set with one more obligation; the fuel of a set of obligations
-  gives that of a subset.
+* `bigSepS_pair`: a big separating conjunction over two obligations.
 * `pointsTo_halves`: a points-to is two halves.
 * `IntMap`: finite maps from integers (the tickets of the ticket locks).
 * `ghostMapElem_halves`: a ghost map element is two halves.
@@ -24,7 +22,7 @@ public import Lantana.Trace
   allocation (the heap and the thread-expression map), and the allocation of the ghost state
   for an initial state and thread pool (Rocq `gen_heap_init` and `thread_map_init` in the
   adequacy proofs of the examples). The instance `HeapStateGS` is then built from the names.
-* `initThreads`: the pieces of the initial threads that the adequacy theorems hand, each with its
+* `init_threads`: the pieces of the initial threads that the adequacy theorems hand, each with its
   running handle and empty children, no thread of HeapLang being crashed.
 -/
 
@@ -45,26 +43,6 @@ theorem bigSepS_pair {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {a b : Oid} (
     (sep_congr BigSepS.bigSepS_singleton BigSepS.bigSepS_singleton)
   rw [Iris.Std.LawfulSet.mem_singleton] at ha hb
   exact ha.symm.trans hb
-
-/-- A big separating conjunction over an obligation set with one more element. -/
-theorem bigSepS_insert_oids {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids} {k : Oid}
-    (h : k ∉ K) : ([∗set] y ∈ K.insert k, Φ y) ⊣⊢ Φ k ∗ [∗set] y ∈ K, Φ y := by
-  rw [Iris.Std.insert_eq_singleton_union_extTreeSet]
-  refine (BigSepS.bigSepS_union fun x ⟨hx, hK⟩ => h ?_).trans
-    (sep_congr BigSepS.bigSepS_singleton .rfl)
-  rw [Iris.Std.LawfulSet.mem_singleton] at hx
-  exact hx ▸ hK
-
-section Fuel
-variable {GF : BundledGFunctors} [ModelGS GF]
-
-/-- The fuel of a set of obligations gives that of a subset. -/
-theorem oblFuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
-    oblFuels (GF := GF) A n ⊢ oblFuels B n := by
-  unfold oblFuels
-  exact BigSepS.bigSepS_subseteq h
-
-end Fuel
 
 /-! ## Finite maps from integers -/
 
@@ -145,7 +123,7 @@ section Alloc
 variable {GF : BundledGFunctors} [HeapStateGpreS GF]
 
 /-- The ghost state of HeapLang from its names. -/
-abbrev HeapStateGS.ofNames (γh γm γt : GName) : HeapStateGS GF where
+abbrev _root_.Lantana.HeapLang.HeapStateGS.ofNames (γh γm γt : GName) : HeapStateGS GF where
   genHeap := ⟨γh, γm⟩
   threadMap := inferInstance
   threadMapName := γt
@@ -161,7 +139,7 @@ theorem heapState_init (σ : State) (tp : ThreadPool Exp) :
   imod ghost_map_alloc (GF := GF) (K := ThreadId) (V := Exp) (H := ThreadMapF)
     (ThreadPool.toMap tp) with ⟨%γt, Ha, Hfr⟩
   imodintro
-  iexists HeapStateGS.ofNames γh γm γt
+  iexists Lantana.HeapLang.HeapStateGS.ofNames γh γm γt
   isplitl [Hh Ha]
   · unfold HeapLang.stateInterp
     iframe
@@ -176,12 +154,12 @@ theorem heapState_init (σ : State) (tp : ThreadPool Exp) :
 end Alloc
 
 /-- The pieces of the initial threads that the adequacy theorems hand, for HeapLang: no thread
-is crashed (`initThreads_of_not_crashed`), so every thread gets its running handle, its empty
+is crashed (`init_threads_of_not_crashed`), so every thread gets its running handle, its empty
 children and its empty bill. -/
-theorem initThreads {GF : BundledGFunctors} [ModelGS GF] (σ : State) (tp : ThreadPool Exp) :
+theorem init_threads {GF : BundledGFunctors} [ModelGS GF] (σ : State) (tp : ThreadPool Exp) :
     ([∗list] j ∈ List.range tp.length,
-        (⌜¬Cfg.crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ⊢@{IProp GF}
+        (⌜¬Cfg.Crashed (tp, σ) j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ⊢@{IProp GF}
       [∗list] j ∈ List.range tp.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅ :=
-  initThreads_of_not_crashed fun _ ⟨e, _, hc⟩ => not_crashed e σ hc
+  init_threads_of_not_crashed fun _ ⟨e, _, hc⟩ => not_crashed e σ hc
 
 end Lantana.Examples

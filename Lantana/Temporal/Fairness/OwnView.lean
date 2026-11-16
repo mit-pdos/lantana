@@ -12,9 +12,9 @@ public import Lantana.Temporal.Fairness.Action
 `a.own i` is the fairness assumption whose attempts are the steps of the thread at `i` from a
 configuration where the action `a` is enabled.  Its counter moves only at the thread's own steps
 (`own_counterMove_stay_of_other`).  The view is sound when every grant is one of the thread's
-transitions (`OwnGrant`, `own_holds_of_sf`), and it loses nothing when the thread steps infinitely
-often and the enabling condition persists (`Persists`, from `Stable`; `sf_of_own_holds`,
-`sf_iff_own_holds`).
+transitions (`OwnGrant`, `own_holds_of_strongFair`), and it loses nothing when the thread steps
+infinitely often and the enabling condition persists (`persists`, from `Stable`;
+`strongFair_of_own_holds`, `strongFair_iff_own_holds`).
 See `docs/temporal.md`.
 -/
 
@@ -45,7 +45,7 @@ def Stable (a : Action C) (i : ThreadId) : Prop :=
 
 /-- The enabling condition persists along the run: where it holds, the thread at `i` steps now,
 or it still holds at the next position, or it never holds again. -/
-def Persists (a : Action C) (i : ThreadId) : TrProp C :=
+def persists (a : Action C) (i : ThreadId) : TrProp C :=
   □ₜ (a.enabledNow →ₜ stepOf i ∨ₜ ○ₜ a.enabledNow ∨ₜ ○ₜ □ₜ ¬ₜ a.enabledNow)
 
 variable {i : ThreadId} {a : Action C} {c c' : C} {τ : Trace C}
@@ -66,15 +66,15 @@ theorem own_counterMove_stay_of_other (hs : ¬ ThreadSystem.step i c c') :
 /-! ### Soundness: under own grant, `SF` gives the view -/
 
 /-- Under own grant, `SF` gives the thread's view, by restriction of the strong recipe. -/
-theorem own_holds_of_sf (hown : a.OwnGrant i) : a.SF ⊆ (a.own i).holds :=
-  fun τ hsf => AttemptGrant.fair_mono_of_le (fun _ ha => ha.2)
+theorem own_holds_of_strongFair (hown : a.OwnGrant i) : a.strongFair ⊆ (a.own i).holds :=
+  fun τ hsf => AttemptGrant.fair_mono_of_subset (fun _ ha => ha.2)
     (fun _ ⟨hA, hg⟩ => ⟨hown hg, hA⟩) τ (holds_strong.2 hsf)
 
 /-! ### Completeness: with persistence and a thread that steps infinitely often, the view gives
 `SF` back -/
 
 /-- Stability gives persistence on any behavior. -/
-theorem persists_of_stable (hstab : a.Stable i) : IsBehavior ⊆ a.Persists i := by
+theorem persists_of_stable (hstab : a.Stable i) : isBehavior ⊆ a.persists i := by
   intro τ hrun m hm hA
   obtain ⟨j, hs⟩ := hrun m hm
   by_cases hji : j = i
@@ -84,11 +84,11 @@ theorem persists_of_stable (hstab : a.Stable i) : IsBehavior ⊆ a.Persists i :=
 
 /-- Where the thread steps infinitely often and the enabling condition persists, the view gives
 `SF`. -/
-theorem sf_of_own_holds :
-    (StepOfInfOften i ∧ₜ a.Persists i ∧ₜ (a.own i).holds) ⊆ a.SF := by
+theorem strongFair_of_own_holds :
+    (stepOfInfOften i ∧ₜ a.persists i ∧ₜ (a.own i).holds) ⊆ a.strongFair := by
   rintro τ ⟨hsched, hper, hag⟩ hA
   refine Classical.byContradiction fun hno => hno ?_
-  obtain ⟨N, -, hN⟩ := TrProp.eventually_always_iff.mp (TrProp.not_always_eventually_le τ hno)
+  obtain ⟨N, -, hN⟩ := TrProp.eventually_always_iff.mp (TrProp.not_always_eventually_subset τ hno)
   refine TrProp.always_eventually_mono (fun _ hh => ⟨hh.1.2, hh.2⟩) τ (hag ?_)
   refine TrProp.always_eventually_iff.mpr fun n₀ hn₀ => ?_
   obtain ⟨n, hn, hAn⟩ :=
@@ -121,9 +121,9 @@ theorem sf_of_own_holds :
 
 /-- Under own grant, where the thread steps infinitely often and the enabling condition persists,
 `SF` and the view coincide. -/
-theorem sf_iff_own_holds (hown : a.OwnGrant i) (hsched : StepOfInfOften i τ)
-    (hper : a.Persists i τ) : a.SF τ ↔ (a.own i).holds τ :=
-  ⟨own_holds_of_sf hown τ, fun hag => sf_of_own_holds τ ⟨hsched, hper, hag⟩⟩
+theorem strongFair_iff_own_holds (hown : a.OwnGrant i) (hsched : stepOfInfOften i τ)
+    (hper : a.persists i τ) : a.strongFair τ ↔ (a.own i).holds τ :=
+  ⟨own_holds_of_strongFair hown τ, fun hag => strongFair_of_own_holds τ ⟨hsched, hper, hag⟩⟩
 
 end Action
 

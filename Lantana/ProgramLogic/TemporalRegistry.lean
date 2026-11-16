@@ -19,7 +19,7 @@ a content's canonical trace property across the registry.
 
 The registry state `regStateWith Hd` holds the list and, for each entry, a history event at
 its position and its interpretation `Hd` (given by the temporal layer). The program logic
-threads this state, so registering an entry (`regRegister`) is a plain ghost update.
+threads this state, so registering an entry (`reg_register`) is a plain ghost update.
 -/
 
 @[expose] public noncomputable section
@@ -51,18 +51,18 @@ instance : OFE.Discrete RegEntry := ⟨id⟩
 
 /-- The registry is well formed: positions are non-decreasing along the list. -/
 @[lantana_alias reg_wf]
-def regWf (l : List (Nat × RegEntry)) : Prop :=
+def RegWf (l : List (Nat × RegEntry)) : Prop :=
   ∀ (i j : Nat) (pi pj : Nat × RegEntry), i ≤ j → l[i]? = some pi → l[j]? = some pj →
     pi.1 ≤ pj.1
 
 @[lantana_alias reg_wf_nil]
-theorem regWf_nil : regWf [] := by
+theorem regWf_nil : RegWf [] := by
   intro _ _ _ _ _ hi
   simp at hi
 
 @[lantana_alias reg_wf_app]
-theorem regWf_append {l : List (Nat × RegEntry)} {p : Nat} {e : RegEntry} (hwf : regWf l)
-    (hle : ∀ pe ∈ l, pe.1 ≤ p) : regWf (l ++ [(p, e)]) := by
+theorem regWf_append {l : List (Nat × RegEntry)} {p : Nat} {e : RegEntry} (hwf : RegWf l)
+    (hle : ∀ pe ∈ l, pe.1 ≤ p) : RegWf (l ++ [(p, e)]) := by
   intro i j pi pj hij hi hj
   by_cases hjl : j < l.length
   · rw [List.getElem?_append_left hjl] at hj
@@ -83,7 +83,7 @@ theorem regWf_append {l : List (Nat × RegEntry)} {p : Nat} {e : RegEntry} (hwf 
 
 @[lantana_alias reg_wf_lookup_pos]
 theorem regWf_lookup_pos {l : List (Nat × RegEntry)} {i j : Nat} {pi pj : Nat × RegEntry}
-    (hwf : regWf l) (hij : i ≤ j) (hi : l[i]? = some pi) (hj : l[j]? = some pj) :
+    (hwf : RegWf l) (hij : i ≤ j) (hi : l[i]? = some pi) (hj : l[j]? = some pj) :
     pi.1 ≤ pj.1 :=
   hwf i j pi pj hij hi hj
 
@@ -119,19 +119,19 @@ open MonoList
 /-- The authoritative registry list. -/
 @[lantana_alias reg_auth]
 def regAuth (l : List (Nat × RegEntry)) : IProp GF :=
-  iprop(⌜regWf l⌝ ∗ (RegGS.regName (GF := GF) ↪●ML l))
+  iprop(⌜RegWf l⌝ ∗ (RegGS.regName (GF := GF) ↪●ML l))
 
 /-- A persistent snapshot: the registry list has the prefix `l`. -/
 @[lantana_alias reg_lb]
 def regLb (l : List (Nat × RegEntry)) : IProp GF :=
-  iprop(⌜regWf l⌝ ∗ (RegGS.regName (GF := GF) ↪◯ML l))
+  iprop(⌜RegWf l⌝ ∗ (RegGS.regName (GF := GF) ↪◯ML l))
 
 /-- A persistent snapshot: the `j`-th entry of the registry is `e`, registered at
 position `p`. -/
 @[lantana_alias reg_idx]
 def regIdx (j p : Nat) (e : RegEntry) : IProp GF :=
   iprop(∃ l : List (Nat × RegEntry),
-    ⌜l[j]? = some (p, e) ∧ regWf l⌝ ∗ (RegGS.regName (GF := GF) ↪◯ML l))
+    ⌜l[j]? = some (p, e) ∧ RegWf l⌝ ∗ (RegGS.regName (GF := GF) ↪◯ML l))
 
 @[lantana_alias reg_lb_persistent]
 instance regLb_persistent (l : List (Nat × RegEntry)) : Persistent (regLb (GF := GF) l) := by
@@ -154,14 +154,14 @@ instance regIdx_timeless (j p : Nat) (e : RegEntry) : Timeless (regIdx (GF := GF
   unfold regIdx; infer_instance
 
 @[lantana_alias reg_auth_wf]
-theorem regAuth_wf (l : List (Nat × RegEntry)) : regAuth (GF := GF) l ⊢ ⌜regWf l⌝ := by
+theorem regAuth_wf (l : List (Nat × RegEntry)) : regAuth (GF := GF) l ⊢ ⌜RegWf l⌝ := by
   unfold regAuth
   iintro ⟨%hwf, -⟩
   ipureintro
   exact hwf
 
 @[lantana_alias reg_lb_wf]
-theorem regLb_wf (l : List (Nat × RegEntry)) : regLb (GF := GF) l ⊢ ⌜regWf l⌝ := by
+theorem regLb_wf (l : List (Nat × RegEntry)) : regLb (GF := GF) l ⊢ ⌜RegWf l⌝ := by
   unfold regLb
   iintro ⟨%hwf, -⟩
   ipureintro
@@ -223,7 +223,7 @@ theorem regIdx_agree (j p p' : Nat) (e e' : RegEntry) :
 
 /-- The pure part of the marker argument. -/
 theorem regWf_prefix_mark {l l' : List (Nat × RegEntry)} {j p m : Nat} {e : RegEntry}
-    (hlast : l.getLast? = some (m, .mark)) (hpre : l <+: l') (hwf' : regWf l')
+    (hlast : l.getLast? = some (m, .mark)) (hpre : l <+: l') (hwf' : RegWf l')
     (hl' : l'[j]? = some (p, e)) : l[j]? = some (p, e) ∨ m ≤ p := by
   by_cases hj : j < l.length
   · left
@@ -395,7 +395,7 @@ theorem regEntries_bound (Hd : RegEntry → IProp GF) (l : List (Nat × RegEntry
 
 /-- Registering the entry `e` at the current position `n`, given its interpretation. -/
 @[lantana_alias reg_register]
-theorem regRegister (Hd : RegEntry → IProp GF) (e : RegEntry) (h : List (HistEntry Expr State))
+theorem reg_register (Hd : RegEntry → IProp GF) (e : RegEntry) (h : List (HistEntry Expr State))
     (n : Nat) (σ : State) (tp : ThreadPool Expr) :
     regStateWith Hd ⊢ (∀ st : HistEntry Expr State, histEvent n st -∗ Hd e) -∗
       historyInterp h n σ tp ==∗

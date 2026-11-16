@@ -19,8 +19,8 @@ The receiver's thread owns an inbox obligation `g` (layer `0`, no children). The
 receiver): empty, or a task waiting in a container `c` below the inbox, or taken.
 
 * `send` creates the container `c` below the inbox (`Obl.new` under an obligation, with
-  `parLe_obl`) at the task's layer `ℓt`, and moves the task's obligations `K` from their parent
-  into it (`obl_move_obl_set`, paying one unit each at the layer `ℓ > ℓt`). Measure `20`.
+  `Par.le_obl`) at the task's layer `ℓt`, and moves the task's obligations `K` from their parent
+  into it (`Obl.move_obl_set`, paying one unit each at the layer `ℓ > ℓt`). Measure `20`.
 * `receive` is proved by Löb induction over the inbox (`iloeb`): spinning on the empty cell is
   paid by the inbox's fuel, and the inbox is renewed at every iteration (the old one is
   discharged, a new one is created with fresh fuel, `Obl.new` below the thread), so each inbox
@@ -64,8 +64,8 @@ def vSome (f a : Val) : Val := hl_val(some((&f, &a)))
 def vUnit : Val := hl_val(#())
 
 /-- The namespaces of the handoff and of its invariant. -/
-def N : Namespace := nroot.@"handoff"
-def Na : Namespace := N.@"always"
+def handoffN : Namespace := nroot.@"handoff"
+def alwaysN : Namespace := handoffN.@"always"
 
 /-! ## Ghost state -/
 
@@ -175,7 +175,7 @@ def handoffInv (b : Loc) (γd : GName) (ℓ : Layer) : IProp GF :=
 /-- The handoff `b` (persistent). -/
 @[lantana_alias is_handoff]
 def isHandoff (b : Loc) (γ : HandoffName) (ℓ : Layer) : IProp GF :=
-  alwaysI Na (handoffInv b γ.γd ℓ)
+  alwaysI alwaysN (handoffInv b γ.γd ℓ)
 
 @[lantana_alias handoff_inv_persistent]
 instance isHandoff_persistent (b : Loc) (γ : HandoffName) (ℓ : Layer) :
@@ -186,10 +186,10 @@ instance isHandoff_persistent (b : Loc) (γ : HandoffName) (ℓ : Layer) :
 resources and the obligations have no trace content. -/
 @[lantana_alias handoff_inv_trSpec]
 def handoffInvTrSpec (b : Loc) : TrSpec Exp State GF :=
-  (TrSpec.state (pointstoSat b (.own (1 : Qp).half) vNone) ∧ₛ TrSpec.true) ∨ₛ
-    (∃ₛ (f : Val) (a : Val), TrSpec.state (pointstoSat b (.own 1) (vSome f a)) ∧ₛ
+  (TrSpec.state (PointsToSat b (.own (1 : Qp).half) vNone) ∧ₛ TrSpec.true) ∨ₛ
+    (∃ₛ (f : Val) (a : Val), TrSpec.state (PointsToSat b (.own 1) (vSome f a)) ∧ₛ
       TrSpec.true) ∨ₛ
-    (∃ₛ (f : Val) (a : Val), TrSpec.state (pointstoSat b (.own 1) (vSome f a)) ∧ₛ
+    (∃ₛ (f : Val) (a : Val), TrSpec.state (PointsToSat b (.own 1) (vSome f a)) ∧ₛ
       TrSpec.true)
 
 theorem guar_handoffInv (b : Loc) (γd : GName) (ℓ : Layer) :
@@ -215,7 +215,7 @@ instance guarOf_isHandoff (b : Loc) (γ : HandoffName) (ℓ : Layer) :
   ⟨guar_isHandoff b γ ℓ⟩
 
 /-- A handoff exists: its cell is trace-visible, its ghost name and layer are not. -/
-theorem guar_exHandoff :
+theorem guar_exists_handoff :
     ⊢@{IProp GF} iprop(∃ (b : Loc) (γ : HandoffName) (ℓ : Layer), isHandoff b γ ℓ) ⊨ₜ
       (∃ₛ b : Loc, □ₛ handoffInvTrSpec b) :=
   IntoGuar.into_guar
@@ -230,7 +230,7 @@ theorem isHandoff_initialize (E : CoPset) (b : Loc) (ℓ : Layer) (g : Oid) :
   iintro Hb Kg #Wg
   imod ghost_var_alloc g with ⟨%γ, Gv⟩
   icases ghostVar_halves γ g $$ Gv with ⟨Gv, Gv0⟩
-  imod alwaysI_alloc (E := E) (N := Na) (P := handoffInv b γ ℓ) $$ [Hb Kg Gv] with #HA
+  imod alwaysI_alloc (E := E) (N := alwaysN) (P := handoffInv b γ ℓ) $$ [Hb Kg Gv] with #HA
   · inext
     unfold handoffInv
     iexists g
@@ -264,7 +264,7 @@ theorem send_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (
         Par.kids p (K' \ K) }}} := by
   refine ⟨20, fun lc i b f a G p K K' γ ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, HK, %hK, HFK, Hb, Htask, #Hh⟩ HΦ
-  ihave HF := oblFuels_init G 20 0 $$ HF
+  ihave HF := Obl.fuels_init G 20 0 $$ HF
   unfold send
   lwp_step HT HG HF with Hlc : lc +ₕ 1
   lwp_expr_simp
@@ -277,9 +277,9 @@ theorem send_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (
   lwp_step HT HG HF
   lwp_step HT HG HF
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
-  icases oblFuels_add 1 12 G $$ HF with ⟨HF1, -⟩
+  icases Obl.fuels_add 1 12 G $$ HF with ⟨HF1, -⟩
   unfold isHandoff
-  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := handoffInv b γ.γd ℓ)
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := handoffInv b γ.γd ℓ)
     (fun _ _ => CoPset.mem_full) $$ Hh
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨Hinv, Hclose⟩
@@ -295,11 +295,11 @@ theorem send_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (
     -- The container of the task, below the inbox at the layer of the task's fuel.
     unfold isTask
     icases Htask with ⟨%ℓt, %P, %hlt, HP, %μ, #Task⟩
-    imod Obl.new (⊤ \ ↑Na) (.obl g) ∅ ∅ ℓt (μ + 10) $$ [] Kg [] with
+    imod Obl.new (⊤ \ ↑alwaysN) (.obl g) ∅ ∅ ℓt (μ + 10) $$ [] Kg [] with
       ⟨%c, -, Kg, -, Kc, Ac, Fc, #Wc⟩
-    · iapply parLe_obl (ℓq := 0) g (Ordinals.Ordinal.zero_le ℓt) $$ Wg
+    · iapply Par.le_obl (ℓq := 0) g (Ordinals.Ordinal.zero_le ℓt) $$ Wg
     · iempintro
-    imod obl_move_obl_set (⊤ \ ↑Na) p c K' ∅ K ℓt hK $$ Wc HK Kc [HFK] with ⟨-, HK, Kc⟩
+    imod Obl.move_obl_set (⊤ \ ↑alwaysN) p c K' ∅ K ℓt hK $$ Wc HK Kc [HFK] with ⟨-, HK, Kc⟩
     · iapply BigSepS.bigSepS_impl $$ HFK
       imodintro
       iintro %k %_ Hk
@@ -359,15 +359,15 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
   refine ⟨10, fun lc i b g γ ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HK, HG, HF, Ag, Gv, #Hh⟩ HΦ
   iloeb as IH generalizing %g
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold receive
   lwp_step HT HG HF with Hlc : lc +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
   lwp_bind hl(!#b) HT
-  icases oblFuels_add 1 8 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 8 _ $$ HF with ⟨HF1, HF⟩
   unfold isHandoff
-  ihave Hacc := alwaysI_acc (E := ⊤) (N := Na) (P := handoffInv b γ.γd ℓ)
+  ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := handoffInv b γ.γd ℓ)
     (fun _ _ => CoPset.mem_full) $$ Hh
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨Hinv, Hclose⟩
@@ -383,12 +383,12 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     iintro ⟨HT, ⟨-, HG, -⟩, Hb⟩
     ihave %hg := ghost_var_agree _ _ _ _ _ $$ Gv Gv₀
     subst g₀
-    imod Obl.discharge_leaf (⊤ \ ↑Na) (.thread i) {g} g
+    imod Obl.discharge_leaf (⊤ \ ↑alwaysN) (.thread i) {g} g
       (Iris.Std.LawfulSet.mem_singleton.mpr rfl) $$ HK Kg Ag with ⟨HK, #Dg⟩
-    imod Th.carriers_erase_discharged (⊤ \ ↑Na) i {g} g $$ HG Dg with HG
-    imod Obl.new (⊤ \ ↑Na) (.thread i) _ _ 0 (((3 : Nat) : Measure) + 10) $$ [] HK HG with
+    imod Th.carriers_erase_discharged (⊤ \ ↑alwaysN) i {g} g $$ HG Dg with HG
+    imod Obl.new (⊤ \ ↑alwaysN) (.thread i) _ _ 0 (((3 : Nat) : Measure) + 10) $$ [] HK HG with
       ⟨%g', -, HK, HG, Kg', Ag', Fg', #Wg'⟩
-    · iapply parLe_thread
+    · iapply Par.le_thread
     imod ghost_var_update_halves g' γ.γd g g $$ Gv Gv₀ with ⟨Gv, Gv₀⟩
     imod Hclose $$ [Hb Gv₀ Kg']
     · inext
@@ -406,8 +406,8 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     · intro z
       simp
     icases (Obl.fuel_add g' _ _ _).mp $$ Fg' with ⟨F3, F10⟩
-    ihave F3 : oblFuels {g'} 3 $$ [F3]
-    · unfold oblFuels
+    ihave F3 : Obl.fuels {g'} 3 $$ [F3]
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact F3
@@ -431,14 +431,14 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     icases ghostVar_combine_halves _ _ _ $$ [Gv Gv₀] with ⟨Gv, %hg⟩
     · iframe
     subst g₀
-    imod Obl.move_up (⊤ \ ↑Na) (.thread i) {g} {g} g {c} c
+    imod Obl.move_up (⊤ \ ↑alwaysN) (.thread i) {g} {g} g {c} c
       (Iris.Std.LawfulSet.mem_singleton.mpr rfl) (Iris.Std.LawfulSet.mem_singleton.mpr rfl)
       $$ HK HG Kg with ⟨%hcg, HK, HG, Kg⟩
-    imod Obl.discharge_leaf (⊤ \ ↑Na) (.thread i) _ g (by simp) $$ HK [Kg] Ag with ⟨HK, #Dg⟩
+    imod Obl.discharge_leaf (⊤ \ ↑alwaysN) (.thread i) _ g (by simp) $$ HK [Kg] Ag with ⟨HK, #Dg⟩
     · iapply Par.kids_congr _ $$ Kg
       intro z
       simp
-    imod Th.carriers_erase_discharged (⊤ \ ↑Na) i _ g $$ HG Dg with HG
+    imod Th.carriers_erase_discharged (⊤ \ ↑alwaysN) i _ g $$ HG Dg with HG
     icases (Obl.fuel_add c _ _ _).mp $$ Fc with ⟨Fμ, F10⟩
     imod Hclose $$ [Hb Gv]
     · inext
@@ -458,8 +458,8 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     · intro z
       simp at hcg ⊢
       grind
-    ihave F10 : oblFuels {c} 10 $$ [F10]
-    · unfold oblFuels
+    ihave F10 : Obl.fuels {c} 10 $$ [F10]
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact F10
@@ -511,11 +511,11 @@ variable {GF : BundledGFunctors}
 /-- The cell `b` holds `v` in the current state of the trace (any fraction). -/
 @[lantana_alias tr_cell]
 def trCell (b : Loc) (v : Val) : TrProp (Cfg Exp State) :=
-  ∃ₜ dq : DFrac, TrProp.state (pointstoSat b dq v)
+  ∃ₜ dq : DFrac, TrProp.state (PointsToSat b dq v)
 
 @[lantana_alias tr_cell_intro]
 theorem trCell_intro (b : Loc) (dq : DFrac) (v : Val) :
-    TrProp.state (pointstoSat b dq v) ⊆ trCell b v :=
+    TrProp.state (PointsToSat b dq v) ⊆ trCell b v :=
   fun _ h => ⟨dq, h⟩
 
 /-- At all times the cell is empty or holds a task. -/

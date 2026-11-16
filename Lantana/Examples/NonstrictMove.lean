@@ -9,15 +9,15 @@ public import Lantana.Examples.World
 /-! # A move below an obligation of the same layer is unsound
 
 Rocq `examples/nonstrict_move.v`. The interface's `Obl.move` needs the new parent's witness
-layer strictly below the layer of the moved obligation's fuel (`parBelow`). With a non-strict
+layer strictly below the layer of the moved obligation's fuel (`Par.below`). With a non-strict
 move (`OblMoveNonstrict`: the layers may be equal), each iteration of the loop
 `rec loop _ := loop ()` creates a fresh obligation `r'` at layer `0` below the thread, moves the
 thread's old obligation `r` below `r'`, paying the last unit of `r`'s fuel at layer `0`, and pays
 the step with one of the two units of `r'`, keeping the other for the next iteration
 (`loop_spec`, by Löb induction). The main thread can then commit to `True U False` on an
 obligation it never discharges, and adequacy gives "eventually `False`"
-(`nonstrictMove_unsound`). The run of the loop, thread `0` stepping from `loop ()` to
-`loop ()` forever, is a fair behavior, so the assumed rule is absurd (`nonstrictMove_absurd`).
+(`unsound`). The run of the loop, thread `0` stepping from `loop ()` to
+`loop ()` forever, is a fair behavior, so the assumed rule is absurd (`absurd`).
 
 The assumed rule is a hypothesis of the theorems (the class `OblMoveNonstrict`, assumed for
 every instance of the ghost state of the closed world `ExGF`), never an axiom. Statement
@@ -69,7 +69,7 @@ theorem loop_spec (i : ThreadId) (r : Oid) (C : List ECtxItem) (Φ : Val → IPr
   iloeb as IH generalizing %r
   imod Obl.new ⊤ (.thread i) {r} {r} 0 (1 + 1) $$ [] HK HG with
     ⟨%r', %hr', HK, HG, Kr', -, Fr', #Wr'⟩
-  · iapply parLe_thread
+  · iapply Par.le_thread
   imod OblMoveNonstrict.move_le ⊤ (.thread i) r' (({r} : Oids).insert r') ∅ r 0 0
     (by simp) (Ordinals.Ordinal.le_refl _) $$ Wr' HK Kr' Hr with ⟨-, HK, -⟩
   imod Th.carriers_resync ⊤ i _ _ $$ HG HK with ⟨HG, HK⟩
@@ -80,7 +80,7 @@ theorem loop_spec (i : ThreadId) (r : Oid) (C : List ECtxItem) (Φ : Val → IPr
   ihave HG := Th.carriers_congr hr $$ HG
   ihave HK := Par.kids_congr hr $$ HK
   icases (Obl.fuel_add r' 0 1 1).mp $$ Fr' with ⟨HF, Fr'⟩
-  ihave HF := oblFuels_init {r'} 1 0 $$ [HF]
+  ihave HF := Obl.fuels_init {r'} 1 0 $$ [HF]
   · iapply BigSepS.bigSepS_singleton.mpr
     iexact HF
   unfold loop
@@ -103,12 +103,12 @@ abbrev tp0 : ThreadPool Exp := [hl(v(&loop) #())]
 abbrev σ0 : State := ⟨∅⟩
 
 /-- The namespace of the commitment. -/
-def N : Namespace := nroot.@"nonstrict"
+def nonstrictN : Namespace := nroot.@"nonstrict"
 
 /-- The commitment of thread `0` to `True U False`, and its obligation with one unit of fuel
 (Rocq `Φ_P`). -/
 def mainRes {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] : IProp GF :=
-  iprop(∃ x : Oid, untilI N x 1 iprop(True) iprop(False) ∗
+  iprop(∃ x : Oid, untilI nonstrictN x 1 iprop(True) iprop(False) ∗
     (thKids 0 {x} ∗ thCarriers 0 {x} ∗ Obl.fuel x 0 1))
 
 /-- What it guarantees (Rocq `G_main`, inferred): `True U False`. -/
@@ -128,8 +128,8 @@ theorem guar_mainRes {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] :
 /-- With the non-strict move, the loop is verified with a commitment that is never kept: in
 every fair behavior from the initial configuration, eventually `False`. -/
 @[lantana_alias nonstrict_move_unsound]
-theorem nonstrictMove_unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNonstrict ExGF)
-    (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+theorem unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNonstrict ExGF)
+    (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp0, σ0)) : False := by
   refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gMain ⌜False⌝ₜ gMain_false τ hbeh hfair
     hpos hinit ?_
@@ -143,14 +143,14 @@ theorem nonstrictMove_unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNo
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
-  ihave HG := initThreads σ0 tp0 $$ HG
+  ihave HG := init_threads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0] from rfl]
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨-, HG, HB⟩
   ihave HT := BigSepL.bigSepL_singleton.mp $$ HT
   imod untilI_alloc (E := ⊤) (.thread 0) ∅ ∅ 0 1 $$ [] HG HB with
     ⟨%x, -, HG, HB, -, Fx, -, Ax⟩
-  · iapply parLe_thread
-  imod Ax $$ %⊤ %N %iprop(True) %iprop(False) [] with Ux
+  · iapply Par.le_thread
+  imod Ax $$ %⊤ %nonstrictN %iprop(True) %iprop(False) [] with Ux
   · inext
     ipureintro
     trivial
@@ -195,7 +195,7 @@ theorem loopRun_traceStep (m : Nat) : TraceStep 0 (loopRun.seq m) (loopRun.seq (
   exact h
 
 @[lantana_alias nonstrict_move.loop_run_behavior]
-theorem loopRun_behavior : IsBehavior loopRun :=
+theorem loopRun_behavior : isBehavior loopRun :=
   isBehavior_iff.mpr fun m _ => ⟨0, loopRun_traceStep m⟩
 
 /-- Thread `0` is active and steps at every position; no other thread is ever active. -/
@@ -215,9 +215,9 @@ theorem loopRun_fair : fairScheduling loopRun := by
 /-- **The non-strict move is unsound**: assuming it, the fair run of the loop satisfies
 "eventually `False`". -/
 @[lantana_alias nonstrict_move_absurd]
-theorem nonstrictMove_absurd (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNonstrict ExGF) :
+theorem absurd (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNonstrict ExGF) :
     False :=
-  nonstrictMove_unsound hns loopRun loopRun_behavior loopRun_fair rfl rfl
+  unsound hns loopRun loopRun_behavior loopRun_fair rfl rfl
 
 end Adequacy
 

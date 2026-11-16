@@ -236,25 +236,25 @@ macro_rules
   | `(hl(v($e))) => `(@ToVal.ofVal Exp Val instToVal hl_val($e))
   | `(hl(# $e)) => `(hl(v(# $e)))
   | `(hl($i:ident)) => `(Exp.var $(Syntax.mkStrLit i.getId.toString))
-  | `(hl($e1 + $e2)) => `(Exp.binop BinOp.plus hl($e1) hl($e2))
-  | `(hl($e1 +ₗ $e2)) => `(Exp.binop BinOp.offset hl($e1) hl($e2))
-  | `(hl($e1 - $e2)) => `(Exp.binop BinOp.minus hl($e1) hl($e2))
-  | `(hl($e1 * $e2)) => `(Exp.binop BinOp.mult hl($e1) hl($e2))
-  | `(hl($e1 / $e2)) => `(Exp.binop BinOp.tdiv hl($e1) hl($e2))
-  | `(hl($e1 % $e2)) => `(Exp.binop BinOp.tmod hl($e1) hl($e2))
-  | `(hl($e1 &&& $e2)) => `(Exp.binop BinOp.and hl($e1) hl($e2))
-  | `(hl($e1 ||| $e2)) => `(Exp.binop BinOp.or hl($e1) hl($e2))
-  | `(hl($e1 ^^^ $e2)) => `(Exp.binop BinOp.xor hl($e1) hl($e2))
-  | `(hl($e1 <<< $e2)) => `(Exp.binop BinOp.shiftl hl($e1) hl($e2))
-  | `(hl($e1 >>> $e2)) => `(Exp.binop BinOp.shiftr hl($e1) hl($e2))
+  | `(hl($e1 + $e2)) => `(Exp.binOp BinOp.plus hl($e1) hl($e2))
+  | `(hl($e1 +ₗ $e2)) => `(Exp.binOp BinOp.offset hl($e1) hl($e2))
+  | `(hl($e1 - $e2)) => `(Exp.binOp BinOp.minus hl($e1) hl($e2))
+  | `(hl($e1 * $e2)) => `(Exp.binOp BinOp.mult hl($e1) hl($e2))
+  | `(hl($e1 / $e2)) => `(Exp.binOp BinOp.tdiv hl($e1) hl($e2))
+  | `(hl($e1 % $e2)) => `(Exp.binOp BinOp.tmod hl($e1) hl($e2))
+  | `(hl($e1 &&& $e2)) => `(Exp.binOp BinOp.and hl($e1) hl($e2))
+  | `(hl($e1 ||| $e2)) => `(Exp.binOp BinOp.or hl($e1) hl($e2))
+  | `(hl($e1 ^^^ $e2)) => `(Exp.binOp BinOp.xor hl($e1) hl($e2))
+  | `(hl($e1 <<< $e2)) => `(Exp.binOp BinOp.shiftl hl($e1) hl($e2))
+  | `(hl($e1 >>> $e2)) => `(Exp.binOp BinOp.shiftr hl($e1) hl($e2))
   | `(hl($e1 <= $e2)) => `(hl($e1 ≤ $e2))
-  | `(hl($e1 ≤ $e2)) => `(Exp.binop BinOp.le hl($e1) hl($e2))
-  | `(hl($e1 < $e2)) => `(Exp.binop BinOp.lt hl($e1) hl($e2))
-  | `(hl($e1 = $e2)) => `(Exp.binop BinOp.eq hl($e1) hl($e2))
+  | `(hl($e1 ≤ $e2)) => `(Exp.binOp BinOp.le hl($e1) hl($e2))
+  | `(hl($e1 < $e2)) => `(Exp.binOp BinOp.lt hl($e1) hl($e2))
+  | `(hl($e1 = $e2)) => `(Exp.binOp BinOp.eq hl($e1) hl($e2))
   | `(hl($e1 && $e2)) => `(hl(if $e1 then $e2 else #false))
   | `(hl($e1 || $e2)) => `(hl(if $e1 then #true else $e2))
-  | `(hl(~$e1)) => `(Exp.unop UnOp.neg hl($e1))
-  | `(hl(-$e1)) => `(Exp.unop UnOp.minus hl($e1))
+  | `(hl(~$e1)) => `(Exp.unOp UnOp.neg hl($e1))
+  | `(hl(-$e1)) => `(Exp.unOp UnOp.minus hl($e1))
   | `(hl(if $e1 then $e2 else $e3)) => `(Exp.if hl($e1) hl($e2) hl($e3))
   | `(hl($e1 $e2)) => `(Exp.app hl($e1) hl($e2))
   | `(hl(rec $f $x := $e)) => do `(Exp.rec_ hl_binder($f) hl_binder($x) hl($e))
@@ -324,7 +324,8 @@ partial def unexpLamVal : Term → UnexpandM Term
 @[app_unexpander Val.rec_]
 def unexpRecVal : Unexpander
   | `($_ $f $x $e) => do
-    unexpLamVal <| ← `(hl_val(rec $(← unpackHLBinder f) $(← unpackHLBinder x) := $(← unpackHLExp e)))
+    unexpLamVal <|
+      ← `(hl_val(rec $(← unpackHLBinder f) $(← unpackHLBinder x) := $(← unpackHLExp e)))
   | _ => throw ()
 
 partial def unexpPairVal' : Term → UnexpandM Term
@@ -368,8 +369,8 @@ def unexpVar : Unexpander
   | `($_ $e:str) => do `(hl($(Lean.mkIdent <| Name.mkSimple e.getString):ident))
   | _ => throw ()
 
-@[app_unexpander Exp.binop]
-def unexpBinop : Unexpander
+@[app_unexpander Exp.binOp]
+def unexpBinOp : Unexpander
   | `($_ BinOp.plus $e1 $e2) => do `(hl(($(← unpackHLExp e1) + $(← unpackHLExp e2))))
   | `($_ BinOp.offset $e1 $e2) => do `(hl(($(← unpackHLExp e1) +ₗ $(← unpackHLExp e2))))
   | `($_ BinOp.minus $e1 $e2) => do `(hl(($(← unpackHLExp e1) - $(← unpackHLExp e2))))
@@ -386,15 +387,16 @@ def unexpBinop : Unexpander
   | `($_ BinOp.eq $e1 $e2) => do `(hl(($(← unpackHLExp e1) = $(← unpackHLExp e2))))
   | _ => throw ()
 
-@[app_unexpander Exp.unop]
-def unexpUnop : Unexpander
+@[app_unexpander Exp.unOp]
+def unexpUnOp : Unexpander
   | `($_ UnOp.neg $e1) => do `(hl((~$(← unpackHLExp e1))))
   | `($_ UnOp.minus $e1) => do `(hl((-$(← unpackHLExp e1))))
   | _ => throw ()
 
 @[app_unexpander Exp.if]
 def unexpIf : Unexpander
-  | `($_ $e1 $e2 $e3) => do `(hl(if $(← unpackHLExp e1) then $(← unpackHLExp e2) else $(← unpackHLExp e3) ))
+  | `($_ $e1 $e2 $e3) =>
+    do `(hl(if $(← unpackHLExp e1) then $(← unpackHLExp e2) else $(← unpackHLExp e3) ))
   | _ => throw ()
 
 partial def unexpLam : Term → UnexpandM Term
@@ -485,7 +487,8 @@ def unexpStore : Unexpander
 
 @[app_unexpander Exp.cmpXchg]
 def unexpCmpXChg : Unexpander
-  | `($_ $e1 $e2 $e3) => do `(hl(cmpXchg($(← unpackHLExp e1), $(← unpackHLExp e2), $(← unpackHLExp e3))))
+  | `($_ $e1 $e2 $e3) =>
+    do `(hl(cmpXchg($(← unpackHLExp e1), $(← unpackHLExp e2), $(← unpackHLExp e3))))
   | _ => throw ()
 
 @[app_unexpander Exp.xchg]

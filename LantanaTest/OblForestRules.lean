@@ -120,8 +120,8 @@ example (E : CoPset) (i : ThreadId) (K G : Oids) (ℓ : Layer) (μ : Measure) :
       thCarriers i (G.insert k) ∗ Obl.assigned k (Qp.half 1) ∗
       (Wit.cred k 0 ∨ Obl.discharged k) := by
   iintro ⟨T, HG⟩
-  ihave B := parLe_thread (GF := GF) i ℓ
-  imod obl_alloc_assigned E (.thread i) K G ℓ μ $$ B T HG with ⟨%k, %_, T, HG, -, A, -, #W, -⟩
+  ihave B := Par.le_thread (GF := GF) i ℓ
+  imod Obl.alloc_assigned E (.thread i) K G ℓ μ $$ B T HG with ⟨%k, %_, T, HG, -, A, -, #W, -⟩
   imod Obl.check_witness E k ℓ $$ W with C
   imodintro
   iexists k
@@ -180,7 +180,7 @@ example (E : CoPset) (i : ThreadId) (a b c : Oid) (hab : a ≠ b) (hac : a ≠ c
     · exact .inr ⟨a, (hS a).2 (.inl rfl), by rw [hka]; exact mem_singleton.2 rfl⟩
     · exact .inl ⟨_, List.mem_singleton_self _, mem_union.2 (.inr (mem_singleton.2 rfl))⟩
   iintro ⟨T, Ka, Kb, Kc, Aa, Ab, Ac⟩
-  imod obl_discharge_forest_threads E [i] (fun _ => {a} ∪ {c}) S kids hK hclosed hcovered
+  imod Obl.discharge_forest_threads E [i] (fun _ => {a} ∪ {c}) S kids hK hclosed hcovered
     $$ [T] [Ka Kb Kc Aa Ab Ac] with ⟨T, D⟩
   · iapply BigSepL.bigSepL_singleton.2
     iexact T

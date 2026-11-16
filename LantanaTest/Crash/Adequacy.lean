@@ -9,10 +9,10 @@ public import LantanaTest.Crash.Reviver
 
 /-! # A language whose threads crash: the closed systems and their liveness
 
-`crash_adequacy` and `crash_revive_adequacy`: on every fairly scheduled behavior of
+`adequacy` and `revive_adequacy`: on every fairly scheduled behavior of
 `[work N, kill]` and of `[work N, kill, revive]`, started alive, eventually the worker has
 finished or is crashed. The worker's obligations, `k` and a chain of any length below it, are
-allocated by `worker_obls_alloc` and `chain_alloc`. See `docs/adequacy.md`, §7.
+allocated by `worker_obligations_alloc` and `chain_alloc`. See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section
@@ -35,7 +35,8 @@ def finishedOrCrashed : TrProp (Cfg Exp St) :=
 def gCrash {GF : BundledGFunctors} : TrSpec Exp St GF :=
   ◇ₛ TrSpec.state fun σ tp => σ = false ∨ fin tp = true
 
-theorem gCrash_impl {GF : BundledGFunctors} : (gCrash (GF := GF)).external ⊆ finishedOrCrashed :=
+theorem gCrash_external_subset {GF : BundledGFunctors} :
+    (gCrash (GF := GF)).external ⊆ finishedOrCrashed :=
   fun τ h => TrProp.eventually_mono (S := TrProp.state fun σ tp => σ = false ∨ fin tp = true)
     (TrProp.state_mono fun σ tp h => by
       rcases h with h | h
@@ -48,7 +49,7 @@ section Init
 variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 
 theorem guar_finallyI (k : Oid) :
-    ⊢@{IProp GF} finallyI (Nobl.@k) k 1 doneOrCrashed ⊨ₜ gCrash := by
+    ⊢@{IProp GF} finallyI (oblN.@k) k 1 doneOrCrashed ⊨ₜ gCrash := by
   unfold gCrash finallyI
   exact IntoGuar.into_guar
 
@@ -69,20 +70,20 @@ theorem kids_fresh (k : Oid) (c T : Oids) (kids : Oid → Oids) (Φ : Oid → IP
 
 /-- The finally and the children of a new obligation `k`, with those of `T`, make those of
 `{k} ∪ T`. -/
-theorem obls_insert {k : Oid} {c T : Oids} {kids : Oid → Oids} (hk : k ∉ T) :
-    finallyI (Nobl.@k) k 1 doneOrCrashed ∗ oblKids k c ∗
-      ([∗set] j ∈ T, finallyI (Nobl.@j) j 1 doneOrCrashed ∗ oblKids j (kids j)) ⊢@{IProp GF}
-      [∗set] j ∈ {k} ∪ T, finallyI (Nobl.@j) j 1 doneOrCrashed ∗
+theorem obligations_insert {k : Oid} {c T : Oids} {kids : Oid → Oids} (hk : k ∉ T) :
+    finallyI (oblN.@k) k 1 doneOrCrashed ∗ oblKids k c ∗
+      ([∗set] j ∈ T, finallyI (oblN.@j) j 1 doneOrCrashed ∗ oblKids j (kids j)) ⊢@{IProp GF}
+      [∗set] j ∈ {k} ∪ T, finallyI (oblN.@j) j 1 doneOrCrashed ∗
         oblKids j (if j = k then c else kids j) :=
   sep_assoc.2.trans (BigSepS.bigSepS_fn_insert (Ψ := fun j K =>
-    iprop(finallyI (Nobl.@j) j 1 doneOrCrashed ∗ oblKids j K)) hk).2
+    iprop(finallyI (oblN.@j) j 1 doneOrCrashed ∗ oblKids j K)) hk).2
 
 /-- A chain of `m` obligations below `q`, each a finally of `doneOrCrashed` in the namespace of
 its obligation: the new children `c` of `q`, and the chain `T` hanging below `c`. -/
 theorem chain_alloc (m : Nat) (q : Oid) :
     Wit.layer q 0 ⊢@{IProp GF} oblKids q ∅ -∗ |={⊤}=>m ∃ (c T : Oids) (kids : Oid → Oids),
       ⌜HangsBelow c T kids⌝ ∗ oblKids q c ∗
-      [∗set] j ∈ T, finallyI (Nobl.@j) j 1 doneOrCrashed ∗ oblKids j (kids j) := by
+      [∗set] j ∈ T, finallyI (oblN.@j) j 1 doneOrCrashed ∗ oblKids j (kids j) := by
   induction m generalizing q with
   | zero =>
     iintro - Hq
@@ -98,14 +99,14 @@ theorem chain_alloc (m : Nat) (q : Oid) :
     iintro #W Hq
     imod untilI_alloc (E := ⊤) (.obl q) ∅ ∅ 0 1 $$ [] Hq [] with
       ⟨%k, -, Hq, -, Hkk, -, #Wk, Ak⟩
-    · iapply parLe_obl q (Std.IsPreorder.le_refl _) $$ W
+    · iapply Par.le_obl q (Std.IsPreorder.le_refl _) $$ W
     · iempintro
-    imod Ak $$ %⊤ %(Nobl.@k) %iprop(True) %doneOrCrashed [] with Uk
+    imod Ak $$ %⊤ %(oblN.@k) %iprop(True) %doneOrCrashed [] with Uk
     · inext
       ipureintro
       trivial
     imod ih k $$ Wk Hkk with ⟨%c, %T, %kids, %hT, Hkk, HT⟩
-    icases kids_fresh k c T kids (fun j => finallyI (Nobl.@j) j 1 doneOrCrashed)
+    icases kids_fresh k c T kids (fun j => finallyI (oblN.@j) j 1 doneOrCrashed)
       $$ [$Hkk $HT] with ⟨%hk, Hkk, HT⟩
     imodintro
     iexists {k}, {k} ∪ T, fun j => if j = k then c else kids j
@@ -114,29 +115,29 @@ theorem chain_alloc (m : Nat) (q : Oid) :
     isplitr
     · ipureintro
       exact hT.insert hk
-    iapply obls_insert hk
+    iapply obligations_insert hk
     iframe HT Hkk
     unfold finallyI
     iexact Uk
 
 /-- The worker's obligations, from its initial pieces: `k` under thread `0` with the fuel of
 `N + 1` steps, and a chain of `m` obligations below it, all finallies of `doneOrCrashed`. -/
-theorem worker_obls_alloc (N m : Nat) :
+theorem worker_obligations_alloc (N m : Nat) :
     thKids 0 ∅ ⊢@{IProp GF} thCarriers 0 ∅ -∗
       |={⊤}=>m ∃ (k : Oid) (c T : Oids) (kids : Oid → Oids), ⌜k ∉ T ∧ HangsBelow c T kids⌝ ∗
-        thKids 0 {k} ∗ thCarriers 0 {k} ∗ oblFuels {k} ((N + 1 : Nat) : Measure) ∗
-        finallyI (Nobl.@k) k 1 doneOrCrashed ∗ oblKids k c ∗
-        [∗set] j ∈ T, finallyI (Nobl.@j) j 1 doneOrCrashed ∗ oblKids j (kids j) := by
+        thKids 0 {k} ∗ thCarriers 0 {k} ∗ Obl.fuels {k} ((N + 1 : Nat) : Measure) ∗
+        finallyI (oblN.@k) k 1 doneOrCrashed ∗ oblKids k c ∗
+        [∗set] j ∈ T, finallyI (oblN.@j) j 1 doneOrCrashed ∗ oblKids j (kids j) := by
   iintro Hk0 HB0
   imod untilI_alloc (E := ⊤) (.thread 0) ∅ ∅ 0 ((N + 1 : Nat) : Measure) $$ [] Hk0 HB0 with
     ⟨%k, -, Hk0, HB0, Hkk, Fk, #Wk, Ak⟩
-  · iapply parLe_thread
-  imod Ak $$ %⊤ %(Nobl.@k) %iprop(True) %doneOrCrashed [] with Uk
+  · iapply Par.le_thread
+  imod Ak $$ %⊤ %(oblN.@k) %iprop(True) %doneOrCrashed [] with Uk
   · inext
     ipureintro
     trivial
   imod chain_alloc m k $$ Wk Hkk with ⟨%c, %T, %kids, %hT, Hkk, HT⟩
-  icases kids_fresh k c T kids (fun j => finallyI (Nobl.@j) j 1 doneOrCrashed)
+  icases kids_fresh k c T kids (fun j => finallyI (oblN.@j) j 1 doneOrCrashed)
     $$ [$Hkk $HT] with ⟨%hk, Hkk, HT⟩
   imodintro
   iexists k, c, T, kids
@@ -147,7 +148,7 @@ theorem worker_obls_alloc (N m : Nat) :
   iframe Hk0 HB0 Hkk HT
   unfold finallyI
   iframe Uk
-  iapply oblFuels_init {k} _ 0
+  iapply Obl.fuels_init {k} _ 0
   iapply BigSepS.bigSepS_singleton.mpr
   iexact Fk
 
@@ -162,9 +163,9 @@ theorem stVar_halves (b f : Bool) :
 omit [CrashGS GF] in
 /-- A terminated thread with the postcondition `True`. -/
 theorem liftTerm_of_done (j : ThreadId) (v : Unit) :
-    Th.done j ⊢@{IProp GF} liftTerm j (fun _ _ => iprop(True)) v := by
+    Th.done j ⊢@{IProp GF} lwp.liftTerm j (fun _ _ => iprop(True)) v := by
   iintro Hd
-  unfold liftTerm
+  unfold lwp.liftTerm
   iframe Hd
 
 /-- The pool without the reviver: the worker and the killer. -/
@@ -194,18 +195,18 @@ theorem worker_init (N m : Nat) :
     stVar (GF := GF) (Qp.half 1) true false ⊢ £ₙ 1 -∗ thActive 0 -∗ thKids 0 ∅ -∗
       thCarriers 0 ∅ -∗ |={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ gCrash) ∗ P ∗
         (P -∗ |={⊤}=>m ∃ (k : Oid) (S : Oids) (kids : Oid → Oids), ⌜HangsBelow {k} S kids⌝ ∗
-          inv Ninv (crashInv k S kids) ∗
-          lWP (Exp.work N) @ 0; ⊤ {{ liftTerm 0 (fun _ _ => iprop(True)) }}) := by
+          inv invN (crashInv k S kids) ∗
+          lWP (Exp.work N) @ 0; ⊤ {{ lwp.liftTerm 0 (fun _ _ => iprop(True)) }}) := by
   iintro Hv Hc0 Ha0 Hk0 HB0
-  imod worker_obls_alloc N m $$ Hk0 HB0 with
+  imod worker_obligations_alloc N m $$ Hk0 HB0 with
     ⟨%k, %c, %T, %kids, %⟨hk, hT⟩, Hk0, HB0, HF, Uk, Hkk, HT⟩
   imodintro
-  iexists finallyI (Nobl.@k) k 1 doneOrCrashed
+  iexists finallyI (oblN.@k) k 1 doneOrCrashed
   isplitr
   · iapply guar_finallyI
   iframe Uk
   iintro Uk
-  imod inv_alloc Ninv ⊤ (crashInv k ({k} ∪ T) fun j => if j = k then c else kids j)
+  imod inv_alloc invN ⊤ (crashInv k ({k} ∪ T) fun j => if j = k then c else kids j)
     $$ [Hv Ha0 Hk0 Uk Hkk HT] with #HI
   · inext
     iunfold crashInv
@@ -213,9 +214,9 @@ theorem worker_init (N m : Nat) :
     iframe Hv
     simp only [crashProto]
     ileft
-    iunfold workerObls
+    iunfold workerObligations
     iframe Ha0 Hk0
-    iapply obls_insert hk
+    iapply obligations_insert hk
     iframe Uk Hkk HT
   imodintro
   iexists k, {k} ∪ T, fun j => if j = k then c else kids j
@@ -228,12 +229,12 @@ theorem worker_init (N m : Nat) :
 
 /-- The initial resources of `[work N, kill]`, the worker owing `m + 1` obligations: the worker's,
 then the killer's `lWP`. -/
-theorem crash_init (N m : Nat) :
+theorem init (N m : Nat) :
     stVar (GF := GF) (Qp.half 1) true false ⊢ £ₙ 1 -∗ £ₙ 1 -∗
       ([∗list] j ∈ List.range (tpKill N).length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
       |={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ gCrash) ∗ P ∗
         (P -∗ |={⊤}=>m [∗list] j ↦ e ∈ tpKill N,
-          lWP e @ j; ⊤ {{ liftTerm j (fun _ _ => iprop(True)) }}) := by
+          lWP e @ j; ⊤ {{ lwp.liftTerm j (fun _ _ => iprop(True)) }}) := by
   have hr : List.range (tpKill N).length = [0, 1] := rfl
   rw [hr]
   iintro Hv Hc0 Hc1 HT
@@ -257,12 +258,12 @@ abbrev tpRevive (N : Nat) : ThreadPool Exp := [.work N, .kill, .revive]
 
 /-- The initial resources of `[work N, kill, revive]`, the worker owing `m + 1` obligations: the
 worker's, then the killer's and the reviver's `lWP`s. -/
-theorem crash_init_revive (N m : Nat) :
+theorem init_revive (N m : Nat) :
     stVar (GF := GF) (Qp.half 1) true false ⊢ £ₙ 1 -∗ £ₙ 1 -∗ £ₙ 1 -∗
       ([∗list] j ∈ List.range (tpRevive N).length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
       |={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ gCrash) ∗ P ∗
         (P -∗ |={⊤}=>m [∗list] j ↦ e ∈ tpRevive N,
-          lWP e @ j; ⊤ {{ liftTerm j (fun _ _ => iprop(True)) }}) := by
+          lWP e @ j; ⊤ {{ lwp.liftTerm j (fun _ _ => iprop(True)) }}) := by
   have hr : List.range (tpRevive N).length = [0, 1, 2] := rfl
   rw [hr]
   iintro Hv Hc0 Hc1 Hc2 HT
@@ -291,11 +292,11 @@ end Init
 /-- **Liveness of `[work N, kill]`.** On every behavior from the initial configuration, started
 alive, on which the active threads are fairly scheduled, eventually the worker has finished or is
 crashed. -/
-theorem crash_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : IsBehavior τ)
+theorem adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tpKill N, true)) :
     finishedOrCrashed τ := by
   refine lwp_adequacy_temporal (GF := CrashGF) true (tpKill N) gCrash finishedOrCrashed
-    gCrash_impl τ hbeh hfair hpos hinit ?_
+    gCrash_external_subset τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨Ordinal.ofNat (1 + 1), ?_⟩
   imod ghost_var_alloc (GF := CrashGF) (true, false) with ⟨%γ, Hγ⟩
@@ -307,17 +308,17 @@ theorem crash_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : IsBehavior τ
   · iapply crashInterp_init N [.kill] (fun j n h => by rcases j with _ | j <;> simp at h) $$ Hs
   iintro Hc HT
   icases (tlc_split_nat 1 1).mp $$ Hc with ⟨Hc0, Hc1⟩
-  ihave HT := initThreads_of_not_crashed (fun j => not_crashed_true _ j) $$ HT
-  iapply crash_init N N $$ Hv Hc0 Hc1 HT
+  ihave HT := init_threads_of_not_crashed (fun j => not_crashed_true _ j) $$ HT
+  iapply init N N $$ Hv Hc0 Hc1 HT
 
 /-- **Liveness of `[work N, kill, revive]`.** On every behavior from the initial configuration,
 started alive, on which the active threads are fairly scheduled, eventually the worker has
 finished or is crashed. -/
-theorem crash_revive_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : IsBehavior τ)
+theorem revive_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tpRevive N, true)) :
     finishedOrCrashed τ := by
   refine lwp_adequacy_temporal (GF := CrashGF) true (tpRevive N) gCrash finishedOrCrashed
-    gCrash_impl τ hbeh hfair hpos hinit ?_
+    gCrash_external_subset τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨Ordinal.ofNat (1 + 1 + 1), ?_⟩
   imod ghost_var_alloc (GF := CrashGF) (true, false) with ⟨%γ, Hγ⟩
@@ -331,22 +332,22 @@ theorem crash_revive_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : IsBeha
   iintro Hc HT
   icases (tlc_split_nat (1 + 1) 1).mp $$ Hc with ⟨Hc, Hc2⟩
   icases (tlc_split_nat 1 1).mp $$ Hc with ⟨Hc0, Hc1⟩
-  ihave HT := initThreads_of_not_crashed (fun j => not_crashed_true _ j) $$ HT
-  iapply crash_init_revive N N $$ Hv Hc0 Hc1 Hc2 HT
+  ihave HT := init_threads_of_not_crashed (fun j => not_crashed_true _ j) $$ HT
+  iapply init_revive N N $$ Hv Hc0 Hc1 Hc2 HT
 
 /-! The theorems depend only on the standard axioms. -/
 
 /--
-info: 'LantanaTest.Crash.crash_adequacy' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'LantanaTest.Crash.adequacy' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs (whitespace := lax) in
-#print axioms crash_adequacy
+#print axioms adequacy
 
 /--
-info: 'LantanaTest.Crash.crash_revive_adequacy' depends on axioms:
+info: 'LantanaTest.Crash.revive_adequacy' depends on axioms:
   [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs (whitespace := lax) in
-#print axioms crash_revive_adequacy
+#print axioms revive_adequacy
 
 end LantanaTest.Crash

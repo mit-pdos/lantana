@@ -38,15 +38,15 @@ open Iris Iris.BI Iris.MonoList
 
 universe v
 
-class MonoListGP (GF : BundledGFunctors) (α : Type v) where
+class MonoListPG (GF : BundledGFunctors) (α : Type v) where
   elem : ElemG GF (constOFP (MonoList (DiscreteO α)))
 
-attribute [reducible, instance] MonoListGP.elem
+attribute [reducible, instance] MonoListPG.elem
 
 
 namespace MonoListP
 
-variable {GF : BundledGFunctors} {α : Type v} [MonoListGP GF α]
+variable {GF : BundledGFunctors} {α : Type v} [MonoListPG GF α]
 
 /-! ## Helper functions -/
 
@@ -71,54 +71,54 @@ theorem prefix_getElem? {l1 l2 : List α} {i : Nat} {a : α} (h : l1 <+: l2)
 
 /-! ## Definitions -/
 
-def auth_own (γ : GName) (dq : DFrac) (l : List α) : IProp GF :=
-  iOwn (E := MonoListGP.elem) γ (auth dq (l.map DiscreteO.mk))
+def authOwn (γ : GName) (dq : DFrac) (l : List α) : IProp GF :=
+  iOwn (E := MonoListPG.elem) γ (auth dq (l.map DiscreteO.mk))
 
 
-def lb_own (γ : GName) (l : List α) : IProp GF :=
-  iOwn (E := MonoListGP.elem) γ (lb (l.map DiscreteO.mk))
+def lbOwn (γ : GName) (l : List α) : IProp GF :=
+  iOwn (E := MonoListPG.elem) γ (lb (l.map DiscreteO.mk))
 
 
-scoped notation γ " ↪●MLP{" dq "} " l => auth_own γ dq l
-scoped notation γ " ↪●MLP " l => auth_own γ (DFrac.own 1) l
-scoped notation γ " ↪●MLP□ " l => auth_own γ DFrac.discard l
-scoped notation γ " ↪◯MLP " l => lb_own γ l
+scoped notation γ " ↪●MLP{" dq "} " l => authOwn γ dq l
+scoped notation γ " ↪●MLP " l => authOwn γ (DFrac.own 1) l
+scoped notation γ " ↪●MLP□ " l => authOwn γ DFrac.discard l
+scoped notation γ " ↪◯MLP " l => lbOwn γ l
 
-def idx_own (γ : GName) (i : Nat) (a : α) : IProp GF := iprop%
-  ∃ l, ⌜l[i]? = some a⌝ ∗ lb_own γ l
+def idxOwn (γ : GName) (i : Nat) (a : α) : IProp GF := iprop%
+  ∃ l, ⌜l[i]? = some a⌝ ∗ lbOwn γ l
 
-scoped notation γ " ↪◯MLP[" i "] " a => idx_own γ i a
+scoped notation γ " ↪◯MLP[" i "] " a => idxOwn γ i a
 
 /-! ## Instances -/
 
 instance {γ dq} {l : List α} : Timeless (PROP := IProp GF) (γ ↪●MLP{dq} l) := by
-  unfold auth_own
+  unfold authOwn
   infer_instance
 
 instance {γ} {l : List α} : Persistent (PROP := IProp GF) (γ ↪●MLP□ l) := by
-  unfold auth_own
+  unfold authOwn
   infer_instance
 
 instance {γ} {l : List α} : Timeless (PROP := IProp GF) (γ ↪◯MLP l) := by
-  unfold lb_own
+  unfold lbOwn
   infer_instance
 
 instance {γ} {l : List α} : Persistent (PROP := IProp GF) (γ ↪◯MLP l) := by
-  unfold lb_own
+  unfold lbOwn
   infer_instance
 
 instance {γ i} {a : α} : Timeless (PROP := IProp GF) (γ ↪◯MLP[i] a) := by
-  unfold idx_own
+  unfold idxOwn
   infer_instance
 
 instance {γ i} {a : α} : Persistent (PROP := IProp GF) (γ ↪◯MLP[i] a) := by
-  unfold idx_own
+  unfold idxOwn
   infer_instance
 
 instance {γ} {l : List α} :
     Fractional (PROP := IProp GF) (fun q : Qp => γ ↪●MLP{.own q} l) where
   fractional p q := by
-    unfold auth_own
+    unfold authOwn
     rw [← iOwn_op.to_eq]
     exact (congrArg (iOwn _) (auth_dfrac_op (.own p) (.own q) _)).to_bi
 
@@ -129,84 +129,84 @@ instance {γ} {l : List α} {ioΦ ioq : Iris.ProofMode.InOut} q :
 
 /-! ## Agreement -/
 
-theorem auth_own_agree (γ : GName) (dq1 dq2 : DFrac) (l1 l2 : List α) :
+theorem authOwn_agree (γ : GName) (dq1 dq2 : DFrac) (l1 l2 : List α) :
     ⊢@{IProp GF} (γ ↪●MLP{dq1} l1) -∗ (γ ↪●MLP{dq2} l2) -∗
       ⌜✓ (dq1 • dq2) ∧ l1 = l2⌝ := by
-  unfold auth_own
+  unfold authOwn
   iintro H1 H2
-  icases iOwn_cmraValid_op $$ [$H1 $H2] with %Hvalid
+  icases iOwn_cmraValid_op $$ [$H1 $H2] with %hvalid
   ipureintro
-  obtain ⟨hdq, hl⟩ := (auth_dfrac_op_valid ..).mp Hvalid
+  obtain ⟨hdq, hl⟩ := (auth_dfrac_op_valid ..).mp hvalid
   exact ⟨hdq, map_mk_inj hl⟩
 
-theorem auth_own_exclusive (γ : GName) (l1 l2 : List α) :
+theorem authOwn_exclusive (γ : GName) (l1 l2 : List α) :
     ⊢@{IProp GF} (γ ↪●MLP l1) -∗ (γ ↪●MLP l2) -∗ False := by
-  unfold auth_own
+  unfold authOwn
   iintro H1 H2
-  icases iOwn_cmraValid_op $$ [$H1 $H2] with %Hvalid
+  icases iOwn_cmraValid_op $$ [$H1 $H2] with %hvalid
   ipureintro
-  exact (auth_op_valid ..).mp Hvalid
+  exact (auth_op_valid ..).mp hvalid
 
-theorem auth_lb_own_valid (γ : GName) (dq : DFrac) (l1 l2 : List α) :
+theorem authOwn_lbOwn_valid (γ : GName) (dq : DFrac) (l1 l2 : List α) :
     ⊢@{IProp GF} (γ ↪●MLP{dq} l1) -∗ (γ ↪◯MLP l2) -∗ ⌜✓ dq ∧ l2 <+: l1⌝ := by
-  unfold auth_own lb_own
+  unfold authOwn lbOwn
   iintro H1 H2
-  icases iOwn_cmraValid_op $$ [$H1 $H2] with %Hvalid
+  icases iOwn_cmraValid_op $$ [$H1 $H2] with %hvalid
   ipureintro
-  obtain ⟨hdq, hpre⟩ := (both_dfrac_valid ..).mp Hvalid
+  obtain ⟨hdq, hpre⟩ := (both_dfrac_valid ..).mp hvalid
   exact ⟨hdq, map_mk_prefix hpre⟩
 
-theorem lb_own_valid (γ : GName) (l1 l2 : List α) :
+theorem lbOwn_valid (γ : GName) (l1 l2 : List α) :
     ⊢@{IProp GF} (γ ↪◯MLP l1) -∗ (γ ↪◯MLP l2) -∗ ⌜l1 <+: l2 ∨ l2 <+: l1⌝ := by
-  unfold lb_own
+  unfold lbOwn
   iintro H1 H2
-  icases iOwn_cmraValid_op $$ [$H1 $H2] with %Hvalid
+  icases iOwn_cmraValid_op $$ [$H1 $H2] with %hvalid
   ipureintro
-  exact (lb_op_valid ..).mp Hvalid |>.imp map_mk_prefix map_mk_prefix
+  exact (lb_op_valid ..).mp hvalid |>.imp map_mk_prefix map_mk_prefix
 
 theorem idx_agree (γ : GName) (i : Nat) (a1 a2 : α) :
     ⊢@{IProp GF} (γ ↪◯MLP[i] a1) -∗ (γ ↪◯MLP[i] a2) -∗ ⌜a1 = a2⌝ := by
-  unfold idx_own
+  unfold idxOwn
   iintro H1 H2
-  icases H1 with ⟨%l1, %Hl1, H1⟩
-  icases H2 with ⟨%l2, %Hl2, H2⟩
-  icases lb_own_valid γ l1 l2 $$ H1 H2 with %Hpre
+  icases H1 with ⟨%l1, %hl1, H1⟩
+  icases H2 with ⟨%l2, %hl2, H2⟩
+  icases lbOwn_valid γ l1 l2 $$ H1 H2 with %hpre
   ipureintro
   grind [prefix_getElem?]
 
 theorem auth_idx_lookup (γ : GName) (dq : DFrac) (l : List α) (i : Nat) (a : α) :
     ⊢@{IProp GF} (γ ↪●MLP{dq} l) -∗ (γ ↪◯MLP[i] a) -∗ ⌜l[i]? = some a⌝ := by
-  unfold idx_own
+  unfold idxOwn
   iintro H1 H2
-  icases H2 with ⟨%l1, %Hl1, H2⟩
-  icases auth_lb_own_valid γ dq l l1 $$ H1 H2 with %Hpre
+  icases H2 with ⟨%l1, %hl1, H2⟩
+  icases authOwn_lbOwn_valid γ dq l l1 $$ H1 H2 with %hpre
   ipureintro
-  exact prefix_getElem? Hpre.2 Hl1
+  exact prefix_getElem? hpre.2 hl1
 
 /-! ## Snapshots -/
 
-theorem lb_own_get (γ : GName) (dq : DFrac) (l : List α) :
+theorem lbOwn_get (γ : GName) (dq : DFrac) (l : List α) :
     ⊢@{IProp GF} (γ ↪●MLP{dq} l) -∗ (γ ↪◯MLP l) := by
-  unfold auth_own lb_own
+  unfold authOwn lbOwn
   iintro H
   iapply iOwn_mono $$ H
   exact included ..
 
-theorem lb_own_le (γ : GName) {l : List α} (l' : List α) (h : l' <+: l) :
+theorem lbOwn_le (γ : GName) {l : List α} (l' : List α) (h : l' <+: l) :
     ⊢@{IProp GF} (γ ↪◯MLP l) -∗ (γ ↪◯MLP l') := by
-  unfold lb_own
+  unfold lbOwn
   iintro H
   iapply iOwn_mono $$ H
   exact lb_mono (h.map _)
 
-theorem lb_own_nil (γ : GName) : ⊢@{IProp GF} |==> (γ ↪◯MLP ([] : List α)) := by
-  unfold lb_own
+theorem lbOwn_nil (γ : GName) : ⊢@{IProp GF} |==> (γ ↪◯MLP ([] : List α)) := by
+  unfold lbOwn
   rw [List.map_nil]
   iapply iOwn_unit
 
-theorem idx_own_get (γ : GName) {l : List α} (i : Nat) (a : α) (h : l[i]? = some a) :
+theorem idxOwn_get (γ : GName) {l : List α} (i : Nat) (a : α) (h : l[i]? = some a) :
     ⊢@{IProp GF} (γ ↪◯MLP l) -∗ (γ ↪◯MLP[i] a) := by
-  unfold idx_own
+  unfold idxOwn
   iintro H
   iexists l
   iframe H %h
@@ -215,7 +215,7 @@ theorem idx_own_get (γ : GName) {l : List α} (i : Nat) (a : α) (h : l[i]? = s
 
 theorem own_alloc (l : List α) :
     ⊢@{IProp GF} |==> ∃ γ, (γ ↪●MLP l) ∗ (γ ↪◯MLP l) := by
-  unfold auth_own lb_own
+  unfold authOwn lbOwn
   imod iOwn_alloc (F := constOFP (MonoList (DiscreteO α)))
       (●ML (l.map DiscreteO.mk) • ◯ML (l.map DiscreteO.mk)) with ⟨%γ, H⟩
   · exact (both_valid ..).mpr List.prefix_rfl
@@ -223,30 +223,30 @@ theorem own_alloc (l : List α) :
   iexists γ
   icases iOwn_op $$ H with ⟨$, $⟩
 
-theorem auth_own_update (γ : GName) {l : List α} (l' : List α) (h : l <+: l') :
+theorem authOwn_update (γ : GName) {l : List α} (l' : List α) (h : l <+: l') :
     ⊢@{IProp GF} (γ ↪●MLP l) ==∗ (γ ↪●MLP l') ∗ (γ ↪◯MLP l') := by
   iintro H
   ihave >Hauth : |==> (γ ↪●MLP l') $$ [H]
-  · unfold auth_own
+  · unfold authOwn
     iapply iOwn_update $$ H
     exact update _ (h.map _)
-  · ihave #$ := lb_own_get $$ Hauth
+  · ihave #$ := lbOwn_get $$ Hauth
     iframe
 
-theorem auth_own_update_app (γ : GName) {l : List α} (l' : List α) :
+theorem authOwn_update_app (γ : GName) {l : List α} (l' : List α) :
     ⊢@{IProp GF} (γ ↪●MLP l) ==∗ (γ ↪●MLP (l ++ l')) ∗ (γ ↪◯MLP (l ++ l')) :=
-  auth_own_update γ (l ++ l') (List.prefix_append ..)
+  authOwn_update γ (l ++ l') (List.prefix_append ..)
 
-theorem auth_own_persist (γ : GName) (dq : DFrac) (l : List α) :
+theorem authOwn_persist (γ : GName) (dq : DFrac) (l : List α) :
     ⊢@{IProp GF} (γ ↪●MLP{dq} l) ==∗ (γ ↪●MLP□ l) := by
-  unfold auth_own
+  unfold authOwn
   iintro H
   iapply iOwn_update $$ H
   exact auth_persist dq (l.map DiscreteO.mk)
 
-theorem auth_own_unpersist (γ : GName) (l : List α) :
+theorem authOwn_unpersist (γ : GName) (l : List α) :
     ⊢@{IProp GF} (γ ↪●MLP□ l) ==∗ ∃ q, γ ↪●MLP{DFrac.own q} l := by
-  unfold auth_own
+  unfold authOwn
   iintro H
   imod iOwn_updateP (auth_unpersist _) $$ H with ⟨%a, %⟨q, rfl⟩, H⟩
   iexists q

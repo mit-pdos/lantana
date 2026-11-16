@@ -11,11 +11,11 @@ public import Lantana.Examples.World
 Rocq `examples/paradox.v`. The class `LwpNoLc` assumes, for HeapLang, a rule for one pure step
 that pays no fuel and gives no later credits, yet yields a witness credit for each observed
 obligation that is not discharged (`lwp_pure_step_no_lc`; compare `lwp_pure_step`: no thread
-token, no bill with its fuel, no `ALC`/`£`). With it, two threads running
+token, no bill with its fuel, no `alc`/`£`). With it, two threads running
 `rec loop _ := loop ()` prove "eventually `False`" (`loop_paradox`), and a fair run of the loops
 refutes the rule (`no_lc_absurd`).
 
-Thread `0` holds the commitment `untilI N1 z 1 True False`, which it never keeps, and steps by
+Thread `0` holds the commitment `untilI falseN z 1 True False`, which it never keeps, and steps by
 the assumed rule, observing in every step the current obligation `ck` of thread `1` as a
 witness: a witness credit decreases its witness fuel (`Wit.fuels_ind`, well-founded); once `ck`
 is discharged, thread `0` reads the next obligation and ten later credits from the invariant
@@ -58,8 +58,8 @@ later credits, yet yields a witness credit for each obligation of `R` that is no
 class LwpNoLc (GF : BundledGFunctors) [ModelGS GF] [HeapGS GF] : Prop where
   lwp_pure_step_no_lc (s : Stuckness) (i : ThreadId) (E E' : CoPset) (e₁ e₂ : Exp) (φ : Prop)
     (Φ : Val → IProp GF) : PureExec φ 1 e₁ e₂ → φ →
-    (|={E,E'}=> ∃ R : Oids, witLayers R ∗
-      (witCreds R -∗ |={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})) ⊢
+    (|={E,E'}=> ∃ R : Oids, Wit.layers R ∗
+      (Wit.creds R -∗ |={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})) ⊢
       lWP e₁ @ s; i; E {{ Φ }}
 
 attribute [lantana_alias lwp_pure_step_no_lc] LwpNoLc.lwp_pure_step_no_lc
@@ -163,12 +163,12 @@ end Counters
 
 /-- The namespaces of the invariant, of the untils of thread `1` and of thread `0`'s
 commitment. -/
-def N : Namespace := nroot.@"paradox_inv"
-def Nu : Namespace := nroot.@"paradox_until"
-def N1 : Namespace := nroot.@"paradox_false"
+def invN : Namespace := nroot.@"paradox_inv"
+def untilN : Namespace := nroot.@"paradox_until"
+def falseN : Namespace := nroot.@"paradox_false"
 
 /-- The untils' namespace is outside the invariant's. -/
-theorem Nu_subseteq : (↑Nu : CoPset) ⊆ ⊤ \ ↑N := by
+theorem untilN_subset : (↑untilN : CoPset) ⊆ ⊤ \ ↑invN := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
   exact ndot_ne_disjoint nroot (by decide) p ⟨hp, h'⟩
@@ -192,7 +192,7 @@ past `a`, the registration, thread `1`'s counter at `a`, the witness of `k`; and
 until on `k`, or its discharge with the next registration. -/
 def pxEntry (rm ci cj : GName) (a : Nat) (k : Oid) : IProp GF :=
   iprop(((£ₙ 10 ∨ cntLb ci a) ∗ mapElem rm a k ∗ cntLb cj a ∗ Wit.layer k 0) ∗
-    (finallyI Nu k (1 : Qp).half (nextQ rm cj a) ∨ (Obl.discharged k ∗ nextQ rm cj a)))
+    (finallyI untilN k (1 : Qp).half (nextQ rm cj a) ∨ (Obl.discharged k ∗ nextQ rm cj a)))
 
 omit [ModelGS GF] [HeapGS GF] in
 /-- `nextQ` unfolded (for `icases`, which does not unfold definitions). -/
@@ -205,7 +205,7 @@ an entry taken out with `bigSepM_delete` can be put back. -/
 theorem pxEntry_iff (rm ci cj : GName) (a : Nat) (k : Oid) :
     pxEntry (GF := GF) rm ci cj a k ⊣⊢
       ((£ₙ 10 ∨ cntLb ci a) ∗ mapElem rm a k ∗ cntLb cj a ∗ Wit.layer k 0) ∗
-        (finallyI Nu k (1 : Qp).half (nextQ rm cj a) ∨ (Obl.discharged k ∗ nextQ rm cj a)) := by
+        (finallyI untilN k (1 : Qp).half (nextQ rm cj a) ∨ (Obl.discharged k ∗ nextQ rm cj a)) := by
   unfold pxEntry; exact .rfl
 
 /-- The invariant of the paradox (Rocq `px_inv`). -/
@@ -216,7 +216,7 @@ def pxInv (rm ci cj : GName) : IProp GF :=
 
 /-- Rocq `px`. -/
 @[lantana_alias px]
-def px (rm ci cj : GName) : IProp GF := inv N (pxInv rm ci cj)
+def px (rm ci cj : GName) : IProp GF := inv invN (pxInv rm ci cj)
 
 @[lantana_alias px_persistent]
 instance px_persistent (rm ci cj : GName) : Persistent (px (GF := GF) rm ci cj) := by
@@ -247,16 +247,16 @@ iteration it registers the next obligation, with ten later credits, and discharg
 @[lantana_alias px_loop2_spec]
 theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr j C hl(v(&loop) #()) ∗ thKids j {ck} ∗ thCarriers j {ck} ∗
-          oblKids ck ∅ ∗ finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗ Obl.fuel ck 0 10 ∗
+          oblKids ck ∅ ∗ finallyI untilN ck (1 : Qp).half (nextQ rm cj n) ∗ Obl.fuel ck 0 10 ∗
           px rm ci cj ∗ cntAuth cj n (1 : Qp).half ∗ mapElem rm n ck }}}
         hl(v(&loop) #()) @ j
       l{{{ RET hl_val(#()); threadExpr j C hl(#()) ∗
-        liftTerm j (fun _ _ => iprop(True)) hl_val(#()) }}} := by
+        lwp.liftTerm j (fun _ _ => iprop(True)) hl_val(#()) }}} := by
   intro j n rm ci cj ck C
   iintro %Φ !> ⟨HT, HK, HG, Kck, Uck, Gf, #Hpx, Caj, #Mn⟩ HΦ
   unfold finallyI
   iloeb as IH generalizing! %n %ck
-  ihave HF := oblFuels_init {ck} 10 0 $$ [Gf]
+  ihave HF := Obl.fuels_init {ck} 10 0 $$ [Gf]
   · iapply BigSepS.bigSepS_singleton.mpr
     iexact Gf
   unfold loop
@@ -270,8 +270,8 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
   -- The next obligation `ck1`, with its until, is allocated before the invariant is opened.
   imod untilI_alloc (E := ⊤) (.thread j) {ck} {ck} 0 10 $$ [] HK HG with
     ⟨%ck1, %hck1, HK, HG, Kck1, Of1, #Wl1, A⟩
-  · iapply parLe_thread
-  imod A $$ %⊤ %Nu %iprop(True) %(nextQ rm cj (n + 1)) [] with Unew
+  · iapply Par.le_thread
+  imod A $$ %⊤ %untilN %iprop(True) %(nextQ rm cj (n + 1)) [] with Unew
   · inext
     ipureintro
     trivial
@@ -281,7 +281,7 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
       cntAuth cj (n + 1) (1 : Qp).half ∗ mapElem rm (n + 1) ck1)
       $$ [Hc2 Hc3 Hc10 HK HG Kck Uck Caj Unew1]
   · unfold px
-    ihave Hacc := inv_acc (E := ⊤) (N := N) (P := pxInv rm ci cj)
+    ihave Hacc := inv_acc (E := ⊤) (N := invN) (P := pxInv rm ci cj)
       (fun _ _ => CoPset.mem_full) $$ Hpx
     ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
     imod Hacc with ⟨Hi, Hclose⟩
@@ -306,16 +306,16 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
     icases (cntAuth_halves cj (n + 1)).mp $$ Caj with ⟨Caj, Ca⟩
     imod ghost_map_insert_persist (n + 1) ck1 hfresh $$ GMA with ⟨GMA, #Mn1⟩
     have hdis : (£ₙ 1 : IProp GF) ⊢ thKids j (({ck} : Oids).insert ck1) -∗ oblKids ck ∅ -∗
-        untilI Nu ck 1 iprop(True) (nextQ rm cj n) -∗ nextQ rm cj n -∗
-        |={⊤ \ ↑N}=>m nextQ rm cj n ∗ thKids j ((({ck} : Oids).insert ck1).erase ck) ∗
+        untilI untilN ck 1 iprop(True) (nextQ rm cj n) -∗ nextQ rm cj n -∗
+        |={⊤ \ ↑invN}=>m nextQ rm cj n ∗ thKids j ((({ck} : Oids).insert ck1).erase ck) ∗
           Obl.discharged ck :=
-      finallyI_discharge (.thread j) _ Nu_subseteq (by simp)
+      finallyI_discharge (.thread j) _ untilN_subset (by simp)
     imod hdis $$ Hc3 HK Kck Uck [] with ⟨#HQ, HK, #Hd⟩
     · unfold nextQ
       iframe Hlb1
       iexists ck1
       iexact Mn1
-    imod Th.carriers_erase_discharged (⊤ \ ↑N) j _ ck $$ HG Hd with HG
+    imod Th.carriers_erase_discharged (⊤ \ ↑invN) j _ ck $$ HG Hd with HG
     have hck : ∀ z, z ∈ (({ck} : Oids).insert ck1).erase ck ↔ z ∈ ({ck1} : Oids) := by
       intro z
       simp at hck1 ⊢
@@ -347,18 +347,18 @@ its later credits come from the invariant (`px`). -/
 theorem px_loop1_spec [LwpNoLc GF] : ∀ (i : ThreadId) (z : Oid) (rm ci cj : GName)
     (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&loop) #()) ∗ thCarriers i {z} ∗
-          untilI N1 z 1 iprop(True) iprop(False) ∗ £ₙ 10 ∗ px rm ci cj ∗
+          untilI falseN z 1 iprop(True) iprop(False) ∗ £ₙ 10 ∗ px rm ci cj ∗
           ∃ n : Nat, cntAuth ci n 1 ∗ cntLb cj n ∗ ∃ ck : Oid, Wit.layer ck 0 ∗ mapElem rm n ck }}}
         hl(v(&loop) #()) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗
-        liftTerm i (fun _ _ => iprop(True)) hl_val(#()) }}} := by
+        lwp.liftTerm i (fun _ _ => iprop(True)) hl_val(#()) }}} := by
   intro i z rm ci cj C
   iintro %Φ !> ⟨HT, HG, HU, Hlc, #Hpx, %n, Hca, #Hlb, %ck, #Wck, #Mn⟩ -
   unfold px
   iloeb as IH generalizing! %n %ck
   icases Wit.fuels_init ck 0 $$ Wck with ⟨%α, #Wf⟩
   imod Wit.fuels_ind ck 0 α ∅ iprop(threadExpr i C hl(v(&loop) #()) -∗ thCarriers i {z} -∗
-      untilI N1 z 1 iprop(True) iprop(False) -∗ £ₙ 10 -∗ cntAuth ci n 1 -∗
+      untilI falseN z 1 iprop(True) iprop(False) -∗ £ₙ 10 -∗ cntAuth ci n 1 -∗
       lWP hl(v(&loop) #()) @ i {{ Φ }}) $$ [] with HP
   · isplitl []
     · imodintro
@@ -371,21 +371,21 @@ theorem px_loop1_spec [LwpNoLc GF] : ∀ (i : ThreadId) (z : Oid) (rm ci cj : GN
       imodintro
       iexists {ck}
       isplitl []
-      · unfold witLayers
+      · unfold Wit.layers
         iapply BigSepS.bigSepS_singleton.mpr
         iexists 0
         iexact Wck
       iintro Hwc
       unfold loop
       lwp_expr_simp
-      icases witCreds_singleton ck $$ Hwc with (Hc | #Hd)
+      icases Wit.creds_singleton ck $$ Hwc with (Hc | #Hd)
       · -- A credit of `ck`: witness induction.
         imod HInd $$ Hc with ⟨-, HP⟩
         imodintro
         imodintro
         iapply HP $$ HT HG HU Hlc Hca
       · -- `ck` is discharged: the next index, and its credits, from the invariant.
-        imod inv_acc (E := ⊤) (N := N) (P := pxInv rm ci cj) (fun _ _ => CoPset.mem_full)
+        imod inv_acc (E := ⊤) (N := invN) (P := pxInv rm ci cj) (fun _ _ => CoPset.mem_full)
           $$ Hpx with ⟨Hi, Hclose⟩
         icases (tlc_split_nat 1 9).mp $$ Hlc with ⟨Hc1, -⟩
         iapply lc_fupd_add_later $$ Hc1
@@ -436,7 +436,7 @@ registered with its witness and half of its until. -/
 theorem px_init (E : CoPset) (j : ThreadId) :
     (thKids j ∅ : IProp GF) ⊢ thCarriers j ∅ -∗ |={E}=>m ∃ (ck : Oid) (rm ci cj : GName) (n : Nat),
       thKids j {ck} ∗ thCarriers j {ck} ∗ oblKids ck ∅ ∗ Obl.fuel ck 0 10 ∗
-      finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗ Wit.layer ck 0 ∗ px rm ci cj ∗
+      finallyI untilN ck (1 : Qp).half (nextQ rm cj n) ∗ Wit.layer ck 0 ∗ px rm ci cj ∗
       cntAuth ci n 1 ∗ cntAuth cj n (1 : Qp).half ∗ cntLb cj n ∗ mapElem rm n ck := by
   iintro HG HB
   imod cntAuth_alloc (GF := GF) 0 with ⟨%ci, Cai, #Cli⟩
@@ -444,8 +444,8 @@ theorem px_init (E : CoPset) (j : ThreadId) :
   imod ghost_map_alloc_empty (GF := GF) (K := Nat) (V := Oid) (H := IdxMap) with ⟨%rm, GM⟩
   imod untilI_alloc (E := E) (.thread j) ∅ ∅ 0 10 $$ [] HG HB with
     ⟨%ck, -, HG, HB, Kck, Gf, #Wl, A⟩
-  · iapply parLe_thread
-  imod A $$ %E %Nu %iprop(True) %(nextQ rm cj 0) [] with HF
+  · iapply Par.le_thread
+  imod A $$ %E %untilN %iprop(True) %(nextQ rm cj 0) [] with HF
   · inext
     ipureintro
     trivial
@@ -454,7 +454,7 @@ theorem px_init (E : CoPset) (j : ThreadId) :
   icases untilI_frac_split (q₁ := (1 : Qp).half) (q₂ := (1 : Qp).half) (Qp.half_add_half 1).symm
     $$ HF with ⟨HF, HF0⟩
   icases (cntAuth_halves cj 0).mp $$ Caj with ⟨Caj, Caj0⟩
-  imod inv_alloc N E (pxInv rm ci cj) $$ [Caj0 GM HF0] with #Hpx
+  imod inv_alloc invN E (pxInv rm ci cj) $$ [Caj0 GM HF0] with #Hpx
   · inext
     unfold pxInv
     iexists 0, insert (∅ : IdxMap Oid) 0 ck
@@ -489,8 +489,8 @@ theorem px_init (E : CoPset) (j : ThreadId) :
 half of the until on thread `1`'s first obligation, and the rest. -/
 def mainRes : IProp GF :=
   iprop(∃ (z ck : Oid) (rm ci cj : GName) (n : Nat),
-    untilI N1 z 1 iprop(True) iprop(False) ∗
-    finallyI Nu ck (1 : Qp).half (nextQ rm cj n) ∗
+    untilI falseN z 1 iprop(True) iprop(False) ∗
+    finallyI untilN ck (1 : Qp).half (nextQ rm cj n) ∗
     (£ₙ 10 ∗ px rm ci cj ∗ cntAuth ci n 1 ∗ cntAuth cj n (1 : Qp).half ∗ cntLb cj n ∗
       mapElem rm n ck ∗ Wit.layer ck 0 ∗ thCarriers 0 {z} ∗ thKids 1 {ck} ∗
       thCarriers 1 {ck} ∗ oblKids ck ∅ ∗ Obl.fuel ck 0 10))
@@ -506,13 +506,13 @@ theorem px_loop_pre [LwpNoLc GF] :
     threadExpr (GF := GF) 0 [] hl(v(&loop) #()) ⊢ threadExpr 1 [] hl(v(&loop) #()) -∗ £ₙ 10 -∗
       thKids 0 ∅ -∗ thCarriers 0 ∅ -∗ thKids 1 ∅ -∗ thCarriers 1 ∅ -∗
       |={⊤}=>m mainRes ∗
-        (mainRes -∗ |={⊤}=>m lWP hl(v(&loop) #()) @ 0; ⊤ {{ liftTerm 0 post }} ∗
-          lWP hl(v(&loop) #()) @ 1; ⊤ {{ liftTerm 1 post }}) := by
+        (mainRes -∗ |={⊤}=>m lWP hl(v(&loop) #()) @ 0; ⊤ {{ lwp.liftTerm 0 post }} ∗
+          lWP hl(v(&loop) #()) @ 1; ⊤ {{ lwp.liftTerm 1 post }}) := by
   iintro HT0 HT1 Hlc HG0 HB0 HG1 HB1
   imod untilI_alloc (E := ⊤) (.thread 0) ∅ ∅ 1 0 $$ [] HG0 HB0 with
     ⟨%z, -, -, HB0, -, -, -, A⟩
-  · iapply parLe_thread
-  imod A $$ %⊤ %N1 %iprop(True) %iprop(False) [] with HFz
+  · iapply Par.le_thread
+  imod A $$ %⊤ %falseN %iprop(True) %iprop(False) [] with HFz
   · inext
     ipureintro
     trivial
@@ -539,12 +539,12 @@ theorem px_loop_pre [LwpNoLc GF] :
       iexists ck
       iframe Wl Me
     · iintro ⟨-, H⟩
-      unfold liftTerm
+      unfold lwp.liftTerm
       iexact H
   · iapply px_loop2_spec 1 n rm ci cj ck [] $$ [HT1 HG1 HB1 Kck HFck Gf Caj]
     · iframe HT1 HG1 HB1 Kck HFck Gf Hpx Caj Me
     · iintro ⟨-, H⟩
-      unfold liftTerm
+      unfold lwp.liftTerm
       iexact H
 
 end Specs
@@ -563,7 +563,7 @@ def gMain : TrSpec Exp State GF :=
   (⌜True⌝ₛ Uₛ ⌜False⌝ₛ) ∧ₛ (⌜True⌝ₛ Uₛ TrSpec.true) ∧ₛ TrSpec.true
 
 @[lantana_alias paradox.G_main_impl]
-theorem gMain_impl : (gMain (GF := GF)).external ⊆ rMain :=
+theorem gMain_external_subset : (gMain (GF := GF)).external ⊆ rMain :=
   fun _ ⟨h₁, h₂, _⟩ => ⟨h₁, h₂⟩
 
 variable [ModelGS GF] [HeapGS GF] [ParadoxG GF]
@@ -587,9 +587,10 @@ abbrev σ0 : State := ⟨∅⟩
 configuration, eventually `False`. -/
 @[lantana_alias loop_paradox]
 theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
-    (τ : Trace (Cfg Exp State)) (hbeh : IsBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
+    (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp0, σ0)) : rMain τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gMain rMain gMain_impl τ hbeh hfair hpos
+  refine lwp_adequacy_temporal
+    (GF := ExGF) σ0 tp0 gMain rMain gMain_external_subset τ hbeh hfair hpos
     hinit ?_
   intro _ _
   refine ⟨Ordinals.Ordinal.ofNat 10, ?_⟩
@@ -601,7 +602,7 @@ theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
   isplitl [Hσ]
   · iexact Hσ
   iintro Hc HG
-  ihave HG := initThreads σ0 tp0 $$ HG
+  ihave HG := init_threads σ0 tp0 $$ HG
   rw [show List.range (List.length tp0) = [0, 1] from rfl]
   icases BigSepL.bigSepL_cons.mp $$ HG with ⟨⟨-, HG0, HB0⟩, HG⟩
   icases BigSepL.bigSepL_singleton.mp $$ HG with ⟨-, HG1, HB1⟩
@@ -654,7 +655,7 @@ theorem loopRun_traceStep (m : Nat) {j : Nat} (hj : j < 2) :
   exact h
 
 @[lantana_alias paradox.loop_run_behavior]
-theorem loopRun_behavior : IsBehavior loopRun :=
+theorem loopRun_behavior : isBehavior loopRun :=
   isBehavior_iff.mpr fun m _ => ⟨0, loopRun_traceStep m (by decide)⟩
 
 /-- Both threads are active and step at every position; no other thread is ever active. -/

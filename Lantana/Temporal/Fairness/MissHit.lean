@@ -311,7 +311,7 @@ end MissHit
 /-- `□ₜ ◇ₜ P` at `τ` is `P` infinitely often along its run (positions before `τ.pos` do not
 matter). -/
 theorem always_eventually_iff_infOften {C : Type} {P : TrProp C} {τ : Trace C} :
-    (□ₜ ◇ₜ P) τ ↔ MissHit.InfOften (TrProp.along P τ) := by
+    (□ₜ ◇ₜ P) τ ↔ MissHit.InfOften (TrProp.Along P τ) := by
   rw [TrProp.always_eventually_iff]
   constructor
   · intro h n

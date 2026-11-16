@@ -58,15 +58,16 @@ omit [CrashGS GF] in
 /-- The worker pays its bill `B` (`∅` or `{k}`) out of the fuel of `k`. -/
 theorem worker_pay (k : Oid) (B : Oids) (hB : B = ∅ ∨ B = {k}) (tp : ThreadPool Exp) (σ : St)
     (m : Nat) :
-    oblFuels {k} ((m + 1 : Nat) : Measure) ⊢@{IProp GF}
-      oblFuels {k} (m : Measure) ∗ (oblFuels B 1 ∗ ⌜B = B⌝ ∨ ⌜Cfg.crashed (tp, σ) 0 ∧ B = ∅⌝) := by
+    Obl.fuels {k} ((m + 1 : Nat) : Measure) ⊢@{IProp GF}
+      Obl.fuels {k} (m : Measure) ∗
+        (Obl.fuels B 1 ∗ ⌜B = B⌝ ∨ ⌜Cfg.Crashed (tp, σ) 0 ∧ B = ∅⌝) := by
   iintro HF
-  icases oblFuels_succ {k} m $$ HF with ⟨HF, HF1⟩
+  icases Obl.fuels_succ {k} m $$ HF with ⟨HF, HF1⟩
   iframe HF
   ileft
   rcases hB with rfl | rfl
   · isplitl
-    · iunfold oblFuels
+    · iunfold Obl.fuels
       iapply BigSepS.bigSepS_empty.mpr
       iempintro
     · ipureintro
@@ -78,8 +79,8 @@ theorem worker_pay (k : Oid) (B : Oids) (hB : B = ∅ ∨ B = {k}) (tp : ThreadP
 /-- The worker: from `work m`, with its bill `B` and the fuel of `k` for `m + 1` steps, it works
 until it finishes, or loops for ever while crashed. -/
 theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow {k} S kids) :
-    inv Ninv (crashInv (GF := GF) k S kids) ⊢ ∀ (m : Nat) (B : Oids), £ₙ 1 -∗ thCarriers 0 B -∗
-      ⌜B = ∅ ∨ B = {k}⌝ -∗ oblFuels {k} ((m + 1 : Nat) : Measure) -∗
+    inv invN (crashInv (GF := GF) k S kids) ⊢ ∀ (m : Nat) (B : Oids), £ₙ 1 -∗ thCarriers 0 B -∗
+      ⌜B = ∅ ∨ B = {k}⌝ -∗ Obl.fuels {k} ((m + 1 : Nat) : Measure) -∗
       lWP (Exp.work m) @ 0; ⊤ {{ fun _ => Th.done 0 }} := by
   iintro #HI
   iloeb as IH
@@ -90,7 +91,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
   have hS' : ∀ e, ((∃ n, e = .work n) ∨ e = .ret) → Shape (tp.set 0 e) :=
     fun _ h => hS.set_zero h
   have hkeep : ∀ e₂ σ₂, Step (.work m) σ₁ e₂ σ₂ →
-      Cfg.crashed (tp.set 0 e₂, σ₂) = Cfg.crashed (tp, σ₁) :=
+      Cfg.Crashed (tp.set 0 e₂, σ₂) = Cfg.Crashed (tp, σ₁) :=
     fun _ _ h => crashed_set_eq_worker hi h
   rw [fin_of_work hi]
   cases σ₁
@@ -116,8 +117,8 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
         ipureintro
         exact hS
       iintro HG
-      iapply (ALC_credits 1).mpr
-      iapply ALC_intro
+      iapply (alc_credits 1).mpr
+      iapply alc_intro
       iintro Hc₁
       imodintro
       iapply Th.nodes_unchanged _ (hkeep _ _ (.idle m))
@@ -148,8 +149,8 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           ipureintro
           exact hS' _ (.inl ⟨m, rfl⟩)
         iintro HG
-        iapply (ALC_credits 1).mpr
-        iapply ALC_intro
+        iapply (alc_credits 1).mpr
+        iapply alc_intro
         iintro Hc₁
         imodintro
         iapply Th.nodes_unchanged _ (hkeep _ _ (.work m))
@@ -161,7 +162,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
         iapply IH $$ %m %B Hc HG %hB HF
     | zero =>
       -- alive at `work 0`
-      imod inv_acc Ninv_subseteq $$ HI with ⟨HC, Hclose⟩
+      imod inv_acc invN_subset $$ HI with ⟨HC, Hclose⟩
       imod Lantana.lc_fupd_elim_later $$ Hc HC with HC
       iunfold crashInv at HC
       icases HC with ⟨%b, %f, Hv, HC⟩
@@ -170,10 +171,10 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       simp only [crashProto]
       icases HC with (HW | ⟨Ha0, Hk0, -⟩)
       · -- with its obligations
-        iunfold workerObls at HW
+        iunfold workerObligations at HW
         icases HW with ⟨Ha0, Hk0, HW⟩
         icases BigSepS.bigSepS_sep.1 $$ HW with ⟨HU, Hkk⟩
-        imod finallyI_acc_assigned_set_ndot Nobl_subseteq $$ HU with ⟨Oa, Hcl⟩
+        imod finallyI_acc_assigned_set_ndot oblN_subset $$ HU with ⟨Oa, Hcl⟩
         iapply fupd_mask_intro Std.LawfulSet.empty_subset
         iintro Hcl₀
         isplitr
@@ -193,7 +194,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
             ipureintro
             exact hS' _ (.inr rfl)
           iintro HG
-          iapply ALC_intro
+          iapply alc_intro
           imod finallyI_discharge_opened_forest_threads ∅ [0] (fun _ => {k}) kids hF.roots
             hF.2.1 hF.covered (fun _ _ => stVar_doneOrCrashed_fin (Qp.half 1) true)
             $$ [Hk0] [Oa Hkk] Hv with ⟨Hv, Hk0, HD⟩
@@ -240,7 +241,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
             ipureintro
             exact hS' _ (.inr rfl)
           iintro HG
-          iapply ALC_intro
+          iapply alc_intro
           imod Th.terminate ∅ 0 $$ Ha0 Hk0 with #Hd
           imodintro
           iapply Th.nodes_unchanged _ (hkeep _ _ .finish)

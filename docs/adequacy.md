@@ -12,7 +12,7 @@ schedules and fairness counters in `docs/temporal.md`.
 |---|---|
 | `Trace/TemporalFormula.lean` | the registry state, the temporal formulas, `mupd_read` (§1) |
 | `Trace/Guarantee.lean` | guarantees, records, bundles, the one-step property (§2) |
-| `Trace/TemporalFormulaRun.lean` | the check `regCheck`, the loops `alwaysRun`, `untilRun` (§3) |
+| `Trace/TemporalFormulaRun.lean` | the check `reg_check`, the loops `always_run`, `until_run` (§3) |
 | `Trace/TemporalFormulaRules.lean` | the rules and guarantees of the formulas (§3, §4) |
 | `Trace/Adequacy/Temporal.lean`, `Safety.lean` | the adequacy theorems (§5.1, §5.5) |
 | `Trace/Adequacy/Alloc.lean` | the ghost state that adequacy allocates (§5.2) |
@@ -46,10 +46,10 @@ The formulas:
 - `untilIDone k Q` is a fulfilled until: `Q`, the discharge of `k` and the guarantee of `Q`.
   Nothing is registered.
 
-Each formula comes in two forms.  The `Guar` forms (`alwaysIGuar N P G`,
+Each formula comes in two forms.  The `guar` forms (`alwaysIGuar N P G`,
 `untilIGuar N k q P Q G₁ G₂`, `untilIDoneGuar k Q G₂`) carry the readings of their contents
 explicitly; the plain forms read their contents by the canonical specification `TrSpec.canon`
-(§2), and `alwaysIAs N P V` reads `P` as `TrSpec.canon V`.  The `Guar` forms are contractive in
+(§2), and `alwaysIAs N P V` reads `P` as `TrSpec.canon V`.  The `guar` forms are contractive in
 their contents for fixed readings (`alwaysIGuar_contractive`, `untilIGuar_contractive_left`,
 `untilIGuar_contractive_right`), so that formulas can be defined by guarded recursion (`renew`
 in `Trace/GuaranteeRec.lean`); the plain forms are not, since `TrSpec.canon P` is not a
@@ -62,7 +62,7 @@ Allocation records the content at the current position, so it reads the history 
 
 ## 2. Guarantees and records
 
-A guarantee `P ⊨ₜ G` (`Guar P G`) says that whenever `P` holds, the rest of the execution
+A guarantee `P ⊨ₜ G` (`guar P G`) says that whenever `P` holds, the rest of the execution
 satisfies the trace specification `G`; adequacy concludes `G.external`.  (A trace specification,
 `Trace/TrSpec.lean`, is a step-indexed reading `G.internal` with the trace property
 `G.external` it is adequate for.)  The guarantee is persistent: at a position `n`, `P` with the
@@ -88,16 +88,16 @@ its content stays in its invariant.
 The one-step property `sysStep Sys` (`sysStepPre`) says: from the system at `n`, with the history
 and the model at the view of the configuration, the bundle for `n`, then, after the step, the
 system at `n + 1`, the facts about the step and `c` later credits, under the modalities of
-`TrIProp.defer`, `|={⊤,∅}=> ▷ |={∅,⊤}=> |={⊤,∅}=> ALC (|={∅,⊤}=> …)`.  The facts are pure facts
+`TrIProp.defer`, `|={⊤,∅}=> ▷ |={∅,⊤}=> |={⊤,∅}=> alc (|={∅,⊤}=> …)`.  The facts are pure facts
 about the run `τf : Nat → Cfg Expr State`, which the adequacy proof threads along it:
 
-- `Schedule sched ⟨0, τf⟩` and `SchedCounters sched γ ⟨0, τf⟩`: the schedule and the fairness
+- `schedule sched ⟨0, τf⟩` and `schedCounters sched γ ⟨0, τf⟩`: the schedule and the fairness
   counters that the proof chooses (`docs/temporal.md`, §3.6).  They are trace properties of the
   run from position `0`, read at `n` through `schedule_iff` and `schedCounters_iff`.
-- `owitInvLb (fairMeasure (γ n)) Ω W`: the witnesses are bounded below by the fair-scheduler
+- `OWitInvLb (fairMeasure (γ n)) Ω W`: the witnesses are bounded below by the fair-scheduler
   measures of the current counters.
-- `histTrace h τf`: the ghost history is a prefix of the run.
-- Across a step, `oblsDrop`: the measure of every assigned obligation drops (§5.4).
+- `HistTrace h τf`: the ghost history is a prefix of the run.
+- Across a step, `ObligationsDrop`: the measure of every assigned obligation drops (§5.4).
 
 Records are a guarded fixpoint, `recordTrI := fixpoint recordPre`: a record quantifies over
 bundles, whose certificates hold records under a later, so `recordPre` is contractive
@@ -107,43 +107,43 @@ and `sysStep` are irreducible so that `inext` does not strip the laters of the c
 `TrSpec.canon Q` is the canonical specification guaranteed by `Q`, the strongest: the meet of
 all the specifications that `Q` validly guarantees.  The class `StateFact P φ` says that the
 state interpretation and `P` determine the state predicate `φ`.  It gives the atoms of trace
-specifications, by the rule `guar_state_fact` of `Trace/GuaranteeRules.lean`, and it is defined
+specifications, by the rule `guar_stateFact` of `Trace/GuaranteeRules.lean`, and it is defined
 with the guarantees so that a language can give its instances without the rules.
 
 ## 3. Certification, and reading the formulas off a run
 
-At every position `n`, the adequacy proof runs the check `regCheck`: it appends the marker of
-`n` to the registry (`regMark`) and certifies every entry (`certifyEntries`).  `certOfEntry`
+At every position `n`, the adequacy proof runs the check `reg_check`: it appends the marker of
+`n` to the registry (`reg_mark`) and certifies every entry (`certify_entries`).  `cert_of_entry`
 opens the invariant of an entry, takes a later-guarded record of its content, by the guarantee
 stored with the entry or, for a discharged until, the record that its invariant keeps, and
 closes the invariant.  The check gives the bundle for `n` and the registry state back.
 
 A registered formula is read off a run by a loop, a Löb induction, for any system with the
-one-step property.  An iteration (`sysStepIter`) takes the certificate of the entry from the
-bundle of the position (`bundleAlwaysCert`, `bundleUntilCert`), whose later the later of the
+one-step property.  An iteration (`sysStep_iter`) takes the certificate of the entry from the
+bundle of the position (`bundle_always_cert`, `bundle_until_cert`), whose later the later of the
 deferred shape strips; an entry registered during step `n`, after the check at `n`, has instead
 the record taken at its allocation.  After the step, the iteration eliminates the record against
 the system at `n + 1`.
 
-- `alwaysRun`: a registered `alwaysI` gives `TrIProp.always` of its reading at every position
+- `always_run`: a registered `alwaysI` gives `TrIProp.always` of its reading at every position
   after its registration.
-- `untilRun`: a registered `untilI` whose obligation `k` is assigned at `n`, with fuel `fu` and
+- `until_run`: a registered `untilI` whose obligation `k` is assigned at `n`, with fuel `fu` and
   owner `o`, gives the strong until of its readings at `n`, with the rank
   `succ (fairMeasure (γ n) o fu)`.  The certificate tells which formula holds at `n`.  If it is
   the left one, a later credit of the step opens the obligation invariant at `n + 1`.  If `k` is
   still assigned, the loop goes on at a lower rank, since the measure of every assigned
-  obligation drops across a step (`oblsDrop`); if `k` was discharged during the step, the record
-  of the right formula at the discharge, at `n` or at `n + 1`, ends the until
-  (`untilRunDischarged`).
+  obligation drops across a step (`ObligationsDrop`); if `k` was discharged during the step,
+  the record of the right formula at the discharge, at `n` or at `n + 1`, ends the until
+  (`until_run_discharged`).
 
 The guarantees of the formulas, in `TemporalFormulaRules.lean`, start these loops:
 
-- `guar_alwaysIGuar`, `alwaysIGuar N P G ⊨ₜ □ₛ G`: the certificate at `n`, then `alwaysRun` from
+- `guar_alwaysIGuar`, `alwaysIGuar N P G ⊨ₜ □ₛ G`: the certificate at `n`, then `always_run` from
   `n + 1`.
 - `guar_untilIGuar`, `untilIGuar N k q P Q G₁ G₂ ⊨ₜ (G₁ Uₛ G₂)`, with the rank
   `succ (succ (fairMeasureUb fu))` for the fuel `fu` of `k` where the guarantee is used.  After
-  the step, the obligation, read with a credit of the step (`ALC_credits`), has a fuel
-  `fu' ≤ fu`, whose measure is below `fairMeasureUb fu`, and `untilRun` goes on from there.
+  the step, the obligation, read with a credit of the step (`alc_credits`), has a fuel
+  `fu' ≤ fu`, whose measure is below `fairMeasureUb fu`, and `until_run` goes on from there.
 - `guar_untilIDoneGuar`: a done until guarantees the until of any left reading, by its right
   formula, without a run.
 
@@ -192,7 +192,7 @@ The number of obligations to discharge need not be known.
   crashed.
 - `untilIGuar_discharge_opened_forest` discharges a forest in one model update: every obligation
   of `S`, with its whole assignment, where `S` is closed under children (`kids`) and hangs below
-  the roots `ps`.  It rests on `obl_discharge_forest` (`docs/model.md`, §6) and leaves each
+  the roots `ps`.  It rests on `Obl.discharge_forest` (`docs/model.md`, §6) and leaves each
   root with its children outside `S`.  `…_all` is the case where the roots end without
   children, and `…_threads` the case of thread roots, which end at `thKids j ∅`.
 
@@ -226,7 +226,7 @@ user then chooses the state interpretation (after allocating the language's ghos
 postcondition of the forked threads and the postconditions of the initial threads.  The pieces
 of an initial thread `j` are its empty bill `thCarriers j ∅` and, if it is not crashed, its
 running handle and empty children `thActive j ∗ thKids j ∅`; the model holds the node of a
-crashed one (`docs/model.md`, §4).  `initThreads_of_not_crashed` gives the plain list when no
+crashed one (`docs/model.md`, §4).  `init_threads_of_not_crashed` gives the plain list when no
 initial thread is crashed.
 
 `lwp_adequacy_safety` assumes the same, with a postcondition of an initial thread `j` that
@@ -239,7 +239,7 @@ The proof of Theorem 1:
    counters under that schedule (`exists_fair_schedule_schedCounters`).
 2. It allocates the ghost state (§5.2), with the model at the view of the initial configuration.
 3. `lWP` is a running system with the one-step property: `sysLwp` is the registry state and the
-   running threads of the pool, and `sysStep_lwp` is the check of the registry (`regCheck`, §3)
+   running threads of the pool, and `sysStep_lwp` is the check of the registry (`reg_check`, §3)
    followed by one step of the run (`run_step`, §5.3).
 4. `lwp_adequacy_internal` runs the program logic from a position `n`: the user's model update
    gives `P`, its guarantee and the `lWP`s; `P` gives the record of `G` at `n`, which is
@@ -262,8 +262,8 @@ property of satisfiability (`sat_exists`), while the names are small enough.
 ### 5.3 One step of the run
 
 The threads are a pool `tp` with a postcondition function `Ψ`.  In `threadsRun tp Ψ`, each thread
-`j` has its postcondition `liftTerm j Ψ v` if it is a value `v`, and its
-`lWP e @ j; ⊤ {{ liftTerm j Ψ }}` otherwise (`threadRun`).  After a step, the forked threads
+`j` has its postcondition `lwp.liftTerm j Ψ v` if it is a value `v`, and its
+`lWP e @ j; ⊤ {{ lwp.liftTerm j Ψ }}` otherwise (`threadRun`).  After a step, the forked threads
 `tp.length + k` get the postcondition `forkPost` (`postFork Ψ forkPost tp.length`).
 
 `run_step` simulates the step of the run at position `n` by the `lWP`s of the threads.  From the
@@ -295,20 +295,21 @@ at the next position, `fairMeasure (γ (n + 1)) o a`.  After the progress round 
 `i` that the schedule names, these witnesses decrease strictly and keep the witness invariant
 and its lower bound (`mprog_exists_step`).  The measure drops from `n` to `n + 1`
 (`fairMeasure_next_lt`) for an obligation of `i`, whose fuel dropped in the progress round, and
-for an obligation of another active owner, whose counter dropped: by `SchedCounters`, an active
+for an obligation of another active owner, whose counter dropped: by `schedCounters`, an active
 thread that the schedule does not name has a smaller counter at the next position.  So every
-measure drops across a step of `i` (`oblsDrop_step`, through the model updates and the progress
-round) and across a stutter, where the thread the schedule names is inactive (`oblsDrop_na`,
-`owitInvLb_step_na_turn`).
+measure drops across a step of `i` (`obligationsDrop_step`, through the model updates and the
+progress round) and across a stutter, where the thread the schedule names is inactive
+(`obligationsDrop_inactive`, `owitInvLb_step_inactive_turn`).
 
-Both need every owner of an obligation to be active (`oblsThreadActive`).
-`getOblsThreadActive` proves it at a configuration whose crashed threads the model sees, from the
-`Th.done` tokens of the finished threads (`doneTokens`, which `threadsRun` provides through
-`liftTerm`).  An owner is a thread of the pool (`modelInterp_owner_lt`).  It is not a value,
-whose `Th.done` token contradicts the ownership (`Th.done_modelInterp_not_owner`).  It is not
-crashed, since the model holds the node of a crashed thread, which therefore owns nothing
+Both need every owner of an obligation to be active (`ObligationsThreadActive`).
+`get_obligationsThreadActive` proves it at a configuration whose crashed threads the model
+sees, from the `Th.done` tokens of the finished threads (`doneTokens`, which `threadsRun`
+provides through `lwp.liftTerm`).  An owner is a thread of the pool (`modelInterp_owner_lt`).
+It is not a value, whose `Th.done` token contradicts the ownership
+(`Th.done_modelInterp_not_owner`).  It is not crashed, since the model holds the node of a
+crashed thread, which therefore owns nothing
 (`Th.crashed_modelInterp_not_owner`).  `run_step` uses it before and after the progress round
-(`oblsThreadActive_keep`).
+(`obligationsThreadActive_keep`).
 
 ### 5.5 Safety
 
@@ -326,7 +327,7 @@ the interpretation of the temporal layer, initialized from the empty registry of
 ## 6. Differences with the Rocq development
 
 - Traces carry no thread label: the adequacy proof chooses the schedule, and the fairness
-  counters are an explicit sequence read under it.  So `Cfg.notStuck` is about every thread of
+  counters are an explicit sequence read under it.  So `Cfg.NotStuck` is about every thread of
   the pool, where Rocq's `not_stuck` is about the scheduled thread, and safety holds for every
   thread of the pool, which is stronger.
 - `run_step` also gives the pure facts of the step that safety needs, so safety is a Löb
@@ -351,7 +352,7 @@ the interpretation of the temporal layer, initialized from the empty registry of
 - `Step.lean`: the step rule `lwp_step`, which is `lwp_lift_step_gen_si` for this language, and
   which threads a step crashes or recovers.
 - `Kill.lean`: the worker's forest of obligations (`HangsBelow {k} S kids`), each a `finallyI`
-  of `doneOrCrashed` in the namespace `Nobl.@j` of its obligation `j`; the shared invariant
+  of `doneOrCrashed` in the namespace `oblN.@j` of its obligation `j`; the shared invariant
   `crashInv`, which holds, by the state, the worker's node with its obligations (or, after a
   revival, its empty node), the discharges once it is crashed, and nothing once it has finished;
   and `killer_spec`.  The killer's step that crashes the worker opens the invariants of the
@@ -364,7 +365,7 @@ the interpretation of the temporal layer, initialized from the empty registry of
 - `Reviver.lean`: `reviver_spec`.  Reviving a crashed worker receives its node from the physical
   round and puts it back in the shared invariant; the worker goes on with no obligation.
 - `Adequacy.lean`: the worker's obligations, `k` with a chain of any length below it
-  (`worker_obls_alloc`, `chain_alloc`), and `crash_adequacy` and `crash_revive_adequacy`: on
+  (`worker_obligations_alloc`, `chain_alloc`), and `Crash.adequacy` and `Crash.revive_adequacy`: on
   every fairly scheduled behavior of `[work N, kill]` and of `[work N, kill, revive]`, started
   alive, eventually the worker has finished or is crashed.  The killer may give up, so the
   worker's obligation is needed; with the reviver, a crashed worker may recover and finish later.

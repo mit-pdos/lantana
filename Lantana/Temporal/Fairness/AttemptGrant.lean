@@ -9,8 +9,8 @@ public import Lantana.Temporal.Fairness.MissHit
 /-! # The core: attempt–grant fairness over trace properties
 
 `AttemptGrant` is the core of the fairness theory, over two trace properties, the attempts and the
-grants: `hit`, `miss`, `Fair` (infinitely many misses force infinitely many hits), `IsCounter`
-and `Certain`.  Its theorems are stated once for every instance: the meaning (`fair_iff_attempt`),
+grants: `hit`, `miss`, `fair` (infinitely many misses force infinitely many hits), `isCounter`
+and `certain`.  Its theorems are stated once for every instance: the meaning (`fair_iff_attempt`),
 the counter (`fair_iff_counter`) and its rules (`counter_reset`, `counter_drop`, `counter_stay`),
 what it bounds (`counter_bounds_misses`), restriction (`fair_mono`) and a certain grant
 (`fair_of_certain`).  They are proved from the engine `MissHit`.
@@ -37,18 +37,18 @@ def miss (attempt grant : TrProp C) : TrProp C := attempt ∧ₜ ¬ₜ grant
 
 /-- Attempt–grant fairness: infinitely many refused attempts force infinitely many granted
 ones. -/
-def Fair (attempt grant : TrProp C) : TrProp C :=
+def fair (attempt grant : TrProp C) : TrProp C :=
   □ₜ ◇ₜ miss attempt grant →ₜ □ₜ ◇ₜ hit attempt grant
 
 /-- The counter: zero at a granted attempt, one more at a refused attempt than at the next
 position, unchanged where there is no attempt; from the current position on. -/
-def IsCounter (attempt grant : TrProp C) (δ : Nat → Nat) : TrProp C :=
+def isCounter (attempt grant : TrProp C) (δ : Nat → Nat) : TrProp C :=
   □ₜ ((hit attempt grant →ₜ TrProp.atPos fun n => δ n = 0) ∧ₜ
     (miss attempt grant →ₜ TrProp.atPos fun n => δ n = δ (n + 1) + 1) ∧ₜ
     (¬ₜ attempt →ₜ TrProp.atPos fun n => δ n = δ (n + 1)))
 
 /-- Every attempt is granted, from the current position on. -/
-def Certain (attempt grant : TrProp C) : TrProp C := □ₜ (attempt →ₜ grant)
+def certain (attempt grant : TrProp C) : TrProp C := □ₜ (attempt →ₜ grant)
 
 variable {attempt grant : TrProp C} {δ : Nat → Nat} {τ : Trace C}
 
@@ -64,12 +64,12 @@ theorem attempt_iff : attempt τ ↔ hit attempt grant τ ∨ miss attempt grant
     fun h => h.elim And.left And.left⟩
 
 /-- Fairness is the same at every position of the run. -/
-theorem fair_absolute : TrProp.Absolute (Fair attempt grant) :=
+theorem fair_absolute : TrProp.Absolute (fair attempt grant) :=
   TrProp.absolute_imp TrProp.absolute_always_eventually TrProp.absolute_always_eventually
 
 /-- The meaning: infinitely many attempts force infinitely many granted ones. -/
 theorem fair_iff_attempt :
-    Fair attempt grant τ ↔ ((□ₜ ◇ₜ attempt) τ → (□ₜ ◇ₜ hit attempt grant) τ) := by
+    fair attempt grant τ ↔ ((□ₜ ◇ₜ attempt) τ → (□ₜ ◇ₜ hit attempt grant) τ) := by
   change ((□ₜ ◇ₜ miss attempt grant) τ → _) ↔ _
   simp only [always_eventually_iff_infOften]
   constructor
@@ -81,7 +81,7 @@ theorem fair_iff_attempt :
     apply hag
     intro n
     obtain ⟨m, hm, ham⟩ := hinf (n + N)
-    have hhm : ¬ TrProp.along (hit attempt grant) τ m :=
+    have hhm : ¬ TrProp.Along (hit attempt grant) τ m :=
       hN m (Nat.le_trans (Nat.le_add_left N n) hm)
     exact ⟨m, Nat.le_trans (Nat.le_add_right n N) hm, (attempt_iff.1 ham).resolve_left hhm⟩
   · intro h hinf
@@ -93,18 +93,18 @@ At a granted attempt the counter resets, at a refused attempt it drops by one, a
 no attempt it stays (`isCounter_iff`).  The rules are stated at the current position. -/
 
 /-- Attempt–grant fairness is the existence of a counter. -/
-theorem fair_iff_counter : Fair attempt grant τ ↔ ∃ δ, IsCounter attempt grant δ τ := by
+theorem fair_iff_counter : fair attempt grant τ ↔ ∃ δ, isCounter attempt grant δ τ := by
   constructor
   · intro hag
-    have hmh : MissHit.Fair (TrProp.along (hit attempt grant) τ)
-        (TrProp.along (miss attempt grant) τ) := fun hinf =>
+    have hmh : MissHit.Fair (TrProp.Along (hit attempt grant) τ)
+        (TrProp.Along (miss attempt grant) τ) := fun hinf =>
       always_eventually_iff_infOften.1 (hag (always_eventually_iff_infOften.2 hinf))
     obtain ⟨hreset, hdrop, hstay⟩ := MissHit.counter_spec (fun _ => hit_miss_exclusive) hmh
     exact ⟨MissHit.budget _ _, fun m _ =>
       ⟨hreset m, hdrop m, fun ha => hstay m (fun h => ha h.1) fun h => ha h.1⟩⟩
   · rintro ⟨δ, hδ⟩ hmiss
-    have hδ' : MissHit.IsCounter (fun n => TrProp.along (hit attempt grant) τ (τ.pos + n))
-        (fun n => TrProp.along (miss attempt grant) τ (τ.pos + n)) fun n => δ (τ.pos + n) :=
+    have hδ' : MissHit.IsCounter (fun n => TrProp.Along (hit attempt grant) τ (τ.pos + n))
+        (fun n => TrProp.Along (miss attempt grant) τ (τ.pos + n)) fun n => δ (τ.pos + n) :=
       ⟨fun _ => (hδ _ (Nat.le_add_right _ _)).1, fun _ => (hδ _ (Nat.le_add_right _ _)).2.1,
         fun _ hh hm => (hδ _ (Nat.le_add_right _ _)).2.2 fun ha =>
           (attempt_iff.1 ha).elim hh hm⟩
@@ -113,39 +113,39 @@ theorem fair_iff_counter : Fair attempt grant τ ↔ ∃ δ, IsCounter attempt g
       (MissHit.infOften_shift.1 (MissHit.fair_of_counter hδ' hinf))
 
 /-- Attempt–grant fairness gives a counter. -/
-theorem counter_of_fair (hag : Fair attempt grant τ) : ∃ δ, IsCounter attempt grant δ τ :=
+theorem counter_of_fair (hag : fair attempt grant τ) : ∃ δ, isCounter attempt grant δ τ :=
   fair_iff_counter.1 hag
 
 /-- A counter gives attempt–grant fairness. -/
-theorem fair_of_counter (hδ : IsCounter attempt grant δ τ) : Fair attempt grant τ :=
+theorem fair_of_counter (hδ : isCounter attempt grant δ τ) : fair attempt grant τ :=
   fair_iff_counter.2 ⟨δ, hδ⟩
 
 /-- A counter from `τ` is a counter from every later position. -/
-theorem IsCounter.mono (hδ : IsCounter attempt grant δ τ) {m : Nat} (hm : τ.pos ≤ m) :
-    IsCounter attempt grant δ { τ with pos := m } :=
-  TrProp.always_idemp τ hδ m hm
+theorem isCounter.mono (hδ : isCounter attempt grant δ τ) {m : Nat} (hm : τ.pos ≤ m) :
+    isCounter attempt grant δ { τ with pos := m } :=
+  TrProp.always_idem τ hδ m hm
 
 /-- Reset: the counter is zero at a granted attempt. -/
-theorem counter_reset (hδ : IsCounter attempt grant δ τ) (ha : attempt τ) (hg : grant τ) :
+theorem counter_reset (hδ : isCounter attempt grant δ τ) (ha : attempt τ) (hg : grant τ) :
     δ τ.pos = 0 :=
   (TrProp.always_elim τ hδ).1 ⟨ha, hg⟩
 
 /-- Drop: at a refused attempt the counter is one more than at the next position. -/
-theorem counter_drop (hδ : IsCounter attempt grant δ τ) (ha : attempt τ) (hg : ¬ grant τ) :
+theorem counter_drop (hδ : isCounter attempt grant δ τ) (ha : attempt τ) (hg : ¬ grant τ) :
     δ τ.pos = δ (τ.pos + 1) + 1 :=
   (TrProp.always_elim τ hδ).2.1 ⟨ha, hg⟩
 
 /-- Stay: where there is no attempt the counter is unchanged. -/
-theorem counter_stay (hδ : IsCounter attempt grant δ τ) (ha : ¬ attempt τ) :
+theorem counter_stay (hδ : isCounter attempt grant δ τ) (ha : ¬ attempt τ) :
     δ τ.pos = δ (τ.pos + 1) :=
   (TrProp.always_elim τ hδ).2.2 ha
 
 /-- The counter, by its three rules at every position from the current one on. -/
-theorem isCounter_iff : IsCounter attempt grant δ τ ↔
+theorem isCounter_iff : isCounter attempt grant δ τ ↔
     ∀ m, τ.pos ≤ m →
-      (TrProp.along attempt τ m → TrProp.along grant τ m → δ m = 0) ∧
-      (TrProp.along attempt τ m → ¬ TrProp.along grant τ m → δ m = δ (m + 1) + 1) ∧
-      (¬ TrProp.along attempt τ m → δ m = δ (m + 1)) :=
+      (TrProp.Along attempt τ m → TrProp.Along grant τ m → δ m = 0) ∧
+      (TrProp.Along attempt τ m → ¬ TrProp.Along grant τ m → δ m = δ (m + 1) + 1) ∧
+      (¬ TrProp.Along attempt τ m → δ m = δ (m + 1)) :=
   ⟨fun hδ m hm => ⟨fun ha hg => (hδ m hm).1 ⟨ha, hg⟩, fun ha hg => (hδ m hm).2.1 ⟨ha, hg⟩,
       (hδ m hm).2.2⟩,
     fun h m hm => ⟨fun hh => (h m hm).1 hh.1 hh.2, fun hmiss => (h m hm).2.1 hmiss.1 hmiss.2,
@@ -154,25 +154,25 @@ theorem isCounter_iff : IsCounter attempt grant δ τ ↔
 /-! ### What a counter bounds -/
 
 /-- A refused attempt has a positive counter. -/
-theorem counter_pos_of_miss (hδ : IsCounter attempt grant δ τ) (h : miss attempt grant τ) :
+theorem counter_pos_of_miss (hδ : isCounter attempt grant δ τ) (h : miss attempt grant τ) :
     0 < δ τ.pos := by
   have := counter_drop hδ h.1 h.2
   omega
 
 /-- The base case of a waiter's induction: an attempt made at counter zero is granted. -/
-theorem grant_of_attempt_of_counter_zero (hδ : IsCounter attempt grant δ τ) (ha : attempt τ)
+theorem grant_of_attempt_of_counter_zero (hδ : isCounter attempt grant δ τ) (ha : attempt τ)
     (h0 : δ τ.pos = 0) : grant τ :=
   Classical.byContradiction fun hg => Nat.ne_of_gt (counter_pos_of_miss hδ ⟨ha, hg⟩) h0
 
 /-- The bound: with no granted attempt in the next `k` positions, the refused attempts in that
 window plus the counter at its end are at most the counter now. -/
-theorem counter_bounds_misses (hδ : IsCounter attempt grant δ τ) (k : Nat)
-    (hno : ∀ m, τ.pos ≤ m → m < τ.pos + k → ¬ TrProp.along (hit attempt grant) τ m) :
-    δ (τ.pos + k) + MissHit.countMiss (TrProp.along (miss attempt grant) τ) τ.pos k ≤ δ τ.pos := by
+theorem counter_bounds_misses (hδ : isCounter attempt grant δ τ) (k : Nat)
+    (hno : ∀ m, τ.pos ≤ m → m < τ.pos + k → ¬ TrProp.Along (hit attempt grant) τ m) :
+    δ (τ.pos + k) + MissHit.countMiss (TrProp.Along (miss attempt grant) τ) τ.pos k ≤ δ τ.pos := by
   have hδ' := isCounter_iff.1 hδ
   suffices h : ∀ k n, τ.pos ≤ n →
-      (∀ m, n ≤ m → m < n + k → ¬ TrProp.along (hit attempt grant) τ m) →
-      δ (n + k) + MissHit.countMiss (TrProp.along (miss attempt grant) τ) n k ≤ δ n from
+      (∀ m, n ≤ m → m < n + k → ¬ TrProp.Along (hit attempt grant) τ m) →
+      δ (n + k) + MissHit.countMiss (TrProp.Along (miss attempt grant) τ) n k ≤ δ n from
     h k τ.pos (Nat.le_refl _) hno
   intro k
   induction k with
@@ -184,12 +184,12 @@ theorem counter_bounds_misses (hδ : IsCounter attempt grant δ τ) (k : Nat)
     have ih' := ih (n + 1) (Nat.le_succ_of_le hn) fun m hm1 hm2 => hno m (by omega) (by omega)
     have e : n + (k + 1) = n + 1 + k := by omega
     rw [e]
-    rcases Classical.em (TrProp.along attempt τ n) with ha | ha
-    · have hg : ¬ TrProp.along grant τ n := fun hg => hno n (Nat.le_refl n) (by omega) ⟨ha, hg⟩
-      rw [MissHit.countMiss_succ_of_miss (miss := TrProp.along (miss attempt grant) τ) ⟨ha, hg⟩]
+    rcases Classical.em (TrProp.Along attempt τ n) with ha | ha
+    · have hg : ¬ TrProp.Along grant τ n := fun hg => hno n (Nat.le_refl n) (by omega) ⟨ha, hg⟩
+      rw [MissHit.countMiss_succ_of_miss (miss := TrProp.Along (miss attempt grant) τ) ⟨ha, hg⟩]
       have := (hδ' n hn).2.1 ha hg
       omega
-    · rw [MissHit.countMiss_succ_of_not_miss (miss := TrProp.along (miss attempt grant) τ)
+    · rw [MissHit.countMiss_succ_of_not_miss (miss := TrProp.Along (miss attempt grant) τ)
         fun hm => ha hm.1]
       have := (hδ' n hn).2.2 ha
       omega
@@ -199,8 +199,8 @@ theorem counter_bounds_misses (hδ : IsCounter attempt grant δ τ) (k : Nat)
 /-- Fairness survives shrinking the attempts to a subset that still contains every granted
 attempt, the two inclusions holding from the current position on. -/
 theorem fair_mono {attempt' : TrProp C} :
-    (□ₜ (attempt' →ₜ attempt) ∧ₜ □ₜ (attempt ∧ₜ grant →ₜ attempt') ∧ₜ Fair attempt grant) ⊆
-      Fair attempt' grant := by
+    (□ₜ (attempt' →ₜ attempt) ∧ₜ □ₜ (attempt ∧ₜ grant →ₜ attempt') ∧ₜ fair attempt grant) ⊆
+      fair attempt' grant := by
   rintro τ ⟨hatt, hgr, hag⟩ hmiss
   have hmiss' : (□ₜ ◇ₜ miss attempt grant) τ := TrProp.always_eventually_iff.mpr fun n hn => by
     obtain ⟨m, hnm, ha, hg⟩ := TrProp.always_eventually_iff.mp hmiss n hn
@@ -210,21 +210,21 @@ theorem fair_mono {attempt' : TrProp C} :
   exact ⟨m, hnm, hgr m (Nat.le_trans hn hnm) hh, hh.2⟩
 
 /-- Restriction with the inclusions as entailments. -/
-theorem fair_mono_of_le {attempt' : TrProp C} (hatt : attempt' ⊆ attempt)
-    (hgr : (attempt ∧ₜ grant) ⊆ attempt') : Fair attempt grant ⊆ Fair attempt' grant :=
+theorem fair_mono_of_subset {attempt' : TrProp C} (hatt : attempt' ⊆ attempt)
+    (hgr : (attempt ∧ₜ grant) ⊆ attempt') : fair attempt grant ⊆ fair attempt' grant :=
   fun τ hag => fair_mono τ ⟨fun _ _ => hatt _, fun _ _ => hgr _, hag⟩
 
 /-! ### A certain grant -/
 
 /-- A certain grant gives fairness outright. -/
-theorem fair_of_certain : Certain attempt grant ⊆ Fair attempt grant := by
+theorem fair_of_certain : certain attempt grant ⊆ fair attempt grant := by
   intro τ hc hmiss
   obtain ⟨m, hm, ha, hg⟩ := TrProp.always_eventually_iff.mp hmiss τ.pos (Nat.le_refl _)
   exact absurd (hc m hm ha) hg
 
 /-- With a certain grant the zero function is a counter. -/
-theorem counter_zero_of_certain (hc : Certain attempt grant τ) :
-    IsCounter attempt grant (fun _ => 0) τ :=
+theorem counter_zero_of_certain (hc : certain attempt grant τ) :
+    isCounter attempt grant (fun _ => 0) τ :=
   fun m hm => ⟨fun _ => rfl, fun hmiss => absurd (hc m hm hmiss.1) hmiss.2, fun _ => rfl⟩
 
 end AttemptGrant

@@ -51,13 +51,13 @@ instance appL [h : PureExecCtx φ n e e'] :
     PureExecCtx φ n (.app e (.ofVal v₂)) (.app e' (.ofVal v₂)) :=
   fillItem (.appL v₂) h
 instance unOp {op : UnOp} [h : PureExecCtx φ n e e'] :
-    PureExecCtx φ n (.unop op e) (.unop op e') :=
+    PureExecCtx φ n (.unOp op e) (.unOp op e') :=
   fillItem (.unOp op) h
 instance binOpR {op : BinOp} [h : PureExecCtx φ n e e'] :
-    PureExecCtx φ n (.binop op e₁ e) (.binop op e₁ e') :=
+    PureExecCtx φ n (.binOp op e₁ e) (.binOp op e₁ e') :=
   fillItem (.binOpR op e₁) h
 instance binOpL {op : BinOp} [h : PureExecCtx φ n e e'] :
-    PureExecCtx φ n (.binop op e (.ofVal v₂)) (.binop op e' (.ofVal v₂)) :=
+    PureExecCtx φ n (.binOp op e (.ofVal v₂)) (.binOp op e' (.ofVal v₂)) :=
   fillItem (.binOpL op v₂) h
 instance «if» [h : PureExecCtx φ n e e'] : PureExecCtx φ n (.if e e₁ e₂) (.if e' e₁ e₂) :=
   fillItem (.if e₁ e₂) h
@@ -127,34 +127,34 @@ variable {b : Bool} {n₁ n₂ : Int}
 
 /-- `~#b`. -/
 instance instPureExecNegBool :
-    PureExec True 1 (Exp.unop .neg (.ofVal (.lit (.bool b)))) (.ofVal (.lit (.bool !b))) :=
+    PureExec True 1 (Exp.unOp .neg (.ofVal (.lit (.bool b)))) (.ofVal (.lit (.bool !b))) :=
   ⟨fun _ => (instPureExecUnOp (op := .neg) (v := .lit (.bool b))
     (v' := .lit (.bool !b))).pureExec rfl⟩
 
 /-- `#n₁ + #n₂`. -/
 instance instPureExecPlusInt :
-    PureExec True 1 (Exp.binop .plus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+    PureExec True 1 (Exp.binOp .plus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
       (.ofVal (.lit (.int (n₁ + n₂)))) :=
   ⟨fun _ => (instPureExecBinOp (op := .plus) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
     (v' := .lit (.int (n₁ + n₂)))).pureExec rfl⟩
 
 /-- `#n₁ - #n₂`. -/
 instance instPureExecMinusInt :
-    PureExec True 1 (Exp.binop .minus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+    PureExec True 1 (Exp.binOp .minus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
       (.ofVal (.lit (.int (n₁ - n₂)))) :=
   ⟨fun _ => (instPureExecBinOp (op := .minus) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
     (v' := .lit (.int (n₁ - n₂)))).pureExec rfl⟩
 
 /-- `#n₁ ≤ #n₂`. -/
 instance instPureExecLeInt :
-    PureExec True 1 (Exp.binop .le (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+    PureExec True 1 (Exp.binOp .le (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
       (.ofVal (.lit (.bool (decide (n₁ ≤ n₂))))) :=
   ⟨fun _ => (instPureExecBinOp (op := .le) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
     (v' := .lit (.bool (decide (n₁ ≤ n₂))))).pureExec rfl⟩
 
 /-- `#n₁ < #n₂`. -/
 instance instPureExecLtInt :
-    PureExec True 1 (Exp.binop .lt (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+    PureExec True 1 (Exp.binOp .lt (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
       (.ofVal (.lit (.bool (decide (n₁ < n₂))))) :=
   ⟨fun _ => (instPureExecBinOp (op := .lt) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
     (v' := .lit (.bool (decide (n₁ < n₂))))).pureExec rfl⟩
@@ -182,13 +182,13 @@ instance appR [h : InCtx e' e K] : InCtx e' (.app e₁ e) (K ++ [.appR e₁]) :=
   fillItem (.appR e₁) h
 instance appL [h : InCtx e' e K] : InCtx e' (.app e (.ofVal v₂)) (K ++ [.appL v₂]) :=
   fillItem (.appL v₂) h
-instance unOp {op : UnOp} [h : InCtx e' e K] : InCtx e' (.unop op e) (K ++ [.unOp op]) :=
+instance unOp {op : UnOp} [h : InCtx e' e K] : InCtx e' (.unOp op e) (K ++ [.unOp op]) :=
   fillItem (.unOp op) h
 instance binOpR {op : BinOp} [h : InCtx e' e K] :
-    InCtx e' (.binop op e₁ e) (K ++ [.binOpR op e₁]) :=
+    InCtx e' (.binOp op e₁ e) (K ++ [.binOpR op e₁]) :=
   fillItem (.binOpR op e₁) h
 instance binOpL {op : BinOp} [h : InCtx e' e K] :
-    InCtx e' (.binop op e (.ofVal v₂)) (K ++ [.binOpL op v₂]) :=
+    InCtx e' (.binOp op e (.ofVal v₂)) (K ++ [.binOpL op v₂]) :=
   fillItem (.binOpL op v₂) h
 instance «if» [h : InCtx e' e K] : InCtx e' (.if e e₁ e₂) (K ++ [.if e₁ e₂]) :=
   fillItem (.if e₁ e₂) h
@@ -239,23 +239,6 @@ section Tactic
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem}
 
-omit [HeapGS GF] [TemporalInterp Exp State GF] in
-/-- `n + m` units of fuel are `n` units and `m` units. -/
-theorem oblFuels_add (G : Oids) (n m : Nat) :
-    oblFuels (GF := GF) G ((n + m : Nat) : Measure) ⊢
-      oblFuels G (n : Measure) ∗ oblFuels G (m : Measure) := by
-  unfold oblFuels
-  refine (BigSepS.bigSepS_mono fun _ => ?_).trans BigSepS.bigSepS_sep.mp
-  iintro ⟨%ℓ, H⟩
-  ihave H := (Obl.fuel_eq _ (ℓ := ℓ) (μ₂ := (n : Measure) + (m : Measure))
-    (by rw [Measure.rep_nat_add, Measure.rep_add])).mp $$ H
-  icases (Obl.fuel_add _ ℓ _ _).mp $$ H with ⟨H1, H2⟩
-  isplitl [H1]
-  · iexists ℓ
-    iexact H1
-  · iexists ℓ
-    iexact H2
-
 /-- The `n` pure steps of the redex of `e`, paid with `n` of the `n + m` units of fuel of the
 bill `G`. -/
 @[lantana_alias heap_lang.tac_lwp_pure_simple]
@@ -263,13 +246,13 @@ theorem tac_lwp_pure {e e' : Exp} {φ : Prop} {n : Nat} [hpe : PureExecCtx φ n 
     (hn : 0 < n) (Φ : Val → IProp GF) :
     threadExpr i C e ⊢
       (∃ (G : Oids) (m : Nat) (R : Oids) (o : Fuel),
-        (thCarriers i G ∗ oblFuels G ((n + m : Nat) : Measure) ∗ witLayers R) ∗
-        (thCarriers i G -∗ oblFuels G (m : Measure) -∗ witCreds R -∗ £ₒ o -∗
+        (thCarriers i G ∗ Obl.fuels G ((n + m : Nat) : Measure) ∗ Wit.layers R) ∗
+        (thCarriers i G -∗ Obl.fuels G (m : Measure) -∗ Wit.creds R -∗ £ₒ o -∗
           threadExpr i C e' -∗ |={E}=>m lWP e' @ s; i; E {{ Φ }})) -∗
       lWP e @ s; i; E {{ Φ }} := by
   haveI := hpe.pureExecCtx
   iintro HT ⟨%G, %m, %R, %o, ⟨HG, HF, HR⟩, H⟩
-  icases oblFuels_add G n m $$ HF with ⟨HF, HFm⟩
+  icases Obl.fuels_add n m G $$ HF with ⟨HF, HFm⟩
   iapply lwp_pure_step (o := o) n e e' φ Φ hφ hn
   iframe HT HG HF HR
   iintro HT HG HW Ho
@@ -297,37 +280,25 @@ section Steps
 
 variable {GF : BundledGFunctors}
 
-/-- No witnesses. -/
-theorem witLayers_empty [ModelGS GF] : ⊢ witLayers (GF := GF) ∅ := by
-  unfold witLayers
-  iapply BigSepS.bigSepS_empty.mpr
-  iempintro
-
 /-- The precondition of a step without witnesses. -/
 theorem stepPre_nil [ModelGS GF] (i : ThreadId) (G : Oids) :
-    thCarriers i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ stepPre (GF := GF) i G ∅ := by
+    thCarriers i G ⊢ Obl.fuels G ((1 : Nat) : Measure) -∗ stepPre (GF := GF) i G ∅ := by
   iintro HG HF
   simp only [stepPre]
   iframe HG HF
-  iapply witLayers_empty
+  iapply Wit.layers_empty
 
 /-- The precondition of a step that observes the witness `k` (of layer `ℓ`). -/
 theorem stepPre_wit [ModelGS GF] (i : ThreadId) (G : Oids) (k : Oid) (ℓ : Layer) :
-    thCarriers i G ⊢ oblFuels G ((1 : Nat) : Measure) -∗ Wit.layer k ℓ -∗
+    thCarriers i G ⊢ Obl.fuels G ((1 : Nat) : Measure) -∗ Wit.layer k ℓ -∗
       stepPre (GF := GF) i G {k} := by
   iintro HG HF Hk
   simp only [stepPre]
   iframe HG HF
-  unfold witLayers
+  unfold Wit.layers
   iapply BigSepS.bigSepS_singleton.mpr
   iexists ℓ
   iexact Hk
-
-/-- What a step that observes the witness `k` gives back: a credit of `k`, or its discharge. -/
-theorem witCreds_singleton [ModelGS GF] (k : Oid) :
-    witCreds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
-  unfold witCreds
-  exact BigSepS.bigSepS_singleton.mp
 
 variable [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem}
@@ -336,8 +307,8 @@ variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem}
 units of fuel of the bill `G`. -/
 theorem tac_lwp_step {e e' : Exp} {φ : Prop} [PureExecCtx φ 1 e e'] (hφ : φ) (o : Fuel)
     (Φ : Val → IProp GF) {G : Oids} {m : Nat} :
-    threadExpr i C e ⊢ thCarriers i G -∗ oblFuels G ((m + 1 : Nat) : Measure) -∗
-      (thCarriers i G -∗ oblFuels G (m : Measure) -∗ £ₒ o -∗ threadExpr i C e' -∗
+    threadExpr i C e ⊢ thCarriers i G -∗ Obl.fuels G ((m + 1 : Nat) : Measure) -∗
+      (thCarriers i G -∗ Obl.fuels G (m : Measure) -∗ £ₒ o -∗ threadExpr i C e' -∗
         |={E}=>m lWP e' @ s; i; E {{ Φ }}) -∗
       lWP e @ s; i; E {{ Φ }} := by
   iintro HT HG HF H
@@ -346,7 +317,7 @@ theorem tac_lwp_step {e e' : Exp} {φ : Prop} [PureExecCtx φ 1 e e'] (hφ : φ)
   isplitl [HG HF]
   · rw [Nat.add_comm 1 m]
     iframe HG HF
-    iapply witLayers_empty
+    iapply Wit.layers_empty
   iintro HG HF - Ho HT
   iapply H $$ HG HF Ho HT
 
@@ -364,7 +335,7 @@ macro_rules
 
 /-- `lwp_step H HG HF`: one pure step, observing no witness, of the redex of the goal
 `lWP e @ s; i; E {{ Φ }}`, with the token `H : threadExpr i C e`, the bill `HG : thCarriers i G`
-and its fuel `HF : oblFuels G ((m + 1 : Nat) : Measure)` (or a numeral), which come back under
+and its fuel `HF : Obl.fuels G ((m + 1 : Nat) : Measure)` (or a numeral), which come back under
 their names, `HF` with `m` units.  `lwp_step H HG HF with Hc : o` also gives `Hc : £ₒ o`. -/
 syntax (name := lwpStep) "lwp_step " colGt ident ppSpace colGt ident ppSpace colGt ident
   (" with " ident " : " term)? : tactic
@@ -464,7 +435,7 @@ meta def findToken (tac : String) {u : Level} {prop bi e₀ : Expr} (hyps : @Hyp
   return n
 
 /-- The bill `thCarriers i G` of the thread `i` (also written `Par.bill (.thread i) G`) and its
-fuel `oblFuels G n`. -/
+fuel `Obl.fuels G n`. -/
 meta def findBillFuel (tac : String) {u : Level} {prop bi e₀ : Expr}
     (hyps : @Hyps u prop bi e₀) (i : Expr) : MetaM (Name × Name) := do
   let some (nG, tyG) ← findSpatialHyp hyps fun ty => do
@@ -473,9 +444,9 @@ meta def findBillFuel (tac : String) {u : Level} {prop bi e₀ : Expr}
     | throwError "{tac}: no hypothesis thCarriers {i} _ (the bill of the thread)"
   let G := (← whnfR tyG).getAppArgs.back!
   let some (nF, _) ← findSpatialHyp hyps fun ty => do
-      let some #[G', _] := lastArgs? ty ``oblFuels 2 | return false
+      let some #[G', _] := lastArgs? ty ``Obl.fuels 2 | return false
       eqReducible G' G
-    | throwError "{tac}: no hypothesis oblFuels {G} _ (the fuel of the bill of the thread)"
+    | throwError "{tac}: no hypothesis Obl.fuels {G} _ (the fuel of the bill of the thread)"
   return (nG, nF)
 
 /-- The names of the hypotheses of a step: the token, the bill and its fuel. -/
@@ -592,7 +563,7 @@ meta def findGoalToken (tac : String) : TacticM (TSyntax `ident) := withMainCont
 
 
 /-- `lwp_step`: `lwp_step H HG HF` with the token `H : threadExpr i C e` of the goal's thread and
-expression, the bill `HG : thCarriers i G` and its fuel `HF : oblFuels G n` found in the
+expression, the bill `HG : thCarriers i G` and its fuel `HF : Obl.fuels G n` found in the
 context; `lwp_step with Hc : o` also gives `Hc : £ₒ o`.  It fails on a value and on an
 expression without a one-step pure redex, even after `lwp_expr_eval`. -/
 syntax (name := lwpStepAuto) "lwp_step" (" with " ident " : " term)? : tactic

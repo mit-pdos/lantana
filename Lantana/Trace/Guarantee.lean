@@ -10,7 +10,7 @@ public import Lantana.ProgramLogic.WeakestPre
 
 /-! # Temporal guarantees `P ⊨ₜ G`: records, certificates and the one-step property
 
-The guarantee `P ⊨ₜ G` (`Guar`): whenever `P` holds, the rest of the execution satisfies `G`.
+The guarantee `P ⊨ₜ G` (`guar`): whenever `P` holds, the rest of the execution satisfies `G`.
 Its records (`record`, the guarded fixpoint `recordTrI`), the certificates and bundles of the
 checks (`cert`, `bundle`), the one-step property of a running system (`sysStep`), the canonical
 specification `TrSpec.canon` and the class `StateFact`. See `docs/adequacy.md`, §2.
@@ -32,7 +32,7 @@ variable {Expr State Obs Val : Type} {GF : BundledGFunctors}
 
 /-- The ghost history `h` is a prefix of the run `τf`. -/
 @[lantana_alias hist_trace]
-def histTrace (h : List (HistEntry Expr State)) (τf : Nat → Cfg Expr State) : Prop :=
+def HistTrace (h : List (HistEntry Expr State)) (τf : Nat → Cfg Expr State) : Prop :=
   ∀ n' σ' tp', h[n']? = some (σ', tp') → τf n' = (tp', σ')
 
 /-- Records: a reading `f` at a position (Rocq `recT`). -/
@@ -56,7 +56,7 @@ def certPre (tg : RecT Expr State GF) (n : Nat) : RegEntry → IProp GF
   | .until _ k γP γQ => iprop(∃ fP fQ : Trace (Cfg Expr State) → IProp GF,
       savedTrI γP fP ∗ savedTrI γQ fQ ∗
       (▷ (tg fP n ∨ tg fQ n) ∨
-        ▷ (∃ (n' i' : Nat) (Ω' : Obls),
+        ▷ (∃ (n' i' : Nat) (Ω' : Obligations),
           ⌜n' ≤ n⌝ ∗ eventObl i' (n', Ω') k .discharged ∗ tg fQ n')))
 
 /-- The bundle for position `n`: a registry prefix ending with the marker of `n` and the
@@ -72,19 +72,19 @@ step the system at `n + 1`, the facts about the step and `c` later credits. -/
 @[lantana_alias sys_step_pre]
 def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :=
   iprop(□ ∀ (c : Nat) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
-      (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+      (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses)
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
-    ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ n)) Ω W ∧ histTrace h τf⌝ -∗
-    historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.crashed (tp, σ)) ∗
+    ⌜schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OWitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf⌝ -∗
+    historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
       Sys n σ tp -∗
-    |={⊤,∅}=> ∃ l, bundlePre tg l n ∗ ▷ |={∅,⊤}=> |={⊤,∅}=> ALC iprop(|={∅,⊤}=>
-      ∃ (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent) (v' : Nat) (Ω' : Obls)
+    |={⊤,∅}=> ∃ l, bundlePre tg l n ∗ ▷ |={∅,⊤}=> |={⊤,∅}=> alc iprop(|={∅,⊤}=>
+      ∃ (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent) (v' : Nat) (Ω' : Obligations)
         (W' : Witnesses),
-        ⌜owitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ histTrace (h ++ [(σ', tp')]) τf ∧
-          oblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ ∗
+        ⌜OWitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
+          ObligationsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ ∗
         £ₙ c ∗ historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
-        modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.crashed (tp', σ')) ∗
+        modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) ∗
         Sys (n + 1) σ' tp'))
 
 /-- A record for `f` at `n`: for any system with the one-step property, given the bundle for
@@ -92,14 +92,15 @@ def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :
 @[lantana_alias record_pre]
 def recordPre (tg : RecT Expr State GF) : RecT Expr State GF := fun f n =>
   iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
-      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obligations)
+      (W : Witnesses)
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
       (σ : State) (tp : ThreadPool Expr),
     sysStepPre tg Sys -∗
-    ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    ⌜schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ HistTrace h τf⌝ -∗
     bundlePre tg l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.Crashed (tp, σ)) ∗
       Sys (n + 1) σ tp -∗
     f ⟨n, τf⟩)
 
@@ -257,14 +258,15 @@ instance sysStep_persistent (Sys : SysT Expr State GF) : Persistent (sysStep Sys
 @[lantana_alias record_trI_intro]
 theorem recordTrI_intro (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
     iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
-      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obligations)
+      (W : Witnesses)
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
       (σ : State) (tp : ThreadPool Expr),
     sysStep Sys -∗
-    ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    ⌜schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ HistTrace h τf⌝ -∗
     bundle l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.Crashed (tp, σ)) ∗
       Sys (n + 1) σ tp -∗
     f ⟨n, τf⟩) ⊢ recordTrI f n := by
   rw [recordTrI_eq]
@@ -275,13 +277,13 @@ theorem recordTrI_intro (f : Trace (Cfg Expr State) → IProp GF) (n : Nat) :
 @[lantana_alias record_trI_elim]
 theorem recordTrI_elim (f : Trace (Cfg Expr State) → IProp GF) {Sys : SysT Expr State GF}
     {l : List (Nat × RegEntry)} {h : List (HistEntry Expr State)} {n : Nat} {g : List MEvent}
-    {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {v : Nat} {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
     recordTrI f n ⊢ sysStep Sys -∗
-    ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    ⌜schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ HistTrace h τf⌝ -∗
     bundle l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.Crashed (tp, σ)) ∗
       Sys (n + 1) σ tp -∗
     f ⟨n, τf⟩ := by
   rw [recordTrI_eq]
@@ -296,14 +298,15 @@ theorem recordTrI_elim (f : Trace (Cfg Expr State) → IProp GF) {Sys : SysT Exp
 @[lantana_alias record_intro]
 theorem record_intro (G : TrSpec Expr State GF) (n : Nat) :
     iprop(□ ∀ (Sys : SysT Expr State GF) (l : List (Nat × RegEntry))
-      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obls) (W : Witnesses)
+      (h : List (HistEntry Expr State)) (g : List MEvent) (v : Nat) (Ω : Obligations)
+      (W : Witnesses)
       (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
       (σ : State) (tp : ThreadPool Expr),
     sysStep Sys -∗
-    ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    ⌜schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ HistTrace h τf⌝ -∗
     bundle l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.Crashed (tp, σ)) ∗
       Sys (n + 1) σ tp -∗
     G.internal ⟨n, τf⟩) ⊢ record G n :=
   recordTrI_intro G.internal n
@@ -311,13 +314,13 @@ theorem record_intro (G : TrSpec Expr State GF) (n : Nat) :
 @[lantana_alias record_elim]
 theorem record_elim (G : TrSpec Expr State GF) {Sys : SysT Expr State GF}
     {l : List (Nat × RegEntry)} {h : List (HistEntry Expr State)} {n : Nat} {g : List MEvent}
-    {v : Nat} {Ω : Obls} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
+    {v : Nat} {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {σ : State} {tp : ThreadPool Expr} :
     record G n ⊢ sysStep Sys -∗
-    ⌜Schedule sched ⟨0, τf⟩ ∧ SchedCounters sched γ ⟨0, τf⟩ ∧
-      owitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ histTrace h τf⌝ -∗
+    ⌜schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω W ∧ HistTrace h τf⌝ -∗
     bundle l n -∗
-    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.crashed (tp, σ)) ∗
+    historyInterp h (n + 1) σ tp ∗ modelInterp g v Ω W (n + 1) tp.length (Cfg.Crashed (tp, σ)) ∗
       Sys (n + 1) σ tp -∗
     G.internal ⟨n, τf⟩ :=
   recordTrI_elim G.internal
@@ -341,38 +344,40 @@ theorem record_mono {G G' : TrSpec Expr State GF} (hG : G ⊑ₛ G') (n : Nat) :
 /-- `P ⊨ₜ G`: whenever `P` holds, the rest of the execution satisfies `G`; `P` comes with the
 history and the model at any view. -/
 @[lantana_alias guar]
-def Guar (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF :=
+def guar (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF :=
   iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
+      (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
+      (X : ThreadId → Prop),
     historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n)
 
-@[inherit_doc] scoped infix:25 " ⊨ₜ " => Guar
+@[inherit_doc] scoped infix:25 " ⊨ₜ " => guar
 
 @[lantana_alias guar_persistent]
-instance Guar.persistent (P : IProp GF) (G : TrSpec Expr State GF) : Persistent (P ⊨ₜ G) := by
-  unfold Guar; infer_instance
+instance guar.persistent (P : IProp GF) (G : TrSpec Expr State GF) : Persistent (P ⊨ₜ G) := by
+  unfold guar; infer_instance
 
 @[lantana_alias guar_ne]
-instance Guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF => P ⊨ₜ G) where
+instance guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF => P ⊨ₜ G) where
   ne k P₁ P₂ hP := by
-    unfold Guar
+    unfold guar
     refine intuitionistically_ne.ne ?_
     iterate 10 refine forall_ne fun _ => ?_
     exact wand_ne.ne (sep_ne.ne .rfl (sep_ne.ne .rfl hP)) .rfl
 
-#lantana_ignore guar_proper "OFE is Leibniz: `Guar.ne` gives the equalities."
-#lantana_ignore guar_proper_ne "`Guar.ne`."
+#lantana_ignore guar_proper "OFE is Leibniz: `guar.ne` gives the equalities."
+#lantana_ignore guar_proper_ne "`guar.ne`."
 #lantana_ignore record_trI_proper "OFE is Leibniz: `recordTrI_ne` gives the equalities."
 
 theorem guar_intro (P : IProp GF) (G : TrSpec Expr State GF) :
     iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
+      (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
+      (X : ThreadId → Prop),
     historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n) ⊢ P ⊨ₜ G :=
   .rfl
 
 @[lantana_alias guar_elim]
 theorem guar_elim (P : IProp GF) (G : TrSpec Expr State GF) (h : List (HistEntry Expr State))
-    (n : Nat) (σ : State) (tp : ThreadPool Expr) (m : List MEvent) (i : Nat) (Ω : Obls)
+    (n : Nat) (σ : State) (tp : ThreadPool Expr) (m : List MEvent) (i : Nat) (Ω : Obligations)
     (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
     (P ⊨ₜ G) ⊢ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n :=
   intuitionistically_elim.trans <| (forall_elim h).trans <| (forall_elim n).trans <|
@@ -384,7 +389,7 @@ theorem guar_elim (P : IProp GF) (G : TrSpec Expr State GF) (h : List (HistEntry
 @[lantana_alias guar_elim_later]
 theorem guar_elim_later (P : IProp GF) (G : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
+    (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
     (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X -∗
       ▷ record G n := by
   iintro #HG ⟨HP, HI, MI⟩
@@ -396,7 +401,7 @@ theorem guar_elim_later (P : IProp GF) (G : TrSpec Expr State GF)
 @[lantana_alias guar_elim_later_guar]
 theorem guar_elim_later_guar (P : IProp GF) (G : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (m : List MEvent) (i : Nat) (Ω : Obls) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
+    (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
     ▷ (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X -∗
       ▷ record G n := by
   iintro HG ⟨HP, HI, MI⟩
@@ -416,14 +421,14 @@ variable [ModelGS GF] [TemporalGS Expr State GF] [Language Expr State Obs Val]
 guaranteed by `Q`. -/
 @[lantana_alias trSpec_canon]
 def TrSpec.canon (Q : IProp GF) : TrSpec Expr State GF :=
-  TrSpec.all fun G : { G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G } => G.1
+  TrSpec.forall fun G : { G : TrSpec Expr State GF // ⊢ Q ⊨ₜ G } => G.1
 
 end Canon
 
 /-! ## State facts -/
 
 /-- `StateFact P φ`: the state interpretation and `P` determine the state predicate `φ` (the
-rule is `guar_state_fact`). -/
+rule is `guar_stateFact`). -/
 @[lantana_alias StateFact]
 class StateFact [StateInterp Expr State GF] (P : IProp GF)
     (φ : outParam (State → ThreadPool Expr → Prop)) : Prop where

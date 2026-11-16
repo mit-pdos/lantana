@@ -26,7 +26,7 @@ the lemmas follow Iris-Lean's `MonoNat` (`Iris.Algebra.Lib.MonoNat`).
 Rocq's class `auth_mra_class` of the properties of `R` (a preorder, antisymmetric for an
 equivalence, proper) becomes the side conditions `[Std.Refl R]`, `[Trans R R R]` and
 `[Antisymmetric (· = ·) R]` of each lemma, with Leibniz equality. Rocq's lexicographic order
-`lex_R EA RA RB` is `AuthMra.lex RA RB` with `EA := Eq` (a `Prod.Lex` of the strict part of `RA`
+`lex_R EA RA RB` is `AuthMra.Lex RA RB` with `EA := Eq` (a `Prod.Lex` of the strict part of `RA`
 and `RB`), and the instance for ordinals is `≤` on `Ordinal` (used with `Layer`).
 -/
 
@@ -41,7 +41,7 @@ universe u v
 
 /-- `toMra a • toMra b ≼ toMra a` gives `R b a` for a preorder `R`. -/
 @[lantana_alias to_mra_op_included_R]
-theorem toMra_op_included {α : Type u} {R : α → α → Prop} [Std.Refl R] [Trans R R R] {a b : α}
+theorem toMra_op_inc {α : Type u} {R : α → α → Prop} [Std.Refl R] [Trans R R R] {a b : α}
     (h : toMra (R := R) a • toMra b ≼ toMra a) : R b a :=
   (toMra_inc_iff b a).mp (inc_trans (inc_op_right _ _) h)
 
@@ -161,7 +161,7 @@ theorem both_dfrac_valid [Std.Refl R] [Trans R R R] :
     ✓ ((●AM{dq}[R] a) • (◯AM[R] b)) ↔ ✓ dq ∧ R b a := by
   unfold auth know
   rw [← ORA.assoc', ← Auth.frag_op, Auth.both_dfrac_valid_discrete]
-  refine ⟨fun ⟨hdq, hinc, _⟩ => ⟨hdq, toMra_op_included hinc⟩, fun ⟨hdq, h⟩ => ⟨hdq, ?_, trivial⟩⟩
+  refine ⟨fun ⟨hdq, hinc, _⟩ => ⟨hdq, toMra_op_inc hinc⟩, fun ⟨hdq, h⟩ => ⟨hdq, ?_, trivial⟩⟩
   rw [ORA.comm', toMra_op_of_rel b a h]
 
 @[lantana_alias auth_mra_both_valid]
@@ -175,7 +175,7 @@ theorem know_mono [Trans R R R] (h : R a₁ a₂) : (◯AM[R] a₁) ≼ (◯AM[R
   ⟨◯AM[R] a₂, know_op h⟩
 
 @[lantana_alias auth_mra_included]
-theorem included (dq : DFrac) (a : α) : (◯AM[R] a) ≼ (●AM{dq}[R] a) :=
+theorem inc (dq : DFrac) (a : α) : (◯AM[R] a) ≼ (●AM{dq}[R] a) :=
   ORA.inc_op_right ..
 
 /-- The authoritative value grows along `R`. -/
@@ -202,31 +202,31 @@ variable {β : Type v}
 /-- The lexicographic order on pairs (Rocq `lex_R` with `EA := Eq`): the first components are
 strictly ordered by `RA`, or equal with the second ones ordered by `RB`. -/
 @[lantana_alias lex_R]
-def lex (RA : α → α → Prop) (RB : β → β → Prop) : α × β → α × β → Prop :=
+def Lex (RA : α → α → Prop) (RB : β → β → Prop) : α × β → α × β → Prop :=
   Prod.Lex (fun a₀ a₁ => RA a₀ a₁ ∧ a₀ ≠ a₁) RB
 
 variable {RA : α → α → Prop} {RB : β → β → Prop}
 
 theorem lex_iff {x y : α × β} :
-    lex RA RB x y ↔ (RA x.1 y.1 ∧ x.1 ≠ y.1) ∨ (x.1 = y.1 ∧ RB x.2 y.2) :=
+    Lex RA RB x y ↔ (RA x.1 y.1 ∧ x.1 ≠ y.1) ∨ (x.1 = y.1 ∧ RB x.2 y.2) :=
   Prod.lex_def
 
 @[lantana_alias lex_R_left]
-theorem lex.left {a₀ a₁ : α} (b₀ b₁ : β) (h : RA a₀ a₁) (hne : a₀ ≠ a₁) :
-    lex RA RB (a₀, b₀) (a₁, b₁) :=
+theorem Lex.left {a₀ a₁ : α} (b₀ b₁ : β) (h : RA a₀ a₁) (hne : a₀ ≠ a₁) :
+    Lex RA RB (a₀, b₀) (a₁, b₁) :=
   Prod.Lex.left b₀ b₁ ⟨h, hne⟩
 
 @[lantana_alias lex_R_right]
-theorem lex.right (a : α) {b₀ b₁ : β} (h : RB b₀ b₁) : lex RA RB (a, b₀) (a, b₁) :=
+theorem Lex.right (a : α) {b₀ b₁ : β} (h : RB b₀ b₁) : Lex RA RB (a, b₀) (a, b₁) :=
   Prod.Lex.right a h
 
 @[lantana_alias lex_R_Reflexive]
-instance lex_refl [Std.Refl RB] : Std.Refl (lex RA RB) where
+instance lex_refl [Std.Refl RB] : Std.Refl (Lex RA RB) where
   refl x := Prod.Lex.right x.1 (Std.Refl.refl x.2)
 
 @[lantana_alias lex_R_Transitive]
 instance lex_trans [Trans RA RA RA] [Antisymmetric (· = ·) RA] [Trans RB RB RB] :
-    Trans (lex RA RB) (lex RA RB) (lex RA RB) where
+    Trans (Lex RA RB) (Lex RA RB) (Lex RA RB) where
   trans {x y z} hxy hyz := by
     rw [lex_iff] at hxy hyz ⊢
     rcases hxy with ⟨hxy, nxy⟩ | ⟨exy, hxy⟩ <;> rcases hyz with ⟨hyz, nyz⟩ | ⟨eyz, hyz⟩
@@ -238,7 +238,7 @@ instance lex_trans [Trans RA RA RA] [Antisymmetric (· = ·) RA] [Trans RB RB RB
 
 @[lantana_alias lex_R_AntiSymm]
 instance lex_antisymm [Antisymmetric (· = ·) RA] [Antisymmetric (· = ·) RB] :
-    Antisymmetric (· = ·) (lex RA RB) where
+    Antisymmetric (· = ·) (Lex RA RB) where
   antisymm {x y} hxy hyx := by
     rw [lex_iff] at hxy hyx
     rcases hxy with ⟨hxy, nxy⟩ | ⟨exy, hxy⟩

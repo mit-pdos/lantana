@@ -87,7 +87,7 @@ example (a : Fuel) : ORA.CoreId (creditBound a) := inferInstance
 example (a₀ a₁ : Fuel) : credit (a₀ +ₕ a₁) = credit a₀ • credit a₁ := credit_split a₀ a₁
 
 example (a₀ a₁ : Fuel) (h : a₀ ≤ a₁) : creditBound a₁ ≼ creditBound a₀ :=
-  creditBound_included h
+  creditBound_inc h
 
 example (a₀ a₁ : Fuel) :
     creditBound a₀ • credit a₁ ~~>: fun k => ∃ a₂, k = creditBound a₂ ∧ a₁ +ₕ a₂ ≤ a₀ :=
@@ -136,19 +136,19 @@ example (a₁ a₂ : Layer) (h : a₁ ≤ a₂) :
 
 /-- The lexicographic order on pairs of layers. -/
 example (a b : Layer × Layer) :
-    ✓ ((●AM[lex (· ≤ ·) (· ≤ ·)] a) • (◯AM[lex (· ≤ ·) (· ≤ ·)] b)) ↔
-      lex (· ≤ ·) (· ≤ ·) b a :=
+    ✓ ((●AM[Lex (· ≤ ·) (· ≤ ·)] a) • (◯AM[Lex (· ≤ ·) (· ≤ ·)] b)) ↔
+      Lex (· ≤ ·) (· ≤ ·) b a :=
   both_valid
 
 example (a₁ a₂ : Layer × Layer) :
-    ✓ ((●AM[lex (· ≤ · : Layer → Layer → Prop) (· ≤ ·)] a₁) •
-      (●AM[lex (· ≤ ·) (· ≤ ·)] a₂)) ↔ False :=
+    ✓ ((●AM[Lex (· ≤ · : Layer → Layer → Prop) (· ≤ ·)] a₁) •
+      (●AM[Lex (· ≤ ·) (· ≤ ·)] a₂)) ↔ False :=
   auth_op_valid
 
 example (ℓ : Layer) (n m : Layer) (h : n ≤ m) :
-    (●AM[lex (· ≤ · : Layer → Layer → Prop) (· ≤ ·)] (ℓ, n)) ~~>
-      (●AM[lex (· ≤ ·) (· ≤ ·)] (ℓ, m)) :=
-  update (lex.right ℓ h)
+    (●AM[Lex (· ≤ · : Layer → Layer → Prop) (· ≤ ·)] (ℓ, n)) ~~>
+      (●AM[Lex (· ≤ ·) (· ≤ ·)] (ℓ, m)) :=
+  update (Lex.right ℓ h)
 
 end AuthMra
 

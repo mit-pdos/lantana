@@ -17,12 +17,12 @@ instances of `GuaranteeRules` and `TemporalFormulaRules` (existentials, implicat
 and gives the checking instances, which follow the shape of the target.
 
 Existentials (Rocq `SimplExist`). When inferring, the guarantee `Gx x` of the body of `∃ x, P x`
-is inferred for a generic witness, then `SimplEx Gx G` collapses the family: to its value if
-it does not depend on the witness (a ghost existential, over any type), else to `TrSpec.ex Gx`
+is inferred for a generic witness, then `SimplExists Gx G` collapses the family: to its value if
+it does not depend on the witness (a ghost existential, over any type), else to `TrSpec.exists Gx`
 if the type has the existential property of the step index (`SIdxLarge SI X`, every type up to
 `Type 3`: `Nat`, `Fuel`, ghost names, finite maps, but not `IProp GF : Type 4`), else to
 `TrSpec.true`. When checking, an existential is trace-visible exactly when the target is a
-`TrSpec.ex` over the same type, and ghost otherwise.
+`TrSpec.exists` over the same type, and ghost otherwise.
 
 `trSpecOf P` and `trOf P` (Rocq's `trSpec_of`/`tr_of` tactics) read the inferred specification
 and trace property: they reduce to closed terms, which `rfl` checks (the unit checks below).
@@ -30,7 +30,7 @@ and trace property: they reduce to closed terms, which `rfl` checks (the unit ch
 through `TrSpec.Ext`, which reads `TrSpec.canon P` through `GuarOf` (`TrSpec.ext_canon`).
 
 The unit checks of the Rocq file close the file, with the unsoundness of a naive rule for
-iProp implications (`naiveImpRule_unsound`).
+iProp implications (`naive_imp_rule_unsound`).
 -/
 
 @[expose] public noncomputable section
@@ -54,12 +54,13 @@ variable [Crash Expr State Obs Val] [instM : ModelGS GF] [instT : TemporalGS Exp
 #lantana_ignore tr_inferred "`trOf`."
 #lantana_ignore tr_of "A tactic; `trOf P` reduces to the inferred trace property."
 #lantana_ignore evar_headed "A tactic for Rocq's hints; `GuarOf` has an `outParam` instead."
-#lantana_ignore IntoGuarExist "`guarOf_ex` (inference) and the checking instances `intoGuar_ex_*`."
-#lantana_ignore IntoGuarExistCheck "The checking instances `intoGuar_ex_visible/ghost`."
+#lantana_ignore IntoGuarExist
+  "`guarOf_exists` (inference) and the checking instances `intoGuar_exists_*`."
+#lantana_ignore IntoGuarExistCheck "The checking instances `intoGuar_exists_visible/ghost`."
 #lantana_ignore into_guar_exist_body "The field of `IntoGuarExist`."
 #lantana_ignore into_guar_exist_check_body "The field of `IntoGuarExistCheck`."
 #lantana_ignore into_guar_exist_check "Checking is `IntoGuar` itself."
-#lantana_ignore into_guar_exist "`guarOf_ex` and `intoGuar_ex_visible/ghost`."
+#lantana_ignore into_guar_exist "`guarOf_exists` and `intoGuar_exists_visible/ghost`."
 
 attribute [lantana_alias into_guar_default] guarOf_default
 attribute [lantana_alias into_guar] IntoGuar.into_guar
@@ -68,8 +69,8 @@ attribute [lantana_alias into_guar] IntoGuar.into_guar
 
 section Exist
 
-/-- A ghost existential over any type (`guar_ex_ghost` is over `Type`s). -/
-theorem guar_ex_ghost_sort {X : Sort u} (P : X → IProp GF) (G : TrSpec Expr State GF) :
+/-- A ghost existential over any type (`guar_exists_ghost` is over `Type`s). -/
+theorem guar_exists_ghost_sort {X : Sort u} (P : X → IProp GF) (G : TrSpec Expr State GF) :
     (∀ x, P x ⊨ₜ G) ⊢ iprop(∃ x, P x) ⊨ₜ G := by
   iintro #HG
   iapply guar_intro
@@ -80,48 +81,48 @@ theorem guar_ex_ghost_sort {X : Sort u} (P : X → IProp GF) (G : TrSpec Expr St
 
 /-- How an existential over a family of guarantees is guaranteed, when inferring. -/
 @[lantana_alias SimplExist]
-class SimplEx {X : Sort u} (G : X → TrSpec Expr State GF)
+class SimplExists {X : Sort u} (G : X → TrSpec Expr State GF)
     (G' : outParam (TrSpec Expr State GF)) : Prop where
-  simpl_ex (P : X → IProp GF) : (∀ x, P x ⊨ₜ G x) ⊢ iprop(∃ x, P x) ⊨ₜ G'
+  simpl_exists (P : X → IProp GF) : (∀ x, P x ⊨ₜ G x) ⊢ iprop(∃ x, P x) ⊨ₜ G'
 
-attribute [lantana_alias simpl_exist] SimplEx.simpl_ex
+attribute [lantana_alias simpl_exist] SimplExists.simpl_exists
 
 /-- The guarantee of the body does not depend on the witness: a ghost existential. -/
 @[lantana_alias simpl_exist_ghost]
 instance (priority := high) simplEx_ghost {X : Sort u} (G : TrSpec Expr State GF) :
-    SimplEx (fun _ : X => G) G :=
-  ⟨fun P => guar_ex_ghost_sort P G⟩
+    SimplExists (fun _ : X => G) G :=
+  ⟨fun P => guar_exists_ghost_sort P G⟩
 
 /-- It does, over a type with the existential property: a trace-visible existential. -/
 @[lantana_alias simpl_exist_visible]
 instance simplEx_visible {X : Type u} (G : X → TrSpec Expr State GF) [SIdxLarge SI X] :
-    SimplEx G (TrSpec.ex G) :=
-  ⟨fun P => guar_ex P G⟩
+    SimplExists G (TrSpec.exists G) :=
+  ⟨fun P => guar_exists P G⟩
 
 /-- Total, so that inference never backtracks into the body. -/
 @[lantana_alias simpl_exist_true]
 instance (priority := low) simplEx_true {X : Sort u} (G : X → TrSpec Expr State GF) :
-    SimplEx G TrSpec.true :=
+    SimplExists G TrSpec.true :=
   ⟨fun _ => affine.trans guar_true⟩
 
-/-- Inference: the body's guarantee for a generic witness, collapsed by `SimplEx`. -/
+/-- Inference: the body's guarantee for a generic witness, collapsed by `SimplExists`. -/
 @[lantana_alias into_guar_exist_infer]
-instance guarOf_ex {X : Sort u} (P : X → IProp GF) (Gx : X → TrSpec Expr State GF)
-    (G : TrSpec Expr State GF) [h : ∀ x, GuarOf (P x) (Gx x)] [SimplEx Gx G] :
+instance guarOf_exists {X : Sort u} (P : X → IProp GF) (Gx : X → TrSpec Expr State GF)
+    (G : TrSpec Expr State GF) [h : ∀ x, GuarOf (P x) (Gx x)] [SimplExists Gx G] :
     GuarOf iprop(∃ x, P x) G :=
-  ⟨(forall_intro fun x => (h x).guar_of).trans (SimplEx.simpl_ex P)⟩
+  ⟨(forall_intro fun x => (h x).guar_of).trans (SimplExists.simpl_exists P)⟩
 
 /-- Checking against an existential over the same type: trace-visible. -/
 @[lantana_alias into_guar_exist_visible_check]
-instance intoGuar_ex_visible {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
-    [h : ∀ x, IntoGuar (P x) (G x)] [SIdxLarge SI X] : IntoGuar iprop(∃ x, P x) (TrSpec.ex G) :=
-  ⟨(forall_intro fun x => (h x).into_guar).trans (guar_ex P G)⟩
+instance intoGuar_exists_visible {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
+    [h : ∀ x, IntoGuar (P x) (G x)] [SIdxLarge SI X] : IntoGuar iprop(∃ x, P x) (TrSpec.exists G) :=
+  ⟨(forall_intro fun x => (h x).into_guar).trans (guar_exists P G)⟩
 
 /-- Checking against any other target: ghost. -/
 @[lantana_alias into_guar_exist_ghost_check]
-instance (priority := mid) intoGuar_ex_ghost {X : Sort u} (P : X → IProp GF)
+instance (priority := mid) intoGuar_exists_ghost {X : Sort u} (P : X → IProp GF)
     (G : TrSpec Expr State GF) [h : ∀ x, IntoGuar (P x) G] : IntoGuar iprop(∃ x, P x) G :=
-  ⟨(forall_intro fun x => (h x).into_guar).trans (guar_ex_ghost_sort P G)⟩
+  ⟨(forall_intro fun x => (h x).into_guar).trans (guar_exists_ghost_sort P G)⟩
 
 end Exist
 
@@ -134,9 +135,9 @@ instance guarOf_imp (φ : Prop) (G : TrSpec Expr State GF) [GuarOf P G] :
     GuarOf iprop(⌜φ⌝ → P) (⌜φ⌝ₛ →ₛ G) :=
   ⟨GuarOf.guar_of.trans (guar_imp φ)⟩
 
-instance guarOf_all {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
-    [h : ∀ x, GuarOf (P x) (G x)] : GuarOf iprop(∀ x, P x) (TrSpec.all G) :=
-  ⟨(forall_intro fun x => (h x).guar_of).trans (guar_all P G)⟩
+instance guarOf_forall {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
+    [h : ∀ x, GuarOf (P x) (G x)] : GuarOf iprop(∀ x, P x) (TrSpec.forall G) :=
+  ⟨(forall_intro fun x => (h x).guar_of).trans (guar_forall P G)⟩
 
 instance guarOf_persistently (G : TrSpec Expr State GF) [GuarOf P G] :
     GuarOf iprop(□ P) G :=
@@ -223,9 +224,9 @@ instance intoGuar_imp (φ : Prop) (G : TrSpec Expr State GF) [IntoGuar P G] :
   ⟨IntoGuar.into_guar.trans (guar_imp φ)⟩
 
 @[lantana_alias into_guar_forall]
-instance intoGuar_all {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
-    [h : ∀ x, IntoGuar (P x) (G x)] : IntoGuar iprop(∀ x, P x) (TrSpec.all G) :=
-  ⟨(forall_intro fun x => (h x).into_guar).trans (guar_all P G)⟩
+instance intoGuar_forall {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
+    [h : ∀ x, IntoGuar (P x) (G x)] : IntoGuar iprop(∀ x, P x) (TrSpec.forall G) :=
+  ⟨(forall_intro fun x => (h x).into_guar).trans (guar_forall P G)⟩
 
 @[lantana_alias into_guar_persistently]
 instance intoGuar_persistently (G : TrSpec Expr State GF) [IntoGuar P G] :
@@ -282,7 +283,7 @@ instance intoGuar_untilIDone (G₁ G₂ : TrSpec Expr State GF) [IntoGuar Q G₂
 @[lantana_alias into_guar_state_fact]
 instance intoGuar_stateFact (φ : State → ThreadPool Expr → Prop) [StateFact P φ] :
     IntoGuar P (TrSpec.state φ) :=
-  ⟨guar_state_fact P φ⟩
+  ⟨guar_stateFact P φ⟩
 
 @[lantana_alias into_guar_big_sepL]
 instance intoGuar_bigSepL {A : Type _} (l : List A) (Φ : Nat → A → IProp GF)
@@ -322,7 +323,7 @@ theorem guar_trSpecOf (P : IProp GF) {G : TrSpec Expr State GF} [GuarOf P G] :
 /-- `TrSpec.true` reads as `⌜True⌝ₜ`. -/
 instance TrSpec.ext_true :
     TrSpec.Ext (TrSpec.true (Expr := Expr) (State := State) (GF := GF)) ⌜True⌝ₜ :=
-  ⟨TrProp.le_refl _⟩
+  ⟨TrProp.subset_refl _⟩
 
 /-- The trace reading of the canonical specification of `P`, through its inferred
 specification. -/
@@ -341,7 +342,7 @@ attribute [lantana_alias into_trace] IntoTrace.into_trace
 @[lantana_alias into_trace_of]
 instance intoTrace_of (P : IProp GF) (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State))
     [GuarOf P G] [TrSpec.Ext G R] : IntoTrace P R :=
-  ⟨(trCanon_le P R).mpr ⟨G, GuarOf.guar_of, TrSpec.Ext.ext_of⟩⟩
+  ⟨(trCanon_subset_iff P R).mpr ⟨G, GuarOf.guar_of, TrSpec.Ext.ext_of⟩⟩
 
 /-- The trace property inferred for `P` (Rocq `tr_inferred`, read with `tr_of`). -/
 abbrev trOf (P : IProp GF) {R : TrProp (Cfg Expr State)} [IntoTrace P R] :
@@ -358,24 +359,24 @@ variable {E : CoPset} {N N₁ N₂ : Namespace} {k : Oid}
 
 /-- Ghost quantification over iProp, scoping over two temporal operators. -/
 @[lantana_alias ex_iprop]
-theorem ex_iprop :
+theorem example_iprop :
     ⊢@{IProp GF} iprop(∃ Ψ : IProp GF, alwaysI (Expr := Expr) (State := State) N₁ Ψ ∗
       finallyI (Expr := Expr) (State := State) N₂ k 1 Ψ) ⊨ₜ (□ₛ TrSpec.true ∧ₛ ◇ₛ TrSpec.true) :=
   (forall_intro fun Ψ => (guar_untilI_valid (N := N₂) (k := k) (q := 1) (P := iprop(True))
       (Q := Ψ) guar_true guar_true).trans
     (wand_entails ((guar_alwaysI_valid (N := N₁) (P := Ψ) guar_true).trans guar_sep))).trans
-    (guar_ex_ghost _)
+    (guar_exists_ghost _)
 
 /-- An invariant whose content changes over time, each content carrying its own guarantee. -/
 @[lantana_alias ex_dynamic_inv]
-theorem ex_dynamic_inv (G : TrSpec Expr State GF) :
+theorem example_dynamic_inv (G : TrSpec Expr State GF) :
     ⊢@{IProp GF} alwaysI N iprop(∃ P : IProp GF, P ∗ (P ⊨ₜ G)) ⊨ₜ □ₛ G :=
   guar_alwaysI_valid (guar_packed G)
 
-/-- The same guarantee as `ex_iprop`, inferred (Rocq writes the finally as the until of
+/-- The same guarantee as `example_iprop`, inferred (Rocq writes the finally as the until of
 `trSpec_pure True`, which `◇ₛ` is by definition). -/
 @[lantana_alias ex_iprop_inferred]
-theorem ex_iprop_inferred :
+theorem example_iprop_inferred :
     ⊢@{IProp GF} iprop(∃ Ψ : IProp GF, alwaysI (Expr := Expr) (State := State) N₁ Ψ ∗
       finallyI (Expr := Expr) (State := State) N₂ k 1 Ψ) ⊨ₜ (□ₛ TrSpec.true ∧ₛ ◇ₛ TrSpec.true) :=
   GuarOf.guar_of
@@ -383,20 +384,20 @@ theorem ex_iprop_inferred :
 /-- Trace-visible quantification over a small type is inferred when the guarantee of the body
 depends on the witness. -/
 @[lantana_alias ex_visible_inferred]
-theorem ex_visible_inferred (f : Nat → Prop) :
+theorem example_visible_inferred (f : Nat → Prop) :
     ⊢@{IProp GF} iprop(∃ n : Nat, alwaysI (Expr := Expr) (State := State) N iprop(⌜f n⌝)) ⊨ₜ
-      TrSpec.ex fun n : Nat => □ₛ ⌜f n⌝ₛ :=
+      TrSpec.exists fun n : Nat => □ₛ ⌜f n⌝ₛ :=
   GuarOf.guar_of
 
 /-- The inferred trace specification as a closed term. -/
 @[lantana_alias ex_trSpec_of]
-def exTrSpecOf (N₁ N₂ : Namespace) (k : Oid) : TrSpec Expr State GF :=
+def exampleTrSpecOf (N₁ N₂ : Namespace) (k : Oid) : TrSpec Expr State GF :=
   trSpecOf iprop(∃ Ψ : IProp GF, alwaysI (Expr := Expr) (State := State) N₁ Ψ ∗
     finallyI (Expr := Expr) (State := State) N₂ k 1 Ψ)
 
 @[lantana_alias ex_trSpec_of_eq]
-theorem ex_trSpec_of_eq :
-    exTrSpecOf (Expr := Expr) (State := State) (GF := GF) N₁ N₂ k =
+theorem exampleTrSpecOf_eq :
+    exampleTrSpecOf (Expr := Expr) (State := State) (GF := GF) N₁ N₂ k =
       (□ₛ TrSpec.true ∧ₛ ◇ₛ TrSpec.true) :=
   rfl
 
@@ -404,9 +405,9 @@ theorem ex_trSpec_of_eq :
 formula in the form the adequacy takes: a formula, its guarantee, and the formula back. The
 bill of `p` becomes its children. -/
 @[lantana_alias ex_until_done_export]
-theorem ex_until_done_export (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) (Q : IProp GF)
+theorem example_until_done_export (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measure) (Q : IProp GF)
     (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] (G₁ : TrSpec Expr State GF) :
-    parLe (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗ Q -∗
+    Par.le (GF := GF) p ℓ ⊢ Par.kids p K -∗ Par.bill p B -∗ Q -∗
       |={E}=>m Par.kids p K ∗ Par.bill p K ∗
         ∃ P : IProp GF, (P ⊨ₜ (G₁ Uₛ TrSpec.state φ)) ∗ P ∗ (P -∗ Q) := by
   iintro Hl Kp HB HQ
@@ -439,7 +440,7 @@ theorem ex_until_done_export (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measu
 
 /-- A strong until, once discharged, is a done until with the same guarantee. -/
 @[lantana_alias ex_until_discharged]
-theorem ex_until_discharged (p : Parent) (K : Oids) (Q : IProp GF)
+theorem example_until_discharged (p : Parent) (K : Oids) (Q : IProp GF)
     (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] (P : IProp GF) (hN : ↑N ⊆ E)
     (hk : k ∈ K) :
     £ₙ 1 ⊢ untilI (Expr := Expr) (State := State) N k 1 P Q -∗ Par.kids p K -∗ oblKids k ∅ -∗
@@ -460,24 +461,25 @@ theorem ex_until_discharged (p : Parent) (K : Oids) (Q : IProp GF)
 
 /-- The inferred specification of a done until is the finally of its right formula. -/
 @[lantana_alias ex_trSpec_of_done]
-def exTrSpecOfDone (k : Oid) (Q : IProp GF) (φ : State → ThreadPool Expr → Prop)
+def exampleTrSpecOfDone (k : Oid) (Q : IProp GF) (φ : State → ThreadPool Expr → Prop)
     [StateFact Q φ] : TrSpec Expr State GF :=
   trSpecOf (untilIDone (Expr := Expr) (State := State) k Q)
 
 @[lantana_alias ex_trSpec_of_done_eq]
-theorem ex_trSpec_of_done_eq (Q : IProp GF) (φ : State → ThreadPool Expr → Prop)
-    [StateFact Q φ] : exTrSpecOfDone (Expr := Expr) (State := State) k Q φ = ◇ₛ TrSpec.state φ :=
+theorem exampleTrSpecOfDone_eq (Q : IProp GF) (φ : State → ThreadPool Expr → Prop)
+    [StateFact Q φ] :
+    exampleTrSpecOfDone (Expr := Expr) (State := State) k Q φ = ◇ₛ TrSpec.state φ :=
   rfl
 
 @[lantana_alias ex_finally_done]
-theorem ex_finally_done (Q : IProp GF) (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] :
+theorem example_finally_done (Q : IProp GF) (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] :
     ⊢@{IProp GF} untilIDone (Expr := Expr) (State := State) k Q ⊨ₜ ◇ₛ TrSpec.state φ :=
   IntoGuar.into_guar
 
 /-- A higher-order specification quantifies over the content together with its guarantee (the
 guarantee of the content of an `alwaysI` must be valid, not a hypothesis). -/
 @[lantana_alias ex_higher_order]
-theorem ex_higher_order (G : TrSpec Expr State GF) :
+theorem example_higher_order (G : TrSpec Expr State GF) :
     ⊢@{IProp GF} iprop(∃ P : IProp GF, alwaysI (Expr := Expr) (State := State) N
       iprop(P ∗ (P ⊨ₜ G))) ⊨ₜ □ₛ G := by
   have hP : ∀ P : IProp GF, ⊢ iprop(P ∗ (P ⊨ₜ G)) ⊨ₜ G := fun P => by
@@ -487,19 +489,19 @@ theorem ex_higher_order (G : TrSpec Expr State GF) :
       iexists P
       iframe HP HG
     · iapply guar_packed
-  exact (forall_intro fun P => guar_alwaysI_valid (hP P)).trans (guar_ex_ghost _)
+  exact (forall_intro fun P => guar_alwaysI_valid (hP P)).trans (guar_exists_ghost _)
 
 /-- A temporal antecedent used in the logic: by completeness, the in-logic reading of
 "eventually `φ`" strengthens a guarantee. -/
 @[lantana_alias ex_impl_guar]
-theorem ex_imp_guar (P : IProp GF) (φ : State → ThreadPool Expr → Prop)
+theorem example_imp_guar (P : IProp GF) (φ : State → ThreadPool Expr → Prop)
     (G : TrSpec Expr State GF) :
     (P ⊨ₜ G) ⊢ P ⊨ₜ (◇ₛ TrSpec.state φ →ₛ (◇ₛ TrSpec.state φ ∧ₛ G)) :=
   guar_imp_intro _ (TrSpec.le_refl _)
 
 /-- The inferred trace property of an iProp, as a trace predicate. -/
 @[lantana_alias ex_tr_of]
-theorem ex_tr_of :
+theorem example_tr_of :
     trOf iprop(∃ Ψ : IProp GF, alwaysI (Expr := Expr) (State := State) N₁ Ψ ∗
       finallyI (Expr := Expr) (State := State) N₂ k 1 Ψ) = (□ₜ ⌜True⌝ₜ ∧ₜ ◇ₜ ⌜True⌝ₜ) :=
   rfl
@@ -507,11 +509,11 @@ theorem ex_tr_of :
 /-- An implication exported on traces: the inferred trace property of a case split implies it
 (compare `guar_imp`). -/
 @[lantana_alias ex_impl_cast]
-theorem ex_imp_cast (φ : Prop) (P Q : IProp GF) (G H : TrSpec Expr State GF) [GuarOf P G]
+theorem example_imp_cast (φ : Prop) (P Q : IProp GF) (G H : TrSpec Expr State GF) [GuarOf P G]
     [GuarOf Q H] :
     trCanon (Expr := Expr) (State := State) iprop((⌜φ⌝ ∗ P) ∨ (⌜¬φ⌝ ∗ Q)) ⊆
       (⌜φ⌝ₜ →ₜ G.external) :=
-  TrProp.le_trans IntoTrace.into_trace fun _ h hφ => by
+  TrProp.subset_trans IntoTrace.into_trace fun _ h hφ => by
     rcases h with ⟨-, hG⟩ | ⟨hnφ, -⟩
     · exact hG
     · exact absurd hφ hnφ
@@ -519,7 +521,7 @@ theorem ex_imp_cast (φ : Prop) (P Q : IProp GF) (G H : TrSpec Expr State GF) [G
 /-- Unsound: an iProp implication guaranteeing the implication of the guarantees (the
 antecedent's resources are not determined by the trace). -/
 @[lantana_alias naive_impl_rule_unsound]
-theorem naiveImpRule_unsound
+theorem naive_imp_rule_unsound
     (hrule : ∀ (P₁ P₂ : IProp GF) (G₁ G₂ : TrSpec Expr State GF), (⊢ P₁ ⊨ₜ G₁) →
       (⊢ P₂ ⊨ₜ G₂) → ⊢ iprop(P₁ → P₂) ⊨ₜ (G₁ →ₛ G₂)) :
     ⊢@{IProp GF} iprop(True) ⊨ₜ (TrSpec.true (Expr := Expr) (State := State) →ₛ ⌜False⌝ₛ) := by

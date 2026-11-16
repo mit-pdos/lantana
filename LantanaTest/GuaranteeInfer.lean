@@ -23,7 +23,7 @@ variable {Expr State Obs Val : Type} {GF : BundledGFunctors} [Language Expr Stat
 example (N : Namespace) (f : Fuel → Prop) :
     trSpecOf (Expr := Expr) (State := State)
       iprop(∃ a : Fuel, alwaysI (Expr := Expr) (State := State) N (iprop(⌜f a⌝) : IProp GF)) =
-      TrSpec.ex (X := Fuel) fun a => □ₛ ⌜f a⌝ₛ :=
+      TrSpec.exists (X := Fuel) fun a => □ₛ ⌜f a⌝ₛ :=
   rfl
 
 /-- An existential over `IProp GF : Type 4` is ghost, whatever its body. -/
@@ -41,7 +41,7 @@ example (φ ψ : Prop) :
 same type, ghost otherwise. -/
 example (N : Namespace) (f : Nat → Prop) :
     ⊢@{IProp GF} iprop(∃ n : Nat, alwaysI (Expr := Expr) (State := State) N iprop(⌜f n⌝)) ⊨ₜ
-      TrSpec.ex fun n : Nat => □ₛ ⌜f n⌝ₛ :=
+      TrSpec.exists fun n : Nat => □ₛ ⌜f n⌝ₛ :=
   IntoGuar.into_guar
 
 example (N : Namespace) :

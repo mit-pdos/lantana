@@ -37,7 +37,7 @@ noncomputable instance : InvGpreS TestGF where
 
 /-! The fancy update of `IProp TestGF` is Lantana's. -/
 
-example [InvGS TestGF] (P : IProp TestGF) : iprop(|={⊤}=> P) = uPred_fupd ⊤ ⊤ P := rfl
+example [InvGS TestGF] (P : IProp TestGF) : iprop(|={⊤}=> P) = uPredFUpd ⊤ ⊤ P := rfl
 
 example [InvGS TestGF] : (inferInstance : BIFUpdate (IProp TestGF)) = uPred_bi_fupd := rfl
 
@@ -108,7 +108,7 @@ example (b : Bool) (P Q : IProp TestGF) : (ALC? b P) ∗ Q ⊢ ALC? b iprop(P �
   imod HP
   iframe
 
-example (b : Bool) (P : IProp TestGF) : (ALC? b P) = ALCb b P := rfl
+example (b : Bool) (P : IProp TestGF) : (ALC? b P) = alcIf b P := rfl
 
 end Invariants
 
@@ -124,11 +124,11 @@ example (E : CoPset) : SatRUpdUpdate (iPropSatLcAtFrame F E) := inferInstance
 example (E : CoPset) : SatExists (iPropSatLcAtFrame F E) Ordinal.{1} := inferInstance
 example (E : CoPset) : SatExists (iPropSatLcAtFrame F E) Bool := inferInstance
 
-/-- A typical step of adequacy: eliminate a fancy update, a later, a fancy update and `ALC`. -/
+/-- A typical step of adequacy: eliminate a fancy update, a later, a fancy update and `alc`. -/
 example (E₁ E₂ : CoPset) (P : IProp TestGF)
-    (h : (iPropSatLcAtFrame F E₁).sat iprop(|={E₁,E₂}=> ▷ |={E₂}=> ALC P)) :
+    (h : (iPropSatLcAtFrame F E₁).sat iprop(|={E₁,E₂}=> ▷ |={E₂}=> alc P)) :
     (iPropSatLcAtFrame F E₂).sat P :=
-  sat_ALC (SatFUpd.fupd (SatPred.sat_later _ (SatFUpd.fupd h)))
+  sat_alc (SatFUpd.fupd (SatPred.sat_later _ (SatFUpd.fupd h)))
 
 example (E : CoPset) (P : IProp TestGF) :
     (iPropSatLcAtFrame F E).sat P ↔

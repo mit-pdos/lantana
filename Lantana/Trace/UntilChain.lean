@@ -15,7 +15,7 @@ well-founded recursion on the ordinal (`WellFounded.fix` on `Fuel`), so a chain 
 `IProp`, with no guarded fixpoint; its unfolding is `WellFounded.fix_eq`, so Rocq's proof
 irrelevance of the accessibility argument is not needed. `untilChainLog` keeps the discharged
 links of a chain in a monotone ghost log (`uchainAuth`, `uchainPin`) over `Oid × Fuel`, which
-lives in `Type 2`: the log uses Lantana's universe-polymorphic `MonoListGP`. This is a
+lives in `Type 2`: the log uses Lantana's universe-polymorphic `MonoListPG`. This is a
 definitions file; the rules live with the clients.
 -/
 
@@ -31,14 +31,14 @@ open Lantana.Model
 
 /-- The ordinals of a log increase along it. -/
 @[lantana_alias uchain_log_wf]
-def uchainLogWf (l : List (Oid × Fuel)) : Prop :=
+def UchainLogWf (l : List (Oid × Fuel)) : Prop :=
   ∀ (i : Nat) (e₁ e₂ : Oid × Fuel), l[i]? = some e₁ → l[i + 1]? = some e₂ → e₁.2 < e₂.2
 
 section LogWf
 variable {l l₁ l₂ : List (Oid × Fuel)}
 
 @[lantana_alias uchain_log_wf_lookup_1]
-theorem uchainLogWf_lookup_1 (hl : uchainLogWf l) {i j : Nat} {e₁ e₂ : Oid × Fuel}
+theorem uchainLogWf_fuel_lt_of_lt (hl : UchainLogWf l) {i j : Nat} {e₁ e₂ : Oid × Fuel}
     (h₁ : l[i]? = some e₁) (h₂ : l[j]? = some e₂) (hij : i < j) : e₁.2 < e₂.2 := by
   obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_lt hij
   induction d generalizing e₂ with
@@ -55,13 +55,13 @@ theorem uchainLogWf_lookup_1 (hl : uchainLogWf l) {i j : Nat} {e₁ e₂ : Oid �
 
 @[lantana_alias uchain_log_wf_cons]
 theorem uchainLogWf_cons (e : Oid × Fuel) (l : List (Oid × Fuel)) :
-    uchainLogWf (e :: l) ↔
-      uchainLogWf l ∧ ∀ (i : Nat) (a : Oid × Fuel), l[i]? = some a → e.2 < a.2 := by
+    UchainLogWf (e :: l) ↔
+      UchainLogWf l ∧ ∀ (i : Nat) (a : Oid × Fuel), l[i]? = some a → e.2 < a.2 := by
   constructor
   · intro h
     refine ⟨fun i e₁ e₂ h₁ h₂ => h (i + 1) e₁ e₂ (by simpa using h₁) (by simpa using h₂),
       fun i a ha => ?_⟩
-    exact uchainLogWf_lookup_1 h (i := 0) (j := i + 1) (by simp) (by simpa using ha)
+    exact uchainLogWf_fuel_lt_of_lt h (i := 0) (j := i + 1) (by simp) (by simpa using ha)
       (Nat.succ_pos i)
   · rintro ⟨hl, he⟩ i e₁ e₂ h₁ h₂
     cases i with
@@ -73,9 +73,9 @@ theorem uchainLogWf_cons (e : Oid × Fuel) (l : List (Oid × Fuel)) :
 
 @[lantana_alias uchain_log_wf_app]
 theorem uchainLogWf_app (l₁ l₂ : List (Oid × Fuel)) :
-    (uchainLogWf l₁ ∧ uchainLogWf l₂ ∧
+    (UchainLogWf l₁ ∧ UchainLogWf l₂ ∧
       ∀ (i : Nat) (e a : Oid × Fuel), l₁[i]? = some e → l₂.head? = some a → e.2 < a.2) ↔
-      uchainLogWf (l₁ ++ l₂) := by
+      UchainLogWf (l₁ ++ l₂) := by
   constructor
   · rintro ⟨h₁, h₂, h₁₂⟩ i e₁ e₂ he₁ he₂
     by_cases hi : i + 1 < l₁.length
@@ -102,13 +102,13 @@ theorem uchainLogWf_app (l₁ l₂ : List (Oid × Fuel)) :
           show l₁.length + i + 1 - l₁.length = i + 1 by omega]
         exact he₂
     · have hi : i < l₁.length := (List.getElem?_eq_some_iff.mp he).1
-      refine uchainLogWf_lookup_1 h (i := i) (j := l₁.length) ?_ ?_ hi
+      refine uchainLogWf_fuel_lt_of_lt h (i := i) (j := l₁.length) ?_ ?_ hi
       · rw [List.getElem?_append_left hi]; exact he
       · rw [List.getElem?_append_right (by omega), Nat.sub_self, ← List.head?_eq_getElem?]
         exact ha
 
 @[lantana_alias uchain_log_wf_lookup_2]
-theorem uchainLogWf_lookup_2 (hl : uchainLogWf l) {i j : Nat} {e₁ e₂ : Oid × Fuel}
+theorem uchainLogWf_lt_of_fuel_lt (hl : UchainLogWf l) {i j : Nat} {e₁ e₂ : Oid × Fuel}
     (h₁ : l[i]? = some e₁) (h₂ : l[j]? = some e₂) (hlt : e₁.2 < e₂.2) : i < j := by
   rcases Nat.lt_or_ge i j with hij | hji
   · exact hij
@@ -116,7 +116,7 @@ theorem uchainLogWf_lookup_2 (hl : uchainLogWf l) {i j : Nat} {e₁ e₂ : Oid �
     · rw [h₁, Option.some.injEq] at h₂
       subst h₂
       exact absurd hlt (Ordinals.Ordinal.lt_irrefl _)
-    · exact absurd (Ordinals.Ordinal.lt_trans hlt (uchainLogWf_lookup_1 hl h₂ h₁ hji))
+    · exact absurd (Ordinals.Ordinal.lt_trans hlt (uchainLogWf_fuel_lt_of_lt hl h₂ h₁ hji))
         (Ordinals.Ordinal.lt_irrefl _)
 
 end LogWf
@@ -126,7 +126,7 @@ end LogWf
 /-- The world's ghost state for chain logs (Rocq `uchainGS.uchainGpreS`). -/
 @[lantana_alias uchainGS.uchainGpreS]
 class UchainGpreS (GF : BundledGFunctors) where
-  [logG : MonoListGP GF (Oid × Fuel)]
+  [logG : MonoListPG GF (Oid × Fuel)]
 
 attribute [reducible, instance] UchainGpreS.logG
 attribute [lantana_alias uchainGS.uchainGpreS_log] UchainGpreS.logG
@@ -151,12 +151,12 @@ variable {GF : BundledGFunctors} [UchainGS GF]
 /-- The authoritative log, with the fraction `q` (sealed). -/
 @[lantana_alias uchain_auth, irreducible]
 def uchainAuth (q : Qp) (l : List (Oid × Fuel)) : IProp GF :=
-  iprop(⌜uchainLogWf l⌝ ∗ MonoListP.auth_own (UchainGS.logName GF) (.own q) l)
+  iprop(⌜UchainLogWf l⌝ ∗ MonoListP.authOwn (UchainGS.logName GF) (.own q) l)
 
 @[lantana_alias uchain_auth_unseal]
 theorem uchainAuth_unfold (q : Qp) (l : List (Oid × Fuel)) :
     uchainAuth (GF := GF) q l =
-      iprop(⌜uchainLogWf l⌝ ∗ MonoListP.auth_own (UchainGS.logName GF) (.own q) l) := by
+      iprop(⌜UchainLogWf l⌝ ∗ MonoListP.authOwn (UchainGS.logName GF) (.own q) l) := by
   unfold uchainAuth; rfl
 
 #lantana_ignore uchain_auth_def "`uchainAuth`, irreducible."
@@ -165,13 +165,13 @@ theorem uchainAuth_unfold (q : Qp) (l : List (Oid × Fuel)) :
 /-- The log ends, at some point, with the entry `e` (sealed). -/
 @[lantana_alias uchain_pin, irreducible]
 def uchainPin (e : Oid × Fuel) : IProp GF :=
-  iprop(∃ l : List (Oid × Fuel), ⌜l.getLast? = some e ∧ uchainLogWf l⌝ ∧
-    MonoListP.lb_own (UchainGS.logName GF) l)
+  iprop(∃ l : List (Oid × Fuel), ⌜l.getLast? = some e ∧ UchainLogWf l⌝ ∧
+    MonoListP.lbOwn (UchainGS.logName GF) l)
 
 @[lantana_alias uchain_pin_unseal]
 theorem uchainPin_unfold (e : Oid × Fuel) :
-    uchainPin (GF := GF) e = iprop(∃ l : List (Oid × Fuel), ⌜l.getLast? = some e ∧ uchainLogWf l⌝ ∧
-      MonoListP.lb_own (UchainGS.logName GF) l) := by
+    uchainPin (GF := GF) e = iprop(∃ l : List (Oid × Fuel), ⌜l.getLast? = some e ∧ UchainLogWf l⌝ ∧
+      MonoListP.lbOwn (UchainGS.logName GF) l) := by
   unfold uchainPin; rfl
 
 #lantana_ignore uchain_pin_def "`uchainPin`, irreducible."
