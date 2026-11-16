@@ -639,7 +639,7 @@ theorem Obl.fuels_succ (G : Oids) (m : Nat) :
   unfold Obl.fuels
   refine (BigSepS.bigSepS_mono fun _ => ?_).trans BigSepS.bigSepS_sep.mp
   iintro ⟨%ℓ, H⟩
-  ihave H := (Obl.fuel_eq _ (ℓ := ℓ) (μ₂ := (m : Measure) + 1)
+  ihave H := (Obl.fuel_eq_of_rep _ (ℓ := ℓ) (μ₂ := (m : Measure) + 1)
     (by rw [Measure.rep_nat_add, Measure.rep_add]; rfl)).mp $$ H
   icases (Obl.fuel_add _ ℓ _ _).mp $$ H with ⟨H1, H2⟩
   isplitl [H1]

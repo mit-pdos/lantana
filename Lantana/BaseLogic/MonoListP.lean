@@ -134,43 +134,43 @@ theorem authOwn_agree (γ : GName) (dq1 dq2 : DFrac) (l1 l2 : List α) :
       ⌜✓ (dq1 • dq2) ∧ l1 = l2⌝ := by
   unfold authOwn
   iintro H1 H2
-  icases iOwn_cmraValid_op $$ [$H1 $H2] with %Hvalid
+  icases iOwn_cmraValid_op $$ [$H1 $H2] with %hvalid
   ipureintro
-  obtain ⟨hdq, hl⟩ := (auth_dfrac_op_valid ..).mp Hvalid
+  obtain ⟨hdq, hl⟩ := (auth_dfrac_op_valid ..).mp hvalid
   exact ⟨hdq, map_mk_inj hl⟩
 
 theorem authOwn_exclusive (γ : GName) (l1 l2 : List α) :
     ⊢@{IProp GF} (γ ↪●MLP l1) -∗ (γ ↪●MLP l2) -∗ False := by
   unfold authOwn
   iintro H1 H2
-  icases iOwn_cmraValid_op $$ [$H1 $H2] with %Hvalid
+  icases iOwn_cmraValid_op $$ [$H1 $H2] with %hvalid
   ipureintro
-  exact (auth_op_valid ..).mp Hvalid
+  exact (auth_op_valid ..).mp hvalid
 
 theorem authOwn_lbOwn_valid (γ : GName) (dq : DFrac) (l1 l2 : List α) :
     ⊢@{IProp GF} (γ ↪●MLP{dq} l1) -∗ (γ ↪◯MLP l2) -∗ ⌜✓ dq ∧ l2 <+: l1⌝ := by
   unfold authOwn lbOwn
   iintro H1 H2
-  icases iOwn_cmraValid_op $$ [$H1 $H2] with %Hvalid
+  icases iOwn_cmraValid_op $$ [$H1 $H2] with %hvalid
   ipureintro
-  obtain ⟨hdq, hpre⟩ := (both_dfrac_valid ..).mp Hvalid
+  obtain ⟨hdq, hpre⟩ := (both_dfrac_valid ..).mp hvalid
   exact ⟨hdq, map_mk_prefix hpre⟩
 
 theorem lbOwn_valid (γ : GName) (l1 l2 : List α) :
     ⊢@{IProp GF} (γ ↪◯MLP l1) -∗ (γ ↪◯MLP l2) -∗ ⌜l1 <+: l2 ∨ l2 <+: l1⌝ := by
   unfold lbOwn
   iintro H1 H2
-  icases iOwn_cmraValid_op $$ [$H1 $H2] with %Hvalid
+  icases iOwn_cmraValid_op $$ [$H1 $H2] with %hvalid
   ipureintro
-  exact (lb_op_valid ..).mp Hvalid |>.imp map_mk_prefix map_mk_prefix
+  exact (lb_op_valid ..).mp hvalid |>.imp map_mk_prefix map_mk_prefix
 
 theorem idx_agree (γ : GName) (i : Nat) (a1 a2 : α) :
     ⊢@{IProp GF} (γ ↪◯MLP[i] a1) -∗ (γ ↪◯MLP[i] a2) -∗ ⌜a1 = a2⌝ := by
   unfold idxOwn
   iintro H1 H2
-  icases H1 with ⟨%l1, %Hl1, H1⟩
-  icases H2 with ⟨%l2, %Hl2, H2⟩
-  icases lbOwn_valid γ l1 l2 $$ H1 H2 with %Hpre
+  icases H1 with ⟨%l1, %hl1, H1⟩
+  icases H2 with ⟨%l2, %hl2, H2⟩
+  icases lbOwn_valid γ l1 l2 $$ H1 H2 with %hpre
   ipureintro
   grind [prefix_getElem?]
 
@@ -178,10 +178,10 @@ theorem auth_idx_lookup (γ : GName) (dq : DFrac) (l : List α) (i : Nat) (a : �
     ⊢@{IProp GF} (γ ↪●MLP{dq} l) -∗ (γ ↪◯MLP[i] a) -∗ ⌜l[i]? = some a⌝ := by
   unfold idxOwn
   iintro H1 H2
-  icases H2 with ⟨%l1, %Hl1, H2⟩
-  icases authOwn_lbOwn_valid γ dq l l1 $$ H1 H2 with %Hpre
+  icases H2 with ⟨%l1, %hl1, H2⟩
+  icases authOwn_lbOwn_valid γ dq l l1 $$ H1 H2 with %hpre
   ipureintro
-  exact prefix_getElem? Hpre.2 Hl1
+  exact prefix_getElem? hpre.2 hl1
 
 /-! ## Snapshots -/
 

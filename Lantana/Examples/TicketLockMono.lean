@@ -1538,10 +1538,10 @@ theorem lockInvAliveTrSpec_releaseProgress {GF : BundledGFunctors} (next curr : 
   intro τ h m hm n c hn hc hlt
   obtain ⟨n', c', hn', -, hc', -, hcase⟩ := h m hm
   obtain rfl : n = n' := by
-    simpa [vz] using TicketLock.state_pointsto_agree (dq₁ := .own 1)
+    simpa [vz] using TicketLock.state_pointsToSat_agree (dq₁ := .own 1)
       (dq₂ := .own (1 : Qp).half) hn hn'
   obtain rfl : c = c' := by
-    simpa [vz] using TicketLock.state_pointsto_agree (dq₁ := .own 1) (dq₂ := .own q14) hc hc'
+    simpa [vz] using TicketLock.state_pointsToSat_agree (dq₁ := .own 1) (dq₂ := .own q14) hc hc'
   rcases hcase with ⟨h, -⟩ | ⟨-, m', hm', ⟨hpts, -⟩, -⟩
   · exact absurd (show c = n from h) (by have : c < n := hlt; omega)
   · exact ⟨m', hm', hpts, fun _ _ _ => trivial⟩
@@ -1557,11 +1557,11 @@ theorem lockInvAliveTrSpec_nextMonotone {GF : BundledGFunctors} (next curr : Loc
   obtain ⟨n₀, c₀, hn₀, hge, -⟩ := hal m hm
   obtain ⟨n₁, c₁, hn₁, -⟩ := hal m' (by dsimp only; omega)
   obtain rfl : n = n₀ := by
-    simpa [vz] using TicketLock.state_pointsto_agree (dq₁ := .own 1)
+    simpa [vz] using TicketLock.state_pointsToSat_agree (dq₁ := .own 1)
       (dq₂ := .own (1 : Qp).half) hn hn₀
   rcases hge m' hm' with ⟨w, hw, hnw⟩ | hfr
   · exact ⟨w, hnw, hw⟩
-  · exact (state_pointsto_freed (dq := .own (1 : Qp).half) hn₁ hfr).elim
+  · exact (state_pointsToSat_freedSat (dq := .own (1 : Qp).half) hn₁ hfr).elim
 
 @[lantana_alias ticket_lock_mono.alive_fair_lock_release_progress]
 theorem aliveFairLock_releaseProgress {GF : BundledGFunctors} (tl : Val)

@@ -131,7 +131,7 @@ The atoms of temporal properties: predicates on the state and the thread pool. -
 /-- The location `l` holds `v`. The fraction `dq` of the points-to plays no role; it is an
 argument so that the `StateFact` instance for `l ↦{dq} v` can be stated uniformly. -/
 @[lantana_alias heap_lang.pointsto_sat]
-def PointstoSat (l : Loc) (_dq : Iris.DFrac) (v : Val) (σ : State) (_tp : List Exp) : Prop :=
+def PointsToSat (l : Loc) (_dq : Iris.DFrac) (v : Val) (σ : State) (_tp : List Exp) : Prop :=
   σ.heap[l]? = some (some v)
 
 /-- Thread `i` runs `e` in the context `C` (innermost item first). The fold is `fill C e`

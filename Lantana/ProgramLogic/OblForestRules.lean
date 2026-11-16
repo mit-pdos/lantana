@@ -23,13 +23,6 @@ open scoped Lantana.Measure Ordinals.Ordinal
 
 /-! ## Sets of obligations -/
 
-/-- `Std.ExtTreeSet.erase` as a set difference. -/
-theorem Oids.erase_eq_diff (K : Oids) (k : Oid) : K.erase k = K \ {k} :=
-  LawfulSet.ext fun x => by
-    rw [Std.ExtTreeSet.mem_erase, mem_diff, mem_singleton, Ne,
-      Std.LawfulEqCmp.compare_eq_iff_eq]
-    grind
-
 open LawfulSet in
 /-- A set of obligations is empty or has one of largest rank. -/
 theorem Oids.exists_max_rank (r : Oid → Fuel) (S : Oids) :
@@ -420,12 +413,6 @@ theorem Obl.variant_unfold (k : Oid) (P R : IProp GF) :
 
 variable (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF)
 
-@[lantana_alias oblP_inv_acc_cases]
-theorem Obl.inv_acc_cases (hN : ↑N ⊆ E) :
-    Obl.inv N k P R ⊢ |={E, E \ ↑N}=> ▷ Obl.variant k P R ∗
-      (▷ Obl.variant k P R ={E \ ↑N, E}=∗ True) :=
-  Obl.inv_acc E N k P R hN
-
 @[lantana_alias oblP_inv_acc_assigned]
 theorem Obl.inv_acc_assigned (hN : ↑N ⊆ E) :
     Obl.inv N k P R ⊢ |={E, E \ ↑N}=> ∀ q, Obl.assigned k q -∗
@@ -538,6 +525,16 @@ theorem Par.kids_diff_discharged (p : Parent) (K : Oids) (x : Oid) :
   rw [LawfulSet.diff_subset_disj (LawfulSet.disjoint_singleton_right.2 hx)]
   iexact H
 
+/-- A node with the same members. -/
+theorem Par.kids_congr {p : Parent} {A B : Oids} (h : ∀ k, k ∈ A ↔ k ∈ B) :
+    Par.kids (GF := GF) p A ⊢ Par.kids p B := by
+  rw [Std.ExtTreeSet.ext_mem h]
+
+/-- A bill with the same members. -/
+theorem Th.carriers_congr {j : ThreadId} {A B : Oids} (h : ∀ k, k ∈ A ↔ k ∈ B) :
+    Th.carriers (GF := GF) j A ⊢ Th.carriers j B := by
+  rw [Std.ExtTreeSet.ext_mem h]
+
 end Parents
 
 /-! ## Fuel and credit algebra -/
@@ -590,12 +587,6 @@ theorem Obl.fuel_layer_eq (k : Oid) {ℓ₁ ℓ₂ : Layer} (μ : Measure) (h : 
 
 #lantana_ignore oblP_fuel_layer_eq_list "Layer equality is Leibniz: rewrite."
 #lantana_ignore oblP_fuel_layer_eq_set "Layer equality is Leibniz: rewrite."
-
-/-- `Obl.fuel_eq` with the layer explicit. -/
-@[lantana_alias oblP_fuel_eq]
-theorem Obl.fuel_eq_of_rep (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
-    (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) : Obl.fuel (GF := GF) k ℓ μ₁ ⊣⊢ Obl.fuel k ℓ μ₂ :=
-  Obl.fuel_eq k h
 
 @[lantana_alias oblP_fuel_eq_list]
 theorem Obl.fuel_eq_of_rep_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
@@ -878,6 +869,18 @@ theorem Obl.fuels_remove_obls (K₂ K₁ : Oids) (n : Measure) :
     Obl.fuels (GF := GF) K₁ n ⊢ Obl.fuels (K₁ \ K₂) n :=
   bigSepS_subseteq diff_subset_left
 
+/-- The fuel of a set of obligations gives that of a subset. -/
+theorem Obl.fuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
+    Obl.fuels (GF := GF) A n ⊢ Obl.fuels B n := by
+  unfold Obl.fuels
+  exact BigSepS.bigSepS_subseteq h
+
+/-- A thread without children pays nothing. -/
+theorem Obl.fuels_empty (n : Measure) : ⊢ Obl.fuels (GF := GF) ∅ n := by
+  unfold Obl.fuels
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
+
 end Fuel
 
 /-! ## Witness induction -/
@@ -887,14 +890,6 @@ section Witness
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 open BigSepM BigSepS LawfulPartialMap LawfulFiniteMap
-
-omit [ModelGS GF] in
-/-- `Std.ExtTreeMap.insert` is the partial-map insertion of Iris-Lean. -/
-theorem OidMap.insert_eq {V : Type _} (F : OidMap V) (k : Oid) (v : V) :
-    F.insert k v = PartialMap.insert F k v := by
-  refine Std.ExtTreeMap.ext_getElem? fun k' => ?_
-  change (F.insert k v)[k']? = (F.alter k fun _ => some v)[k']?
-  rw [Std.ExtTreeMap.getElem?_insert, Std.ExtTreeMap.getElem?_alter]
 
 omit [ModelGS GF] in
 /-- The union of `Std.ExtTreeMap` is right-biased: `F ∪ G` takes the values of `G`. -/
@@ -1047,6 +1042,32 @@ theorem embedFuels_decr {A : Type} {r : A → A → Prop} (hwf : WellFounded r) 
   exact (bigSepM_mono_of_forall fun {f} {lm : Layer × Measure} => Obl.fuel_mult f lm.1 lm.2
     (Measure.rep_embed_lt lm.1 hwf h)).trans <|
     (bigSepM_bupd _).trans (BIUpdate.mono (BiEntails.of_eq bigSepM_sep_eq).1)
+
+/-- The credits of `m + 1` steps give those of one step. -/
+theorem Wit.creds_of_nat (R : Oids) (m : Nat) :
+    ([∗set] r ∈ R, Wit.cred (GF := GF) r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) ⊢
+      Wit.creds R := by
+  unfold Wit.creds
+  refine BigSepS.bigSepS_mono fun _ => ?_
+  iintro (H | #H)
+  · ileft
+    rw [show ((m + 1 : Nat) : Fuel) = (m : Fuel) +ₕ 1 from (Ordinals.Ordinal.nadd_ofNat m 1).symm]
+    icases (Wit.cred_split _ _ _).mp $$ H with ⟨-, H⟩
+    iexact H
+  · iright
+    iexact H
+
+/-- No witnesses. -/
+theorem Wit.layers_empty : ⊢ Wit.layers (GF := GF) ∅ := by
+  unfold Wit.layers
+  iapply BigSepS.bigSepS_empty.mpr
+  iempintro
+
+/-- What a step that observes the witness `k` gives back: a credit of `k`, or its discharge. -/
+theorem Wit.creds_singleton (k : Oid) :
+    Wit.creds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
+  unfold Wit.creds
+  exact BigSepS.bigSepS_singleton.mp
 
 end Witness
 

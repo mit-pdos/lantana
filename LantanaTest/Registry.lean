@@ -110,13 +110,13 @@ section
 variable [RegGS Exp State TestGF] [HistGS Exp State TestGF] [StateInterp Exp State TestGF]
 
 example (Hd : RegEntry → IProp TestGF) (e : RegEntry) (h : List (HistEntry Exp State)) (n : Nat)
-    (σ : State) (tp : ThreadPool Exp) (He : ⊢ Hd e) :
+    (σ : State) (tp : ThreadPool Exp) (he : ⊢ Hd e) :
     regStateWith Hd ∗ historyInterp h n σ tp ⊢@{IProp TestGF}
       |==> (historyInterp h n σ tp ∗ regStateWith Hd ∗ ∃ j, regIdx j n e) := by
   iintro ⟨Hs, HI⟩
   iapply reg_register Hd e h n σ tp $$ Hs [] HI
   iintro %st -
-  iapply He
+  iapply he
 
 end
 

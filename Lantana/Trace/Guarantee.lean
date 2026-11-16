@@ -82,7 +82,7 @@ def sysStepPre (tg : RecT Expr State GF) (Sys : SysT Expr State GF) : IProp GF :
       ∃ (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent) (v' : Nat) (Ω' : Obligations)
         (W' : Witnesses),
         ⌜OWitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
-          OblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ ∗
+          ObligationsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ ∗
         £ₙ c ∗ historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
         modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) ∗
         Sys (n + 1) σ' tp'))

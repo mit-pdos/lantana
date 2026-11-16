@@ -696,12 +696,6 @@ theorem prog_piece (wf : ForestWf Ω tc Par) {i : ThreadId}
   wf.prog hp hown fun x c hx ho =>
     Ordinal.lt_of_lt_of_le (prog_fuelOf_lt hp ((wf.obl x c hx).1.trans ho)) (hpiece x c hx ho)
 
-/-- The owned nodes do not change in a progress round that keeps the owners of the nodes. -/
-theorem owned_prog {j : ThreadId}
-    (hown : ∀ x, (get? Par x).isSome → Ω'.ownerOf x = Ω.ownerOf x) :
-    owned Ω' Par j = owned Ω Par j :=
-  owned_ext hown
-
 /-! ### Moving a node -/
 
 /-- Moving the node `k` below `p₂`, possibly changing the obligations to `Ω'` with the same live

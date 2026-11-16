@@ -354,7 +354,7 @@ theorem sysStep_iter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry E
       ▷ (∀ (l : List (Nat × RegEntry)) (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent)
           (v' : Nat) (Ω' : Obligations) (W' : Witnesses),
         ⌜OWitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
-          OblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ -∗
+          ObligationsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ -∗
         bundle (Expr := Expr) (State := State) l n -∗ C -∗ £ₙ c -∗
         historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
           modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) ∗ Sys (n + 1) σ' tp' -∗

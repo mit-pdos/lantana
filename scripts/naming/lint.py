@@ -7,7 +7,8 @@
 
 Checks the Lantana and LantanaTest declarations of the dumps (Iris-Lean's are skipped) and
 prints one line per violation; exit code 1 if there is any.  `scripts/naming/lint.sh` makes the
-dumps and runs it.  Accepted exceptions are listed in ALLOW below, each with its reason.
+dumps and runs it.  Accepted exceptions are listed in ALLOW and SAME_OK below, each with its
+reason.
 """
 import re, sys
 
@@ -65,7 +66,7 @@ decls = {}
 for r in rows:
     n, k, m = clean(r[0]), r[1], r[2]
     if m.split('.')[0] in ('Lantana', 'LantanaTest') and not noise(n, k):
-        decls[n] = dict(k=k, m=m, rs=r[5], ln=r[6])
+        decls[n] = dict(k=k, m=m, rs=r[5], ln=r[6], priv=r[3], h=r[7] if len(r) > 7 else '')
 # lowerCamelCase spellings of every declaration name (a theorem may be named after one)
 SPELL = set()
 for r in rows:
@@ -162,6 +163,44 @@ for n, d in sorted(decls.items()):
             flag(n, d, 'instance name starting with an upper-case letter')
         if not last.startswith('inst'):
             check_words(n, d, parts, last)
+
+# A namespace that mirrors one of an enclosing namespace (`HeapLang.Obl` beside `Obl`): inside
+# the enclosing namespace, the copy shadows the original (docs/naming.md, §1).
+NSPACES = {'.'.join(n.split('.')[:i]) for n in decls for i in range(1, len(n.split('.')))}
+for n, d in sorted(decls.items()):
+    p = n.split('.')[:-1]
+    for j in range(1, len(p) - 1):
+        orig = '.'.join(p[:j] + [p[-1]])
+        if orig in NSPACES:
+            flag(n, d, f'in `{".".join(p)}`, which mirrors `{orig}` (put it in `{orig}`)')
+            break
+
+# Two theorems of the library with the same statement: one fact under two names.  The
+# restatements kept on purpose, with their reasons:
+SAME_OK = [
+    # `SatPred.sat_*` are the class fields with the predicate explicit, for `S.sat_later h`.
+    {'SatLater.later', 'SatPred.sat_later'}, {'SatBUpd.bupd', 'SatPred.sat_bupd'},
+    {'SatExists.exists', 'SatPred.sat_exists'},
+    # the same guarantee, proved by hand and inferred
+    {'GuaranteeInfer.example_iprop', 'GuaranteeInfer.example_iprop_inferred'},
+    # a client over the stable flag states the safety of the same program as its base client
+    {'Examples.FlagClient.safety_of', 'Examples.FlagStableClient.flagClient_safety_of'},
+    {'Examples.FlagClient.safety_adequacy', 'Examples.FlagStableClient.flagClient_safety_adequacy'},
+    {'Examples.HandoffClient.safety_adequacy',
+     'Examples.HandoffFlagStableClient.handoffClient_safety_adequacy'},
+    {'Examples.TaskQueueClient.safety_adequacy',
+     'Examples.TaskQueueFlagStableClient.taskQueueClient_safety_adequacy'},
+]
+same = {}
+for n, d in decls.items():
+    if d['k'] == 'theorem' and d['h'] and not d['priv'] and d['m'].startswith('Lantana.'):
+        same.setdefault(d['h'], []).append(n)
+for ns in same.values():
+    short = {x.removeprefix('Lantana.') for x in ns}
+    if len(ns) > 1 and not any(short <= ok for ok in SAME_OK):
+        for n in sorted(ns):
+            others = ', '.join(sorted(x for x in short if x != n.removeprefix('Lantana.')))
+            flag(n, decls[n], f'same statement as {others} (keep one name)')
 
 for b in bad:
     print(b)

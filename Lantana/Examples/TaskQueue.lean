@@ -215,7 +215,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     icases (Obl.fuel_add g ℓ _ 1).mp $$ Fg with ⟨Fg, Fg1⟩
     icases (Obl.fuel_add g ℓ m _).mp $$ Fg with ⟨-, Fg99⟩
     ihave HF := Obl.fuels_add_obl G g ℓ _ $$ Fg99 HF
-    ihave Ft := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g ℓ 1) hg).mpr $$ [Fg1 Ft]
+    ihave Ft := (Oids.bigSepS_insert (Φ := fun g => Obl.fuel g ℓ 1) hg).mpr $$ [Fg1 Ft]
     · iframe Fg1 Ft
     have hgg : g ∈ G.insert g := Std.ExtTreeSet.mem_insert_self
     unfold taskAt
@@ -262,7 +262,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       icases (Obl.fuel_add ng ℓ _ 1).mp $$ Fng with ⟨Fng, Fng1⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng99⟩
       ihave HF := Obl.fuels_add_obl (G.insert g) ng ℓ _ $$ Fng99 HF
-      ihave Ft := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g ℓ 1) hng').mpr $$ [Fng1 Ft]
+      ihave Ft := (Oids.bigSepS_insert (Φ := fun g => Obl.fuel g ℓ 1) hng').mpr $$ [Fng1 Ft]
       · iframe Fng1 Ft
       lwp_step HT HG HF
       lwp_step HT HG HF
@@ -301,13 +301,6 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       · iapply Th.carriers_congr hge $$ HG
       · ipureintro
         exact hng
-
-omit [HeapGS GF] [TicketLockG GF] [QueueG GF] in
-/-- A thread without children pays nothing. -/
-theorem Obl.fuels_empty (n : Measure) : ⊢ Obl.fuels (GF := GF) ∅ n := by
-  unfold Obl.fuels
-  iapply BigSepS.bigSepS_empty.mpr
-  iempintro
 
 /-- The worker runs tasks forever (it never returns: the postcondition is `False`). With its
 inbox `g` (`b = true`), each iteration renews the inbox, whose fuel pays for the iteration;

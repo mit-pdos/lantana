@@ -53,9 +53,13 @@ Theorem names:
     (`Model.ChownRel.fuel_in`, `HeapLang.Loc.add_assoc`).
   - A family of lemmas about a definition may also be flat, named after it: `Model.oforest_*`
     is about `Model.oforest`, `osat_*` about `osat`.
-  - A lemma about a namespaced definition names it with its namespace, wherever the lemma
-    lives: `Obl.fuels_add` and `HeapLang.Obl.fuels_add` are about `Obl.fuels`.  The flat
-    spelling `oblFuels_add` is not used.
+  - A lemma about a namespaced definition lives in that namespace, whichever module proves it:
+    `Obl.fuels_add` and `Obl.fuels_subset` are in `Lantana.Obl`, next to `Obl.fuels`.  The flat
+    spelling `oblFuels_add` is not used, and a namespace is not mirrored inside another
+    (`HeapLang.Obl` would shadow `Obl` in `HeapLang`).  A general fact about a type goes to the
+    lowest layer that has the type (`Oids.erase_eq_diff` in `Lantana.Prelude`).
+  - One fact has one name: a lemma is not restated under another name, in another layer or with
+    other implicit arguments.
   - A namespace is not repeated in its names: `Examples.FlagClient.adequacy`, not
     `Examples.FlagClient.flagClient_adequacy`.
   - A word has one casing: `OWitRel` and `OWitInv`, as the namespace `OWit`.  Its
@@ -143,7 +147,7 @@ Instance names follow the instance of Iris-Lean they correspond to:
 `scripts/naming/lint.sh` checks §1–§3 on the built library and test suite: run it after
 `lake build` and `lake test`; exit code 1 on a violation.
 - It dumps every declaration with `scripts/naming/Dump.lean`: its kind, its module, its Rocq
-  alias, and whether its type ends in `Prop` or `Type`.
+  alias, whether its type ends in `Prop` or `Type`, and a hash of its statement.
 - `scripts/naming/lint.py` then flags:
   - a Prop- or Type-valued definition in lowerCamelCase, or a term-valued one in
     UpperCamelCase;
@@ -157,11 +161,15 @@ Instance names follow the instance of Iris-Lean they correspond to:
     (`witLayers_persistent`, when the definition is `Wit.layers`);
   - a word cased differently from the namespace or type it comes from (`OwitRel`);
   - an `N…` namespace constant;
-  - types and constructors in the wrong case.
+  - types and constructors in the wrong case;
+  - a declaration in a namespace that mirrors one of an enclosing namespace (`HeapLang.Obl`);
+  - two public theorems of the library with the same statement (the hash ignores binder names
+    and implicitness).
 
 The check of the result sort is syntactic: an IProp-, `TrProp`- or Set-valued definition counts
-as term-valued.  Its exceptions are listed in `lint.py` with their reasons.  The lint reads
-names, not statements: that a lemma about `⊆` says `subset` is checked by review.
+as term-valued.  Its exceptions, and the restatements kept on purpose, are listed in `lint.py`
+with their reasons.  Apart from the statement hash, the lint reads names: that a lemma about
+`⊆` says `subset` is checked by review.
 
 ## 5. Renaming declarations
 

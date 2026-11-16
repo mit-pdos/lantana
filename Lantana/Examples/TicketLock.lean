@@ -1775,7 +1775,7 @@ variable {GF : BundledGFunctors}
 
 /-- `l ↦{q} v` as a trace specification. -/
 abbrev ptsSpec (l : Loc) (q : Qp) (v : Val) : TrSpec Exp State GF :=
-  TrSpec.state (PointstoSat l (.own q) v)
+  TrSpec.state (PointsToSat l (.own q) v)
 
 /-- The holder will increment `curr`. -/
 abbrev releasedTrSpec (curr : Loc) (c : Int) : TrSpec Exp State GF :=
@@ -2008,11 +2008,12 @@ section Trace
 /-- `l ↦ v` in the current state of the trace (Rocq `tr_pointsto`). -/
 @[lantana_alias ticket_lock.tr_pointsto]
 def trPointsTo (l : Loc) (v : Val) : TrProp (Cfg Exp State) :=
-  TrProp.state (PointstoSat l (DFrac.own 1) v)
+  TrProp.state (PointsToSat l (DFrac.own 1) v)
 
 /-- A location holds one value at a time (`HeapLang.pointsToTr_agree`, at a trace). -/
-theorem state_pointsto_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {τ : Trace (Cfg Exp State)}
-    (h₁ : TrProp.state (PointstoSat l dq₁ v₁) τ) (h₂ : TrProp.state (PointstoSat l dq₂ v₂) τ) :
+theorem state_pointsToSat_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val}
+    {τ : Trace (Cfg Exp State)}
+    (h₁ : TrProp.state (PointsToSat l dq₁ v₁) τ) (h₂ : TrProp.state (PointsToSat l dq₂ v₂) τ) :
     v₁ = v₂ :=
   HeapLang.pointsToTr_agree l dq₁ dq₂ v₁ v₂ τ ⟨h₁, h₂⟩
 
@@ -2030,9 +2031,9 @@ theorem lockInvAliveTrSpec_releaseProgress {GF : BundledGFunctors} (next curr : 
   intro τ h m hm n c hn hc hlt
   obtain ⟨n', c', hn', hc', -, hcase⟩ := h m hm
   obtain rfl : n = n' := by
-    simpa [vz] using state_pointsto_agree (dq₁ := .own 1) (dq₂ := .own 1) hn hn'
+    simpa [vz] using state_pointsToSat_agree (dq₁ := .own 1) (dq₂ := .own 1) hn hn'
   obtain rfl : c = c' := by
-    simpa [vz] using state_pointsto_agree (dq₁ := .own 1) (dq₂ := .own q14) hc hc'
+    simpa [vz] using state_pointsToSat_agree (dq₁ := .own 1) (dq₂ := .own q14) hc hc'
   rcases hcase with ⟨h, -⟩ | ⟨-, m', hm', ⟨hpts, -⟩, -⟩
   · exact absurd (show c = n from h) (by have : c < n := hlt; omega)
   · exact ⟨m', hm', hpts, fun _ _ _ => trivial⟩
@@ -2061,7 +2062,7 @@ def starvationFree (next curr : Loc) : TrProp (Cfg Exp State) :=
 
 /-- By induction on `t - c₀`, from any time at which `curr ↦ c₀ < t ≤ next`. -/
 theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → Cfg Exp State)
-    (t : Int) (Hrp : releaseProgress next curr ⟨k, τf⟩) (Hmon : nextMonotone next ⟨k, τf⟩) :
+    (t : Int) (hrp : releaseProgress next curr ⟨k, τf⟩) (hmon : nextMonotone next ⟨k, τf⟩) :
     ∀ (d m₀ : Nat) (c₀ : Int), (t - c₀).toNat = d → k ≤ m₀ →
       trPointsTo curr (vz c₀) ⟨m₀, τf⟩ → c₀ < t →
       (∃ n₀ : Int, trPointsTo next (vz n₀) ⟨m₀, τf⟩ ∧ t ≤ n₀) →
@@ -2070,12 +2071,12 @@ theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → Cfg Ex
   induction d using Nat.strongRecOn with
   | _ d IH =>
     intro m₀ c₀ hd hm₀ hc₀ hlt ⟨n₀, hn₀, htn₀⟩
-    obtain ⟨m₁, hm₁, hc₁, -⟩ := Hrp m₀ hm₀ n₀ c₀ hn₀ hc₀ (by simp only [TrProp.pure]; omega)
+    obtain ⟨m₁, hm₁, hc₁, -⟩ := hrp m₀ hm₀ n₀ c₀ hn₀ hc₀ (by simp only [TrProp.pure]; omega)
     dsimp only at hm₁
     by_cases he : c₀ + 1 = t
     · subst he
       exact ⟨m₁, hm₁, hc₁⟩
-    obtain ⟨n₁, hn₁, hle⟩ := Hmon m₀ hm₀ n₀ hn₀ m₁ hm₁
+    obtain ⟨n₁, hn₁, hle⟩ := hmon m₀ hm₀ n₀ hn₀ m₁ hm₁
     simp only [TrProp.pure] at hle
     obtain ⟨m', hm', ht'⟩ := IH (t - (c₀ + 1)).toNat (by omega) m₁ (c₀ + 1) rfl (by omega) hc₁
       (by omega) ⟨n₁, hn₁, by omega⟩
@@ -2083,12 +2084,12 @@ theorem releaseProgress_served (next curr : Loc) (k : Nat) (τf : Nat → Cfg Ex
 
 @[lantana_alias ticket_lock.release_progress_starvation_free]
 theorem releaseProgress_starvationFree (next curr : Loc) (τ : Trace (Cfg Exp State))
-    (Hrp : releaseProgress next curr τ) (Hmon : nextMonotone next τ) :
+    (hrp : releaseProgress next curr τ) (hmon : nextMonotone next τ) :
     starvationFree next curr τ := by
   obtain ⟨k, τf⟩ := τ
   intro m hm n c t hn hc ht
   simp only [TrProp.pure] at ht
-  obtain ⟨m', hm', ht'⟩ := releaseProgress_served next curr k τf t Hrp Hmon _ m c rfl hm hc
+  obtain ⟨m', hm', ht'⟩ := releaseProgress_served next curr k τf t hrp hmon _ m c rfl hm hc
     ht.1 ⟨n, hn, ht.2⟩
   exact ⟨m', hm', ht', fun _ _ _ => trivial⟩
 

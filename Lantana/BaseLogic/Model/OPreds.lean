@@ -26,34 +26,16 @@ open scoped Lantana.Measure
 
 /-! ## Sets of obligations -/
 
-/-- `Std.ExtTreeSet.insert` as the union with a singleton. -/
-theorem oids_insert_eq (K : Oids) (k : Oid) : K.insert k = {k} ∪ K :=
-  insert_eq_singleton_union_extTreeSet
-
-/-- `Std.ExtTreeSet.erase` as a set difference. -/
-theorem oids_erase_eq (K : Oids) (k : Oid) : K.erase k = K \ {k} :=
-  LawfulSet.ext fun x => by
-    rw [Std.ExtTreeSet.mem_erase, LawfulSet.mem_diff, LawfulSet.mem_singleton, Ne,
-      Std.LawfulEqCmp.compare_eq_iff_eq]
-    grind
-
-/-- `Std.ExtTreeMap.insert` is the partial-map insertion of Iris-Lean. -/
-theorem oidMap_insert_eq {V : Type _} (F : OidMap V) (k : Oid) (v : V) :
-    F.insert k v = PartialMap.insert F k v := by
-  refine Std.ExtTreeMap.ext_getElem? fun k' => ?_
-  change (F.insert k v)[k']? = (F.alter k fun _ => some v)[k']?
-  rw [Std.ExtTreeMap.getElem?_insert, Std.ExtTreeMap.getElem?_alter]
-
 /-- `BigSepS.bigSepS_insert` for `Std.ExtTreeSet.insert`. -/
-theorem bigSepS_oids_insert {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids} {k : Oid}
-    (hk : k ∉ K) : ([∗set] x ∈ K.insert k, Φ x) ⊣⊢ Φ k ∗ [∗set] x ∈ K, Φ x := by
-  rw [oids_insert_eq]
+theorem _root_.Lantana.Oids.bigSepS_insert {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids}
+    {k : Oid} (hk : k ∉ K) : ([∗set] x ∈ K.insert k, Φ x) ⊣⊢ Φ k ∗ [∗set] x ∈ K, Φ x := by
+  rw [Oids.insert_eq_singleton_union]
   exact BigSepS.bigSepS_insert hk
 
 /-- `BigSepS.bigSepS_delete` for `Std.ExtTreeSet.erase`. -/
-theorem bigSepS_oids_erase {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids} {k : Oid}
-    (hk : k ∈ K) : ([∗set] x ∈ K, Φ x) ⊣⊢ Φ k ∗ [∗set] x ∈ K.erase k, Φ x := by
-  rw [oids_erase_eq]
+theorem _root_.Lantana.Oids.bigSepS_erase {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids}
+    {k : Oid} (hk : k ∈ K) : ([∗set] x ∈ K, Φ x) ⊣⊢ Φ k ∗ [∗set] x ∈ K.erase k, Φ x := by
+  rw [Oids.erase_eq_diff]
   exact BigSepS.bigSepS_delete hk
 
 variable {GF : BundledGFunctors}
@@ -399,7 +381,7 @@ theorem parBelow_owner (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (p 
 
 /-- The witness bound of a new obligation keeps the witnesses chosen by the environment below the
 old ones. -/
-private theorem wits_mono_new {Ω₁ : Obligations} {W₁ W₂ : Witnesses} {k : Oid} {g : Obligation}
+private theorem witnesses_mono_new {Ω₁ : Obligations} {W₁ W₂ : Witnesses} {k : Oid} {g : Obligation}
     (hI₁ : OWitInvFair Ω₁ W₁) (hW : W₁.NoDischarge W₂) (hI₂ : OWitInvFair (insert Ω₁ k g) W₂) :
     Witnesses.Mono (insert W₁ k (match g with
       | .assigned a _ => .assigned (fairMeasureUb a)
@@ -469,7 +451,7 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
   iframe HH Hos Hf
   isplitl [Hw]
   · isplitl [Hw]
-    · iapply owit_mono (wits_mono_new hI₁ hW hI₂) $$ Hw
+    · iapply owit_mono (witnesses_mono_new hI₁ hW hI₂) $$ Hw
     · ipureintro
       exact hI₂
   iapply mupd_intro
@@ -480,12 +462,12 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
   isplitl [Hx Hk Hs Hsh₁]
   · iframe Hx
     isplitl [Hk]
-    · rw [oids_insert_eq]
+    · rw [Oids.insert_eq_singleton_union]
       iexact Hk
-    · iapply (bigSepS_oids_insert hkK).mpr
+    · iapply (Oids.bigSepS_insert hkK).mpr
       iframe Hsh₁ Hs
   isplitl [HB]
-  · rw [oids_insert_eq]
+  · rw [Oids.insert_eq_singleton_union]
     iexact HB
   isplitl [Hkk Hsh₂]
   · iframe Hsh₂ Hkk
@@ -532,7 +514,7 @@ theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
   iframe HH Hos Hf
   isplitl [Hw]
   · isplitl [Hw]
-    · iapply owit_mono (wits_mono_new hI₁ hW hI₂) $$ Hw
+    · iapply owit_mono (witnesses_mono_new hI₁ hW hI₂) $$ Hw
     · ipureintro
       exact hI₂
   iapply mupd_intro
@@ -616,7 +598,7 @@ theorem obl_move_mupd (n : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k 
   unfold parKids oblFuel oblFuelVal
   rw [modelFuel_one]
   iintro Hb ⟨Hx₁, Hk₁, Hs₁⟩ ⟨Hx₂, Hk₂, Hs₂⟩ HB ⟨-, Hfk⟩
-  icases (bigSepS_oids_erase hk).mp $$ Hs₁ with ⟨Hsk, Hs₁⟩
+  icases (Oids.bigSepS_erase hk).mp $$ Hs₁ with ⟨Hsk, Hs₁⟩
   icases (OSat.fuel_split k _ _).mp $$ Hfk with ⟨Hu, Hπ⟩
   iapply mupd_model_round
   iintro %Ω %tc %X ⟨Hs, Hf⟩
@@ -634,16 +616,16 @@ theorem obl_move_mupd (n : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k 
     exact hkK
   isplitl [Hx₁ Hk₁ Hs₁]
   · iframe Hx₁ Hs₁
-    rw [oids_erase_eq]
+    rw [Oids.erase_eq_diff]
     iexact Hk₁
   isplitl [Hx₂ Hk₂ Hs₂ Hsk]
   · iframe Hx₂
     isplitl [Hk₂]
-    · rw [oids_insert_eq]
+    · rw [Oids.insert_eq_singleton_union]
       iexact Hk₂
-    · iapply (bigSepS_oids_insert hkK).mpr
+    · iapply (Oids.bigSepS_insert hkK).mpr
       iframe Hsk Hs₂
-  · rw [oids_insert_eq]
+  · rw [Oids.insert_eq_singleton_union]
     iexact HB
 
 /-- A grandchild `x`, child of `k`, moves up to the parent `p` of `k`, added to the bill of `p`. -/
@@ -655,7 +637,7 @@ theorem obl_move_up_mupd (n : Nat) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oid
         parKids (.obl k) (Kk.erase x)) := by
   unfold parKids
   iintro ⟨Hx, Hp, Hs⟩ HB ⟨Hxk, Hk, Hsk⟩
-  icases (bigSepS_oids_erase hx).mp $$ Hsk with ⟨Hsx, Hsk⟩
+  icases (Oids.bigSepS_erase hx).mp $$ Hsk with ⟨Hsx, Hsk⟩
   iapply mupd_ghost_round
   iintro %Ω %tc %X ⟨Hos, Hf⟩
   imod oforest_move_up hk hx B $$ [$Hf $Hp $HB $Hk] with ⟨%hxK, Hf, Hp, HB, Hk⟩
@@ -667,15 +649,15 @@ theorem obl_move_up_mupd (n : Nat) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oid
   isplitl [Hx Hp Hs Hsx]
   · iframe Hx
     isplitl [Hp]
-    · rw [oids_insert_eq]
+    · rw [Oids.insert_eq_singleton_union]
       iexact Hp
-    · iapply (bigSepS_oids_insert hxK).mpr
+    · iapply (Oids.bigSepS_insert hxK).mpr
       iframe Hsx Hs
   isplitl [HB]
-  · rw [oids_insert_eq]
+  · rw [Oids.insert_eq_singleton_union]
     iexact HB
   · iframe Hxk Hsk
-    rw [oids_erase_eq]
+    rw [Oids.erase_eq_diff]
     iexact Hk
 
 /-! ### Bills -/
@@ -721,7 +703,7 @@ theorem bill_erase_discharged_mupd (n : Nat) (i : ThreadId) (B : Oids) (k : Oid)
   imod oforest_bill_erase hlive i B $$ [$Hf $Hb] with ⟨Hf, Hb⟩
   imodintro
   iframe Hos Hf
-  rw [oids_erase_eq]
+  rw [Oids.erase_eq_diff]
   iexact Hb
 
 
@@ -803,7 +785,7 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
       mupd n iprop(parKids p (K.erase k) ∗ oblDischarged k) := by
   unfold parKids
   iintro ⟨Hx, Hp, Hs⟩ ⟨Hsh₁, Hkk, -⟩ Ha
-  icases (bigSepS_oids_erase hk).mp $$ Hs with ⟨Hsh₂, Hs⟩
+  icases (Oids.bigSepS_erase hk).mp $$ Hs with ⟨Hsh₂, Hs⟩
   icases (oblAssigned_shares k).mpr $$ [$Ha $Hsh₁ $Hsh₂] with ⟨#He, Ha⟩
   iapply (mupd_unfold n _).2
   unfold mupdPre
@@ -837,7 +819,7 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
   iapply mupd_intro
   isplitl [Hx Hp Hs]
   · iframe Hx Hs
-    rw [oids_erase_eq]
+    rw [Oids.erase_eq_diff]
     iexact Hp
   · unfold oblDischarged
     isplitl []

@@ -117,9 +117,9 @@ theorem invGS_alloc_names {GF : BundledGFunctors.{u}} [InvGpreS GF] :
   · unfold wsat
     iexists ∅
     isplitl
-    · have H : liftInv (∅ : InvMap (IProp GF)) = ∅ := by
+    · have hlift : liftInv (∅ : InvMap (IProp GF)) = ∅ := by
         simp only [liftInv, LawfulPartialMap.map_empty]
-      rw [invMap, H]
+      rw [invMap, hlift]
       iexact Hi
     · iapply BigSepM.bigSepM_empty
       itrivial
@@ -213,14 +213,14 @@ instance uPred_bi_fupd : BIFUpdate (IProp GF) where
     icases (ownE_op Hdisj).mp $$ HE with ⟨HE1, HEf⟩
     imod Hupd $$ [Hwsat HE1] with >⟨Hw, HE2, HP⟩
     · iframe
-    icases (ownE_op_iff (E1 := E2) (E2 := Ef)).mpr $$ [HE2 HEf] with ⟨%Hdisj', HE⟩
+    icases (ownE_op_iff (E1 := E2) (E2 := Ef)).mpr $$ [HE2 HEf] with ⟨%hdisj', HE⟩
     · iframe
     imodintro
     imodintro
     iframe Hw HE
     iapply HP
     ipureintro
-    exact Hdisj'
+    exact hdisj'
   frame_right {_ _ _ _} := by
     simp only [uPredFUpd]
     iintro ⟨Hupd, HR⟩ HwE

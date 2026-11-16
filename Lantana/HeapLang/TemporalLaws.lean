@@ -10,7 +10,7 @@ public import Lantana.Trace.Guarantee
 /-! # The temporal laws of HeapLang
 
 Rocq `lantana_heap_lang/temporal_laws.v`: the heap assertions are state facts (`StateFact`),
-so that they are the atoms of trace specifications: `l ↦{dq} v` says `PointstoSat l dq v`,
+so that they are the atoms of trace specifications: `l ↦{dq} v` says `PointsToSat l dq v`,
 `threadExpr i C e` says `ThreadExprSat i C e`, and a freed location `l ↦{dq} none` says
 `FreedSat l`.
 -/
@@ -36,7 +36,7 @@ theorem freed_stateInterp (σ : State) (tp : ThreadPool Exp) (l : Loc) (dq : DFr
 
 @[lantana_alias pointsto_state_fact]
 instance pointsTo_stateFact (l : Loc) (dq : DFrac) (v : Val) :
-    StateFact (l ↦{dq} some v : IProp GF) (PointstoSat l dq v) where
+    StateFact (l ↦{dq} some v : IProp GF) (PointsToSat l dq v) where
   state_fact σ tp := pointsTo_stateInterp σ tp l dq v
 
 @[lantana_alias thread_expr_state_fact]
@@ -61,17 +61,17 @@ abbrev freedTrSpec {GF : BundledGFunctors} (l : Loc) : TrSpec Exp State GF :=
 /-- A location holds one value at a time (Rocq `tr_pointsto_agree`). -/
 @[lantana_alias tr_pointsto_agree]
 theorem pointsToTr_agree (l : Loc) (dq₁ dq₂ : DFrac) (v₁ v₂ : Val) :
-    (TrProp.state (PointstoSat l dq₁ v₁) ∧ₜ TrProp.state (PointstoSat l dq₂ v₂) :
+    (TrProp.state (PointsToSat l dq₁ v₁) ∧ₜ TrProp.state (PointsToSat l dq₂ v₂) :
       TrProp (Cfg Exp State)) ⊆ ⌜v₁ = v₂⌝ₜ := by
   intro τ ⟨h₁, h₂⟩
-  simp only [TrProp.state, PointstoSat] at h₁ h₂
+  simp only [TrProp.state, PointsToSat] at h₁ h₂
   exact (by simpa using h₁.symm.trans h₂ : v₁ = v₂)
 
 /-- A location is not both allocated and freed (Rocq `tr_pointsto_freed`). -/
 @[lantana_alias tr_pointsto_freed]
-theorem state_pointsto_freed {l : Loc} {dq : DFrac} {v : Val} {τ : Trace (Cfg Exp State)}
-    (h₁ : TrProp.state (PointstoSat l dq v) τ) (h₂ : TrProp.state (FreedSat l) τ) : False := by
-  simp only [TrProp.state, PointstoSat, FreedSat] at h₁ h₂
+theorem state_pointsToSat_freedSat {l : Loc} {dq : DFrac} {v : Val} {τ : Trace (Cfg Exp State)}
+    (h₁ : TrProp.state (PointsToSat l dq v) τ) (h₂ : TrProp.state (FreedSat l) τ) : False := by
+  simp only [TrProp.state, PointsToSat, FreedSat] at h₁ h₂
   exact absurd (h₁.symm.trans h₂) (by simp)
 
 end Lantana.HeapLang

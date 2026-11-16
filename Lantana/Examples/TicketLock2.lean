@@ -768,7 +768,7 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
   lwp_step HT HG HF
   -- The witness induction on `κp` (at `ℓ0 + n < ℓ + (n + 1)`): `50` per credit for the children.
   imod Obl.fuel_extend_set G (tkLayer_lt_omega ℓ (n + 1)) (50 * ▽) $$ HFw with HFw
-  ihave HFw := (bigSepS_insert_oids hκu).mpr $$ [HFw Fκw]
+  ihave HFw := (Oids.bigSepS_insert hκu).mpr $$ [HFw Fκw]
   · iframe
   icases Wit.fuels_init κp (tkLayer ℓ0 n) $$ Wp with ⟨%α, WF⟩
   imod Wit.fuels_add_map κp (tkLayer ℓ0 n) α ∅ (G.insert κu) (tkLayer ℓ (n + 1)) 50
@@ -974,7 +974,7 @@ def ticketEntryTrSpec (curr : Loc) (c n t : Int) : TrSpec Exp State GF :=
   (TrSpec.true ∧ₛ TrSpec.true ∧ₛ TrSpec.true) ∧ₛ
     ((⌜0 ≤ t ∧ t ≤ c⌝ₛ ∧ₛ TrSpec.true) ∨ₛ
       (⌜c + 1 ≤ t ∧ t ≤ n⌝ₛ ∧ₛ
-        ◇ₛ (TrSpec.state (PointstoSat curr half (vInt t)) ∧ₛ TrSpec.true)))
+        ◇ₛ (TrSpec.state (PointsToSat curr half (vInt t)) ∧ₛ TrSpec.true)))
 
 /-- What an acknowledgement guarantees. -/
 def ackEntryTrSpec (c n t : Int) : TrSpec Exp State GF :=
@@ -984,14 +984,14 @@ def ackEntryTrSpec (c n t : Int) : TrSpec Exp State GF :=
 @[lantana_alias ticket_lock2.lock_inv_trSpec]
 def lockInvTrSpec (next curr : Loc) : TrSpec Exp State GF :=
   ∃ₛ (n : Int) (c : Int) (tickets : IntMap Oid) (acks : IntMap Bool),
-    TrSpec.state (PointstoSat next (.own 1) (vInt n)) ∧ₛ
-    TrSpec.state (PointstoSat curr half (vInt c)) ∧ₛ (TrSpec.true ∧ₛ TrSpec.true) ∧ₛ
+    TrSpec.state (PointsToSat next (.own 1) (vInt n)) ∧ₛ
+    TrSpec.state (PointsToSat curr half (vInt c)) ∧ₛ (TrSpec.true ∧ₛ TrSpec.true) ∧ₛ
     ⌜∀ t, (get? tickets t).isSome ↔ (get? acks t).isSome⌝ₛ ∧ₛ ⌜0 ≤ c ∧ c ≤ n⌝ₛ ∧ₛ
     ⌜∀ t, (get? tickets t).isSome ↔ (0 ≤ t ∧ t ≤ n)⌝ₛ ∧ₛ
     (∀ₛ (t : Int) (κ : Oid), ⌜get? tickets t = some κ⌝ₛ →ₛ ticketEntryTrSpec curr c n t) ∧ₛ
     (∀ₛ (t : Int) (a : Bool), ⌜get? acks t = some a⌝ₛ →ₛ ackEntryTrSpec c n t) ∧ₛ
-    ((⌜c = n⌝ₛ ∧ₛ (TrSpec.state (PointstoSat curr half (vInt c)) ∧ₛ TrSpec.true)) ∨ₛ
-      (⌜c < n⌝ₛ ∧ₛ ((TrSpec.true ∧ₛ TrSpec.state (PointstoSat curr half (vInt c)) ∧ₛ
+    ((⌜c = n⌝ₛ ∧ₛ (TrSpec.state (PointsToSat curr half (vInt c)) ∧ₛ TrSpec.true)) ∨ₛ
+      (⌜c < n⌝ₛ ∧ₛ ((TrSpec.true ∧ₛ TrSpec.state (PointsToSat curr half (vInt c)) ∧ₛ
         TrSpec.true) ∨ₛ TrSpec.true)))
 
 /-- The guarantee of a lock (Rocq `fair_lock_trSpec`). -/
@@ -1003,8 +1003,8 @@ def fairLockTrSpec (tl : Val) : TrSpec Exp State GF :=
 @[lantana_alias ticket_lock2.lock_token_trSpec]
 def lockTokenTrSpec (tl : Val) : TrSpec Exp State GF :=
   ∃ₛ (next : Loc) (curr : Loc) (u : Int), ⌜tl = hl_val((#next, #curr))⌝ₛ ∧ₛ
-    (TrSpec.state (PointstoSat curr half (vInt u)) ∧ₛ TrSpec.true ∧ₛ
-      ◇ₛ (TrSpec.state (PointstoSat curr half (vInt (u + 1))) ∧ₛ TrSpec.true))
+    (TrSpec.state (PointsToSat curr half (vInt u)) ∧ₛ TrSpec.true ∧ₛ
+      ◇ₛ (TrSpec.state (PointsToSat curr half (vInt (u + 1))) ∧ₛ TrSpec.true))
 
 variable [ModelGS GF] [HeapGS GF] [TicketLock2G GF]
 
@@ -1051,7 +1051,7 @@ variable {GF : BundledGFunctors}
 /-- `l ↦ v` in the current state of the trace (Rocq `tr_pointsto`). -/
 @[lantana_alias ticket_lock2.tr_pointsto]
 abbrev trPointsTo (l : Loc) (v : Val) : TrProp (Cfg Exp State) :=
-  TrProp.state (PointstoSat l (.own 1) v)
+  TrProp.state (PointsToSat l (.own 1) v)
 
 /-- Starvation freedom of the ticket lock `(next, curr)` (Rocq `starvation_free`): whenever
 `next ↦ n` and `curr ↦ c`, every ticket `t` with `c < t ≤ n` is eventually served. -/
@@ -1061,10 +1061,10 @@ def starvationFree (next curr : Loc) : TrProp (Cfg Exp State) :=
     trPointsTo curr (vInt c) →ₜ ⌜c < t ∧ t ≤ n⌝ₜ →ₜ ◇ₜ trPointsTo curr (vInt t))
 
 /-- Two readings of one location agree. -/
-theorem pointstoSat_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {σ : State}
-    {tp : List Exp} (h₁ : PointstoSat l dq₁ v₁ σ tp) (h₂ : PointstoSat l dq₂ v₂ σ tp) :
+theorem pointsToSat_agree {l : Loc} {dq₁ dq₂ : DFrac} {v₁ v₂ : Val} {σ : State}
+    {tp : List Exp} (h₁ : PointsToSat l dq₁ v₁ σ tp) (h₂ : PointsToSat l dq₂ v₂ σ tp) :
     v₁ = v₂ := by
-  simp only [PointstoSat] at h₁ h₂
+  simp only [PointsToSat] at h₁ h₂
   rw [h₁] at h₂
   simpa using h₂
 
@@ -1080,9 +1080,9 @@ theorem lockInvTrSpec_starvationFree (next curr : Loc) :
   have hb : 0 ≤ c' ∧ c' ≤ n' := hb
   have hdomt : ∀ t, (get? tickets t).isSome ↔ (0 ≤ t ∧ t ≤ n') := hdomt
   obtain rfl : n' = n := by
-    simpa [vInt] using pointstoSat_agree (dq₁ := .own 1) (dq₂ := .own 1) hn' hn
+    simpa [vInt] using pointsToSat_agree (dq₁ := .own 1) (dq₂ := .own 1) hn' hn
   obtain rfl : c' = c := by
-    simpa [vInt] using pointstoSat_agree (dq₁ := half) (dq₂ := .own 1) hc' hc
+    simpa [vInt] using pointsToSat_agree (dq₁ := half) (dq₂ := .own 1) hc' hc
   obtain ⟨κ, hκ⟩ := Option.isSome_iff_exists.mp ((hdomt t).mpr ⟨by omega, ht.2⟩)
   rcases (htk t κ hκ).2 with ⟨ht', -⟩ | ⟨-, m', hm', ⟨hfin, -⟩, -⟩
   · have ht' : 0 ≤ t ∧ t ≤ c' := ht'

@@ -234,13 +234,13 @@ hands in and out when the crashed bits change. -/
 abbrev Th.nodes (tc : Nat) (φ : ThreadId → Prop) : IProp GF :=
   iprop([∗list] j ∈ List.range tc, ⌜φ j⌝ -∗ thActive j ∗ thKids j ∅)
 
-private theorem Par.le_eq (p : Parent) (ℓ : Layer) :
+private theorem Par.le_unfold (p : Parent) (ℓ : Layer) :
     Par.le (GF := GF) p ℓ = Model.OPreds.parLe p ℓ := by
   cases p with
   | thread j => rfl
   | obl q => unfold Par.le; rw [Wit.layer_unfold]
 
-private theorem Par.below_eq (p : Parent) (ℓ : Layer) :
+private theorem Par.below_unfold (p : Parent) (ℓ : Layer) :
     Par.below (GF := GF) p ℓ = Model.OPreds.parBelow p ℓ := by
   cases p with
   | thread j => rfl
@@ -375,7 +375,8 @@ theorem fupd_mupd (E₁ E₂ : CoPset) (P : IProp GF) :
   imodintro
   iframe HT HP
 
-private theorem mupd_bind_aux (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
+@[lantana_alias oblf.sfmupd_bind]
+theorem mupd_bind (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
     (P -∗ mupd (Expr := Expr) (State := State) E₂ E₃ Q) ⊢
       mupd (Expr := Expr) (State := State) E₁ E₂ P -∗
         mupd (Expr := Expr) (State := State) E₁ E₃ Q := by
@@ -388,13 +389,6 @@ private theorem mupd_bind_aux (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
   iapply fupd_mupdBase_elim
   imod HP with ⟨HT, HP⟩
   iapply HPQ $$ HP %h %n %σ %tp HT
-
-@[lantana_alias oblf.sfmupd_bind]
-theorem mupd_bind (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
-    (P -∗ mupd (Expr := Expr) (State := State) E₂ E₃ Q) ⊢
-      mupd (Expr := Expr) (State := State) E₁ E₂ P -∗
-        mupd (Expr := Expr) (State := State) E₁ E₃ Q :=
-  mupd_bind_aux E₁ E₂ E₃ P Q
 
 /-- A base model update at every position is a model update at one mask: how the forest
 operations of the model are lifted. -/
@@ -449,8 +443,8 @@ theorem Th.active_done_false (i : ThreadId) : Th.active (GF := GF) i ⊢ Th.done
   exact Model.OPreds.thActive_done_false i
 
 /-- Fuels at one layer with equal interpretations are equal. -/
-@[lantana_alias oblf.oblP_fuel_proper]
-theorem Obl.fuel_eq (k : Oid) {ℓ : Layer} {μ₁ μ₂ : Measure}
+@[lantana_alias oblf.oblP_fuel_proper, lantana_alias oblP_fuel_eq]
+theorem Obl.fuel_eq_of_rep (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure}
     (h : Measure.rep ℓ μ₁ = Measure.rep ℓ μ₂) :
     Obl.fuel (GF := GF) k ℓ μ₁ ⊣⊢ Obl.fuel k ℓ μ₂ := by
   rw [Obl.fuel_unfold]; exact Model.OPreds.oblFuel_eq_of_rep k ℓ h
@@ -513,7 +507,7 @@ with the discharge once discharged. -/
 def Obl.variant (k : Oid) (P R : IProp GF) : IProp GF :=
   iprop((Obl.assigned k (Qp.half 1) ∗ P) ∨ (Obl.discharged k ∗ R))
 
-@[lantana_alias oblf.oblP_inv_acc]
+@[lantana_alias oblf.oblP_inv_acc, lantana_alias oblP_inv_acc_cases]
 theorem Obl.inv_acc (E : CoPset) (N : Namespace) (k : Oid) (P R : IProp GF) (hN : ↑N ⊆ E) :
     Obl.inv N k P R ⊢ |={E, E \ ↑N}=> ▷ Obl.variant k P R ∗
       (▷ Obl.variant k P R ={E \ ↑N, E}=∗ True) := by
@@ -544,7 +538,7 @@ theorem Wit.fuels_add (k : Oid) {ℓ₁ ℓ₂ : Layer} (α : Fuel) (F : OidMap 
     (f : Oid) (μ : Measure) (h : ℓ₁ < ℓ₂) :
     Wit.fuels (GF := GF) k ℓ₁ α F ⊢ Obl.fuel f ℓ₂ (μ * ▽) ==∗
       Wit.fuels k ℓ₁ α (F.insert f (ℓ₂, μ)) := by
-  rw [Wit.fuels_unfold, Obl.fuel_unfold, Model.OPreds.oidMap_insert_eq]
+  rw [Wit.fuels_unfold, Obl.fuel_unfold, OidMap.insert_eq]
   exact Model.OPreds.witFuels_add k α F f μ h
 
 @[lantana_alias oblf.wit_fuels_decr]
@@ -578,7 +572,7 @@ theorem Obl.new (E : CoPset) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measu
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
         oblKids k ∅ ∗ Obl.assigned k 1 ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ := by
   rw [Par.kids_unfold, Par.bill_unfold, Obl.assigned_unfold, Obl.fuel_unfold, Wit.layer_unfold,
-    Par.le_eq]
+    Par.le_unfold]
   iintro Hb Hp HB
   iapply mupd_of_base
   iintro %n
@@ -598,7 +592,7 @@ theorem Obl.move (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k : 
     Par.below (GF := GF) p₂ ℓ ⊢ Par.kids p₁ K₁ -∗ Par.kids p₂ K₂ -∗ Par.bill p₂ B₂ -∗
       Obl.fuel k ℓ 1 -∗ |={E}=>m ⌜k ∉ K₂⌝ ∗ Par.kids p₁ (K₁.erase k) ∗
         Par.kids p₂ (K₂.insert k) ∗ Par.bill p₂ (B₂.insert k) := by
-  rw [Par.kids_unfold, Par.bill_unfold, Obl.fuel_unfold, Par.below_eq]
+  rw [Par.kids_unfold, Par.bill_unfold, Obl.fuel_unfold, Par.below_unfold]
   iintro Hb H₁ H₂ HB Hf
   iapply mupd_of_base
   iintro %n

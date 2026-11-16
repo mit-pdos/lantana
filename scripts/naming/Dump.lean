@@ -11,7 +11,7 @@ import Lean
 package root on a built tree) prints one TSV row per declaration of `import Module ...` whose
 module is in `Lantana`, `LantanaTest` or `Iris`:
 
-  name, kind, module, private, aliases, result sort, line
+  name, kind, module, private, aliases, result sort, line, statement hash
 
 - kind: theorem, def, abbrev, opaque, instance, class, structure, inductive, ctor, field, axiom;
 - aliases: the Rocq names, `lan:n` from `@[lantana_alias n]` and `iris:n` from Iris-Lean's
@@ -86,4 +86,4 @@ unsafe def main (args : List String) : IO Unit := do
     let ln := match declRangeExt.find? (level := .exported) env n0 with
       | some r => toString r.range.pos.line
       | none => "?"
-    IO.println s!"{n}\t{k}\t{m}\t{priv}\t{al}\t{retSort ci.type}\t{ln}"
+    IO.println s!"{n}\t{k}\t{m}\t{priv}\t{al}\t{retSort ci.type}\t{ln}\t{ci.type.hash}"

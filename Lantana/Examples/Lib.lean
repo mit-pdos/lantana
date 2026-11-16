@@ -11,9 +11,7 @@ public import Lantana.Trace
 
 /-! # Lemmas shared by the examples
 
-* `bigSepS_pair`, `bigSepS_insert_oids`, `Obl.fuels_subset`: big separating conjunctions over
-  two obligations and over a set with one more obligation; the fuel of a set of obligations
-  gives that of a subset.
+* `bigSepS_pair`: a big separating conjunction over two obligations.
 * `pointsTo_halves`: a points-to is two halves.
 * `IntMap`: finite maps from integers (the tickets of the ticket locks).
 * `ghostMapElem_halves`: a ghost map element is two halves.
@@ -45,26 +43,6 @@ theorem bigSepS_pair {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {a b : Oid} (
     (sep_congr BigSepS.bigSepS_singleton BigSepS.bigSepS_singleton)
   rw [Iris.Std.LawfulSet.mem_singleton] at ha hb
   exact ha.symm.trans hb
-
-/-- A big separating conjunction over an obligation set with one more element. -/
-theorem bigSepS_insert_oids {PROP : Type _} [BI PROP] {Φ : Oid → PROP} {K : Oids} {k : Oid}
-    (h : k ∉ K) : ([∗set] y ∈ K.insert k, Φ y) ⊣⊢ Φ k ∗ [∗set] y ∈ K, Φ y := by
-  rw [Iris.Std.insert_eq_singleton_union_extTreeSet]
-  refine (BigSepS.bigSepS_union fun x ⟨hx, hK⟩ => h ?_).trans
-    (sep_congr BigSepS.bigSepS_singleton .rfl)
-  rw [Iris.Std.LawfulSet.mem_singleton] at hx
-  exact hx ▸ hK
-
-section Fuel
-variable {GF : BundledGFunctors} [ModelGS GF]
-
-/-- The fuel of a set of obligations gives that of a subset. -/
-theorem Obl.fuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
-    Obl.fuels (GF := GF) A n ⊢ Obl.fuels B n := by
-  unfold Obl.fuels
-  exact BigSepS.bigSepS_subseteq h
-
-end Fuel
 
 /-! ## Finite maps from integers -/
 
@@ -145,7 +123,7 @@ section Alloc
 variable {GF : BundledGFunctors} [HeapStateGpreS GF]
 
 /-- The ghost state of HeapLang from its names. -/
-abbrev HeapStateGS.ofNames (γh γm γt : GName) : HeapStateGS GF where
+abbrev _root_.Lantana.HeapLang.HeapStateGS.ofNames (γh γm γt : GName) : HeapStateGS GF where
   genHeap := ⟨γh, γm⟩
   threadMap := inferInstance
   threadMapName := γt
@@ -161,7 +139,7 @@ theorem heapState_init (σ : State) (tp : ThreadPool Exp) :
   imod ghost_map_alloc (GF := GF) (K := ThreadId) (V := Exp) (H := ThreadMapF)
     (ThreadPool.toMap tp) with ⟨%γt, Ha, Hfr⟩
   imodintro
-  iexists HeapStateGS.ofNames γh γm γt
+  iexists Lantana.HeapLang.HeapStateGS.ofNames γh γm γt
   isplitl [Hh Ha]
   · unfold HeapLang.stateInterp
     iframe

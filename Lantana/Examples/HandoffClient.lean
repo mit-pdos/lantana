@@ -177,7 +177,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   iapply hfi 0 i (({kl, kc} : Oids).insert g0) (.obl g0) ∅ ∅ 1 1 _ $$ [HT HG Hfi F0fi Kg0]
   · iframe HT HG Kg0
     isplitl [Hfi F0fi]
-    · iapply (bigSepS_insert_oids hg0).mpr
+    · iapply (Oids.bigSepS_insert hg0).mpr
       iframe
     · iapply Par.le_obl (ℓq := 1) g0 (Ordinals.Ordinal.le_refl _) $$ Wg0
   iintro %x %k ⟨HT, -, HG, -, Kg0, -, Hkk, Fk, Htk, #Hflag⟩
@@ -216,7 +216,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
     $$ [HT HG Hhs F0hs Kg0 Fk Hb Htk Hkk]
   · iframe HT HG Hb
     isplitl [Hhs F0hs]
-    · iapply (bigSepS_insert_oids hg0').mpr
+    · iapply (Oids.bigSepS_insert hg0').mpr
       iframe
     isplitl [Kg0]
     · iapply Par.kids_congr _ $$ Kg0

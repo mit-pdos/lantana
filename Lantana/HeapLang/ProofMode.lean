@@ -239,23 +239,6 @@ section Tactic
 variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem}
 
-omit [HeapGS GF] [TemporalInterp Exp State GF] in
-/-- `n + m` units of fuel are `n` units and `m` units. -/
-theorem Obl.fuels_add (G : Oids) (n m : Nat) :
-    Obl.fuels (GF := GF) G ((n + m : Nat) : Measure) ⊢
-      Obl.fuels G (n : Measure) ∗ Obl.fuels G (m : Measure) := by
-  unfold Obl.fuels
-  refine (BigSepS.bigSepS_mono fun _ => ?_).trans BigSepS.bigSepS_sep.mp
-  iintro ⟨%ℓ, H⟩
-  ihave H := (Obl.fuel_eq _ (ℓ := ℓ) (μ₂ := (n : Measure) + (m : Measure))
-    (by rw [Measure.rep_nat_add, Measure.rep_add])).mp $$ H
-  icases (Obl.fuel_add _ ℓ _ _).mp $$ H with ⟨H1, H2⟩
-  isplitl [H1]
-  · iexists ℓ
-    iexact H1
-  · iexists ℓ
-    iexact H2
-
 /-- The `n` pure steps of the redex of `e`, paid with `n` of the `n + m` units of fuel of the
 bill `G`. -/
 @[lantana_alias heap_lang.tac_lwp_pure_simple]
@@ -269,7 +252,7 @@ theorem tac_lwp_pure {e e' : Exp} {φ : Prop} {n : Nat} [hpe : PureExecCtx φ n 
       lWP e @ s; i; E {{ Φ }} := by
   haveI := hpe.pureExecCtx
   iintro HT ⟨%G, %m, %R, %o, ⟨HG, HF, HR⟩, H⟩
-  icases Obl.fuels_add G n m $$ HF with ⟨HF, HFm⟩
+  icases Obl.fuels_add n m G $$ HF with ⟨HF, HFm⟩
   iapply lwp_pure_step (o := o) n e e' φ Φ hφ hn
   iframe HT HG HF HR
   iintro HT HG HW Ho
@@ -297,12 +280,6 @@ section Steps
 
 variable {GF : BundledGFunctors}
 
-/-- No witnesses. -/
-theorem Wit.layers_empty [ModelGS GF] : ⊢ Wit.layers (GF := GF) ∅ := by
-  unfold Wit.layers
-  iapply BigSepS.bigSepS_empty.mpr
-  iempintro
-
 /-- The precondition of a step without witnesses. -/
 theorem stepPre_nil [ModelGS GF] (i : ThreadId) (G : Oids) :
     thCarriers i G ⊢ Obl.fuels G ((1 : Nat) : Measure) -∗ stepPre (GF := GF) i G ∅ := by
@@ -322,12 +299,6 @@ theorem stepPre_wit [ModelGS GF] (i : ThreadId) (G : Oids) (k : Oid) (ℓ : Laye
   iapply BigSepS.bigSepS_singleton.mpr
   iexists ℓ
   iexact Hk
-
-/-- What a step that observes the witness `k` gives back: a credit of `k`, or its discharge. -/
-theorem Wit.creds_singleton [ModelGS GF] (k : Oid) :
-    Wit.creds (GF := GF) {k} ⊢ Wit.cred k 1 ∨ Obl.discharged k := by
-  unfold Wit.creds
-  exact BigSepS.bigSepS_singleton.mp
 
 variable [ModelGS GF] [HeapGS GF] [TemporalInterp Exp State GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem}

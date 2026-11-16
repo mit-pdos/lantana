@@ -93,7 +93,7 @@ instance isFlag_persistent (l : Loc) (k : Oid) (ℓ : Layer) :
 
 /-- `l ↦ v` as a trace specification. -/
 abbrev pointsToSpec (l : Loc) (v : Val) : TrSpec Exp State GF :=
-  TrSpec.state (PointstoSat l (DFrac.own 1) v)
+  TrSpec.state (PointsToSat l (DFrac.own 1) v)
 
 /-- The specification inferred from `isFlag`: always, `0` until `1` or `1`. -/
 @[lantana_alias flag_trSpec]
@@ -131,7 +131,7 @@ instance guarOf_flagTk (l : Loc) (k : Oid) :
 
 /-- `l ↦ v` as a trace property. -/
 abbrev pointsToTr (l : Loc) (v : Val) : TrProp (Cfg Exp State) :=
-  TrProp.state (PointstoSat l (DFrac.own 1) v)
+  TrProp.state (PointsToSat l (DFrac.own 1) v)
 
 /-- The response property: whenever the flag is `0`, it is eventually `1`. -/
 @[lantana_alias flag_response]
@@ -500,7 +500,7 @@ def flagRun (l : Loc) (n : Nat) : Cfg Exp State :=
 @[lantana_alias flag_run_at]
 theorem flagRun_at (l : Loc) (m : Nat) (v : Val) :
     pointsToTr l v ⟨m, flagRun l⟩ ↔ v = if m = 0 ∨ m = 2 then v0 else v1 := by
-  simp only [TrProp.state, Trace.now, flagRun, PointstoSat]
+  simp only [TrProp.state, Trace.now, flagRun, PointsToSat]
   rw [Std.ExtTreeMap.getElem?_insert_self]
   simp [eq_comm]
 

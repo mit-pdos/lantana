@@ -100,8 +100,8 @@ theorem ghostMapPElem_valid_2 (γ : GName) (k : K) (dq1 dq2 : DFrac) (v1 v2 : V)
       ✓ (dq1 • dq2) ∧ ⌜v1 = v2⌝ := by
   unfold ghostMapPElem
   iintro ⟨H1, H2⟩
-  icombine H1 H2 gives %H
-  obtain ⟨vdq, va⟩ := frag_op_valid_iff.mp H
+  icombine H1 H2 gives %h
+  obtain ⟨vdq, va⟩ := frag_op_valid_iff.mp h
   ipureintro
   exact ⟨vdq, congrArg (·.car) (toAgree_op_valid_iff_eq.mp va)⟩
 
@@ -153,11 +153,11 @@ theorem ghostMapP_alloc [DecidableEq K] (m : H V) :
     iapply BIUpdate.mono <| sep_mono_right <| bigOpM_iOwn_entail γ _ m
     iapply BIUpdate.mono <| iOwn_op.mp
     iapply iOwn_update $$ G
-    have H := update_big_alloc _ (Std.PartialMap.map (fun x : V ↦ toAgree (DiscreteO.mk x)) m) _
+    have hupd := update_big_alloc _ (Std.PartialMap.map (fun x : V ↦ toAgree (DiscreteO.mk x)) m) _
         (disjoint_empty_right _) DFrac.valid_own_one
         (all_map fun _ _ => Agree.toAgree_valid)
-    rw [union_empty_right, BigOpM.bigOpM_map_eq] at H
-    exact H
+    rw [union_empty_right, BigOpM.bigOpM_map_eq] at hupd
+    exact hupd
 
 theorem ghostMapP_lookup {γ dq} {m : H V} {k : K} {dq' v} :
     ⊢@{IProp GF} (γ ↪●PMAP{dq} m) -∗ (γ ↪◯PMAP[k]{dq'} v) -∗ ⌜get? m k = some v⌝ := by
@@ -168,12 +168,12 @@ theorem ghostMapP_lookup {γ dq} {m : H V} {k : K} {dq' v} :
   have ⟨av', _, _, h_av', _, h⟩ := auth_op_frag_valid_total_discrete_iff G
   cases h₂ : get? m k <;> grind [LawfulPartialMap.get?_map, Agree.toAgree_included]
 
-theorem ghostMapP_insert {γ} {m : H V} (k : K) (v : V) (Heq : get? m k = .none) :
+theorem ghostMapP_insert {γ} {m : H V} (k : K) (v : V) (heq : get? m k = .none) :
     ⊢@{IProp GF} (γ ↪●PMAP m) ==∗ (γ ↪●PMAP insert m k v) ∗ γ ↪◯PMAP[k] v := by
   unfold ghostMapPAuth ghostMapPElem
   iintro H
   imod iOwn_update (update_one_alloc (k := k) (v1 := toAgree ⟨v⟩)
-    (by simp [LawfulPartialMap.get?_map, Heq])
+    (by simp [LawfulPartialMap.get?_map, heq])
     DFrac.valid_own_one
     Agree.toAgree_valid) $$ H with H
   icases H with ⟨H, $⟩
@@ -192,12 +192,12 @@ theorem ghostMapP_delete {γ} {m : H V} (k : K) (v : V) :
 
 theorem ghostMapP_update {γ} {m : H V} {k : K} {v : V} (w : V) :
     ⊢@{IProp GF} (γ ↪●PMAP m) -∗ (γ ↪◯PMAP[k] v) ==∗ (γ ↪●PMAP insert m k w) ∗ γ ↪◯PMAP[k] w := by
-  iintro auth_m frag_kv
-  ihave >aux := ghostMapP_delete $$ auth_m frag_kv
-  ihave >⟨aux, $⟩ := ghostMapP_insert _ w (get?_delete_eq rfl) $$ aux
+  iintro Hauth Hfrag
+  ihave >Haux := ghostMapP_delete $$ Hauth Hfrag
+  ihave >⟨Haux, $⟩ := ghostMapP_insert _ w (get?_delete_eq rfl) $$ Haux
   imodintro
   unfold ghostMapPAuth
-  iapply iOwn_ord_mono $$ aux
+  iapply iOwn_ord_mono $$ Haux
   exact auth_ord_of_map_eq _ (map_equiv insert_delete.symm)
 
 end lemmas

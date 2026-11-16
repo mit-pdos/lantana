@@ -61,7 +61,7 @@ class SatBUpd (S : SatPred GF) : Prop where
 
 /-- The existential property over `X` (Transfinite Iris: `SatisfiableExists X`). -/
 class SatExists (S : SatPred GF) (X : Type v) : Prop where
-  exists_ {Φ : X → IProp GF} : S.sat iprop(∃ x, Φ x) → ∃ x, S.sat (Φ x)
+  «exists» {Φ : X → IProp GF} : S.sat iprop(∃ x, Φ x) → ∃ x, S.sat (Φ x)
 
 /-- Satisfiability eliminates relational updates. -/
 @[lantana_alias SatisfiableRUpd]
@@ -120,7 +120,7 @@ theorem sat_laterN [SatLater S] {P : IProp GF} (n : Nat) : S.sat iprop(▷^[n] P
 theorem sat_bupd [SatBUpd S] {P : IProp GF} : S.sat iprop(|==> P) → S.sat P := SatBUpd.bupd
 
 theorem sat_exists {X : Type v} [SatExists S X] {Φ : X → IProp GF} :
-    S.sat iprop(∃ x, Φ x) → ∃ x, S.sat (Φ x) := SatExists.exists_
+    S.sat iprop(∃ x, Φ x) → ∃ x, S.sat (Φ x) := SatExists.exists
 
 theorem sat_or [SatExists S Bool] {P Q : IProp GF} : S.sat iprop(P ∨ Q) → S.sat P ∨ S.sat Q := by
   intro h
@@ -184,11 +184,11 @@ instance iPropSat_bupd : SatBUpd (iPropSat (GF := GF)) where
 
 /-- The existential property of the model, for types small enough for the step index. -/
 instance iPropSat_exists {X : Type v} [SIdxLarge SI X] : SatExists (iPropSat (GF := GF)) X where
-  exists_ h := UPred.satisfiable_exists h
+  «exists» h := UPred.satisfiable_exists h
 
 /-- Finite existentials hold for every type of step indices. -/
 instance (priority := high) iPropSat_exists_bool : SatExists (iPropSat (GF := GF)) Bool where
-  exists_ h := UPred.satisfiable_finite_exists (Q := fun _ => True) [true, false]
+  «exists» h := UPred.satisfiable_finite_exists (Q := fun _ => True) [true, false]
     (fun b _ => by cases b <;> simp) (fun _ => pure_intro trivial) h
 
 end IPropSat
@@ -216,7 +216,7 @@ instance satFrame_bupd [SatBUpd S] : SatBUpd (satFrame S F) where
   bupd h := S.sat_bupd (S.mono bupd_frame_left h)
 
 instance satFrame_exists {X : Type v} [SatExists S X] : SatExists (satFrame S F) X where
-  exists_ h := S.sat_exists (S.mono sep_exists_left.mp h)
+  «exists» h := S.sat_exists (S.mono sep_exists_left.mp h)
 
 @[lantana_alias sat_frame_rupd]
 instance satFrame_rupd {X : Type v} [RUpdG GF X] [SatRUpd S] : SatRUpd (satFrame S F) where

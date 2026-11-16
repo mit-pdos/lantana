@@ -95,7 +95,7 @@ theorem except0_inv (N : Namespace) (P : IProp GF) : ⊢ ◇ inv N P -∗ inv N 
   simp only [inv]
   iintro #H
   imodintro
-  iintro %E %Hsub
+  iintro %E %hsub
   imod H
   iapply H
   itrivial
@@ -134,23 +134,23 @@ open Iris.Std LawfulSet
 variable {GF : BundledGFunctors.{u}} [InvGS GF]
 
 @[lantana_alias own_inv_acc]
-theorem own_inv_acc (E : CoPset) (N : Namespace) (P : IProp GF) (Hsub : ↑N ⊆ E) :
+theorem own_inv_acc (E : CoPset) (N : Namespace) (P : IProp GF) (hsub : ↑N ⊆ E) :
     ⊢ ownInv N P ={E, E \ ↑N}=∗ ▷ P ∗ (▷ P ={E \ ↑N, E}=∗ True) := by
   simp only [ownInv, fupd, uPredFUpd]
-  iintro ⟨%i, %Hin, #Hown⟩ ⟨Hwsat, HE⟩
-  have Hsub' : ({i} : CoPset) ⊆ ↑N := by
+  iintro ⟨%i, %hin, #Hown⟩ ⟨Hwsat, HE⟩
+  have hsub' : ({i} : CoPset) ⊆ ↑N := by
     intro x; simp only [mem_singleton]
     rintro ⟨⟩
-    apply Hin
-  have HEEQ : ↑N ∪ (E \ ↑N) = E := by
-    rw [union_comm, ←diff_subset_decomp Hsub]
-  have HNEQ : {i} ∪ (nclose N \ {i}) = ↑N := by
-    rw [union_comm, ←diff_subset_decomp Hsub']
+    apply hin
+  have hEeq : ↑N ∪ (E \ ↑N) = E := by
+    rw [union_comm, ←diff_subset_decomp hsub]
+  have hNeq : {i} ∪ (nclose N \ {i}) = ↑N := by
+    rw [union_comm, ←diff_subset_decomp hsub']
   ihave HE : ownE (↑N ∪ (E \ ↑N)) $$ [HE]
-  · rw [HEEQ]; iexact HE
+  · rw [hEeq]; iexact HE
   icases ownE_op disjoint_diff_right $$ HE with ⟨HE1, HE2⟩
   ihave HE1 : ownE ({i} ∪ (nclose N \ {i})) $$ [HE1]
-  · rw [HNEQ]; iexact HE1
+  · rw [hNeq]; iexact HE1
   icases ownE_op disjoint_diff_right $$ HE1 with ⟨HE1, HE3⟩
   imodintro
   imodintro
@@ -161,9 +161,9 @@ theorem own_inv_acc (E : CoPset) (N : Namespace) (P : IProp GF) (Hsub : ↑N ⊆
   imodintro
   icases ownI_close $$ [$HP $Hwsat $HD $Hown] with ⟨$, HE1⟩
   icases ownE_op disjoint_diff_right $$ [$HE1 $HE3] with HE1
-  rw [HNEQ]
+  rw [hNeq]
   icases ownE_op disjoint_diff_right $$ [$HE1 $HE] with HE
-  rw [HEEQ]
+  rw [hEeq]
   iframe
 
 @[lantana_alias fresh_inv_name]
@@ -175,32 +175,32 @@ theorem own_inv_alloc (N : Namespace) (E : CoPset) (P : IProp GF) :
   ⊢ ▷ P ={E}=∗ ownInv N P := by
   simp only [ownInv, fupd, uPredFUpd]
   iintro HP ⟨Hw, HE⟩
-  imod ownI_alloc (· ∈ (↑N : CoPset)) P $$ [HP Hw] with ⟨%i, %Hin, Hw, HI⟩
+  imod ownI_alloc (· ∈ (↑N : CoPset)) P $$ [HP Hw] with ⟨%i, %hin, Hw, HI⟩
   · intro E; apply fresh_name
   · isplitl [Hw] <;> iassumption
   · imodintro; imodintro; iframe
     itrivial
 
 @[lantana_alias own_inv_alloc_open]
-theorem own_inv_alloc_open (N : Namespace) (E : CoPset) (P : IProp GF) (Hsub : ↑N ⊆ E) :
+theorem own_inv_alloc_open (N : Namespace) (E : CoPset) (P : IProp GF) (hsub : ↑N ⊆ E) :
     ⊢ |={E, E \ ↑N}=> ownInv N P ∗ (▷P ={E \ ↑N, E}=∗ True) := by
   simp only [ownInv, fupd, uPredFUpd]
   iintro ⟨Hw, HE⟩
-  imod ownI_alloc_open $$ Hw with ⟨%i, %Hin, Hcont, #HI, HD⟩
+  imod ownI_alloc_open $$ Hw with ⟨%i, %hin, Hcont, #HI, HD⟩
   · intro _; apply fresh_name
-  have Hsub' : ({i} : CoPset) ⊆ ↑N := by
+  have hsub' : ({i} : CoPset) ⊆ ↑N := by
     intro x; simp only [mem_singleton]
     rintro ⟨⟩
-    apply Hin
-  have HEEQ : ↑N ∪ (E \ ↑N) = E := by
-    rw [union_comm, ←diff_subset_decomp Hsub]
-  have HNEQ : {i} ∪ (nclose N \ {i}) = ↑N := by
-    rw [union_comm, ←diff_subset_decomp Hsub']
+    apply hin
+  have hEeq : ↑N ∪ (E \ ↑N) = E := by
+    rw [union_comm, ←diff_subset_decomp hsub]
+  have hNeq : {i} ∪ (nclose N \ {i}) = ↑N := by
+    rw [union_comm, ←diff_subset_decomp hsub']
   ihave HE : ownE (↑N ∪ (E \ ↑N)) $$ [HE]
-  · rw [HEEQ]; iexact HE
+  · rw [hEeq]; iexact HE
   icases ownE_op disjoint_diff_right $$ HE with ⟨HE1, HEN⟩
   ihave HE1 : ownE ({i} ∪ (nclose N \ {i})) $$ [HE1]
-  · rw [HNEQ]; iexact HE1
+  · rw [hNeq]; iexact HE1
   icases ownE_op disjoint_diff_right $$ HE1 with ⟨HEi, HENi⟩
   imodintro
   imodintro
@@ -223,11 +223,11 @@ theorem own_inv_alloc_open (N : Namespace) (E : CoPset) (P : IProp GF) (Hsub : �
   icases ownE_op disjoint_diff_right $$ [HENi HE1] with HE1
   · isplitl [HE1]; iassumption
     iassumption
-  rw [HNEQ]
+  rw [hNeq]
   icases ownE_op disjoint_diff_right $$ [HE1 HE] with HE
   · isplitl [HE1]; iassumption
     iassumption
-  rw [HEEQ]
+  rw [hEeq]
   isplitl [HE]; iassumption
   apply true_intro
 
@@ -237,8 +237,8 @@ theorem own_inv_to_inv (M : Namespace) (P : IProp GF) :
   simp only [inv]
   iintro #I
   imodintro
-  iintro %E %Hsub
-  iapply own_inv_acc _ _ _ Hsub $$ I
+  iintro %E %hsub
+  iapply own_inv_acc _ _ _ hsub $$ I
 
 end BasicLemmas
 
@@ -255,9 +255,9 @@ theorem inv_alloc (N : Namespace) (E : CoPset) (P : IProp GF) :
   iapply own_inv_to_inv $$ H
 
 @[lantana_alias inv_alloc_open]
-theorem inv_alloc_open (N : Namespace) (E : CoPset) (P : IProp GF) (Hsub : ↑N ⊆ E) :
+theorem inv_alloc_open (N : Namespace) (E : CoPset) (P : IProp GF) (hsub : ↑N ⊆ E) :
     ⊢ |={E, E \ ↑N}=> inv N P ∗ (▷ P ={E \ ↑N, E}=∗ True) := by
-  imod own_inv_alloc_open _ _ P Hsub with ⟨Hown, Hcl⟩
+  imod own_inv_alloc_open _ _ P hsub with ⟨Hown, Hcl⟩
   imodintro
   isplitr [Hcl]
   · iapply own_inv_to_inv $$ Hown
@@ -273,7 +273,7 @@ variable {GF : BundledGFunctors.{u}} [InvGS GF]
 
 /-- Open an invariant: it gives `▷ P` and the means to close it. -/
 @[lantana_alias inv_acc]
-theorem inv_acc {E : CoPset} {N : Namespace} {P : IProp GF} (Hsub : ↑N ⊆ E) :
+theorem inv_acc {E : CoPset} {N : Namespace} {P : IProp GF} (hsub : ↑N ⊆ E) :
     ⊢ inv N P ={E, E \ ↑N}=∗ ▷ P ∗ (▷ P ={E \ ↑N, E}=∗ True) := by
   simp only [inv]
   iintro #HI
@@ -281,13 +281,13 @@ theorem inv_acc {E : CoPset} {N : Namespace} {P : IProp GF} (Hsub : ↑N ⊆ E) 
   ipureintro; assumption
 
 @[lantana_alias inv_acc_strong]
-theorem inv_acc_strong {E : CoPset} {N : Namespace} {P : IProp GF} (Hsub : ↑N ⊆ E) :
+theorem inv_acc_strong {E : CoPset} {N : Namespace} {P : IProp GF} (hsub : ↑N ⊆ E) :
     ⊢ inv N P ={E, E \ ↑N}=∗ ▷ P ∗ ∀ E', ▷ P ={E', ↑N ∪ E'}=∗ True := by
   iintro Hinv
   icases inv_acc subset_refl $$ Hinv with H
   rw [diff_all]
   icases fupd_mask_frame_right disjoint_diff_right (Ef := (E \ ↑N)) $$ H with H
-  rw [union_empty_left, ←union_comm, ←diff_subset_decomp Hsub]
+  rw [union_empty_left, ←union_comm, ←diff_subset_decomp hsub]
   imod H with ⟨HP, H⟩
   imodintro
   isplitl [HP]; iassumption
@@ -299,19 +299,19 @@ theorem inv_acc_strong {E : CoPset} {N : Namespace} {P : IProp GF} (Hsub : ↑N 
 
 @[lantana_alias inv_acc_timeless]
 theorem inv_acc_timeless {E : CoPset} {N : Namespace} {P : IProp GF} [Timeless P]
-    (Hsub : ↑N ⊆ E) : ⊢ inv N P ={E, E \ ↑N}=∗ P ∗ (P ={E \ ↑N, E}=∗ True) := by
+    (hsub : ↑N ⊆ E) : ⊢ inv N P ={E, E \ ↑N}=∗ P ∗ (P ={E \ ↑N, E}=∗ True) := by
   iintro HI
-  imod inv_acc Hsub $$ HI with ⟨>HP, H⟩
+  imod inv_acc hsub $$ HI with ⟨>HP, H⟩
   imodintro
   isplitl [HP]; iassumption
   iintro HP
   iapply H
   inext; iassumption
 
-theorem inv_open_fupd {E : CoPset} {N : Namespace} {P Q R : IProp GF} (Hsub : ↑N ⊆ E) :
+theorem inv_open_fupd {E : CoPset} {N : Namespace} {P Q R : IProp GF} (hsub : ↑N ⊆ E) :
     ⊢ inv N P -∗ (▷ P ∗ Q ={E \ N}=∗ P ∗ R) -∗ Q ={E}=∗ R := by
   iintro #Hinv H HQ
-  imod inv_acc Hsub $$ Hinv with ⟨HP, Hclose⟩
+  imod inv_acc hsub $$ Hinv with ⟨HP, Hclose⟩
   imod H $$ [$] with ⟨HP, HR⟩; iframe
   imod Hclose $$ [$HP] with -
   itrivial
@@ -385,27 +385,27 @@ open Iris.Std LawfulSet
 variable {GF : BundledGFunctors.{u}} [InvGS GF]
 
 @[lantana_alias inv_combine]
-theorem inv_combine [SIdxFinite SI] (N1 N2 N : Namespace) (P Q : IProp GF) (Hdisj : N1 ## N2)
-    (Hsub : ↑N1 ∪ ↑N2 ⊆ (↑N : CoPset)) : ⊢ inv N1 P -∗ inv N2 Q -∗ inv N iprop(P ∗ Q) := by
+theorem inv_combine [SIdxFinite SI] (N1 N2 N : Namespace) (P Q : IProp GF) (hdisj : N1 ## N2)
+    (hsub : ↑N1 ∪ ↑N2 ⊆ (↑N : CoPset)) : ⊢ inv N1 P -∗ inv N2 Q -∗ inv N iprop(P ∗ Q) := by
   simp only [inv]
   iintro #HI1 #HI2
   imodintro
-  iintro %E %Hsub'
+  iintro %E %hsub'
   imod HI1 $$ %E [] with ⟨HP, H1⟩
   · ipureintro
-    exact subset_trans (subset_trans union_subset_left Hsub) Hsub'
+    exact subset_trans (subset_trans union_subset_left hsub) hsub'
   imod HI2 $$ %(E \ ↑N1) [] with ⟨HQ, H2⟩
   · ipureintro
     intro x; simp only [mem_diff]
-    specialize Hsub x; simp only [mem_union] at Hsub
-    specialize Hsub' x
-    specialize Hdisj x
+    specialize hsub x; simp only [mem_union] at hsub
+    specialize hsub' x
+    specialize hdisj x
     grind
   iapply fupd_mask_intro
   · intro x; simp only [mem_diff, mem_diff]
-    specialize Hsub x; simp only [mem_union] at Hsub
-    specialize Hsub' x
-    specialize Hdisj x
+    specialize hsub x; simp only [mem_union] at hsub
+    specialize hsub' x
+    specialize hdisj x
     grind
   iintro Hcl
   isplitl [HP HQ]; inext; isplitl [HP] <;> iassumption

@@ -227,10 +227,10 @@ and that terminated and crashed threads own none.
 - **Moves.**  In Rocq `oforest_move_same` takes a piece `π` with
   `obl_fuel_of Ω q < π ≤ obl_fuel_of Ω k`; here it takes the forest's condition
   `Ω.fuelOf q < Ω.fuelOf k` and a `forestPiece`.
-- **One layer in `Obl.fuel_eq`.**  Rocq's `oblP_fuel_proper` takes two layers and `ℓ1 == ℓ2`;
-  `Obl.fuel_eq` takes one layer.  Without the equality it would be unsound: `rep ℓ 1 = rep ℓ' 1`,
-  while the model fuels differ by the `▽` of the encoding, and `Obl.fuel_extend` with
-  `Obl.fuel_add` would duplicate fuel.
+- **One layer in `Obl.fuel_eq_of_rep`.**  Rocq's `oblP_fuel_proper` takes two layers and
+  `ℓ1 == ℓ2`; `Obl.fuel_eq_of_rep` takes one layer.  Without the equality it would be unsound:
+  `rep ℓ 1 = rep ℓ' 1`, while the model fuels differ by the `▽` of the encoding, and
+  `Obl.fuel_extend` with `Obl.fuel_add` would duplicate fuel.
 - **Finite maps and sets.**  The union of `OidMap = Std.ExtTreeMap` takes the values of its right
   argument, so Rocq's `G ∪ F` is `F ∪ G` here (`Wit.fuels_add_map_gen`, `embedFuels_add_map`).
   Rocq's `{[k]} ∪ K` and `K ∖ {[k]}` are `K.insert k` and `K.erase k`; sets moved at once use

@@ -220,7 +220,7 @@ def runStepPost (c : Nat) (h : List (HistEntry Expr State)) (n : Nat)
   iprop(∃ (σ' : State) (tp' : ThreadPool Expr) (Ψ' : ThreadId → Val → IProp GF)
       (g' : List MEvent) (v' : Nat) (Ω' : Obligations) (W' : Witnesses),
     ⌜OWitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
-      OblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' ∧
+      ObligationsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' ∧
       (τf n).NotStuck ∧ tp.length ≤ tp'.length ∧ (∀ j, j < tp.length → Ψ' j = Ψ j)⌝ ∗
     £ₙ c ∗ historyTInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
     modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) ∗ threadsRun tp' Ψ')
@@ -252,13 +252,13 @@ theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → I
   iapply H $$ %h %n %σ %tp %(Language.Context.fillEmpty (Ectx := Ectx)) %hi
 
 omit L [TemporalInterp Expr State GF] in
-/-- `get_oblsThreadActive`, keeping the model. -/
-theorem oblsThreadActive_keep {tp : ThreadPool Expr} {σ : State} {ρ : Cfg Expr State}
+/-- `get_obligationsThreadActive`, keeping the model. -/
+theorem obligationsThreadActive_keep {tp : ThreadPool Expr} {σ : State} {ρ : Cfg Expr State}
     (hρ : ρ = (tp, σ)) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) (n : Nat) :
     doneTokens tp ∗ modelInterp (GF := GF) g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ⊢
-      modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗ ⌜OblsThreadActive Ω ρ⌝ := by
+      modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗ ⌜ObligationsThreadActive Ω ρ⌝ := by
   subst hρ
-  exact (persistent_entails_left (get_oblsThreadActive (ρ := (tp, σ)) rfl g v Ω W n)).trans
+  exact (persistent_entails_left (get_obligationsThreadActive (ρ := (tp, σ)) rfl g v Ω W n)).trans
     (sep_mono_left sep_elim_right)
 
 /-- The threads after a step of `i` to `e₂` forking `efs`, after the model updates of the
@@ -315,9 +315,9 @@ theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     exact .inr (.inl ⟨e, he, hv⟩)
   iintro ⟨HH, HM, HT⟩
   icases persistent_entails_left (threadsRun_doneTokens tp Ψ) $$ HT with ⟨HT, #HD⟩
-  icases oblsThreadActive_keep hnow g v Ω W n $$ [$HD $HM] with ⟨HM, %hact⟩
-  have hLb' := owitInvLb_step_na_turn hcnt hna hact hLb
-  have hdrop := oblsDrop_na hcnt hna hact
+  icases obligationsThreadActive_keep hnow g v Ω W n $$ [$HD $HM] with ⟨HM, %hact⟩
+  have hLb' := owitInvLb_step_inactive_turn hcnt hna hact hLb
+  have hdrop := obligationsDrop_inactive hcnt hna hact
   imod historyTInterp_stutter h n σ tp $$ HH with HH
   imod modelInterp_step_idx g v Ω W n tp.length _ $$ HM with HM
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
@@ -359,13 +359,13 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     Hi %g %v %Ω %W %tp.length %(Cfg.Crashed (tp, σ)) %hLb HM
     with ⟨⟨%_, Hi⟩, %g₀, %v₀, %Ω₀, %W₀, %⟨hle₀, hLb₀⟩, HM⟩
   icases Model.modelInterp_owitInv' _ _ _ _ _ _ _ $$ HM with ⟨HM, %hI₀⟩
-  icases oblsThreadActive_keep hnow _ _ Ω₀ W₀ n $$ [$HD $HM] with ⟨HM, %hact₀⟩
+  icases obligationsThreadActive_keep hnow _ _ Ω₀ W₀ n $$ [$HD $HM] with ⟨HM, %hact₀⟩
   ispecialize Hi $$ %obs %e₂ %σ₂ %efs %hprim
   imod mprog_modelInterp n tp.length _ i _ $$ Hi %(g ++ g₀) %(v + v₀) %Ω₀ %W₀ HM
     with ⟨%Ω₂, %hprog, Hk⟩
   obtain ⟨W₂, hW₂, hI₂, hLb₂⟩ := mprog_exists_step hi hact₀ hI₀ hLb₀ hcnt hprog
   imod Hk $$ %W₂ %(⟨hW₂, hI₂⟩) with ⟨HM, Hi⟩
-  icases oblsThreadActive_keep hnow _ _ Ω₂ W₂ n $$ [$HD $HM] with ⟨HM, %hact₂⟩
+  icases obligationsThreadActive_keep hnow _ _ Ω₂ W₂ n $$ [$HD $HM] with ⟨HM, %hact₂⟩
   imod mphys_modelInterp_run n (n + 1) tp.length (tp.length + efs.length) _ _
     (fairMeasure (γ (n + 1))) hγn1 _ $$ Hi %_ %_ %Ω₂ %W₂ %hLb₂ HM with Hi
   imodintro
@@ -389,7 +389,7 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   iframe Hc HH HM HT
   ipureintro
   exact ⟨hLb₅, histTrace_snoc hh hlen hcfg,
-    oblsDrop_step hi hcnt hle₀ hprog
+    obligationsDrop_step hi hcnt hle₀ hprog
       (Obligations.le_trans hle₃ (Obligations.le_trans hle₄ hle₅)) hact₂, hns,
     by omega, fun _ hj => postFork_lt hj⟩
 

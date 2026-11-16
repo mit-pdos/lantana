@@ -180,7 +180,7 @@ theorem threadExpr_read (σ : State) (tp : ThreadPool Exp) (i : ThreadId) (C : L
 
 @[lantana_alias pointsto_state_interp]
 theorem pointsTo_stateInterp (σ : State) (tp : ThreadPool Exp) (l : Loc) (dq : DFrac) (v : Val) :
-    stateInterp (GF := GF) σ tp ∗ l ↦{dq} some v ⊢ ⌜PointstoSat l dq v σ tp⌝ := by
+    stateInterp (GF := GF) σ tp ∗ l ↦{dq} some v ⊢ ⌜PointsToSat l dq v σ tp⌝ := by
   unfold stateInterp genHeapInterp pointsTo
   iintro ⟨⟨⟨%m, -, Hh, -⟩, -⟩, Hl⟩
   ihave %h := ghost_map_lookup $$ Hh Hl
@@ -332,21 +332,6 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
     · iexact HW
   · iexact HΨ
 
-omit [HeapGS GF] [TemporalInterp Exp State GF] in
-/-- The credits of `m + 1` steps give those of one step. -/
-theorem Wit.creds_of_nat (R : Oids) (m : Nat) :
-    ([∗set] r ∈ R, Wit.cred (GF := GF) r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) ⊢
-      Wit.creds R := by
-  unfold Wit.creds
-  refine BigSepS.bigSepS_mono fun _ => ?_
-  iintro (H | #H)
-  · ileft
-    rw [show ((m + 1 : Nat) : Fuel) = (m : Fuel) +ₕ 1 from (Ordinals.Ordinal.nadd_ofNat m 1).symm]
-    icases (Wit.cred_split _ _ _).mp $$ H with ⟨-, H⟩
-    iexact H
-  · iright
-    iexact H
-
 @[lantana_alias heap_lang.lwp_pure_step]
 theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IProp GF)
     [Language.PureExec φ n e₁ e₂] (hφ : φ) (hn : 0 < n) :
@@ -367,20 +352,6 @@ theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IPro
       Ordinals.Ordinal.jmul_succ]
     icases tlc_split.mp $$ Ho with ⟨Ho, -⟩
     iexact Ho
-
-/-! ### Changing the set of a node or a bill -/
-
-omit [HeapGS GF] [TemporalInterp Exp State GF] in
-/-- A node with the same members. -/
-theorem Par.kids_congr {p : Parent} {A B : Oids} (h : ∀ k, k ∈ A ↔ k ∈ B) :
-    Par.kids (GF := GF) p A ⊢ Par.kids p B := by
-  rw [Std.ExtTreeSet.ext_mem h]
-
-omit [HeapGS GF] [TemporalInterp Exp State GF] in
-/-- A bill with the same members. -/
-theorem Th.carriers_congr {j : ThreadId} {A B : Oids} (h : ∀ k, k ∈ A ↔ k ∈ B) :
-    Th.carriers (GF := GF) j A ⊢ Th.carriers j B := by
-  rw [Std.ExtTreeSet.ext_mem h]
 
 #lantana_ignore heap_lang.lwp_fork_step
   "`lwp_fork` is proved directly from `lwp_lift_atomic_base_step`, without a step lemma."

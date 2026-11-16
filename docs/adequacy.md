@@ -97,7 +97,7 @@ about the run `τf : Nat → Cfg Expr State`, which the adequacy proof threads a
 - `OWitInvLb (fairMeasure (γ n)) Ω W`: the witnesses are bounded below by the fair-scheduler
   measures of the current counters.
 - `HistTrace h τf`: the ghost history is a prefix of the run.
-- Across a step, `OblsDrop`: the measure of every assigned obligation drops (§5.4).
+- Across a step, `ObligationsDrop`: the measure of every assigned obligation drops (§5.4).
 
 Records are a guarded fixpoint, `recordTrI := fixpoint recordPre`: a record quantifies over
 bundles, whose certificates hold records under a later, so `recordPre` is contractive
@@ -132,8 +132,8 @@ the system at `n + 1`.
   `succ (fairMeasure (γ n) o fu)`.  The certificate tells which formula holds at `n`.  If it is
   the left one, a later credit of the step opens the obligation invariant at `n + 1`.  If `k` is
   still assigned, the loop goes on at a lower rank, since the measure of every assigned
-  obligation drops across a step (`OblsDrop`); if `k` was discharged during the step, the record
-  of the right formula at the discharge, at `n` or at `n + 1`, ends the until
+  obligation drops across a step (`ObligationsDrop`); if `k` was discharged during the step,
+  the record of the right formula at the discharge, at `n` or at `n + 1`, ends the until
   (`until_run_discharged`).
 
 The guarantees of the formulas, in `TemporalFormulaRules.lean`, start these loops:
@@ -297,18 +297,19 @@ and its lower bound (`mprog_exists_step`).  The measure drops from `n` to `n + 1
 (`fairMeasure_next_lt`) for an obligation of `i`, whose fuel dropped in the progress round, and
 for an obligation of another active owner, whose counter dropped: by `schedCounters`, an active
 thread that the schedule does not name has a smaller counter at the next position.  So every
-measure drops across a step of `i` (`oblsDrop_step`, through the model updates and the progress
-round) and across a stutter, where the thread the schedule names is inactive (`oblsDrop_na`,
-`owitInvLb_step_na_turn`).
+measure drops across a step of `i` (`obligationsDrop_step`, through the model updates and the
+progress round) and across a stutter, where the thread the schedule names is inactive
+(`obligationsDrop_inactive`, `owitInvLb_step_inactive_turn`).
 
-Both need every owner of an obligation to be active (`OblsThreadActive`).
-`get_oblsThreadActive` proves it at a configuration whose crashed threads the model sees, from the
-`Th.done` tokens of the finished threads (`doneTokens`, which `threadsRun` provides through
-`lwp.liftTerm`).  An owner is a thread of the pool (`modelInterp_owner_lt`).  It is not a value,
-whose `Th.done` token contradicts the ownership (`Th.done_modelInterp_not_owner`).  It is not
-crashed, since the model holds the node of a crashed thread, which therefore owns nothing
+Both need every owner of an obligation to be active (`ObligationsThreadActive`).
+`get_obligationsThreadActive` proves it at a configuration whose crashed threads the model
+sees, from the `Th.done` tokens of the finished threads (`doneTokens`, which `threadsRun`
+provides through `lwp.liftTerm`).  An owner is a thread of the pool (`modelInterp_owner_lt`).
+It is not a value, whose `Th.done` token contradicts the ownership
+(`Th.done_modelInterp_not_owner`).  It is not crashed, since the model holds the node of a
+crashed thread, which therefore owns nothing
 (`Th.crashed_modelInterp_not_owner`).  `run_step` uses it before and after the progress round
-(`oblsThreadActive_keep`).
+(`obligationsThreadActive_keep`).
 
 ### 5.5 Safety
 

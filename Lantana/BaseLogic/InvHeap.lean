@@ -156,9 +156,9 @@ theorem invPointsTo_get?_some (l : L) (h : H (V × (V → Prop))) (I : V → Pro
       ⌜∃ v I', get? h l = some (v, I') ∧ I = I'⌝ := by
   iintro Hl Hauth
   unfold invPointsTo
-  icombine Hauth Hl gives %Hvalid
+  icombine Hauth Hl gives %hvalid
   ipureintro
-  obtain ⟨v, hh, -⟩ := singleton_inc_toInvHeap (auth_both_valid_discrete.mp Hvalid).1
+  obtain ⟨v, hh, -⟩ := singleton_inc_toInvHeap (auth_both_valid_discrete.mp hvalid).1
   exact ⟨v, I, hh, rfl⟩
 
 omit [InvGS GF] in
@@ -168,9 +168,9 @@ theorem invPointsToOwn_get?_some (l : L) (v : V) (h : H (V × (V → Prop))) (I 
       ⌜∃ I', get? h l = some (v, I') ∧ I = I'⌝ := by
   iintro Hl Hauth
   unfold invPointsToOwn
-  icombine Hauth Hl gives %Hvalid
+  icombine Hauth Hl gives %hvalid
   ipureintro
-  obtain ⟨v', hh, hv⟩ := singleton_inc_toInvHeap (auth_both_valid_discrete.mp Hvalid).1
+  obtain ⟨v', hh, hv⟩ := singleton_inc_toInvHeap (auth_both_valid_discrete.mp hvalid).1
   cases DiscreteO.eqv_inj (excl_included.mp hv)
   exact ⟨I, hh, rfl⟩
 

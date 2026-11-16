@@ -186,10 +186,10 @@ instance isHandoff_persistent (b : Loc) (γ : HandoffName) (ℓ : Layer) :
 resources and the obligations have no trace content. -/
 @[lantana_alias handoff_inv_trSpec]
 def handoffInvTrSpec (b : Loc) : TrSpec Exp State GF :=
-  (TrSpec.state (PointstoSat b (.own (1 : Qp).half) vNone) ∧ₛ TrSpec.true) ∨ₛ
-    (∃ₛ (f : Val) (a : Val), TrSpec.state (PointstoSat b (.own 1) (vSome f a)) ∧ₛ
+  (TrSpec.state (PointsToSat b (.own (1 : Qp).half) vNone) ∧ₛ TrSpec.true) ∨ₛ
+    (∃ₛ (f : Val) (a : Val), TrSpec.state (PointsToSat b (.own 1) (vSome f a)) ∧ₛ
       TrSpec.true) ∨ₛ
-    (∃ₛ (f : Val) (a : Val), TrSpec.state (PointstoSat b (.own 1) (vSome f a)) ∧ₛ
+    (∃ₛ (f : Val) (a : Val), TrSpec.state (PointsToSat b (.own 1) (vSome f a)) ∧ₛ
       TrSpec.true)
 
 theorem guar_handoffInv (b : Loc) (γd : GName) (ℓ : Layer) :
@@ -511,11 +511,11 @@ variable {GF : BundledGFunctors}
 /-- The cell `b` holds `v` in the current state of the trace (any fraction). -/
 @[lantana_alias tr_cell]
 def trCell (b : Loc) (v : Val) : TrProp (Cfg Exp State) :=
-  ∃ₜ dq : DFrac, TrProp.state (PointstoSat b dq v)
+  ∃ₜ dq : DFrac, TrProp.state (PointsToSat b dq v)
 
 @[lantana_alias tr_cell_intro]
 theorem trCell_intro (b : Loc) (dq : DFrac) (v : Val) :
-    TrProp.state (PointstoSat b dq v) ⊆ trCell b v :=
+    TrProp.state (PointsToSat b dq v) ⊆ trCell b v :=
   fun _ h => ⟨dq, h⟩
 
 /-- At all times the cell is empty or holds a task. -/
