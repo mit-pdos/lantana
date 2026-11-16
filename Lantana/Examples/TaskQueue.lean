@@ -192,7 +192,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       icases Hx with ⟨%ng, HK, HG, %hng, HW, Kwg, Awg, Fng⟩
       icases (Obl.fuel_add ng ℓ _ 1).mp $$ Fng with ⟨Fng, -⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng99⟩
-      ihave HF := Obl.fuels_add_obl G ng ℓ _ $$ Fng99 HF
+      ihave HF := Obl.fuels_insert G ng ℓ _ $$ Fng99 HF
       lwp_step HT HG HF
       lwp_step HT HG HF
       lwp_expr_simp
@@ -214,7 +214,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     icases Htask with ⟨%ℓt, %P, %hlt, HP, %μt, #Task⟩
     icases (Obl.fuel_add g ℓ _ 1).mp $$ Fg with ⟨Fg, Fg1⟩
     icases (Obl.fuel_add g ℓ m _).mp $$ Fg with ⟨-, Fg99⟩
-    ihave HF := Obl.fuels_add_obl G g ℓ _ $$ Fg99 HF
+    ihave HF := Obl.fuels_insert G g ℓ _ $$ Fg99 HF
     ihave Ft := (Oids.bigSepS_insert (Φ := fun g => Obl.fuel g ℓ 1) hg).mpr $$ [Fg1 Ft]
     · iframe Fg1 Ft
     have hgg : g ∈ G.insert g := Std.ExtTreeSet.mem_insert_self
@@ -261,7 +261,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         grind
       icases (Obl.fuel_add ng ℓ _ 1).mp $$ Fng with ⟨Fng, Fng1⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng99⟩
-      ihave HF := Obl.fuels_add_obl (G.insert g) ng ℓ _ $$ Fng99 HF
+      ihave HF := Obl.fuels_insert (G.insert g) ng ℓ _ $$ Fng99 HF
       ihave Ft := (Oids.bigSepS_insert (Φ := fun g => Obl.fuel g ℓ 1) hng').mpr $$ [Fng1 Ft]
       · iframe Fng1 Ft
       lwp_step HT HG HF
@@ -438,7 +438,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨F1, Fgj⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨Fmv, Fw⟩
   icases Obl.fuels_add 1 96 _ $$ HF with ⟨HF1, HF⟩
-  ihave HF1 := Obl.fuels_add_obl _ gj ℓ _ $$ F1 HF1
+  ihave HF1 := Obl.fuels_insert _ gj ℓ _ $$ F1 HF1
   lwp_bind hl(fork(v(&worker) v(&ql))) HT
   have hsub : ({gj} : Oids) ⊆ G.insert gj := fun z hz => by
     rw [LawfulSet.mem_singleton] at hz

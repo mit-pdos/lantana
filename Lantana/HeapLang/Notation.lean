@@ -370,7 +370,7 @@ def unexpVar : Unexpander
   | _ => throw ()
 
 @[app_unexpander Exp.binOp]
-def unexpBinop : Unexpander
+def unexpBinOp : Unexpander
   | `($_ BinOp.plus $e1 $e2) => do `(hl(($(← unpackHLExp e1) + $(← unpackHLExp e2))))
   | `($_ BinOp.offset $e1 $e2) => do `(hl(($(← unpackHLExp e1) +ₗ $(← unpackHLExp e2))))
   | `($_ BinOp.minus $e1 $e2) => do `(hl(($(← unpackHLExp e1) - $(← unpackHLExp e2))))
@@ -388,7 +388,7 @@ def unexpBinop : Unexpander
   | _ => throw ()
 
 @[app_unexpander Exp.unOp]
-def unexpUnop : Unexpander
+def unexpUnOp : Unexpander
   | `($_ UnOp.neg $e1) => do `(hl((~$(← unpackHLExp e1))))
   | `($_ UnOp.minus $e1) => do `(hl((-$(← unpackHLExp e1))))
   | _ => throw ()

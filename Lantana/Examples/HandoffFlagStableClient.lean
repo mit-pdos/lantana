@@ -105,7 +105,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨F1, Fgj⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨Fmv, Fhr⟩
   icases Obl.fuels_add 1 14 _ $$ HF with ⟨HF1, HF⟩
-  ihave HF1 := Obl.fuels_add_obl _ gj 0 _ $$ F1 HF1
+  ihave HF1 := Obl.fuels_insert _ gj 0 _ $$ F1 HF1
   lwp_bind hl(fork(v(&Handoff.receive) #b)) HT
   have hsub : ({gj} : Oids) ⊆ ({kl, kc} : Oids).insert gj := fun z hz => by
     rw [Iris.Std.LawfulSet.mem_singleton] at hz
@@ -188,7 +188,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   ihave HK := Par.kids_congr hkc $$ HK
   ihave HF := Obl.fuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   icases Obl.fuels_add 2 10 _ $$ HF with ⟨HF2, HF⟩
-  ihave HF2 := Obl.fuels_add_obl _ g0 1 _ $$ F0 HF2
+  ihave HF2 := Obl.fuels_insert _ g0 1 _ $$ F0 HF2
   lwp_step HT HG HF2
   lwp_step HT HG HF2
   lwp_expr_simp

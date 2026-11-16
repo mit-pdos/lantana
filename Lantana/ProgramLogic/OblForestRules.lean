@@ -738,7 +738,7 @@ theorem Obl.fuel_add_set (K : Oids) (ℓ : Layer) (μ₁ μ₂ : Measure) :
   (bigSepS_eqv fun _ => Obl.fuel_add _ ℓ μ₁ μ₂).trans bigSepS_sep
 
 @[lantana_alias oblP_fuel_mult]
-theorem Obl.fuel_mult (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_mul (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) :
     Obl.fuel (GF := GF) k ℓ (s * μ₂) ⊢ |==> (Obl.fuel k ℓ (s * μ₁) ∗ Obl.fuel k ℓ s) :=
   Obl.fuel_mono_split k ℓ (by
@@ -746,21 +746,21 @@ theorem Obl.fuel_mult (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measu
     exact jmul_le_jmul Ordinal.le_rfl (succ_le_of_lt h))
 
 @[lantana_alias oblP_fuel_mult_list]
-theorem Obl.fuel_mult_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_mul_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) :
     ([∗list] k ∈ K, Obl.fuel (GF := GF) k ℓ (s * μ₂)) ⊢
       |==> (([∗list] k ∈ K, Obl.fuel k ℓ (s * μ₁)) ∗ [∗list] k ∈ K, Obl.fuel k ℓ s) :=
-  bigSepL_bupd_sep_of fun k => Obl.fuel_mult k ℓ s h
+  bigSepL_bupd_sep_of fun k => Obl.fuel_mul k ℓ s h
 
 @[lantana_alias oblP_fuel_mult_set]
-theorem Obl.fuel_mult_set (K : Oids) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_mul_set (K : Oids) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) :
     ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ (s * μ₂)) ⊢
       |==> (([∗set] k ∈ K, Obl.fuel k ℓ (s * μ₁)) ∗ [∗set] k ∈ K, Obl.fuel k ℓ s) :=
-  bigSepS_bupd_sep_of fun k => Obl.fuel_mult k ℓ s h
+  bigSepS_bupd_sep_of fun k => Obl.fuel_mul k ℓ s h
 
 @[lantana_alias oblP_fuel_expn]
-theorem Obl.fuel_expn (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_pow (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) (hs : 0 < Measure.rep ℓ s) :
     Obl.fuel (GF := GF) k ℓ (s ^ μ₂) ⊢ |==> Obl.fuel k ℓ (s ^ μ₁ * s) :=
   Obl.fuel_mono k ℓ (by
@@ -768,18 +768,18 @@ theorem Obl.fuel_expn (k : Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measu
     exact jpow_le_jpow Ordinal.le_rfl (succ_le_of_lt h))
 
 @[lantana_alias oblP_fuel_expn_list]
-theorem Obl.fuel_expn_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_pow_list (K : List Oid) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) (hs : 0 < Measure.rep ℓ s) :
     ([∗list] k ∈ K, Obl.fuel (GF := GF) k ℓ (s ^ μ₂)) ⊢
       |==> [∗list] k ∈ K, Obl.fuel k ℓ (s ^ μ₁ * s) :=
-  bigSepL_bupd_of fun k => Obl.fuel_expn k ℓ s h hs
+  bigSepL_bupd_of fun k => Obl.fuel_pow k ℓ s h hs
 
 @[lantana_alias oblP_fuel_expn_set]
-theorem Obl.fuel_expn_set (K : Oids) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
+theorem Obl.fuel_pow_set (K : Oids) (ℓ : Layer) {μ₁ μ₂ : Measure} (s : Measure)
     (h : Measure.rep ℓ μ₁ < Measure.rep ℓ μ₂) (hs : 0 < Measure.rep ℓ s) :
     ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ (s ^ μ₂)) ⊢
       |==> [∗set] k ∈ K, Obl.fuel k ℓ (s ^ μ₁ * s) :=
-  bigSepS_bupd_of fun k => Obl.fuel_expn k ℓ s h hs
+  bigSepS_bupd_of fun k => Obl.fuel_pow k ℓ s h hs
 
 @[lantana_alias oblP_fuel_extend_list]
 theorem Obl.fuel_extend_list (K : List Oid) {ℓ₁ ℓ₂ : Layer} (h : ℓ₁ < ℓ₂) (μ : Measure) :
@@ -845,7 +845,7 @@ theorem Obl.fuels_init (K : Oids) (m : Measure) (ℓ : Layer) :
   bigSepS_mono_of_forall fun k => exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ m) ℓ
 
 @[lantana_alias oblP_fuels_add_obl]
-theorem Obl.fuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
+theorem Obl.fuels_insert (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
     Obl.fuel (GF := GF) k ℓ n ⊢ Obl.fuels K n -∗ Obl.fuels (K.insert k) n := by
   unfold Obl.fuels
   refine wand_intro ?_
@@ -855,17 +855,17 @@ theorem Obl.fuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
     (bigSepS_singleton (Φ := fun k => iprop(∃ ℓ, Obl.fuel k ℓ n))).2
 
 @[lantana_alias oblP_fuels_add_obls]
-theorem Obl.fuels_add_obls (K₁ K₂ : Oids) (n : Measure) :
+theorem Obl.fuels_union (K₁ K₂ : Oids) (n : Measure) :
     Obl.fuels (GF := GF) K₁ n ⊢ Obl.fuels K₂ n -∗ Obl.fuels (K₁ ∪ K₂) n :=
   wand_intro bigSepS_union_2
 
 @[lantana_alias oblP_fuels_remove_obl]
-theorem Obl.fuels_remove_obl (k : Oid) (K : Oids) (n : Measure) :
+theorem Obl.fuels_erase (k : Oid) (K : Oids) (n : Measure) :
     Obl.fuels (GF := GF) K n ⊢ Obl.fuels (K.erase k) n :=
   bigSepS_subseteq fun _ hx => (Std.ExtTreeSet.mem_erase.mp hx).2
 
 @[lantana_alias oblP_fuels_remove_obls]
-theorem Obl.fuels_remove_obls (K₂ K₁ : Oids) (n : Measure) :
+theorem Obl.fuels_diff (K₂ K₁ : Oids) (n : Measure) :
     Obl.fuels (GF := GF) K₁ n ⊢ Obl.fuels (K₁ \ K₂) n :=
   bigSepS_subseteq diff_subset_left
 
@@ -1039,7 +1039,7 @@ theorem embedFuels_decr {A : Type} {r : A → A → Prop} (hwf : WellFounded r) 
     embedFuels (GF := GF) hwf a F ⊢
       |==> (embedFuels hwf a' F ∗ [∗map] f ↦ lm ∈ F, Obl.fuel f lm.1 lm.2) := by
   unfold embedFuels
-  exact (bigSepM_mono_of_forall fun {f} {lm : Layer × Measure} => Obl.fuel_mult f lm.1 lm.2
+  exact (bigSepM_mono_of_forall fun {f} {lm : Layer × Measure} => Obl.fuel_mul f lm.1 lm.2
     (Measure.rep_embed_lt lm.1 hwf h)).trans <|
     (bigSepM_bupd _).trans (BIUpdate.mono (BiEntails.of_eq bigSepM_sep_eq).1)
 
@@ -1346,7 +1346,7 @@ private theorem bigSepS_kids_diff_discharged (T : Oids) (kids : Oid → Oids) (x
 
 /-- Discharging a childless obligation `x`, a child of one of the roots `ps`: every root loses
 `x`. -/
-private theorem obl_discharge_leaf_roots (E : CoPset) (ps : List Parent) (K : Parent → Oids)
+private theorem Obl.discharge_leaf_roots (E : CoPset) (ps : List Parent) (K : Parent → Oids)
     (x : Oid) (hx : ∃ p, p ∈ ps ∧ x ∈ K p) :
     ([∗list] p ∈ ps, Par.kids (GF := GF) p (K p)) ⊢ oblKids x ∅ -∗ Obl.assigned x 1 -∗
       |={E}=>m ([∗list] p ∈ ps, Par.kids p (K p \ {x})) ∗ Obl.discharged x := by
@@ -1378,7 +1378,7 @@ private theorem obl_discharge_leaf_roots (E : CoPset) (ps : List Parent) (K : Pa
       iframe Hq Hps
 
 /-- `Obl.discharge_forest` for a given rank of the forest. -/
-private theorem obl_discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r : Oid → Fuel)
+private theorem Obl.discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r : Oid → Fuel)
     (S : Oids) :
     ∀ (K : Parent → Oids) (kids : Oid → Oids), (∀ k, k ∈ S → kids k ⊆ S) →
       (∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k) →
@@ -1424,7 +1424,7 @@ private theorem obl_discharge_forest_of_rank (E : CoPset) (ps : List Parent) (r 
     icases (bigSepS_delete hxS).1 $$ HS with ⟨⟨Hx, Ax⟩, HS⟩
     ihave Hx := hleaf $$ Hx
     rcases hcovered x hxS with hroot | ⟨k, hkS, hxk'⟩
-    · imod obl_discharge_leaf_roots E ps K x hroot $$ Hps Hx Ax with ⟨Hps, #D⟩
+    · imod Obl.discharge_leaf_roots E ps K x hroot $$ Hps Hx Ax with ⟨Hps, #D⟩
       ihave HS := bigSepS_kids_diff_discharged (S \ {x}) kids x $$ HS D
       imod ih $$ Hps HS with ⟨Hps, HD⟩
       imodintro
@@ -1455,7 +1455,7 @@ theorem Obl.discharge_forest (E : CoPset) (ps : List Parent) (K : Parent → Oid
   iintro Hps HS
   icases bigSepS_sep.1 $$ HS with ⟨HK, HA⟩
   imod Obl.kids_rank E S kids $$ HK with ⟨%⟨r, hr⟩, HK⟩
-  iapply obl_discharge_forest_of_rank E ps r S K kids hclosed hcovered hr $$ Hps
+  iapply Obl.discharge_forest_of_rank E ps r S K kids hclosed hcovered hr $$ Hps
   iapply bigSepS_sep.2
   iframe HK HA
 

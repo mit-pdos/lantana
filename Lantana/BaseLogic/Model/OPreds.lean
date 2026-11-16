@@ -391,8 +391,8 @@ private theorem witnesses_mono_new {Ω₁ : Obligations} {W₁ W₂ : Witnesses}
     have hr := MapForall2.lookup hI₂ (get?_insert_eq rfl) hw₂
     cases g <;> cases w₂ <;> simp_all [OWitRel, Witness.NoDischargeLe]
 
-private theorem get?_none_wits {Ω : Obligations} {W : Witnesses} {k : Oid} (hI : OWitInvFair Ω W)
-    (hk : get? Ω k = none) : get? W k = none := by
+private theorem get?_none_witnesses {Ω : Obligations} {W : Witnesses} {k : Oid}
+    (hI : OWitInvFair Ω W) (hk : get? Ω k = none) : get? W k = none := by
   have h := hI.dom k
   rw [hk] at h
   cases e : get? W k
@@ -414,7 +414,7 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   icases parLe_owner Ω₁ tc X p K ℓ $$ [$Hf $Hk $Hb] with %⟨t, ν, hpt⟩
   have hk := Obligations.get?_fresh Ω₁
-  have hkW := get?_none_wits hI₁ hk
+  have hkW := get?_none_witnesses hI₁ hk
   have hpiece : ∀ q, p = .obl q → Ω₁.fuelOf q < Measure.rep ℓ ν := by
     rintro q rfl
     exact hpt.2
@@ -498,7 +498,7 @@ theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   have hk := Obligations.get?_fresh Ω₁
-  have hkW := get?_none_wits hI₁ hk
+  have hkW := get?_none_witnesses hI₁ hk
   imod osat_alloc_obl_discharged hk (Measure.rep ℓ 1) $$ Hos with ⟨Hos, #Hβ, #He, #Hd, -, -⟩
   imod owit_alloc_witness_discharged hkW (fairMeasureUb (Measure.rep ℓ 1)) $$ [$Hw $Hd]
     with ⟨Hw, #Hwb⟩

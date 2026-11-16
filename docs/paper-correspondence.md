@@ -96,7 +96,7 @@ fuel type, and ghost names exposed by allocation.
 | FRAME, UPD-ELIM | `lwp_strong_mono`, `fupd_lwp` / `lwp_fupd` / `mupd_lwp` / `lwp_mupd` | `ProgramLogic/WeakestPre.lean` |
 | CARRIER-ALLOC | no carriers: `Obl.new` creates an obligation below a parent | `ProgramLogic/OblForest.lean` |
 | CARRIER-DELETE | no carriers: `Obl.discharge_leaf` discharges a childless obligation; its children can first move up for free (`Obl.move_up`; both: `Obl.discharge_lift_kids`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
-| FUELS-ADD / FUELS-UNION / FUELS-EMPTY | `Obl.fuel_add`, `Obl.fuels_add_obls` / `Obl.fuels_remove_obls`; FUELS-EMPTY is the empty big-op | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
+| FUELS-ADD / FUELS-UNION / FUELS-EMPTY | `Obl.fuel_add`, `Obl.fuels_union` / `Obl.fuels_diff`; FUELS-EMPTY is the empty big-op | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | FUELS-LAYER | `Obl.fuel_extend` (and `Obl.fuel_extend_set`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |
 | ALWAYS-ALLOC / ALWAYS-ACC | `alwaysI_alloc` / `alwaysI_acc`; guarantee `guar_alwaysI` | `Trace/TemporalFormulaRules.lean` |
 | LÖB | Löb induction over the transfinite step index of Iris-Lean (`iloeb`) | (Iris-Lean) |

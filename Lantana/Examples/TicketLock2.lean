@@ -121,7 +121,7 @@ def invN : Namespace := ticketLockN.@"inv"
 def eventuallyN : Namespace := ticketLockN.@"eventually"
 
 @[lantana_alias ticket_lock2.N_subseteq_1]
-theorem eventuallyN_subseteq : (↑eventuallyN : CoPset) ⊆ ⊤ \ ↑invN := by
+theorem eventuallyN_subset : (↑eventuallyN : CoPset) ⊆ ⊤ \ ↑invN := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
   exact ndot_ne_disjoint ticketLockN (by decide) p ⟨hp, h'⟩
@@ -761,7 +761,7 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
   -- The fuel of the steps: `50` from the old children and from `κu`.
   icases (Obl.fuel_add κu _ _ _).mp $$ Fκu with ⟨Fκu, Fκw⟩
   icases Obl.fuels_add 42 50 G $$ HF with ⟨-, HF⟩
-  ihave HF := Obl.fuels_add_obl G κu _ _ $$ Fκu HF
+  ihave HF := Obl.fuels_insert G κu _ _ $$ Fκu HF
   lwp_step HT HG HF
   lwp_step HT HG HF
   lwp_expr_simp
@@ -877,7 +877,7 @@ theorem release_spec : ∃ m : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
   · iunfold finallyI at Uu Uu2
     iunfold finallyI
     iapply untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ Uu Uu2
-  imod finallyI_discharge (E := ⊤ \ ↑invN) (.thread i) G eventuallyN_subseteq hκu $$ Hc2 HK Kκu U
+  imod finallyI_discharge (E := ⊤ \ ↑invN) (.thread i) G eventuallyN_subset hκu $$ Hc2 HK Kκu U
     [Hcu HR] with ⟨⟨Hcu, HR⟩, HK, #Dκu⟩
   · iframe
   imod Th.carriers_erase_discharged (⊤ \ ↑invN) i G κu $$ HG Dκu with HG
@@ -1092,12 +1092,12 @@ theorem lockInvTrSpec_starvationFree (next curr : Loc) :
 /-- The trace property of a fair lock: starvation freedom of its two cells (Rocq
 `fair_lock_sf`). -/
 @[lantana_alias ticket_lock2.fair_lock_sf]
-def fairLockSf (tl : Val) : TrProp (Cfg Exp State) :=
+def fairLockStarvationFree (tl : Val) : TrProp (Cfg Exp State) :=
   ∃ₜ (next : Loc) (curr : Loc), ⌜tl = hl_val((#next, #curr))⌝ₜ ∧ₜ starvationFree next curr
 
 @[lantana_alias ticket_lock2.fair_lock_starvation_free]
 theorem fairLock_starvationFree (tl : Val) :
-    (fairLockTrSpec (GF := GF) tl).external ⊆ fairLockSf tl := by
+    (fairLockTrSpec (GF := GF) tl).external ⊆ fairLockStarvationFree tl := by
   rintro τ ⟨next, curr, htl, h⟩
   exact ⟨next, curr, htl, lockInvTrSpec_starvationFree next curr τ h⟩
 
@@ -1125,7 +1125,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TicketLock2G GF]
 @[lantana_alias ticket_lock2.is_fair_lock_starvation_free]
 theorem isFairLock_starvationFree (tl : Val) (γ : TicketLockName) (R : IProp GF) :
     ⊢@{IProp GF} isFairLock tl γ R ⊨ₜ
-      (fairLockTrSpec tl).cast (fairLockSf tl) (fairLock_starvationFree tl) :=
+      (fairLockTrSpec tl).cast (fairLockStarvationFree tl) (fairLock_starvationFree tl) :=
   (guar_isFairLock tl γ R).trans (guar_cast _ _)
 
 end CastGuarantee

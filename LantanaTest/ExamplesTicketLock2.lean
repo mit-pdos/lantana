@@ -30,7 +30,7 @@ noncomputable example : TicketLock2.TicketLock2G ExGF := inferInstance
 
 /-- Starvation freedom of a lock, from its guarantee. -/
 example (tl : Val) :
-    (TicketLock2.fairLockTrSpec (GF := ExGF) tl).external ⊆ TicketLock2.fairLockSf tl :=
+    (TicketLock2.fairLockTrSpec (GF := ExGF) tl).external ⊆ TicketLock2.fairLockStarvationFree tl :=
   TicketLock2.fairLock_starvationFree tl
 
 /-- The end-to-end statement of `ticket_lock2_client.v`, liveness and safety. -/

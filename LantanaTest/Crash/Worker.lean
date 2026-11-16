@@ -162,7 +162,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
         iapply IH $$ %m %B Hc HG %hB HF
     | zero =>
       -- alive at `work 0`
-      imod inv_acc invN_subseteq $$ HI with ⟨HC, Hclose⟩
+      imod inv_acc invN_subset $$ HI with ⟨HC, Hclose⟩
       imod Lantana.lc_fupd_elim_later $$ Hc HC with HC
       iunfold crashInv at HC
       icases HC with ⟨%b, %f, Hv, HC⟩
@@ -171,10 +171,10 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
       simp only [crashProto]
       icases HC with (HW | ⟨Ha0, Hk0, -⟩)
       · -- with its obligations
-        iunfold workerObls at HW
+        iunfold workerObligations at HW
         icases HW with ⟨Ha0, Hk0, HW⟩
         icases BigSepS.bigSepS_sep.1 $$ HW with ⟨HU, Hkk⟩
-        imod finallyI_acc_assigned_set_ndot oblN_subseteq $$ HU with ⟨Oa, Hcl⟩
+        imod finallyI_acc_assigned_set_ndot oblN_subset $$ HU with ⟨Oa, Hcl⟩
         iapply fupd_mask_intro Std.LawfulSet.empty_subset
         iintro Hcl₀
         isplitr

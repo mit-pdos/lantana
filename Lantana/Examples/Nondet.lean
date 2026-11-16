@@ -130,7 +130,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     icases (Obl.fuel_add k₀ _ _ _).mp $$ Hf₀ with ⟨Hf₀, Hfr⟩
     icases (Obl.fuel_add k₀ _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
     icases Obl.fuels_add 3 92 G $$ HF with ⟨Hf₃, HF⟩
-    ihave Hf₃ := Obl.fuels_add_obl G k₀ (ofNat m) _ $$ Hf₀ Hf₃
+    ihave Hf₃ := Obl.fuels_insert G k₀ (ofNat m) _ $$ Hf₀ Hf₃
     lwp_step HT HG Hf₃
     lwp_step HT HG Hf₃
     lwp_expr_simp
@@ -259,7 +259,7 @@ theorem nondet_spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List 
   icases (Obl.fuel_add k _ _ _).mp $$ Hf with ⟨Hf, Hfr⟩
   icases (Obl.fuel_add k _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
   icases Obl.fuels_add 3 93 G $$ HF with ⟨Hf₃, HF⟩
-  ihave Hf₃ := Obl.fuels_add_obl G k _ _ $$ Hf Hf₃
+  ihave Hf₃ := Obl.fuels_insert G k _ _ $$ Hf Hf₃
   lwp_step HT HG Hf₃
   lwp_step HT HG Hf₃
   lwp_expr_simp

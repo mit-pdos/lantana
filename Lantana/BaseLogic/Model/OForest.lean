@@ -1783,7 +1783,7 @@ theorem oforest_discharge_obl {Ω : Obligations} {tc : Nat} {p : Parent} {K : Oi
     exact LawfulSet.mem_empty hmem
   have hown : ∀ j, j < tc → Forest.owned Ω Par j = ∅ →
       Forest.owned (insert Ω k .discharged) (delete Par k) j = ∅ := fun j _ h => by
-    rw [Forest.owned_remove, h]
+    rw [Forest.owned_insert_delete, h]
     exact Forest.diff_singleton_of_not_mem LawfulSet.mem_empty
   imod OForest.kidsAuth_delete M (.obl k) ∅ $$ [$HM $Hk] with HM
   imod OForest.kidsAuth_update (delete M (.obl k)) p K (K \ {k}) $$ [$HM $Hp] with ⟨HM, Hp⟩

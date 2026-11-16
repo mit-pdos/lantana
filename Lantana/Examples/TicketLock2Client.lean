@@ -134,14 +134,14 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   lwp_expr_simp
   icases (Obl.fuel_add κu _ _ _).mp $$ Fκu with ⟨Fκu, Fκur⟩
   icases Obl.fuels_add 2 95 _ $$ HF with ⟨HF2, HF⟩
-  ihave HF2 := Obl.fuels_add_obl {kr} κu 0 _ $$ Fκu HF2
+  ihave HF2 := Obl.fuels_insert {kr} κu 0 _ $$ Fκu HF2
   lwp_step HT HG HF2
   lwp_step HT HG HF2
   lwp_expr_simp
   -- `release`.
   lwp_bind hl(v(&TicketLock2.release) v(&tl)) HT
   ihave HFrel := Obl.fuels_init _ _ _ $$ HFrel
-  ihave HFrel := Obl.fuels_add_obl {kr} κu 0 _ $$ Fκur HFrel
+  ihave HFrel := Obl.fuels_insert {kr} κu 0 _ $$ Fκur HFrel
   iapply hrel 0 i (({kr} : Oids).insert κu) tl γ iprop(True) κu _ $$ [HT HK HG HFrel Kκu Htok]
   · iframe HT HK HG HFrel Kκu Htok
     isplitr

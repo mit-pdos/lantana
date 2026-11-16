@@ -29,9 +29,9 @@ def crashN : Namespace := nroot.@"crash"
 def invN : Namespace := crashN.@"inv"
 def oblN : Namespace := crashN.@"obl"
 
-theorem invN_subseteq : (↑invN : CoPset) ⊆ ⊤ := fun _ _ => CoPset.mem_full
+theorem invN_subset : (↑invN : CoPset) ⊆ ⊤ := fun _ _ => CoPset.mem_full
 
-theorem oblN_subseteq : (↑oblN : CoPset) ⊆ ⊤ \ ↑invN := by
+theorem oblN_subset : (↑oblN : CoPset) ⊆ ⊤ \ ↑invN := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
   exact ndot_ne_disjoint crashN (by decide : "obl" ≠ "inv") p ⟨hp, h'⟩
@@ -80,7 +80,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 
 /-- The worker's obligations while it runs: its node holding `k`, and for each obligation of `S`
 its finally and its children. -/
-def workerObls (k : Oid) (S : Oids) (kids : Oid → Oids) : IProp GF :=
+def workerObligations (k : Oid) (S : Oids) (kids : Oid → Oids) : IProp GF :=
   iprop(thActive 0 ∗ thKids 0 {k} ∗
     [∗set] j ∈ S, finallyI (oblN.@j) j 1 doneOrCrashed ∗ oblKids j (kids j))
 
@@ -88,7 +88,7 @@ def workerObls (k : Oid) (S : Oids) (kids : Oid → Oids) : IProp GF :=
 def crashProto (k : Oid) (S : Oids) (kids : Oid → Oids) : Bool → Bool → IProp GF
   | _, true => iprop(True)
   | false, false => iprop([∗set] j ∈ S, Obl.discharged j)
-  | true, false => iprop(workerObls k S kids ∨
+  | true, false => iprop(workerObligations k S kids ∨
       (thActive 0 ∗ thKids 0 ∅ ∗ [∗set] j ∈ S, Obl.discharged j))
 
 /-- The shared invariant: half of the ghost variable of the state, and the protocol. -/
@@ -164,7 +164,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
   iapply lwp_step (rfl : toVal Exp.kill = none)
   simp only [stateInterp_eq]
   iintro %σ₁ %tp %hi ⟨%hS, Hs⟩
-  imod inv_acc invN_subseteq $$ HI with ⟨HC, Hclose⟩
+  imod inv_acc invN_subset $$ HI with ⟨HC, Hclose⟩
   imod Lantana.lc_fupd_elim_later $$ Hc HC with HC
   iunfold crashInv at HC
   icases HC with ⟨%b, %f, Hv, HC⟩
@@ -218,10 +218,10 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
     simp only [crashProto]
     icases HC with (HW | ⟨Ha0, Hk0, #HD⟩)
     · -- with its obligations
-      iunfold workerObls at HW
+      iunfold workerObligations at HW
       icases HW with ⟨Ha0, Hk0, HW⟩
       icases BigSepS.bigSepS_sep.1 $$ HW with ⟨HU, Hkk⟩
-      imod finallyI_acc_assigned_set_ndot oblN_subseteq $$ HU with ⟨Oa, Hcl⟩
+      imod finallyI_acc_assigned_set_ndot oblN_subset $$ HU with ⟨Oa, Hcl⟩
       iapply fupd_mask_intro Std.LawfulSet.empty_subset
       iintro Hcl₀
       isplitr
@@ -294,7 +294,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           iframe Hv
           simp only [crashProto]
           ileft
-          iunfold workerObls
+          iunfold workerObligations
           iframe Ha0 Hk0
           iapply BigSepS.bigSepS_sep.2
           iframe HU Hkk

@@ -340,7 +340,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   ihave HK := Par.kids_congr hkc $$ HK
   ihave HF := Obl.fuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
   icases Obl.fuels_add 7 90 _ $$ HF with ⟨HF7, HF⟩
-  ihave HF7 := Obl.fuels_add_obl _ g0 ℓf _ $$ F0 HF7
+  ihave HF7 := Obl.fuels_insert _ g0 ℓf _ $$ F0 HF7
   lwp_step HT HG HF7
   lwp_step HT HG HF7
   lwp_expr_simp

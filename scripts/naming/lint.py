@@ -24,13 +24,15 @@ ALLOW = {
 # Words that the convention replaces in the names of theorems and instances, and as the name
 # of a definition (docs/naming.md, §1): word -> replacement.
 VOCAB = {'ex': 'exists', 'exist': 'exists', 'all': 'forall', 'mon': 'mono', 'idemp': 'idem',
-         'included': 'inc', 'impl': 'imp', 'l': 'left', 'r': 'right', 'upd': 'update'}
+         'included': 'inc', 'impl': 'imp', 'l': 'left', 'r': 'right', 'upd': 'update',
+         'subseteq': 'subset', 'mult': 'mul', 'expn': 'pow'}
 # `all` meaning "for all the roots" (not ∀) in these lemma families.
 VOCAB_OK = re.compile(r'_forest_all$')
 # Abbreviations of a definition's name, which a name spells out (docs/naming.md, §1):
 # word -> (replacement, module prefix where it is checked; None for everywhere).
 ABBREV = {'sf': ('strongFair', None), 'ndf': ('noDischarge', None), 'nd': ('noDischarge', None),
           'lef': ('stayOrStep', None), 'ndLe': ('noDischargeLe', None),
+          'obls': ('obligations', None), 'wits': ('witnesses', None),
           # elsewhere `wf` is "well-formed" (`Model.oforest_wf`)
           'wf': ('weakFair', 'Lantana.Temporal.Fairness')}
 GREEK = set('αβγδεζηθικλμνξοπρστυφχψωΓΔΘΛΞΠΣΦΨΩℓ')
@@ -88,6 +90,27 @@ for n, d in decls.items():
         if len(c) >= 4 and up(c[0]):
             WORDS.setdefault(c.lower(), set()).add(c)
 
+
+def camel(c):
+    """The camel-case words of a name component (`unexpBinOp` -> unexp, Bin, Op)."""
+    return re.findall(r'[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+|[A-Z]', c)
+
+
+# Two words that the namespaces, types and constructors write apart (`BinOp`, `PointsTo`).
+APART = {}
+for n, d in decls.items():
+    parts = n.split('.')
+    for c in parts[:-1] + (parts[-1:] if d['k'] in TYPES or d['k'] == 'ctor' else []):
+        ws = camel(c)
+        for a, b in zip(ws, ws[1:]):
+            if len(a) >= 2 and len(b) >= 2 and a.isalpha() and b.isalpha():
+                APART.setdefault((a + b).lower(), a + b)
+# The first words of the members of each namespace (`Lantana.Obl`: discharge, fuel, ...).
+FAMILY = {}
+for n in decls:
+    parts = n.split('.')
+    FAMILY.setdefault('.'.join(parts[:-1]), set()).add(parts[-1].split('_')[0])
+
 bad = []
 
 
@@ -113,6 +136,18 @@ def check_words(n, d, parts, last):
     head = toks[0] if toks else ''
     if head in FLAT and head != last and not in_scope(parts[:-1], head):
         flag(n, d, f'named after `{head}`, which is `{FLAT[head]}` (write `{FLAT[head]}_…`)')
+    if len(toks) < 2 or not head[:1].islower() or in_scope(parts[:-1], head):
+        return
+    rest = last[len(head) + 1:]
+    # `obl_discharge_leaf_roots` beside the family `Obl.discharge_*` of the same namespace
+    fam = head[:1].upper() + head[1:]
+    if toks[1] in FAMILY.get('.'.join(parts[:-1] + [fam]), ()):
+        flag(n, d, f'beside the family `{fam}.{toks[1]}…` (write `{fam}.{rest}`)')
+    # `Crash.crash_adequacy`: the namespace repeated, unless it is a class (a field named after it)
+    owner = parts[-2] if len(parts) > 1 else ''
+    if (d['k'] == 'theorem' and head == owner[:1].lower() + owner[1:]
+            and decls.get('.'.join(parts[:-1]), {}).get('k') not in TYPES):
+        flag(n, d, f'repeats its namespace `{owner}` (write `{rest}`)')
 
 
 for n, d in sorted(decls.items()):
@@ -121,6 +156,16 @@ for n, d in sorted(decls.items()):
     last = parts[-1].rstrip("'")
     if '__' in last:
         flag(n, d, 'double underscore')
+    if k in DEFS or k in TYPES or k in ('theorem', 'instance', 'ctor'):
+        for w in camel(last):
+            # two words written as one (`unexpBinop`, of `BinOp`)
+            if len(w) >= 4 and w.lower() in APART and not last.startswith('inst'):
+                sp = APART[w.lower()]
+                sp = (sp[:1].upper() if up(w[0]) else sp[:1].lower()) + sp[1:]
+                flag(n, d, f'`{w}` is written `{sp}` elsewhere')
+            # an abbreviation inside a camel-case name (`workerObls`)
+            if (k in DEFS or k in TYPES) and w.lower() in ABBREV and ABBREV[w.lower()][1] is None:
+                flag(n, d, f'abbreviation `{w}` (write `{ABBREV[w.lower()][0]}`)')
     # a word cased differently from the namespace or type it comes from (`OwitRel`, of `OWit`)
     if up(last[0]) and (k in DEFS or k in TYPES):
         for w, cased in WORDS.items():

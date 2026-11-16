@@ -9,10 +9,10 @@ public import LantanaTest.Crash.Reviver
 
 /-! # A language whose threads crash: the closed systems and their liveness
 
-`crash_adequacy` and `crash_revive_adequacy`: on every fairly scheduled behavior of
+`adequacy` and `revive_adequacy`: on every fairly scheduled behavior of
 `[work N, kill]` and of `[work N, kill, revive]`, started alive, eventually the worker has
 finished or is crashed. The worker's obligations, `k` and a chain of any length below it, are
-allocated by `worker_obls_alloc` and `chain_alloc`. See `docs/adequacy.md`, §7.
+allocated by `worker_obligations_alloc` and `chain_alloc`. See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section
@@ -70,7 +70,7 @@ theorem kids_fresh (k : Oid) (c T : Oids) (kids : Oid → Oids) (Φ : Oid → IP
 
 /-- The finally and the children of a new obligation `k`, with those of `T`, make those of
 `{k} ∪ T`. -/
-theorem obls_insert {k : Oid} {c T : Oids} {kids : Oid → Oids} (hk : k ∉ T) :
+theorem obligations_insert {k : Oid} {c T : Oids} {kids : Oid → Oids} (hk : k ∉ T) :
     finallyI (oblN.@k) k 1 doneOrCrashed ∗ oblKids k c ∗
       ([∗set] j ∈ T, finallyI (oblN.@j) j 1 doneOrCrashed ∗ oblKids j (kids j)) ⊢@{IProp GF}
       [∗set] j ∈ {k} ∪ T, finallyI (oblN.@j) j 1 doneOrCrashed ∗
@@ -115,14 +115,14 @@ theorem chain_alloc (m : Nat) (q : Oid) :
     isplitr
     · ipureintro
       exact hT.insert hk
-    iapply obls_insert hk
+    iapply obligations_insert hk
     iframe HT Hkk
     unfold finallyI
     iexact Uk
 
 /-- The worker's obligations, from its initial pieces: `k` under thread `0` with the fuel of
 `N + 1` steps, and a chain of `m` obligations below it, all finallies of `doneOrCrashed`. -/
-theorem worker_obls_alloc (N m : Nat) :
+theorem worker_obligations_alloc (N m : Nat) :
     thKids 0 ∅ ⊢@{IProp GF} thCarriers 0 ∅ -∗
       |={⊤}=>m ∃ (k : Oid) (c T : Oids) (kids : Oid → Oids), ⌜k ∉ T ∧ HangsBelow c T kids⌝ ∗
         thKids 0 {k} ∗ thCarriers 0 {k} ∗ Obl.fuels {k} ((N + 1 : Nat) : Measure) ∗
@@ -198,7 +198,7 @@ theorem worker_init (N m : Nat) :
           inv invN (crashInv k S kids) ∗
           lWP (Exp.work N) @ 0; ⊤ {{ lwp.liftTerm 0 (fun _ _ => iprop(True)) }}) := by
   iintro Hv Hc0 Ha0 Hk0 HB0
-  imod worker_obls_alloc N m $$ Hk0 HB0 with
+  imod worker_obligations_alloc N m $$ Hk0 HB0 with
     ⟨%k, %c, %T, %kids, %⟨hk, hT⟩, Hk0, HB0, HF, Uk, Hkk, HT⟩
   imodintro
   iexists finallyI (oblN.@k) k 1 doneOrCrashed
@@ -214,9 +214,9 @@ theorem worker_init (N m : Nat) :
     iframe Hv
     simp only [crashProto]
     ileft
-    iunfold workerObls
+    iunfold workerObligations
     iframe Ha0 Hk0
-    iapply obls_insert hk
+    iapply obligations_insert hk
     iframe Uk Hkk HT
   imodintro
   iexists k, {k} ∪ T, fun j => if j = k then c else kids j
@@ -229,7 +229,7 @@ theorem worker_init (N m : Nat) :
 
 /-- The initial resources of `[work N, kill]`, the worker owing `m + 1` obligations: the worker's,
 then the killer's `lWP`. -/
-theorem crash_init (N m : Nat) :
+theorem init (N m : Nat) :
     stVar (GF := GF) (Qp.half 1) true false ⊢ £ₙ 1 -∗ £ₙ 1 -∗
       ([∗list] j ∈ List.range (tpKill N).length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
       |={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ gCrash) ∗ P ∗
@@ -258,7 +258,7 @@ abbrev tpRevive (N : Nat) : ThreadPool Exp := [.work N, .kill, .revive]
 
 /-- The initial resources of `[work N, kill, revive]`, the worker owing `m + 1` obligations: the
 worker's, then the killer's and the reviver's `lWP`s. -/
-theorem crash_init_revive (N m : Nat) :
+theorem init_revive (N m : Nat) :
     stVar (GF := GF) (Qp.half 1) true false ⊢ £ₙ 1 -∗ £ₙ 1 -∗ £ₙ 1 -∗
       ([∗list] j ∈ List.range (tpRevive N).length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
       |={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ gCrash) ∗ P ∗
@@ -292,7 +292,7 @@ end Init
 /-- **Liveness of `[work N, kill]`.** On every behavior from the initial configuration, started
 alive, on which the active threads are fairly scheduled, eventually the worker has finished or is
 crashed. -/
-theorem crash_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : isBehavior τ)
+theorem adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tpKill N, true)) :
     finishedOrCrashed τ := by
   refine lwp_adequacy_temporal (GF := CrashGF) true (tpKill N) gCrash finishedOrCrashed
@@ -309,12 +309,12 @@ theorem crash_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : isBehavior τ
   iintro Hc HT
   icases (tlc_split_nat 1 1).mp $$ Hc with ⟨Hc0, Hc1⟩
   ihave HT := init_threads_of_not_crashed (fun j => not_crashed_true _ j) $$ HT
-  iapply crash_init N N $$ Hv Hc0 Hc1 HT
+  iapply init N N $$ Hv Hc0 Hc1 HT
 
 /-- **Liveness of `[work N, kill, revive]`.** On every behavior from the initial configuration,
 started alive, on which the active threads are fairly scheduled, eventually the worker has
 finished or is crashed. -/
-theorem crash_revive_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : isBehavior τ)
+theorem revive_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tpRevive N, true)) :
     finishedOrCrashed τ := by
   refine lwp_adequacy_temporal (GF := CrashGF) true (tpRevive N) gCrash finishedOrCrashed
@@ -333,21 +333,21 @@ theorem crash_revive_adequacy (N : Nat) (τ : Trace (Cfg Exp St)) (hbeh : isBeha
   icases (tlc_split_nat (1 + 1) 1).mp $$ Hc with ⟨Hc, Hc2⟩
   icases (tlc_split_nat 1 1).mp $$ Hc with ⟨Hc0, Hc1⟩
   ihave HT := init_threads_of_not_crashed (fun j => not_crashed_true _ j) $$ HT
-  iapply crash_init_revive N N $$ Hv Hc0 Hc1 Hc2 HT
+  iapply init_revive N N $$ Hv Hc0 Hc1 Hc2 HT
 
 /-! The theorems depend only on the standard axioms. -/
 
 /--
-info: 'LantanaTest.Crash.crash_adequacy' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'LantanaTest.Crash.adequacy' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs (whitespace := lax) in
-#print axioms crash_adequacy
+#print axioms adequacy
 
 /--
-info: 'LantanaTest.Crash.crash_revive_adequacy' depends on axioms:
+info: 'LantanaTest.Crash.revive_adequacy' depends on axioms:
   [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs (whitespace := lax) in
-#print axioms crash_revive_adequacy
+#print axioms revive_adequacy
 
 end LantanaTest.Crash

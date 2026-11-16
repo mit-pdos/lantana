@@ -168,7 +168,7 @@ def untilN : Namespace := nroot.@"paradox_until"
 def falseN : Namespace := nroot.@"paradox_false"
 
 /-- The untils' namespace is outside the invariant's. -/
-theorem untilN_subseteq : (↑untilN : CoPset) ⊆ ⊤ \ ↑invN := by
+theorem untilN_subset : (↑untilN : CoPset) ⊆ ⊤ \ ↑invN := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨CoPset.mem_full, fun h' => ?_⟩
   exact ndot_ne_disjoint nroot (by decide) p ⟨hp, h'⟩
@@ -309,7 +309,7 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
         untilI untilN ck 1 iprop(True) (nextQ rm cj n) -∗ nextQ rm cj n -∗
         |={⊤ \ ↑invN}=>m nextQ rm cj n ∗ thKids j ((({ck} : Oids).insert ck1).erase ck) ∗
           Obl.discharged ck :=
-      finallyI_discharge (.thread j) _ untilN_subseteq (by simp)
+      finallyI_discharge (.thread j) _ untilN_subset (by simp)
     imod hdis $$ Hc3 HK Kck Uck [] with ⟨#HQ, HK, #Hd⟩
     · unfold nextQ
       iframe Hlb1

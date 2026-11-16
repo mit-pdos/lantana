@@ -27,7 +27,7 @@ Theorem names:
   `satFrame_move`, `Obligations.stayOrStep_trans` (about `StayOrStep`),
   `isSome_toVal_of_baseStep`.  A name is not split into snake_case words: `sat_frame` would be
   wrong for `satFrame`.  A name is not abbreviated either: `strongFair_iff_weakFair_of_convex`,
-  not `sf_iff_wf_of_convex`.
+  not `sf_iff_wf_of_convex`; `obligations` and `witnesses`, not `obls` and `wits`.
 - **Connecting words:** `_of_` for an implication, `_iff`, `_left`/`_right` (never `_l`/`_r`),
   and `_mp`/`_mpr` for the halves of an iff.  `_2` names a two-element variant
   (`supply_spend_2`, as Iris-Lean's `ghost_map_elem_valid_2`).
@@ -42,12 +42,18 @@ Theorem names:
   | `inc` (CMRA inclusion) | `included` |
   | `imp` (the connective, `BIBase.imp`) | `impl` |
   | `update` | `upd` |
+  | `subset` (`⊆`) | `subseteq` |
+  | `mul`, `pow` (`*`, `^`) | `mult`, `expn` |
 
   The vocabulary also holds for the names of instances (`TrSpec.mono_exists`) and of
   definitions (`TrProp.forall`).  The worked examples of a module are `example_…`
   (`GuaranteeInfer.example_iprop`).
 - **Relations.** A name says `le` for `≤` and `⊑ₛ`, and `subset` for `⊆`
-  (`TrProp.subset_refl`, `Th.carriers_kids_subset`).
+  (`TrProp.subset_refl`, `Th.carriers_kids_subset`, `invN_subset`).
+- **Operations.** A lemma about a set, a map or a measure names the operation of its
+  statement: `insert`, `erase`, `union`, `diff`, `add`, `mul`, `pow` (`Obl.fuels_insert`,
+  `Obl.fuels_diff`, `Par.kids_erase_diff`, `Obl.fuel_mul`).  A rule of the logic is named by
+  what it does (`Obl.new`, `Obl.move`, `Wit.fuels_add`, `Th.terminate`).
 - **Namespaces.**
   - Lemmas used with dot notation live in the namespace of their type or definition
     (`Model.ChownRel.fuel_in`, `HeapLang.Loc.add_assoc`).
@@ -61,8 +67,12 @@ Theorem names:
   - One fact has one name: a lemma is not restated under another name, in another layer or with
     other implicit arguments.
   - A namespace is not repeated in its names: `Examples.FlagClient.adequacy`, not
-    `Examples.FlagClient.flagClient_adequacy`.
-  - A word has one casing: `OWitRel` and `OWitInv`, as the namespace `OWit`.  A word made of
+    `Examples.FlagClient.flagClient_adequacy`.  A definition of the namespace keeps its
+    spelling (`Examples.Nondet.nondet_spec` is about the program `nondet`), and a lemma beside
+    a family of the same namespace joins it (`Obl.discharge_leaf_roots`, not
+    `obl_discharge_leaf_roots`).
+  - A word has one casing, and two words are written apart everywhere: `unexpBinOp`, as the
+    type `BinOp`; `OWitRel` and `OWitInv`, as the namespace `OWit`.  A word made of
     a capital prefix and a word is lowercased as a whole in lowerCamelCase, as Iris-Lean's
     `BUpd` and `FUpd` are `bupd` and `fupd`: `owit` (`owitInv_exists_witnesses`), `oforest`,
     `osat`, and `rupdG` for `RUpdG`.
@@ -158,10 +168,15 @@ Instance names follow the instance of Iris-Lean they correspond to:
     that name;
   - the vocabulary of §1, in the names of theorems and instances and as the name of a
     definition;
-  - an abbreviation of a definition's name (`sf`, `ndf`; the list is in `lint.py`);
+  - an abbreviation of a definition's name (`sf`, `ndf`, `obls`; the list is in `lint.py`),
+    also inside the camel-case name of a definition (`workerObls`);
   - a theorem or an instance named after the flat spelling of a namespaced definition
-    (`witLayers_persistent`, when the definition is `Wit.layers`);
-  - a word cased differently from the namespace or type it comes from (`OwitRel`);
+    (`witLayers_persistent`, when the definition is `Wit.layers`), or named `foo_bar…` beside
+    the family `Foo.bar…` of the same namespace (`obl_discharge_leaf_roots`);
+  - a theorem whose first word repeats its namespace (`Crash.crash_adequacy`), unless that
+    word is a definition in scope or the namespace is a class;
+  - a word cased differently from the namespace or type it comes from (`OwitRel`), and two
+    words written as one (`unexpBinop`, when the type is `BinOp`);
   - an `N…` namespace constant;
   - types and constructors in the wrong case;
   - a declaration in a namespace that mirrors one of an enclosing namespace (`HeapLang.Obl`);
@@ -170,8 +185,9 @@ Instance names follow the instance of Iris-Lean they correspond to:
 
 The check of the result sort is syntactic: an IProp-, `TrProp`- or Set-valued definition counts
 as term-valued.  Its exceptions, and the restatements kept on purpose, are listed in `lint.py`
-with their reasons.  Apart from the statement hash, the lint reads names: that a lemma about
-`⊆` says `subset` is checked by review.
+with their reasons.  Apart from the statement hash, the lint reads names: it rejects the
+words of the vocabulary, but that a name says what its statement says (`subset` for `⊆`,
+`insert` for an insertion) is checked by review.
 
 ## 5. Renaming declarations
 

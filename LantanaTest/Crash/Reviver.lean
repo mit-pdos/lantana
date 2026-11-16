@@ -31,7 +31,7 @@ theorem reviver_spec (k : Oid) (S : Oids) (kids : Oid → Oids) :
   iapply lwp_step (rfl : toVal Exp.revive = none)
   simp only [stateInterp_eq]
   iintro %σ₁ %tp %hi ⟨%hS, Hs⟩
-  imod inv_acc invN_subseteq $$ HI with ⟨HC, Hclose⟩
+  imod inv_acc invN_subset $$ HI with ⟨HC, Hclose⟩
   imod Lantana.lc_fupd_elim_later $$ Hc HC with HC
   iunfold crashInv at HC
   icases HC with ⟨%b, %f, Hv, HC⟩

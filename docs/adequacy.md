@@ -365,7 +365,7 @@ the interpretation of the temporal layer, initialized from the empty registry of
 - `Reviver.lean`: `reviver_spec`.  Reviving a crashed worker receives its node from the physical
   round and puts it back in the shared invariant; the worker goes on with no obligation.
 - `Adequacy.lean`: the worker's obligations, `k` with a chain of any length below it
-  (`worker_obls_alloc`, `chain_alloc`), and `crash_adequacy` and `crash_revive_adequacy`: on
+  (`worker_obligations_alloc`, `chain_alloc`), and `Crash.adequacy` and `Crash.revive_adequacy`: on
   every fairly scheduled behavior of `[work N, kill]` and of `[work N, kill, revive]`, started
   alive, eventually the worker has finished or is crashed.  The killer may give up, so the
   worker's obligation is needed; with the reviver, a crashed worker may recover and finish later.

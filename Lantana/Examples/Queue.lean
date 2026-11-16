@@ -475,7 +475,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add κu 0 _ _).mp $$ Fκ with ⟨Fκ, Fκr⟩
-  ihave HF := Obl.fuels_add_obl G κu 0 _ $$ Fκ HF
+  ihave HF := Obl.fuels_insert G κu 0 _ $$ Fκ HF
   unfold queueLock
   icases HR with ⟨%lh, %lt, %vs, Plh, Plt, Q, QC⟩
   lwp_step HT HG HF
@@ -658,7 +658,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add κu 0 _ _).mp $$ Fκ with ⟨Fκ, Fκr⟩
-  ihave HF := Obl.fuels_add_obl G κu 0 _ $$ Fκ HF
+  ihave HF := Obl.fuels_insert G κu 0 _ $$ Fκ HF
   ihave Fr := (Oids.bigSepS_insert (Φ := fun g => Obl.fuel g 0 μr) hκu).mpr $$ [Fκr Fr]
   · iframe Fκr Fr
   unfold queueLock
@@ -785,7 +785,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       imod Hup with ⟨%ng, %hng, HK, HG, Kwg, Gw, Ang, Fng, Q⟩
       icases (Obl.fuel_add ng ℓ _ μr).mp $$ Fng with ⟨Fng, Fngr⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng83⟩
-      ihave HF := Obl.fuels_add_obl (G.insert κu) ng ℓ _ $$ Fng83 HF
+      ihave HF := Obl.fuels_insert (G.insert κu) ng ℓ _ $$ Fng83 HF
       imod Obl.fuel_layer_mono (ℓ₁ := 0) ng μr (Ordinals.Ordinal.zero_le ℓ) $$ Fngr with Fngr
       ihave Fr := (Oids.bigSepS_insert (Φ := fun g => Obl.fuel g 0 μr) hng).mpr $$ [Fngr Fr]
       · iframe Fngr Fr
@@ -932,7 +932,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     imod Hup with ⟨%g, %hg, HK, HG, Kg, Ag, Fg, Q, F1⟩
     icases (Obl.fuel_add g ℓ _ μr).mp $$ Fg with ⟨Fg, Fgr⟩
     icases (Obl.fuel_add g ℓ m _).mp $$ Fg with ⟨Fg, Fg76⟩
-    ihave HF := Obl.fuels_add_obl (G.insert κu) g ℓ _ $$ Fg76 HF
+    ihave HF := Obl.fuels_insert (G.insert κu) g ℓ _ $$ Fg76 HF
     imod Obl.fuel_layer_mono (ℓ₁ := 0) g μr (Ordinals.Ordinal.zero_le ℓ) $$ Fgr with Fgr
     ihave Fr := (Oids.bigSepS_insert (Φ := fun g => Obl.fuel g 0 μr) hg).mpr $$ [Fgr Fr]
     · iframe Fgr Fr
@@ -1040,7 +1040,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       imod Hup with ⟨%ng, %hng, HK, HG, Kwg, Gw, Ang, Fng, Q⟩
       icases (Obl.fuel_add ng ℓ _ μr).mp $$ Fng with ⟨Fng, Fngr⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng76⟩
-      ihave HF := Obl.fuels_add_obl ((G.insert κu).insert g) ng ℓ _ $$ Fng76 HF
+      ihave HF := Obl.fuels_insert ((G.insert κu).insert g) ng ℓ _ $$ Fng76 HF
       imod Obl.fuel_layer_mono (ℓ₁ := 0) ng μr (Ordinals.Ordinal.zero_le ℓ) $$ Fngr with Fngr
       ihave Fr := (Oids.bigSepS_insert (Φ := fun g => Obl.fuel g 0 μr) hng).mpr $$ [Fngr Fr]
       · iframe Fngr Fr

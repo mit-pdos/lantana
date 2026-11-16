@@ -112,15 +112,15 @@ def tokenN : Namespace := ticketLockN.@"token"
 #lantana_ignore ticket_lock.N_disj_1 "inlined in `eventuallyN_subseteq`"
 
 @[lantana_alias ticket_lock.N_inv_subseteq]
-theorem invN_subseteq {E : CoPset} (h : ↑ticketLockN ⊆ E) : (↑invN : CoPset) ⊆ E :=
+theorem invN_subset {E : CoPset} (h : ↑ticketLockN ⊆ E) : (↑invN : CoPset) ⊆ E :=
   nclose_subseteq' _ h
 
-theorem tokenN_subseteq {E : CoPset} (h : ↑ticketLockN ⊆ E) : (↑tokenN : CoPset) ⊆ E :=
+theorem tokenN_subset {E : CoPset} (h : ↑ticketLockN ⊆ E) : (↑tokenN : CoPset) ⊆ E :=
   nclose_subseteq' _ h
 
 /-- The events' namespace is outside the invariant's. -/
 @[lantana_alias ticket_lock.N_subseteq_1]
-theorem eventuallyN_subseteq {E : CoPset} (h : ↑ticketLockN ⊆ E) :
+theorem eventuallyN_subset {E : CoPset} (h : ↑ticketLockN ⊆ E) :
     (↑eventuallyN : CoPset) ⊆ E \ ↑invN := by
   intro p hp
   refine Iris.Std.LawfulSet.mem_diff.mpr ⟨nclose_subseteq' _ h p hp, fun h' => ?_⟩
@@ -708,7 +708,7 @@ theorem lockToken_exchange (E : CoPset) (hE : ↑ticketLockN ⊆ E) (γ : Ticket
         finallyI eventuallyN κu (1 : Qp).half (released curr c R) := by
   iintro #ITK Hc1 GV #GMEo
   ihave Hacc := alwaysI_acc (E := E) (N := tokenN) (P := lockTokenInv γ.γo γ.γk curr R)
-    (tokenN_subseteq hE) $$ ITK
+    (tokenN_subset hE) $$ ITK
   imod Hacc with ⟨H, Hclose⟩
   imod lc_fupd_elim_later $$ Hc1 H with H
   iunfold lockTokenInv at H
@@ -777,7 +777,7 @@ theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   lwp_expr_simp
   -- The store, in the lock invariant.
   ihave Hacc := alwaysI_acc (E := E) (N := invN)
-    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subseteq hE) $$ INV
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subset hE) $$ INV
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨H, Hclose⟩
   iclear Hacc
@@ -807,7 +807,7 @@ theorem release_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   cases h
   iunfold finallyI at GEku HE
   ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ GEku HE
-  ihave HU := untilI_discharge (E := E \ ↑invN) (eventuallyN_subseteq hE) $$ HU
+  ihave HU := untilI_discharge (E := E \ ↑invN) (eventuallyN_subset hE) $$ HU
   ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
   imod HU
   iapply lwp_credit_later $$ Hc3
@@ -987,7 +987,7 @@ theorem delete_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
   -- The store, in the lock invariant.
   lwp_bind hl(#curr ← #((c + 1 : Int))) HT
   ihave Hacc := alwaysI_acc (E := E) (N := invN)
-    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subseteq hE) $$ INV
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subset hE) $$ INV
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨H, Hclose⟩
   iclear Hacc
@@ -1017,7 +1017,7 @@ theorem delete_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
   cases h
   iunfold finallyI at GEku HE
   ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ GEku HE
-  ihave HU := untilI_discharge (E := E \ ↑invN) (eventuallyN_subseteq hE) $$ HU
+  ihave HU := untilI_discharge (E := E \ ↑invN) (eventuallyN_subset hE) $$ HU
   ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
   imod HU
   iapply lwp_credit_later $$ Hc3
@@ -1046,7 +1046,7 @@ theorem delete_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
   imodintro
   ihave PtrCurr := (pointsTo_quarters curr _).mpr $$ [PtrCurr PtrCurr34]
   · iframe
-  ihave HF := Obl.fuels_remove_obl κu G _ $$ HF
+  ihave HF := Obl.fuels_erase κu G _ $$ HF
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF
@@ -1131,7 +1131,7 @@ theorem acquire_end (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLockName) 
   -- The lock token.
   iapply lwp_value_mupd'.mpr
   ihave Hacc := alwaysI_acc (E := E) (N := tokenN) (P := lockTokenInv γ.γo γ.γk curr R)
-    (tokenN_subseteq hE) $$ ITK
+    (tokenN_subset hE) $$ ITK
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨H, Hclose⟩
   iclear Hacc
@@ -1270,7 +1270,7 @@ theorem acquire_loop_inner (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLoc
   lwp_bind hl(!#curr) HT
   -- The atomic load, in the lock invariant: it observes the holder's unlock obligation.
   ihave Hacc := alwaysI_acc (E := E) (N := invN)
-    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subseteq hE) $$ INV
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subset hE) $$ INV
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨H, Hclose⟩
   iclear Hacc
@@ -1363,13 +1363,13 @@ theorem acquire_loop_inner (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLoc
       grind
     ihave HK := Par.kids_congr hGgu $$ HK
     ihave HG := Th.carriers_congr hGgu $$ HG
-    ihave HF := Obl.fuels_remove_obl gu _ _ $$ HF
+    ihave HF := Obl.fuels_erase gu _ _ $$ HF
     ihave HF := Obl.fuels_subset (B := G) _ (fun z hz => (hGgu z).mpr hz) $$ HF
     imod Obl.new (E \ ↑invN) (.thread i) G G ℓ (2 + 4) $$ [] HK HG with
       ⟨%gu', %hgu', HK, HG, Kgu', Agu', Fgu', #Wgu'⟩
     · iapply Par.le_thread
     icases (Obl.fuel_add gu' ℓ 2 4).mp $$ Fgu' with ⟨F2, F4⟩
-    ihave HF := Obl.fuels_add_obl G gu' ℓ 2 $$ F2 HF
+    ihave HF := Obl.fuels_insert G gu' ℓ 2 $$ F2 HF
     imod ghostMapP_update (some (gu', ℓ, m) : TicketInfo) $$ GMAt GMEt with ⟨GMAt, GMEt⟩
     icases ghostMapPElem_halves $$ GMEt with ⟨GMEt, GMEt0⟩
     have hDomt' := dom_insert_same Domt hmy (some (gu', ℓ, m) : TicketInfo)
@@ -1406,7 +1406,7 @@ theorem acquire_loop_inner (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLoc
       ihave Fs := (bigSepM_witMap G ℓ).mp $$ Fs
       ihave Fs := Obl.fuels_init G 50 ℓ.succ $$ Fs
       icases Obl.fuels_add_nat 4 46 50 G rfl $$ Fs with ⟨Fs, -⟩
-      ihave HF4 := Obl.fuels_add_obl G gu' ℓ 4 $$ F4 Fs
+      ihave HF4 := Obl.fuels_insert G gu' ℓ 4 $$ F4 Fs
       iapply IHα α₀ hα gu' hgu' $$ INV ITK CFl CFl0 Wl0 GMEo0 Wgu' HΦ AL CF EFs WFs Agu' GMEt0 HK
         HG HF4 HT
     · -- `κ` is discharged: the holder has changed, by the outer induction.
@@ -1476,7 +1476,7 @@ theorem acquire_loop_inner (lc : Fuel) (i : ThreadId) (G : Oids) (γ : TicketLoc
       icases (Obl.fuel_add_set G ℓ.succ 50 (50 * ▽)).mp $$ Fs with ⟨Fs, Fsloop⟩
       ihave Fs := Obl.fuels_init G 50 ℓ.succ $$ Fs
       icases Obl.fuels_add_nat 4 46 50 G rfl $$ Fs with ⟨Fs, -⟩
-      ihave HF4 := Obl.fuels_add_obl G gu' ℓ 4 $$ F4 Fs
+      ihave HF4 := Obl.fuels_insert G gu' ℓ 4 $$ F4 Fs
       icases ownLayer_lb_le γ dq₂ ℓ ℓ₁ $$ CF CFl1 with ⟨%hℓ₁, CF⟩
       iapply IH _ hν' c κ₁ ℓ₁ gu' rfl (by omega) hℓ₁ hgu' $$ INV ITK CFl CFl1 Wl1 GMEo1' Wgu'
         HΦ AL CF EFs Fsloop Agu' GMEt0 HK HG HF4 HT
@@ -1533,7 +1533,7 @@ theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : Thre
   lwp_bind hl(faa(#next, #1)) HT
   -- The atomic FAA, in the lock invariant.
   ihave Hacc := alwaysI_acc (E := E) (N := invN)
-    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subseteq hE) $$ INV
+    (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subset hE) $$ INV
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
   imod Hacc with ⟨H, Hclose⟩
   iclear Hacc
@@ -1555,7 +1555,7 @@ theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : Thre
   imod Obl.new (E \ ↑invN) (.thread i) G G ℓ 12 $$ [] HK HG with
     ⟨%gu, %hgu, HK, HG, Kgu, Agu, Fgu, #Wgu⟩
   · iapply Par.le_thread
-  ihave HF := Obl.fuels_add_obl G gu ℓ 12 $$ Fgu HF
+  ihave HF := Obl.fuels_insert G gu ℓ 12 $$ Fgu HF
   icases ownLayer_lb γ dq₂ ℓ $$ CF with ⟨CF, #CFl⟩
   iunfold holderSt at Hc
   icases Hc with (⟨%hcn', PtrCurr0, HR⟩ | ⟨%hcn', Hc⟩)
@@ -1668,7 +1668,7 @@ theorem acquire_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (i : Thre
     -- My turn, or wait: the first check, in the lock invariant.
     iapply fupd_lwp
     ihave Hacc := alwaysI_acc (E := E) (N := invN)
-      (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subseteq hE) $$ INV
+      (P := lockInv γ.γt γ.γo γ.γc γ.γa next curr R) (invN_subset hE) $$ INV
     imod Hacc with ⟨H, Hclose⟩
     ihave Hc1 := tlc_one_nat.mpr $$ Hc1
     imod lc_fupd_elim_later $$ Hc1 H with H

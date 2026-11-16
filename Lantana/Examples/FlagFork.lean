@@ -114,7 +114,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   icases (Obl.fuel_add k _ _ _).mp $$ Hf with ⟨Hf, Hfr⟩
   icases (Obl.fuel_add k _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
   icases Obl.fuels_add 3 6 _ $$ HF with ⟨Hf₃, HF⟩
-  ihave Hf₃ := Obl.fuels_add_obl _ k 0 _ $$ Hf Hf₃
+  ihave Hf₃ := Obl.fuels_insert _ k 0 _ $$ Hf Hf₃
   lwp_step HT HG Hf₃
   lwp_step HT HG Hf₃
   lwp_expr_simp

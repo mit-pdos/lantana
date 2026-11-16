@@ -222,7 +222,7 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
   · iexfalso
     iapply untilI_discharged_false $$ HU Hd
   ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
-  ihave HU := untilI_discharge (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subseteq $$ HU
+  ihave HU := untilI_discharge (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subset $$ HU
   ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
   imod HU
   iapply lwp_credit_later $$ Hc2
@@ -316,7 +316,7 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
   · iexfalso
     iapply untilI_discharged_false $$ HU Hd
   ihave HU := untilI_frac_add (q := 1) (Qp.half_add_half 1).symm $$ HU Hinv
-  ihave HU := untilI_discharge (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subseteq $$ HU
+  ihave HU := untilI_discharge (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subset $$ HU
   ihave HU := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ HU
   imod HU
   iapply lwp_credit_later $$ Hc2
@@ -384,7 +384,7 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       inext
       unfold flagInv
       icases Hinv with (Hinv | ⟨#Hd, #Av⟩)
-      · ihave Hu := untilI_acc (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subseteq $$ Hinv
+      · ihave Hu := untilI_acc (E := ⊤ \ ↑alwaysN) Flag.pointsToN_subset $$ Hinv
         ihave Hu := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hu
         imod Hu
         iapply lwp_credit_later $$ Hc2
@@ -422,7 +422,7 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         iapply HP $$ HT HG HΦ HF
       · -- The set flag is read from its own invariant.
         ihave Hvacc := alwaysI_acc (E := ⊤ \ ↑alwaysN) (N := valueN) (P := iprop(l ↦ some v1))
-          (Flag.ndot_subseteq_diff flagN (by decide)) $$ Av
+          (Flag.ndot_subset_diff flagN (by decide)) $$ Av
         ihave Hvacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hvacc
         imod Hvacc with ⟨Hl, Hvclose⟩
         iapply lwp_credit_later $$ Hc2

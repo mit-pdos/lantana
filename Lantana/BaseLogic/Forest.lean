@@ -359,7 +359,7 @@ theorem owned_insert_other {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {p
 
 /-- Removing a node (discharge). -/
 @[lantana_alias forest_owned_remove]
-theorem owned_remove {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {g : Obligation}
+theorem owned_insert_delete {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {g : Obligation}
     {j : ThreadId} :
     owned (insert Ω k g) (delete Par k) j = owned Ω Par j \ {k} :=
   LawfulSet.ext fun x => by

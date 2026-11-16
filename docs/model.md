@@ -177,10 +177,10 @@ supplies no order: it is read from the model.  In the forest a child has more fu
 parent, so the fuel ranks `S` from parent to child (`oforest_kids_rank`); `kids_rank_mupd` reads
 it in a ghost round, and the interface gives it as an existential rank (`Obl.kids_rank`).
 
-Given a rank, `obl_discharge_forest_of_rank` proceeds by well-founded induction on `S`.  A
+Given a rank, `Obl.discharge_forest_of_rank` proceeds by well-founded induction on `S`.  A
 nonempty `S` closed under children has an obligation without children, one of largest rank
 (`Oids.exists_leaf`).  It is discharged below its parent, a root or an obligation of `S`
-(`obl_discharge_leaf_roots`, `Obl.discharge_leaf`), every other children set loses it
+(`Obl.discharge_leaf_roots`, `Obl.discharge_leaf`), every other children set loses it
 (`Par.kids_diff_discharged`), and the induction goes on with the rest of `S`.  The forms for one
 root, for every obligation below the roots, and for thread roots are `Obl.discharge_forest_single`,
 `Obl.discharge_forest_all` and `Obl.discharge_forest_threads`.
