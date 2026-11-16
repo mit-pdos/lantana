@@ -92,17 +92,17 @@ and the witnesses. -/
 @[lantana_alias mupd, irreducible]
 def mupdBase (n : Nat) (P : IProp GF) : IProp GF := Model.mupd n P
 
-/-- The progress round of a step of thread `i`, at position `n` and view `tc`, `X`: the
+/-- The progress round of a step of thread `i`, at position `n` and view `tc`, `crashed`: the
 obligations of `i` progress and the witnesses get credits. -/
 @[lantana_alias mprog, irreducible]
-def mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) : IProp GF :=
-  Model.mprog n tc X i P
+def mprog (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (P : IProp GF) : IProp GF :=
+  Model.mprog n tc crashed i P
 
-/-- The physical round of a step, from position `n₁` and view `tc₁`, `X₁` to position `n₂` and
-view `tc₂`, `X₂`. -/
+/-- The physical round of a step, from position `n₁` and view `tc₁`, `crashed₁` to position `n₂` and
+view `tc₂`, `crashed₂`. -/
 @[lantana_alias mphys, irreducible]
-def mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
-  Model.mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P
+def mphys (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
+  Model.mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P
 
 /-! ### Unfolding (private: only this module unfolds the predicates) -/
 
@@ -132,9 +132,9 @@ private theorem Wit.fuels_unfold : Wit.fuels (GF := GF) = Model.OPreds.witFuels 
 private theorem mupdBase_unfold : mupdBase (GF := GF) = Model.mupd := by
   funext n P; exact mupdBase.eq_1 n P
 private theorem mprog_unfold : mprog (GF := GF) = Model.mprog := by
-  funext n tc X i P; exact mprog.eq_1 n tc X i P
+  funext n tc crashed i P; exact mprog.eq_1 n tc crashed i P
 private theorem mphys_unfold : mphys (GF := GF) = Model.mphys := by
-  funext n₁ n₂ tc₁ tc₂ X₁ X₂ P; exact mphys.eq_1 n₁ n₂ tc₁ tc₂ X₁ X₂ P
+  funext n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P; exact mphys.eq_1 n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P
 
 end Predicates
 
@@ -230,7 +230,7 @@ def Wit.layers (R : Oids) : IProp GF := iprop([∗set] r ∈ R, ∃ ℓ : Layer,
 def Wit.creds (R : Oids) : IProp GF := iprop([∗set] r ∈ R, Wit.cred r 1 ∨ Obl.discharged r)
 
 /-- The nodes, open and empty, of the threads `< tc` that satisfy `φ`: what the physical round
-hands in and out when the crashed bits change. -/
+hands in and out when the crash map changes. -/
 abbrev Th.nodes (tc : Nat) (φ : ThreadId → Prop) : IProp GF :=
   iprop([∗list] j ∈ List.range tc, ⌜φ j⌝ -∗ thActive j ∗ thKids j ∅)
 
@@ -318,34 +318,36 @@ theorem mupdBase_bind (n : Nat) (P Q : IProp GF) :
   rw [mupdBase_unfold]; exact Model.mupd_bind n P Q
 
 @[lantana_alias mprog_ne]
-instance mprog_ne (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) :
-    OFE.NonExpansive (mprog (GF := GF) n tc X i) := by
-  rw [mprog_unfold]; exact Model.mprog_ne n tc X i
+instance mprog_ne (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) :
+    OFE.NonExpansive (mprog (GF := GF) n tc crashed i) := by
+  rw [mprog_unfold]; exact Model.mprog_ne n tc crashed i
 
 @[lantana_alias mprog_wand_l]
-theorem mprog_wand (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P Q : IProp GF) :
-    (P -∗ Q) ⊢ mprog n tc X i P -∗ mprog n tc X i Q := by
-  rw [mprog_unfold]; exact Model.mprog_wand n tc X i P Q
+theorem mprog_wand (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (P Q : IProp GF) :
+    (P -∗ Q) ⊢ mprog n tc crashed i P -∗ mprog n tc crashed i Q := by
+  rw [mprog_unfold]; exact Model.mprog_wand n tc crashed i P Q
 
 @[lantana_alias mphys_ne]
-instance mphys_ne (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) :
-    OFE.NonExpansive (mphys (GF := GF) n₁ n₂ tc₁ tc₂ X₁ X₂) := by
-  rw [mphys_unfold]; exact Model.mphys_ne n₁ n₂ tc₁ tc₂ X₁ X₂
+instance mphys_ne (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) :
+    OFE.NonExpansive (mphys (GF := GF) n₁ n₂ tc₁ tc₂ crashed₁ crashed₂) := by
+  rw [mphys_unfold]; exact Model.mphys_ne n₁ n₂ tc₁ tc₂ crashed₁ crashed₂
 
 @[lantana_alias mphys_wand_l]
-theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P Q : IProp GF) :
-    (P -∗ Q) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P -∗ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ Q := by
-  rw [mphys_unfold]; exact Model.mphys_wand n₁ n₂ tc₁ tc₂ X₁ X₂ P Q
+theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P Q : IProp GF) :
+    (P -∗ Q) ⊢
+      mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P -∗ mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ Q := by
+  rw [mphys_unfold]; exact Model.mphys_wand n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P Q
 
 /-- A fancy update at the empty mask before the progress round is absorbed. -/
-theorem fupd_mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
-    (|={∅}=> mprog n tc X i P) ⊢ mprog n tc X i P := by
-  rw [mprog_unfold]; exact Model.fupd_mprog n tc X i P
+theorem fupd_mprog (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
+    (|={∅}=> mprog n tc crashed i P) ⊢ mprog n tc crashed i P := by
+  rw [mprog_unfold]; exact Model.fupd_mprog n tc crashed i P
 
 /-- A fancy update at the empty mask before the physical round is absorbed. -/
-theorem fupd_mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) :
-    (|={∅}=> mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
-  rw [mphys_unfold]; exact Model.fupd_mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P
+theorem fupd_mphys (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P : IProp GF) :
+    (|={∅}=> mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P) ⊢
+      mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P := by
+  rw [mphys_unfold]; exact Model.fupd_mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P
 
 /-! ## The model update: the three core rules (the rest is derived) -/
 
@@ -680,45 +682,45 @@ section Physical
 /-- A step of thread `i` burns one unit of fuel of each obligation of the bill of `i` and gives
 one credit for each live witness in `R`. -/
 @[lantana_alias oblf.step_progress]
-theorem step_progress (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R : Oids)
+theorem step_progress (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (B R : Oids)
     (P : IProp GF) :
     thCarriers i B ⊢ Obl.fuels B 1 -∗ Wit.layers R -∗
-      (thCarriers i B -∗ Wit.creds R ={∅}=∗ P) -∗ mprog n tc X i P := by
+      (thCarriers i B -∗ Wit.creds R ={∅}=∗ P) -∗ mprog n tc crashed i P := by
   unfold Obl.fuels Wit.layers Wit.creds
   rw [Th.carriers_unfold, Obl.fuel_unfold, Wit.layer_unfold, Wit.cred_unfold,
     Obl.discharged_unfold, mprog_unfold]
-  exact Model.OPreds.mprog_step_kids n tc X i B R P
+  exact Model.OPreds.mprog_step_kids n tc crashed i B R P
 
 /-- A crashed thread steps for free. -/
-theorem step_progress_crashed (n tc : Nat) (X : ThreadId → Prop) {i : ThreadId} (hX : X i)
-    (B R : Oids) (P : IProp GF) :
+theorem step_progress_crashed (n tc : Nat) (crashed : ThreadId → Prop) {i : ThreadId}
+    (hcr : crashed i) (B R : Oids) (P : IProp GF) :
     thCarriers i B ⊢ Wit.layers R -∗ (thCarriers i ∅ -∗ Wit.creds R ={∅}=∗ P) -∗
-      mprog n tc X i P := by
+      mprog n tc crashed i P := by
   unfold Wit.layers Wit.creds
   rw [Th.carriers_unfold, Wit.layer_unfold, Wit.cred_unfold, Obl.discharged_unfold,
     mprog_unfold]
-  exact Model.OPreds.mprog_step_crashed n tc X hX B R P
+  exact Model.OPreds.mprog_step_crashed n tc crashed hcr B R P
 
-/-- A step that forks the threads `tc₁, …, tc₂ - 1` and changes the crashed bits from `X₁` to
-`X₂`. -/
-theorem step_physical (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF)
-    (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :
+/-- A step that forks the threads `tc₁, …, tc₂ - 1` and changes the crash map from `crashed₁` to
+`crashed₂`. -/
+theorem step_physical (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P : IProp GF)
+    (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hcr₁ : ∀ j, tc₁ ≤ j → ¬crashed₁ j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) ={∅}=∗
-      alc (|=[n₂]=>m Th.nodes tc₂ (fun j => ¬X₁ j ∧ X₂ j) ∗
-        (Th.nodes tc₂ (fun j => X₁ j ∧ ¬X₂ j) -∗ P))) ⊢
-      mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
+      alc (|=[n₂]=>m Th.nodes tc₂ (fun j => ¬crashed₁ j ∧ crashed₂ j) ∗
+        (Th.nodes tc₂ (fun j => crashed₁ j ∧ ¬crashed₂ j) -∗ P))) ⊢
+      mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P := by
   dsimp only [Th.nodes]
   rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold, mupdBase_unfold, mphys_unfold]
-  exact Model.OPreds.mphys_step_kids n₁ n₂ tc₁ tc₂ X₁ X₂ P hn htc hX₁
+  exact Model.OPreds.mphys_step_kids n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P hn htc hcr₁
 
-/-- A step that forks the threads `tc₁, …, tc₂ - 1` and keeps the crashed bits. -/
+/-- A step that forks the threads `tc₁, …, tc₂ - 1` and keeps the crash map. -/
 @[lantana_alias oblf.step_fork]
-theorem step_fork (n₁ n₂ tc₁ tc₂ : Nat) (X : ThreadId → Prop) (P : IProp GF) (hn : n₁ ≤ n₂)
-    (htc : tc₁ ≤ tc₂) (hX : ∀ j, tc₁ ≤ j → ¬X j) :
+theorem step_fork (n₁ n₂ tc₁ tc₂ : Nat) (crashed : ThreadId → Prop) (P : IProp GF) (hn : n₁ ≤ n₂)
+    (htc : tc₁ ≤ tc₂) (hcr : ∀ j, tc₁ ≤ j → ¬crashed j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thActive j ∗ thKids j ∅ ∗ thCarriers j ∅)
-      ={∅}=∗ alc (|=[n₂]=>m P)) ⊢ mphys n₁ n₂ tc₁ tc₂ X X P := by
+      ={∅}=∗ alc (|=[n₂]=>m P)) ⊢ mphys n₁ n₂ tc₁ tc₂ crashed crashed P := by
   rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold, mupdBase_unfold, mphys_unfold]
-  exact Model.OPreds.mphys_step_fork n₁ n₂ tc₁ tc₂ X P hn htc hX
+  exact Model.OPreds.mphys_step_fork n₁ n₂ tc₁ tc₂ crashed P hn htc hcr
 
 end Physical
 
@@ -729,22 +731,23 @@ The predicates of new threads, and the model updates and rounds against `Model.m
 section Adequacy
 
 /-- New threads `tc, …, tc + m - 1`: each gets its bill, and its running handle and children
-predicate if its bit is not set. -/
+predicate if it is not crashed. -/
 @[lantana_alias thP_kids_alloc_threads]
-theorem Th.alloc_threads (Ω : Model.Obligations) (tc m : Nat) (X : ThreadId → Prop) :
-    Model.oforest Ω tc X ⊢@{IProp GF} |==> (Model.oforest Ω (tc + m) X ∗
-      [∗list] j ∈ List.range' tc m, (⌜¬X j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) := by
+theorem Th.alloc_threads (Ω : Model.Obligations) (tc m : Nat) (crashed : ThreadId → Prop) :
+    Model.oforest Ω tc crashed ⊢@{IProp GF} |==> (Model.oforest Ω (tc + m) crashed ∗
+      [∗list] j ∈ List.range' tc m,
+        (⌜¬crashed j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) := by
   rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold]
-  exact Model.OPreds.thKids_alloc_threads Ω tc m X
+  exact Model.OPreds.thKids_alloc_threads Ω tc m crashed
 
 /-- `Model.modelInterp_mupd_steps` through the interface. -/
 theorem mupdBase_modelInterp_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
     (hγ : Model.OWitInvLbMonoFair γ) (P : IProp GF) :
     (|=[n]=>m P) ⊢ ∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obligations)
-      (W : Model.Witnesses) (tc : Nat) (X : ThreadId → Prop), ⌜Model.OWitInvLb γ Ω W⌝ →
-        Model.modelInterp h i Ω W n tc X ={∅}=∗
+      (W : Model.Witnesses) (tc : Nat) (crashed : ThreadId → Prop), ⌜Model.OWitInvLb γ Ω W⌝ →
+        Model.modelInterp h i Ω W n tc crashed ={∅}=∗
         P ∗ ∃ h' i' Ω' W', ⌜Model.Obligations.le Ω Ω' ∧ Model.OWitInvLb γ Ω' W'⌝ ∗
-          Model.modelInterp (h ++ h') (i + i') Ω' W' n tc X := by
+          Model.modelInterp (h ++ h') (i + i') Ω' W' n tc crashed := by
   rw [mupdBase_unfold]
   exact Model.modelInterp_mupd_steps n γ hγ P
 
@@ -752,8 +755,8 @@ theorem mupdBase_modelInterp_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
 @[lantana_alias mupd_read]
 theorem mupdBase_read (n : Nat) (P : IProp GF) :
     (∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obligations) (W : Model.Witnesses) (tc : Nat)
-      (X : ThreadId → Prop),
-      Model.modelInterp h i Ω W n tc X -∗ Model.modelInterp h i Ω W n tc X ∗ P) ⊢
+      (crashed : ThreadId → Prop),
+      Model.modelInterp h i Ω W n tc crashed -∗ Model.modelInterp h i Ω W n tc crashed ∗ P) ⊢
       |=[n]=>m P := by
   rw [mupdBase_unfold]
   exact Model.mupd_read n P
@@ -761,8 +764,8 @@ theorem mupdBase_read (n : Nat) (P : IProp GF) :
 open Iris.Std LawfulPartialMap in
 /-- A live obligation is assigned in the model. -/
 theorem Obl.assigned_modelInterp_lookup (k : Oid) (q : Qp) (h : List Model.MEvent) (i : Nat)
-    (Ω : Model.Obligations) (W : Model.Witnesses) (n tc : Nat) (X : ThreadId → Prop) :
-    Obl.assigned (GF := GF) k q ∗ Model.modelInterp h i Ω W n tc X ⊢
+    (Ω : Model.Obligations) (W : Model.Witnesses) (n tc : Nat) (crashed : ThreadId → Prop) :
+    Obl.assigned (GF := GF) k q ∗ Model.modelInterp h i Ω W n tc crashed ⊢
       ⌜∃ a t, get? Ω k = some (Model.Obligation.assigned a t)⌝ := by
   rw [Obl.assigned_unfold]
   unfold Model.OPreds.oblAssigned Model.modelInterp
@@ -773,8 +776,8 @@ theorem Obl.assigned_modelInterp_lookup (k : Oid) (q : Qp) (h : List Model.MEven
 open Iris.Std LawfulPartialMap in
 /-- A discharged obligation is discharged in the model. -/
 theorem Obl.discharged_modelInterp_lookup (k : Oid) (h : List Model.MEvent) (i : Nat)
-    (Ω : Model.Obligations) (W : Model.Witnesses) (n tc : Nat) (X : ThreadId → Prop) :
-    Obl.discharged (GF := GF) k ∗ Model.modelInterp h i Ω W n tc X ⊢
+    (Ω : Model.Obligations) (W : Model.Witnesses) (n tc : Nat) (crashed : ThreadId → Prop) :
+    Obl.discharged (GF := GF) k ∗ Model.modelInterp h i Ω W n tc crashed ⊢
       ⌜get? Ω k = some Model.Obligation.discharged⌝ := by
   rw [Obl.discharged_unfold]
   unfold Model.OPreds.oblDischarged Model.modelInterp
@@ -783,35 +786,38 @@ theorem Obl.discharged_modelInterp_lookup (k : Oid) (h : List Model.MEvent) (i :
   iframe Hs Hd
 
 /-- The progress round against the model: the definition of `mprog`. -/
-theorem mprog_modelInterp (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
-    mprog n tc X i P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω₁ : Model.Obligations)
-      (W₁ : Model.Witnesses), Model.modelInterp h a Ω₁ W₁ n tc X ={∅}=∗
+theorem mprog_modelInterp (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
+    mprog n tc crashed i P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω₁ : Model.Obligations)
+      (W₁ : Model.Witnesses), Model.modelInterp h a Ω₁ W₁ n tc crashed ={∅}=∗
         ∃ Ω₂, ⌜Model.Obligations.CondProgress (Model.Obligation.CondOwner i) Ω₁ Ω₂⌝ ∗
         ∀ W₂, ⌜Model.Witnesses.CondProgress Model.Witness.CondAssigned W₁ W₂ ∧
           Model.OWitInvFair Ω₂ W₂⌝ ={∅}=∗
-          Model.modelInterp (h ++ [(n, Ω₂)]) (a + 1) Ω₂ W₂ n tc X ∗ P := by
+          Model.modelInterp (h ++ [(n, Ω₂)]) (a + 1) Ω₂ W₂ n tc crashed ∗ P := by
   rw [mprog_unfold]
   exact .rfl
 
 /-- The physical round against the model: the definition of `mphys`. -/
-theorem mphys_modelInterp (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) :
-    mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω : Model.Obligations)
-      (W : Model.Witnesses), Model.modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
-        Model.modelInterp (h ++ [(n₂, Ω)]) (a + 1) Ω W n₂ tc₂ X₁ ∗
-        alc (|=[n₂]=>m Model.mbits n₂ tc₂ X₁ X₂ P) := by
+theorem mphys_modelInterp (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop)
+    (P : IProp GF) :
+    mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P ⊢
+      ∀ (h : List Model.MEvent) (a : Nat) (Ω : Model.Obligations)
+      (W : Model.Witnesses), Model.modelInterp h a Ω W n₁ tc₁ crashed₁ ={∅}=∗
+        Model.modelInterp (h ++ [(n₂, Ω)]) (a + 1) Ω W n₂ tc₂ crashed₁ ∗
+        alc (|=[n₂]=>m Model.mcrash n₂ tc₂ crashed₁ crashed₂ P) := by
   rw [mphys_unfold, mupdBase_unfold]
   exact .rfl
 
 /-- `Model.mphys_run` through the interface. -/
-theorem mphys_modelInterp_run (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop)
+theorem mphys_modelInterp_run (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop)
     (γ : ThreadId → Fuel → Fuel) (hγ : Model.OWitInvLbMonoFair γ) (P : IProp GF) :
-    mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω : Model.Obligations)
+    mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P ⊢
+      ∀ (h : List Model.MEvent) (a : Nat) (Ω : Model.Obligations)
       (W : Model.Witnesses), ⌜Model.OWitInvLb γ Ω W⌝ →
-        Model.modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
+        Model.modelInterp h a Ω W n₁ tc₁ crashed₁ ={∅}=∗
         alc iprop(|={∅}=> P ∗ ∃ h' a' Ω' W', ⌜Model.Obligations.le Ω Ω' ∧ Model.OWitInvLb γ Ω' W'⌝ ∗
-          Model.modelInterp (h ++ h') (a + a') Ω' W' n₂ tc₂ X₂) := by
+          Model.modelInterp (h ++ h') (a + a') Ω' W' n₂ tc₂ crashed₂) := by
   rw [mphys_unfold]
-  exact Model.mphys_run n₁ n₂ tc₁ tc₂ X₁ X₂ γ hγ P
+  exact Model.mphys_run n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ γ hγ P
 
 variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
   [TemporalInterp Expr State GF]
@@ -821,17 +827,17 @@ variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
 theorem mupd_modelInterp_steps (γ : ThreadId → Fuel → Fuel) (hγ : Model.OWitInvLbMonoFair γ)
     (E₁ E₂ : CoPset) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
     (tp : ThreadPool Expr) (g : List Model.MEvent) (v : Nat) (Ω : Model.Obligations)
-    (W : Model.Witnesses) (tc : Nat) (X : ThreadId → Prop) (P : IProp GF)
+    (W : Model.Witnesses) (tc : Nat) (crashed : ThreadId → Prop) (P : IProp GF)
     (hLb : Model.OWitInvLb γ Ω W) :
-    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗ Model.modelInterp g v Ω W n tc X ={E₁,E₂}=∗
+    (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗ Model.modelInterp g v Ω W n tc crashed ={E₁,E₂}=∗
       P ∗ historyTInterp h n σ tp ∗ ∃ g' v' Ω' W',
         ⌜Model.Obligations.le Ω Ω' ∧ Model.OWitInvLb γ Ω' W'⌝ ∗
-        Model.modelInterp (g ++ g') (v + v') Ω' W' n tc X := by
+        Model.modelInterp (g ++ g') (v + v') Ω' W' n tc crashed := by
   unfold mupd mupdFancy
   rw [mupdBase_unfold]
   iintro HP HT HM
   imod HP $$ %h %n %σ %tp HT with HP
-  imod Model.modelInterp_mupd_steps n γ hγ _ $$ HP %g %v %Ω %W %tc %X %hLb HM
+  imod Model.modelInterp_mupd_steps n γ hγ _ $$ HP %g %v %Ω %W %tc %crashed %hLb HM
     with ⟨HP, %g', %v', %Ω', %W', %hle, HM⟩
   imod HP with ⟨HT, HP⟩
   imodintro
@@ -858,8 +864,8 @@ variable {GF : BundledGFunctors} [ModelGS GF]
 
 /-- A terminated thread owns no obligation of the model. -/
 theorem Th.done_modelInterp_not_owner (i : ThreadId) (h : List Model.MEvent) (a : Nat)
-    (Ω : Model.Obligations) (W : Model.Witnesses) (n tc : Nat) (X : ThreadId → Prop) :
-    Th.done i ∗ Model.modelInterp h a Ω W n tc X ⊢@{IProp GF}
+    (Ω : Model.Obligations) (W : Model.Witnesses) (n tc : Nat) (crashed : ThreadId → Prop) :
+    Th.done i ∗ Model.modelInterp h a Ω W n tc crashed ⊢@{IProp GF}
       ⌜∀ k fu, get? Ω k ≠ some (.assigned fu i)⌝ := by
   rw [Th.done_unfold]
   unfold Model.modelInterp Model.OPreds.thDone
@@ -870,16 +876,18 @@ theorem Th.done_modelInterp_not_owner (i : ThreadId) (h : List Model.MEvent) (a 
   exact h k (Model.Obligations.ownerOf_eq hk)
 
 /-- A crashed thread of the pool owns no obligation of the model. -/
-theorem Th.crashed_modelInterp_not_owner {X : ThreadId → Prop} {i : ThreadId} (hX : X i)
+theorem Th.crashed_modelInterp_not_owner {crashed : ThreadId → Prop} {i : ThreadId}
+    (hcr : crashed i)
     {tc : Nat} (hi : i < tc) (h : List Model.MEvent) (a : Nat) (Ω : Model.Obligations)
     (W : Model.Witnesses) (n : Nat) :
-    Model.modelInterp h a Ω W n tc X ⊢@{IProp GF} ⌜∀ k fu, get? Ω k ≠ some (.assigned fu i)⌝ := by
+    Model.modelInterp h a Ω W n tc crashed ⊢@{IProp GF}
+      ⌜∀ k fu, get? Ω k ≠ some (.assigned fu i)⌝ := by
   unfold Model.modelInterp
   iintro ⟨-, -, Hf, -, -⟩
   icases Model.oforest_crashed_owned Ω tc $$ Hf with %h
   ipureintro
   intro k fu hk
-  exact h i hX hi k (Model.Obligations.ownerOf_eq hk)
+  exact h i hcr hi k (Model.Obligations.ownerOf_eq hk)
 
 
 end AdequacyRunStep

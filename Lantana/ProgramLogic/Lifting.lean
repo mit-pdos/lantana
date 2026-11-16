@@ -179,7 +179,7 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
 
 /-- `lwp_lift_step_gen` for a step that keeps the statuses: having seen the configuration, the
 thread pays its bill or, crashed, nothing. -/
-theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
@@ -222,11 +222,11 @@ theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e
   iapply alc_wand $$ [] H
   iintro H
   iapply mupdBase_intro
-  iapply Th.nodes_unchanged _ (hX K tp σ₁ obs e₂ σ₂ efs hK hi hstep) $$ H
+  iapply Th.nodes_unchanged _ (hkeep K tp σ₁ obs e₂ σ₂ efs hK hi hstep) $$ H
 
 /-- A step that keeps the statuses, for a thread that pays its bill. -/
 @[lantana_alias lwp_lift_step, lantana_alias lwp_step_step]
-theorem lwp_lift_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+theorem lwp_lift_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
@@ -246,7 +246,7 @@ theorem lwp_lift_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
                     lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }}))))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
-  iapply lwp_lift_step_or_crashed he hX
+  iapply lwp_lift_step_or_crashed he hkeep
   iintro %K %h %n %σ₁ %tp %hK %hi Hσ
   imod H $$ %K %h %n %σ₁ %tp %hK %hi Hσ with H
   imodintro
@@ -268,7 +268,7 @@ theorem lwp_lift_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
 
 /-- `lwp_lift_step` for a thread crashed in the current configuration: it takes its bill `G`,
 pays nothing, and gets it back empty. -/
-theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
@@ -288,7 +288,7 @@ theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁
                     lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }}))))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
-  iapply lwp_lift_step_or_crashed he hX
+  iapply lwp_lift_step_or_crashed he hkeep
   iintro %K %h %n %σ₁ %tp %hK %hi Hσ
   imod H $$ %K %h %n %σ₁ %tp %hK %hi Hσ with H
   imodintro
@@ -309,7 +309,7 @@ theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e₁
 
 /-- `lwp_lift_step` over the state interpretation, with no model update around the step. -/
 @[lantana_alias lwp_lift_step_si]
-theorem lwp_lift_step_si (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+theorem lwp_lift_step_si (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
@@ -326,7 +326,7 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
                   lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
-  iapply lwp_lift_step he hX
+  iapply lwp_lift_step he hkeep
   iintro %K %h %n %σ₁ %tp %hK %hi Hσ
   iunfold historyTInterp, historyInterp at Hσ
   icases Hσ with ⟨⟨%hh, Ha, Hs⟩, HT⟩
@@ -458,7 +458,7 @@ theorem lwp_lift_pure_step_no_fork [Inhabited State] {ς : ThreadId → Expr →
     [hς : PureExecSI ς i] (E' : CoPset)
     (hsafe : ∀ σ₁, s.PureSafe e₁ σ₁)
     (hstep : ∀ σ₁ obs e₂ σ₂ efs, primStep (e₁, σ₁) obs (e₂, σ₂, efs) → σ₂ = σ₁ ∧ efs = [])
-    (hX : KeepsCrashed i e₁) :
+    (hkeep : KeepsCrashed i e₁) :
     (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
       ∀ (σ : State) (obs : List Obs) (e₂ : Expr), ⌜primStep (e₁, σ) obs (e₂, σ, [])⌝ -∗
         ς i e₂ -∗ thCarriers i G -∗ Wit.creds R -∗
@@ -466,7 +466,7 @@ theorem lwp_lift_pure_step_no_fork [Inhabited State] {ς : ThreadId → Expr →
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   have hnv : toVal e₁ = none := Stuckness.PureSafe.toVal_eq_none (hsafe default)
   iintro H
-  iapply lwp_lift_step_si hnv hX
+  iapply lwp_lift_step_si hnv hkeep
   iintro %K %σ₁ %tp %hK %hi Hs
   imod H with ⟨Hc, %G, HG, HF, %R, HR, H⟩
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
@@ -510,7 +510,7 @@ theorem lwp_lift_pure_stuck [Inhabited State] (hstuck : ∀ σ, PrimStep.Stuck (
 
 /-- An atomic step: the thread reaches a value. -/
 @[lantana_alias lwp_lift_atomic_step]
-theorem lwp_lift_atomic_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+theorem lwp_lift_atomic_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
@@ -527,7 +527,7 @@ theorem lwp_lift_atomic_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁)
                   lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))
       ⊢ lWP e₁ @ s; i; E₁ {{ Φ }} := by
   iintro H
-  iapply lwp_lift_step_si he hX
+  iapply lwp_lift_step_si he hkeep
   iintro %K %σ₁ %tp %hK %hi Hs
   imod H $$ %K %σ₁ %tp %hK %hi Hs with ⟨%hred, %G, HG, HF, %R, HR, H⟩
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
@@ -562,14 +562,14 @@ theorem lwp_lift_pure_det_step_no_fork [Inhabited State] {ς : ThreadId → Expr
     [PureExecSI ς i] (E' : CoPset) {e₂ : Expr}
     (hsafe : ∀ σ₁, s.PureSafe e₁ σ₁)
     (hdet : ∀ σ₁ obs e₂' σ₂ efs, primStep (e₁, σ₁) obs (e₂', σ₂, efs) →
-      σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) (hX : KeepsCrashed i e₁) :
+      σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) (hkeep : KeepsCrashed i e₁) :
     (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
       (ς i e₂ -∗ thCarriers i G -∗ Wit.creds R -∗
         alc iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_lift_pure_step_no_fork (ς := ς) E' hsafe
-    (fun _ _ _ _ _ h => ⟨(hdet _ _ _ _ _ h).1, (hdet _ _ _ _ _ h).2.2⟩) hX
+    (fun _ _ _ _ _ h => ⟨(hdet _ _ _ _ _ h).1, (hdet _ _ _ _ _ h).2.2⟩) hkeep
   imod H with ⟨Hc, %G, HG, HF, %R, HR, H⟩
   imodintro
   iframe Hc
@@ -587,7 +587,7 @@ each giving back the witnesses' credits and `£ₒ o`. -/
 theorem lwp_pure_step [Inhabited State] {ς : ThreadId → Expr → IProp GF} [PureExecSI ς i]
     (n : Nat) (o : Fuel) (E' : CoPset) {φ : Prop} {e₂ : Expr}
     [hex : Language.PureExec φ n e₁ e₂] (hφ : φ)
-    (hX : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed i e) :
+    (hkeep : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed i e) :
     ς i e₁ ∗ Nat.repeat (fun P => iprop(|={E,E'}=>
         ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
           (thCarriers i G -∗ Wit.creds R -∗ alc iprop(£ₒ o ={E',E}=∗ |={E}=>m P)))) n
@@ -606,7 +606,7 @@ theorem lwp_pure_step [Inhabited State] {ς : ThreadId → Expr → IProp GF} [P
     iapply lwp_lift_pure_det_step_no_fork (ς := ς) E' (e₂ := c)
       (Stuckness.pureSafe_of_pureStep hpure)
       (fun _ _ _ _ _ h => let ⟨_, h₁, h₂, h₃⟩ := hpure.deterministic h; ⟨h₁.symm, h₂.symm, h₃⟩)
-      (hX _ _ hpure)
+      (hkeep _ _ hpure)
     imod H with ⟨%G, HG, HF, %R, HR, H⟩
     imodintro
     iframe Hc
@@ -729,14 +729,14 @@ STEP-PURE-LC and STEP-PURE-WIT in one. -/
 theorem lwp_pure_step_simple [Inhabited State] {ς : ThreadId → Expr → IProp GF} [PureExecSI ς i]
     (n : Nat) (hn : 0 < n) (G R : Oids) (o : Fuel) {φ : Prop} {e₂ : Expr}
     [Language.PureExec φ n e₁ e₂] (hφ : φ)
-    (hX : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed i e) :
+    (hkeep : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed i e) :
     ς i e₁ ∗ thCarriers i G ∗ Obl.fuels G (n : Measure) ∗ Wit.layers R ∗
       (ς i e₂ -∗ thCarriers i G -∗ ([∗set] r ∈ R, Wit.cred r (n : Fuel) ∨ Obl.discharged r) -∗
         £ₒ (o ×ⱼ (n : Fuel)) -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
   iintro ⟨Hc, HG, HF, HR, H⟩
-  iapply lwp_pure_step (ς := ς) (m + 1) o E hφ hX
+  iapply lwp_pure_step (ς := ς) (m + 1) o E hφ hkeep
   iframe Hc
   iapply pure_step_simple_aux o G R _ m
   iframe HG HF HR

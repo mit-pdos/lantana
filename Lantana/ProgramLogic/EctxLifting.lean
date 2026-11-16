@@ -44,7 +44,7 @@ theorem lwp_bind_fill (K : Ectx) :
 
 /-- A step of a base redex, over the state interpretation. -/
 @[lantana_alias lwp_lift_base_step]
-theorem lwp_lift_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+theorem lwp_lift_base_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
@@ -60,7 +60,7 @@ theorem lwp_lift_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
                   lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
-  iapply lwp_lift_step_si he hX
+  iapply lwp_lift_step_si he hkeep
   iintro %K %σ₁ %tp %hK %hi Hs
   imod H $$ %K %σ₁ %tp %hi Hs with ⟨%hred, H⟩
   imodintro
@@ -104,7 +104,7 @@ theorem lwp_lift_pure_base_stuck (he : toVal e = none) (hsub : EctxLanguage.Subr
 
 /-- An atomic step of a base redex: the thread reaches a value. -/
 @[lantana_alias lwp_lift_atomic_base_step]
-theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
@@ -120,7 +120,7 @@ theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i 
                   lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))
       ⊢ lWP e₁ @ s; i; E₁ {{ Φ }} := by
   iintro H
-  iapply lwp_lift_atomic_step he hX
+  iapply lwp_lift_atomic_step he hkeep
   iintro %K %σ₁ %tp %hK %hi Hs
   imod H $$ %K %σ₁ %tp %hi Hs with ⟨%hred, H⟩
   imodintro
@@ -140,7 +140,7 @@ theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i 
 
 /-- An atomic step of a base redex that forks no thread. -/
 @[lantana_alias lwp_lift_atomic_base_step_no_fork]
-theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
+theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
@@ -152,7 +152,7 @@ theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) (hX : KeepsCr
               ∃ v, ⌜toVal e₂ = some v⌝ ∗ |={E₁}=>m Φ v))
       ⊢ lWP e₁ @ s; i; E₁ {{ Φ }} := by
   iintro H
-  iapply lwp_lift_atomic_base_step he hX
+  iapply lwp_lift_atomic_base_step he hkeep
   iintro %K %σ₁ %tp %hi Hs
   imod H $$ %K %σ₁ %tp %hi Hs with ⟨%hred, %G, HG, HF, %R, HR, H⟩
   imodintro
@@ -187,7 +187,7 @@ theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) (hX : KeepsCr
 /-- A pure deterministic base step that forks no thread. -/
 @[lantana_alias lwp_lift_pure_det_base_step_no_fork]
 theorem lwp_lift_pure_det_base_step_no_fork [Inhabited State] {ς : ThreadId → Expr → IProp GF}
-    [PureExecSI ς i] (E' : CoPset) {e₂ : Expr} (he : toVal e₁ = none) (hX : KeepsCrashed i e₁)
+    [PureExecSI ς i] (E' : CoPset) {e₂ : Expr} (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁)
     (hsafe : ∀ σ₁, BaseStep.Reducible (e₁, σ₁))
     (hdet : ∀ σ₁ obs e₂' σ₂ efs, baseStep (e₁, σ₁) obs (e₂', σ₂, efs) →
       σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) :
@@ -201,7 +201,7 @@ theorem lwp_lift_pure_det_base_step_no_fork [Inhabited State] {ς : ThreadId →
       · exact EctxLanguage.primStep_reducible_of_baseStep_reducible (hsafe σ₁)
       · exact he)
     (fun σ₁ _ _ _ _ h =>
-      hdet _ _ _ _ _ (EctxLanguage.baseStep_of_primStep_of_baseStep_reducible (hsafe σ₁) h)) hX
+      hdet _ _ _ _ _ (EctxLanguage.baseStep_of_primStep_of_baseStep_reducible (hsafe σ₁) h)) hkeep
 
 end EctxLifting
 

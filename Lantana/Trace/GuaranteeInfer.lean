@@ -75,8 +75,8 @@ theorem guar_exists_ghost_sort {X : Sort u} (P : X → IProp GF) (G : TrSpec Exp
   iintro #HG
   iapply guar_intro
   imodintro
-  iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨HI, MI, %x, HP⟩
-  iapply guar_elim (P x) G h n σ tp m i Ω W tc X $$ HG
+  iintro %h %n %σ %tp %m %i %Ω %W %tc %crashed ⟨HI, MI, %x, HP⟩
+  iapply guar_elim (P x) G h n σ tp m i Ω W tc crashed $$ HG
   iframe
 
 /-- How an existential over a family of guarantees is guaranteed, when inferring. -/
@@ -528,7 +528,7 @@ theorem naive_imp_rule_unsound
   have hF : ∀ G : TrSpec Expr State GF, ⊢ iprop(False) ⊨ₜ G := fun G => by
     iapply guar_intro
     imodintro
-    iintro %h %n %σ %tp %m %i %Ω %W %tc %X ⟨-, -, %hf⟩
+    iintro %h %n %σ %tp %m %i %Ω %W %tc %crashed ⟨-, -, %hf⟩
     exact hf.elim
   iapply guar_mono (P := iprop(False → False)) $$ []
   · imodintro

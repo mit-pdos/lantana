@@ -347,8 +347,8 @@ history and the model at any view. -/
 def guar (P : IProp GF) (G : TrSpec Expr State GF) : IProp GF :=
   iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
       (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
-      (X : ThreadId → Prop),
-    historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n)
+      (crashed : ThreadId → Prop),
+    historyInterp h n σ tp ∗ modelInterp m i Ω W n tc crashed ∗ P -∗ record G n)
 
 @[inherit_doc] scoped infix:25 " ⊨ₜ " => guar
 
@@ -371,42 +371,44 @@ instance guar.ne (G : TrSpec Expr State GF) : OFE.NonExpansive (fun P : IProp GF
 theorem guar_intro (P : IProp GF) (G : TrSpec Expr State GF) :
     iprop(□ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
       (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
-      (X : ThreadId → Prop),
-    historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n) ⊢ P ⊨ₜ G :=
+      (crashed : ThreadId → Prop),
+    historyInterp h n σ tp ∗ modelInterp m i Ω W n tc crashed ∗ P -∗ record G n) ⊢ P ⊨ₜ G :=
   .rfl
 
 @[lantana_alias guar_elim]
 theorem guar_elim (P : IProp GF) (G : TrSpec Expr State GF) (h : List (HistEntry Expr State))
     (n : Nat) (σ : State) (tp : ThreadPool Expr) (m : List MEvent) (i : Nat) (Ω : Obligations)
-    (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
-    (P ⊨ₜ G) ⊢ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X ∗ P -∗ record G n :=
+    (W : Witnesses) (tc : Nat) (crashed : ThreadId → Prop) :
+    (P ⊨ₜ G) ⊢ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc crashed ∗ P -∗ record G n :=
   intuitionistically_elim.trans <| (forall_elim h).trans <| (forall_elim n).trans <|
     (forall_elim σ).trans <| (forall_elim tp).trans <| (forall_elim m).trans <|
     (forall_elim i).trans <| (forall_elim Ω).trans <| (forall_elim W).trans <|
-    (forall_elim tc).trans <| forall_elim X
+    (forall_elim tc).trans <| forall_elim crashed
 
 /-- For the certificates: a later-guarded content gives a later-guarded record. -/
 @[lantana_alias guar_elim_later]
 theorem guar_elim_later (P : IProp GF) (G : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
-    (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X -∗
+    (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
+    (crashed : ThreadId → Prop) :
+    (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc crashed -∗
       ▷ record G n := by
   iintro #HG ⟨HP, HI, MI⟩
   inext
-  iapply guar_elim P G h n σ tp m i Ω W tc X $$ HG
+  iapply guar_elim P G h n σ tp m i Ω W tc crashed $$ HG
   iframe
 
 /-- The same with a later-guarded guarantee, as stored with a registered structure. -/
 @[lantana_alias guar_elim_later_guar]
 theorem guar_elim_later_guar (P : IProp GF) (G : TrSpec Expr State GF)
     (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-    (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop) :
-    ▷ (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc X -∗
+    (m : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
+    (crashed : ThreadId → Prop) :
+    ▷ (P ⊨ₜ G) ⊢ ▷ P ∗ historyInterp h n σ tp ∗ modelInterp m i Ω W n tc crashed -∗
       ▷ record G n := by
   iintro HG ⟨HP, HI, MI⟩
   inext
-  iapply guar_elim P G h n σ tp m i Ω W tc X $$ HG
+  iapply guar_elim P G h n σ tp m i Ω W tc crashed $$ HG
   iframe
 
 end Records

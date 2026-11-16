@@ -40,7 +40,7 @@ thread's children and only remove from them (`docs/model.md`, §2).
 
 The model records which threads are crashed, and for each of them it holds the thread's node,
 open and empty: nobody can create a child under it, so it owns no obligation, and its steps are
-free (`docs/model.md`, §4).  The physical round of a step changes these bits: it takes the node
+free (`docs/model.md`, §4).  The physical round of a step changes this crash map: it takes the node
 of each thread the step crashes and gives back the node of each thread it recovers
 (`step_physical`; `docs/model.md`, §5).
 
@@ -64,7 +64,8 @@ roots (`docs/adequacy.md`, §4.1–§4.2).
   is crashed; `lwp_lift_step_gen` and `lwp_lift_step_gen_si` serve steps that crash or recover
   threads (`docs/program-logic.md`, §3).
 - **Adequacy.**  Every owner of an obligation is active: a finished thread owns nothing by its
-  `Th.done`, a crashed one by its bit in the model.  The premise of the adequacy theorems gives
-  every initial thread its bill, and its node if it is not crashed (`docs/adequacy.md`, §5).
+  `Th.done`, a crashed one by the crash map of the model.  The premise of the adequacy theorems
+  gives every initial thread its bill, and its node if it is not crashed (`docs/adequacy.md`,
+  §5).
 - **Example.**  `LantanaTest/Crash/` verifies a worker with any number of obligations, a killer
   that crashes it or gives up, and a reviver, end to end (`docs/adequacy.md`, §7).

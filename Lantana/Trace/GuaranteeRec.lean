@@ -150,7 +150,7 @@ theorem nest_alloc (hN : ↑N ⊆ E) (hQ : ⊢ Q ⊨ₜ G) : ▷ Q ⊢ |={E}=>m 
     inext
     iapply hC
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
-  iintro Hcl %g %i %Ω %W %tc %X MI
+  iintro Hcl %g %i %Ω %W %tc %crashed MI
   -- the record of the content at `n`, by Löb induction
   ihave #T : ▷ record (nestTrSpec G) n $$ [HQ HI MI]
   · iloeb as IH
@@ -166,8 +166,8 @@ theorem nest_alloc (hN : ↑N ⊆ E) (hQ : ⊢ Q ⊨ₜ G) : ▷ Q ⊢ |={E}=>m 
       · iapply IH $$ [HQ] HI MI
         inext
         iexact HQ
-    iapply guar_elim_later_guar iprop(Q ∗ nest N Q G) (nestTrSpec G) h n σ tp g i Ω W tc X $$ []
-      [HQ HI MI]
+    iapply guar_elim_later_guar iprop(Q ∗ nest N Q G) (nestTrSpec G) h n σ tp g i Ω W tc crashed
+      $$ [] [HQ HI MI]
     · inext
       iapply hC
     · iframe HI MI

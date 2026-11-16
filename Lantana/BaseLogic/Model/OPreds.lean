@@ -266,16 +266,16 @@ variable [ModelGS GF]
 forest at any view. -/
 @[lantana_alias omodel.mupd_model_round]
 theorem mupd_model_round (n : Nat) (P : IProp GF) :
-    (∀ (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop),
-      osat Ω ∗ oforest Ω tc X ==∗ ∃ Ω' : Obligations,
+    (∀ (Ω : Obligations) (tc : Nat) (crashed : ThreadId → Prop),
+      osat Ω ∗ oforest Ω tc crashed ==∗ ∃ Ω' : Obligations,
         ⌜Obligations.NoDischarge Ω Ω' ∧ ∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome⌝ ∗
-        osat Ω' ∗ oforest Ω' tc X ∗ P) ⊢ mupd n P := by
+        osat Ω' ∗ oforest Ω' tc crashed ∗ P) ⊢ mupd n P := by
   iintro H
   iapply mupd_noDischarge_step
-  iintro %h %i %Ω₁ %W₁ %tc %X HM
+  iintro %h %i %Ω₁ %W₁ %tc %crashed HM
   unfold modelInterp
   icases HM with ⟨HH, Hs, Hf, Hw, %hI₁⟩
-  imod H $$ %Ω₁ %tc %X [$Hs $Hf] with ⟨%Ω₂, %⟨hnd, hdom⟩, Hs, Hf, HP⟩
+  imod H $$ %Ω₁ %tc %crashed [$Hs $Hf] with ⟨%Ω₂, %⟨hnd, hdom⟩, Hs, Hf, HP⟩
   imod modelHistoryInterp_step h i (Nat.le_refl n) hnd.stayOrStep.le $$ HH with HH
   imodintro
   iexists Ω₂
@@ -298,13 +298,13 @@ theorem mupd_model_round (n : Nat) (P : IProp GF) :
 /-- A round that changes only ghost state, on the forest at any view. -/
 @[lantana_alias omodel.mupd_ghost_round]
 theorem mupd_ghost_round (n : Nat) (P : IProp GF) :
-    (∀ (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop),
-        osat Ω ∗ oforest Ω tc X ==∗ osat Ω ∗ oforest Ω tc X ∗ P) ⊢
+    (∀ (Ω : Obligations) (tc : Nat) (crashed : ThreadId → Prop),
+        osat Ω ∗ oforest Ω tc crashed ==∗ osat Ω ∗ oforest Ω tc crashed ∗ P) ⊢
       mupd n P := by
   iintro H
   iapply mupd_model_round
-  iintro %Ω %tc %X HΩ
-  imod H $$ %Ω %tc %X HΩ with ⟨Hs, Hf, HP⟩
+  iintro %Ω %tc %crashed HΩ
+  imod H $$ %Ω %tc %crashed HΩ with ⟨Hs, Hf, HP⟩
   imodintro
   iexists Ω
   iframe Hs Hf HP
@@ -334,16 +334,16 @@ theorem thread_terminate_mupd (n : Nat) (i : ThreadId) :
   unfold thActive parKids thDone
   iintro He ⟨-, Hk, -⟩
   iapply mupd_ghost_round
-  iintro %Ω %tc %X ⟨Hs, Hf⟩
+  iintro %Ω %tc %crashed ⟨Hs, Hf⟩
   imod oforest_exec_to_done Ω tc i $$ [$Hf $He $Hk] with ⟨Hf, Hd⟩
   imodintro
   iframe Hs Hf Hd
 
 /-- The owner `t` of a new obligation below `p`, and a piece `ν` at layer `ℓ` above the fuel of
 `p` if it is an obligation. -/
-theorem parLe_owner (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (p : Parent) (K : Oids)
+theorem parLe_owner (Ω : Obligations) (tc : Nat) (crashed : ThreadId → Prop) (p : Parent) (K : Oids)
     (ℓ : Layer) :
-    oforest Ω tc X ∗ OForest.kids p K ∗ parLe p ℓ ⊢@{IProp GF}
+    oforest Ω tc crashed ∗ OForest.kids p K ∗ parLe p ℓ ⊢@{IProp GF}
       ⌜∃ (t : ThreadId) (ν : Measure), match p with
         | .thread j => j = t
         | .obl q => Ω.ownerOf q = some t ∧ Ω.fuelOf q < Measure.rep ℓ ν⌝ := by
@@ -361,9 +361,9 @@ theorem parLe_owner (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (p : P
     exact ⟨t, μq + 1, ht, Ordinal.lt_of_le_of_lt hle (Measure.layer_le_bound μq hℓ)⟩
 
 /-- The owner `j` of `p`; if `p` is an obligation, its fuel is below `▽` at layer `ℓ`. -/
-theorem parBelow_owner (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (p : Parent) (K : Oids)
-    (ℓ : Layer) :
-    oforest Ω tc X ∗ OForest.kids p K ∗ parBelow p ℓ ⊢@{IProp GF}
+theorem parBelow_owner (Ω : Obligations) (tc : Nat) (crashed : ThreadId → Prop) (p : Parent)
+    (K : Oids) (ℓ : Layer) :
+    oforest Ω tc crashed ∗ OForest.kids p K ∗ parBelow p ℓ ⊢@{IProp GF}
       ⌜∃ j : ThreadId, match p with
         | .thread j' => j' = j
         | .obl q => Ω.ownerOf q = some j ∧ Ω.fuelOf q < Measure.rep ℓ ▽⌝ := by
@@ -409,10 +409,10 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
   unfold parKids
   iintro Hb ⟨Hx, Hk, Hs⟩ HB
   iapply mupd_noDischarge_step
-  iintro %h %i %Ω₁ %W₁ %tc %X HM
+  iintro %h %i %Ω₁ %W₁ %tc %crashed HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
-  icases parLe_owner Ω₁ tc X p K ℓ $$ [$Hf $Hk $Hb] with %⟨t, ν, hpt⟩
+  icases parLe_owner Ω₁ tc crashed p K ℓ $$ [$Hf $Hk $Hb] with %⟨t, ν, hpt⟩
   have hk := Obligations.get?_fresh Ω₁
   have hkW := get?_none_witnesses hI₁ hk
   have hpiece : ∀ q, p = .obl q → Ω₁.fuelOf q < Measure.rep ℓ ν := by
@@ -494,7 +494,7 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
 theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
     ⊢@{IProp GF} mupd n iprop(∃ k : Oid, oblDischarged k ∗ witLayer k ℓ) := by
   iapply mupd_noDischarge_step
-  iintro %h %i %Ω₁ %W₁ %tc %X HM
+  iintro %h %i %Ω₁ %W₁ %tc %crashed HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   have hk := Obligations.get?_fresh Ω₁
@@ -535,16 +535,16 @@ theorem obl_new_discharged_mupd (n : Nat) (ℓ : Layer) :
 
 /-- A move of the node `k` from `p₁` to `p₂` (`oforest_move_same` or `oforest_move_cross`), with
 the unit `u` that `k` burns if its owner changes and its new piece `π`. -/
-theorem oforest_move {Ω : Obligations} {tc : Nat} {X : ThreadId → Prop} {p₁ p₂ : Parent}
+theorem oforest_move {Ω : Obligations} {tc : Nat} {crashed : ThreadId → Prop} {p₁ p₂ : Parent}
     {K₁ K₂ B₂ : Oids} {k : Oid} {j : ThreadId} {u π : Fuel} (hk : k ∈ K₁) (hu : 0 < u)
     (hp₂ : match p₂ with
       | .thread j' => j' = j
       | .obl q => Ω.ownerOf q = some j ∧ Ω.fuelOf q < π) :
-    osat Ω ∗ oforest Ω tc X ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗
+    osat Ω ∗ oforest Ω tc crashed ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗
         OForest.parBill p₂ B₂ ∗ OSat.fuel k u ∗ OSat.fuel k π
       ⊢@{IProp GF} |==> ∃ Ω', ⌜Obligations.NoDischarge Ω Ω' ∧
         (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
-        k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc X ∗ OForest.kids p₁ (K₁ \ {k}) ∗
+        k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc crashed ∗ OForest.kids p₁ (K₁ \ {k}) ∗
         OForest.kids p₂ ({k} ∪ K₂) ∗ OForest.parBill p₂ ({k} ∪ B₂) := by
   iintro ⟨Hs, Hf, H₁, H₂, HB, Hu, Hπ⟩
   icases oforest_kids_live Ω tc p₁ K₁ $$ [$Hf $H₁] with %⟨hlive, -⟩
@@ -602,8 +602,8 @@ theorem obl_move_mupd (n : Nat) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k 
   icases (Oids.bigSepS_erase hk).mp $$ Hs₁ with ⟨Hsk, Hs₁⟩
   icases (OSat.fuel_split k _ _).mp $$ Hfk with ⟨Hu, Hπ⟩
   iapply mupd_model_round
-  iintro %Ω %tc %X ⟨Hs, Hf⟩
-  icases parBelow_owner Ω tc X p₂ K₂ ℓ $$ [$Hf $Hk₂ $Hb] with %⟨j, hj⟩
+  iintro %Ω %tc %crashed ⟨Hs, Hf⟩
+  icases parBelow_owner Ω tc crashed p₂ K₂ ℓ $$ [$Hf $Hk₂ $Hb] with %⟨j, hj⟩
   imod oforest_move hk zero_lt_one hj $$ [$Hs $Hf $Hk₁ $Hk₂ $HB $Hu $Hπ]
     with ⟨%Ω', %⟨hnd, hdom, hkK⟩, Hs, Hf, Hk₁, Hk₂, HB⟩
   imodintro
@@ -640,7 +640,7 @@ theorem obl_move_up_mupd (n : Nat) (p : Parent) (K B : Oids) (k : Oid) (Kk : Oid
   iintro ⟨Hx, Hp, Hs⟩ HB ⟨Hxk, Hk, Hsk⟩
   icases (Oids.bigSepS_erase hx).mp $$ Hsk with ⟨Hsx, Hsk⟩
   iapply mupd_ghost_round
-  iintro %Ω %tc %X ⟨Hos, Hf⟩
+  iintro %Ω %tc %crashed ⟨Hos, Hf⟩
   imod oforest_move_up hk hx B $$ [$Hf $Hp $HB $Hk] with ⟨%hxK, Hf, Hp, HB, Hk⟩
   imodintro
   iframe Hos Hf
@@ -670,7 +670,7 @@ theorem bill_kids_subset_mupd (n : Nat) (i : ThreadId) (B K : Oids) :
   unfold parKids
   iintro Hb ⟨Hx, Hk, Hs⟩
   iapply mupd_ghost_round
-  iintro %Ω %tc %X ⟨Hos, Hf⟩
+  iintro %Ω %tc %crashed ⟨Hos, Hf⟩
   icases oforest_bill_kids Ω tc i B K $$ [$Hf $Hb $Hk] with %h
   imodintro
   iframe Hos Hf Hb Hx Hk Hs
@@ -684,7 +684,7 @@ theorem bill_resync_mupd (n : Nat) (i : ThreadId) (B K : Oids) :
   unfold parKids
   iintro Hb ⟨Hx, Hk, Hs⟩
   iapply mupd_ghost_round
-  iintro %Ω %tc %X ⟨Hos, Hf⟩
+  iintro %Ω %tc %crashed ⟨Hos, Hf⟩
   imod oforest_bill_resync Ω tc i B K $$ [$Hf $Hb $Hk] with ⟨Hf, Hb, Hk⟩
   imodintro
   iframe Hos Hf Hb Hx Hk Hs
@@ -696,7 +696,7 @@ theorem bill_erase_discharged_mupd (n : Nat) (i : ThreadId) (B : Oids) (k : Oid)
   unfold oblDischarged
   iintro Hb ⟨-, Hd⟩
   iapply mupd_ghost_round
-  iintro %Ω %tc %X ⟨Hos, Hf⟩
+  iintro %Ω %tc %crashed ⟨Hos, Hf⟩
   icases osat_lookup_discharged Ω k $$ [$Hos $Hd] with %hk
   have hlive : ¬Ω.Live k := fun ⟨_, _, h⟩ => by
     rw [hk] at h
@@ -736,7 +736,7 @@ theorem obl_check_witnesses_mupd (n : Nat) (R : Oids) :
       mupd n iprop([∗set] r ∈ R, witCred r 0 ∨ oblDischarged r) := by
   iintro #HR
   iapply mupd_noDischarge_step
-  iintro %h %i %Ω₁ %W₁ %tc %X HM
+  iintro %h %i %Ω₁ %W₁ %tc %crashed HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   icases osat_elems Ω₁ R $$ [$Hos $HR] with %hR
@@ -791,7 +791,7 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
   iapply (mupd_unfold n _).2
   unfold mupdPre
   iright
-  iintro %h %i %Ω₁ %W₁ %tc %X HM
+  iintro %h %i %Ω₁ %W₁ %tc %crashed HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
   imod osat_discharge Ω₁ k $$ [$Hos $Ha] with ⟨Hos, #Hd, %⟨a, t, hk₁⟩⟩
@@ -828,9 +828,9 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
     · iexact Hd
 
 /-- Each child of an obligation of `S` has more fuel than its parent. -/
-theorem oforest_kids_rank (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (S : Oids)
+theorem oforest_kids_rank (Ω : Obligations) (tc : Nat) (crashed : ThreadId → Prop) (S : Oids)
     (kids : Oid → Oids) :
-    oforest Ω tc X ∗ ([∗set] k ∈ S, parKids (GF := GF) (.obl k) (kids k)) ⊢
+    oforest Ω tc crashed ∗ ([∗set] k ∈ S, parKids (GF := GF) (.obl k) (kids k)) ⊢
       ⌜∀ k, k ∈ S → ∀ x, x ∈ kids k → Ω.fuelOf k < Ω.fuelOf x⌝ := by
   refine (BI.forall_intro fun k => ?_).trans BI.pure_forall.2
   by_cases hk : k ∈ S
@@ -852,8 +852,8 @@ theorem kids_rank_mupd (n : Nat) (S : Oids) (kids : Oid → Oids) :
         [∗set] k ∈ S, parKids (.obl k) (kids k)) := by
   iintro HS
   iapply mupd_ghost_round
-  iintro %Ω %tc %X ⟨Hos, Hf⟩
-  icases oforest_kids_rank Ω tc X S kids $$ [$Hf $HS] with %h
+  iintro %Ω %tc %crashed ⟨Hos, Hf⟩
+  icases oforest_kids_rank Ω tc crashed S kids $$ [$Hf $HS] with %h
   imodintro
   iframe Hos Hf HS
   ipureintro
@@ -875,10 +875,10 @@ theorem node_eq (j : ThreadId) :
 
 /-- `oforest_alloc_threads` through the user's predicates. -/
 @[lantana_alias omodel.thP_kids_alloc_threads]
-theorem thKids_alloc_threads (Ω : Obligations) (tc m : Nat) (X : ThreadId → Prop) :
-    oforest Ω tc X ⊢@{IProp GF} |==> (oforest Ω (tc + m) X ∗
+theorem thKids_alloc_threads (Ω : Obligations) (tc m : Nat) (crashed : ThreadId → Prop) :
+    oforest Ω tc crashed ⊢@{IProp GF} |==> (oforest Ω (tc + m) crashed ∗
       [∗list] j ∈ List.range' tc m,
-        (⌜¬X j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗ OForest.bill j ∅) := by
+        (⌜¬crashed j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗ OForest.bill j ∅) := by
   iintro Hf
   imod oforest_alloc_threads Ω tc m $$ Hf with ⟨Hf, Hl⟩
   imodintro
@@ -898,12 +898,12 @@ variable [ModelGS GF]
 /-- A step of thread `i`, paid by one unit of fuel of each obligation of its bill; each witness
 of `R` gets one credit or is discharged. -/
 @[lantana_alias omodel.mprog_step_kids]
-theorem mprog_step_kids (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R : Oids)
+theorem mprog_step_kids (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (B R : Oids)
     (P : IProp GF) :
     OForest.bill i B ⊢ ([∗set] k ∈ B, ∃ ℓ, oblFuel k ℓ 1) -∗
       ([∗set] r ∈ R, ∃ ℓ, witLayer r ℓ) -∗
       (OForest.bill i B -∗ ([∗set] r ∈ R, witCred r 1 ∨ oblDischarged r) ={∅}=∗ P) -∗
-      mprog n tc X i P := by
+      mprog n tc crashed i P := by
   unfold mprog
   iintro Hb HF #HR H %h %a %Ω₁ %W₁ HM
   unfold modelInterp
@@ -947,18 +947,18 @@ theorem mprog_step_kids (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R
   exact hI₂
 
 /-- A step of a crashed thread `i` pays for nothing, whatever its bill. -/
-theorem mprog_step_crashed (n tc : Nat) (X : ThreadId → Prop) {i : ThreadId} (hX : X i)
+theorem mprog_step_crashed (n tc : Nat) (crashed : ThreadId → Prop) {i : ThreadId} (hcr : crashed i)
     (B R : Oids) (P : IProp GF) :
     OForest.bill i B ⊢ ([∗set] r ∈ R, ∃ ℓ, witLayer r ℓ) -∗
       (OForest.bill i ∅ -∗ ([∗set] r ∈ R, witCred r 1 ∨ oblDischarged r) ={∅}=∗ P) -∗
-      mprog n tc X i P := by
+      mprog n tc crashed i P := by
   iintro Hb HR H
   unfold mprog
   iintro %h %a %Ω₁ %W₁ HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI₁⟩
-  imod oforest_bill_crashed Ω₁ tc hX B $$ [$Hf $Hb] with ⟨Hf, Hb⟩
-  ihave Hstep := mprog_step_kids n tc X i ∅ R P $$ Hb [] HR H
+  imod oforest_bill_crashed Ω₁ tc hcr B $$ [$Hf $Hb] with ⟨Hf, Hb⟩
+  ihave Hstep := mprog_step_kids n tc crashed i ∅ R P $$ Hb [] HR H
   · iapply BigSepS.bigSepS_empty.mpr
     iempintro
   unfold mprog modelInterp
@@ -968,31 +968,33 @@ theorem mprog_step_crashed (n tc : Nat) (X : ThreadId → Prop) {i : ThreadId} (
   exact hI₁
 
 /-- The forked threads, not crashed, get their nodes. -/
-private theorem forked_pieces {tc₁ m : Nat} {X : ThreadId → Prop} (hX : ∀ j, tc₁ ≤ j → ¬X j) :
+private theorem forked_pieces {tc₁ m : Nat} {crashed : ThreadId → Prop}
+    (hcr : ∀ j, tc₁ ≤ j → ¬crashed j) :
     ([∗list] j ∈ List.range' tc₁ m,
-        (⌜¬X j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗ OForest.bill j ∅) ⊢@{IProp GF}
+        (⌜¬crashed j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗ OForest.bill j ∅) ⊢@{IProp GF}
       [∗list] j ∈ List.range' tc₁ m, thActive j ∗ parKids (.thread j) ∅ ∗ OForest.bill j ∅ :=
   BigSepL.bigSepL_mono fun {_ j} hj => by
     have hle := (List.mem_range'_1.1 (List.mem_of_getElem? hj)).1
     iintro ⟨Hn, Hb⟩
-    icases Hn $$ %(hX j hle) with ⟨He, Hk⟩
+    icases Hn $$ %(hcr j hle) with ⟨He, Hk⟩
     iframe He Hk Hb
 
 /-- The first stage of the physical round: the forked threads `tc₁, …, tc₂ - 1` get their
 running handles, empty children predicates and empty bills. -/
-theorem mphys_forks {n₁ n₂ tc₁ tc₂ : Nat} {X₁ X₂ : ThreadId → Prop} {P : IProp GF}
-    (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :
+theorem mphys_forks {n₁ n₂ tc₁ tc₂ : Nat} {crashed₁ crashed₂ : ThreadId → Prop} {P : IProp GF}
+    (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hcr₁ : ∀ j, tc₁ ≤ j → ¬crashed₁ j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁),
         thActive j ∗ parKids (.thread j) ∅ ∗ OForest.bill j ∅) ={∅}=∗
-      alc (mupd n₂ (mbits n₂ tc₂ X₁ X₂ P))) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
+      alc (mupd n₂ (mcrash n₂ tc₂ crashed₁ crashed₂ P))) ⊢
+      mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P := by
   unfold mphys
   iintro H %h %a %Ω %W HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI⟩
   imod modelHistoryInterp_step h a hn (Obligations.le_refl Ω) $$ HH with HH
-  imod thKids_alloc_threads Ω tc₁ (tc₂ - tc₁) X₁ $$ Hf with ⟨Hf, Hl⟩
+  imod thKids_alloc_threads Ω tc₁ (tc₂ - tc₁) crashed₁ $$ Hf with ⟨Hf, Hl⟩
   rw [show tc₁ + (tc₂ - tc₁) = tc₂ by omega]
-  ihave Hl := forked_pieces hX₁ $$ Hl
+  ihave Hl := forked_pieces hcr₁ $$ Hl
   imod H $$ Hl with HP
   imodintro
   iframe HH Hos Hf Hw HP
@@ -1000,19 +1002,20 @@ theorem mphys_forks {n₁ n₂ tc₁ tc₂ : Nat} {X₁ X₂ : ThreadId → Prop
   exact hI
 
 /-- The last stage of the physical round: the nodes of the newly crashed threads go in, the nodes
-of the recovered ones come out (`oforest_bits`). -/
-theorem mbits_kids (n tc : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) :
-    ([∗list] j ∈ List.range tc, ⌜¬X₁ j ∧ X₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗
-        (([∗list] j ∈ List.range tc, ⌜X₁ j ∧ ¬X₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅)
-          -∗ P)
-      ⊢@{IProp GF} mbits n tc X₁ X₂ P := by
-  unfold mbits
+of the recovered ones come out (`oforest_crashed_change`). -/
+theorem mcrash_kids (n tc : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P : IProp GF) :
+    ([∗list] j ∈ List.range tc,
+        ⌜¬crashed₁ j ∧ crashed₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗
+      (([∗list] j ∈ List.range tc,
+        ⌜crashed₁ j ∧ ¬crashed₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) -∗ P)
+      ⊢@{IProp GF} mcrash n tc crashed₁ crashed₂ P := by
+  unfold mcrash
   iintro ⟨Hin, HP⟩ %h %a %Ω %W HM
   unfold modelInterp
   icases HM with ⟨HH, Hos, Hf, Hw, %hI⟩
   ihave Hin := BigSepL.bigSepL_mono_of_forall
     (fun {_ j} => wand_mono_right (node_eq (GF := GF) j).1) $$ Hin
-  icases oforest_bits Ω tc X₁ X₂ $$ [$Hf $Hin] with ⟨Hf, Hout⟩
+  icases oforest_crashed_change Ω tc crashed₁ crashed₂ $$ [$Hf $Hin] with ⟨Hf, Hout⟩
   ihave Hout := BigSepL.bigSepL_mono_of_forall
     (fun {_ j} => wand_mono_right (node_eq (GF := GF) j).2) $$ Hout
   imodintro
@@ -1022,36 +1025,38 @@ theorem mbits_kids (n tc : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) :
     exact hI
   · iapply HP $$ Hout
 
-/-- A step that forks the threads `tc₁, …, tc₂ - 1` and changes the bits from `X₁` to `X₂`. -/
+/-- A step that forks the threads `tc₁, …, tc₂ - 1` and changes the crash map from `crashed₁` to
+`crashed₂`. -/
 @[lantana_alias omodel.mphys_step_kids]
-theorem mphys_step_kids (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF)
-    (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX₁ : ∀ j, tc₁ ≤ j → ¬X₁ j) :
+theorem mphys_step_kids (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P : IProp GF)
+    (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hcr₁ : ∀ j, tc₁ ≤ j → ¬crashed₁ j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁),
         thActive j ∗ parKids (.thread j) ∅ ∗ OForest.bill j ∅) ={∅}=∗
       alc (mupd n₂ iprop(
-        ([∗list] j ∈ List.range tc₂, ⌜¬X₁ j ∧ X₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗
-        (([∗list] j ∈ List.range tc₂, ⌜X₁ j ∧ ¬X₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅)
-          -∗ P)))) ⊢
-      mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
+        ([∗list] j ∈ List.range tc₂,
+          ⌜¬crashed₁ j ∧ crashed₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) ∗
+        (([∗list] j ∈ List.range tc₂,
+          ⌜crashed₁ j ∧ ¬crashed₂ j⌝ -∗ thActive j ∗ parKids (.thread j) ∅) -∗ P)))) ⊢
+      mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P := by
   iintro H
-  iapply mphys_forks hn htc hX₁
+  iapply mphys_forks hn htc hcr₁
   iintro Hl
   imod H $$ Hl with H
   imodintro
-  iapply alc_mono (mupd_mono_of (mbits_kids n₂ tc₂ X₁ X₂ P)) $$ H
+  iapply alc_mono (mupd_mono_of (mcrash_kids n₂ tc₂ crashed₁ crashed₂ P)) $$ H
 
-/-- A step that forks the threads `tc₁, …, tc₂ - 1` and keeps the bits. -/
-theorem mphys_step_fork (n₁ n₂ tc₁ tc₂ : Nat) (X : ThreadId → Prop) (P : IProp GF)
-    (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hX : ∀ j, tc₁ ≤ j → ¬X j) :
+/-- A step that forks the threads `tc₁, …, tc₂ - 1` and keeps the crash map. -/
+theorem mphys_step_fork (n₁ n₂ tc₁ tc₂ : Nat) (crashed : ThreadId → Prop) (P : IProp GF)
+    (hn : n₁ ≤ n₂) (htc : tc₁ ≤ tc₂) (hcr : ∀ j, tc₁ ≤ j → ¬crashed j) :
     (([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁),
         thActive j ∗ parKids (.thread j) ∅ ∗ OForest.bill j ∅) ={∅}=∗ alc (mupd n₂ P)) ⊢
-      mphys n₁ n₂ tc₁ tc₂ X X P := by
+      mphys n₁ n₂ tc₁ tc₂ crashed crashed P := by
   iintro H
-  iapply mphys_forks hn htc hX
+  iapply mphys_forks hn htc hcr
   iintro Hl
   imod H $$ Hl with H
   imodintro
-  iapply alc_mono (mupd_mono_of (mbits_intro n₂ tc₂ X P)) $$ H
+  iapply alc_mono (mupd_mono_of (mcrash_intro n₂ tc₂ crashed P)) $$ H
 
 end Physical
 

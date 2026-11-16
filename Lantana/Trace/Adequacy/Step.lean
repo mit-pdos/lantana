@@ -283,8 +283,8 @@ instance doneTokens_persistent (tp : ThreadPool Expr) :
 /-- The owners of the obligations are below the thread count of the model (Rocq
 `othread_assigned_thread_elem`). -/
 theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) :
-    modelInterp (GF := GF) h a Ω W n tc X ⊢
+    (n tc : Nat) (crashed : ThreadId → Prop) :
+    modelInterp (GF := GF) h a Ω W n tc crashed ⊢
       ⌜∀ k fu o, get? Ω k = some (.assigned fu o) → o < tc⌝ := by
   unfold modelInterp
   iintro ⟨-, -, Hf, -, -⟩
@@ -326,9 +326,9 @@ theorem get_obligationsThreadActive [Crash Expr State Obs Val] {tp : ThreadPool 
 
 /-- A stutter moves the model to the next step index (Rocq `model_history_interp_step`). -/
 theorem modelInterp_step_idx (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) :
-    modelInterp (GF := GF) h a Ω W n tc X ⊢
-      |==> modelInterp (h ++ [(n + 1, Ω)]) (a + 1) Ω W (n + 1) tc X := by
+    (n tc : Nat) (crashed : ThreadId → Prop) :
+    modelInterp (GF := GF) h a Ω W n tc crashed ⊢
+      |==> modelInterp (h ++ [(n + 1, Ω)]) (a + 1) Ω W (n + 1) tc crashed := by
   unfold modelInterp
   iintro ⟨HH, Hs, Hf, Hw, %hI⟩
   imod modelHistoryInterp_step h a (Nat.le_succ n) (Obligations.le_refl Ω) $$ HH with HH

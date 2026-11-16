@@ -77,28 +77,29 @@ noncomputable instance : ModelGpreS TestGF := {}
 
 /-! Allocation of the model. -/
 
-example (X : ThreadId → Prop) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
-    (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 X :=
-  modelInterp_alloc 0 X
+example (crashed : ThreadId → Prop) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
+    (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 crashed :=
+  modelInterp_alloc 0 crashed
 
 /-- Allocate the model with no crashed thread and fork thread `0` (a physical round of the
 interface, run against the model with the lower bound `γ i a := a` of the witnesses): under the
 step's later credits, thread `0` runs, without children and with an empty bill, and the model is
 at one thread. -/
-example (X : ThreadId → Prop) (hX : ∀ j, ¬X j) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
+example (crashed : ThreadId → Prop) (hcr : ∀ j, ¬crashed j) :
+    ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
     |={∅}=> alc iprop(|={∅}=> (thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) ∗
       ∃ h' a' Ω' W', ⌜Obligations.le ∅ Ω' ∧ OWitInvLb (fun _ a => a) Ω' W'⌝ ∗
-        modelInterp ([(0, ∅)] ++ h') (0 + a') Ω' W' 0 1 X) := by
+        modelInterp ([(0, ∅)] ++ h') (0 + a') Ω' W' 0 1 crashed) := by
   have hγ : OWitInvLbMonoFair (fun _ a => a) :=
     ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
   have hLb : OWitInvLb (fun _ a => a) (∅ : Obligations) (∅ : Witnesses) := mapForall2_empty
-  imod modelInterp_alloc (GF := TestGF) 0 X with ⟨%G, -, -, -, HM⟩
+  imod modelInterp_alloc (GF := TestGF) 0 crashed with ⟨%G, -, -, -, HM⟩
   imodintro
   iexists G
   have hfork : ⊢@{IProp TestGF}
-      Lantana.mphys 0 0 0 1 X X iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) := by
+      Lantana.mphys 0 0 0 1 crashed crashed iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) := by
     refine (?_ : ⊢ _).trans
-      (step_fork 0 0 0 1 X _ (Nat.le_refl 0) (Nat.zero_le 1) fun j _ => hX j)
+      (step_fork 0 0 0 1 crashed _ (Nat.le_refl 0) (Nat.zero_le 1) fun j _ => hcr j)
     rw [show List.range' 0 (1 - 0) = [0] from rfl]
     iintro Hl
     imodintro
@@ -106,7 +107,7 @@ example (X : ThreadId → Prop) (hX : ∀ j, ¬X j) : ⊢@{IProp TestGF} |==> �
     iapply mupdBase_intro
     icases BigSepL.bigSepL_cons.mp $$ Hl with ⟨Hk, -⟩
     iexact Hk
-  ihave Hrun := hfork.trans (mphys_modelInterp_run 0 0 0 1 X X (fun _ a => a) hγ
+  ihave Hrun := hfork.trans (mphys_modelInterp_run 0 0 0 1 crashed crashed (fun _ a => a) hγ
     iprop(thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅))
   imod Hrun $$ [] %([(0, ∅)] : List MEvent) %0 %(∅ : Obligations) %(∅ : Witnesses) %hLb HM with H
   · iempintro
@@ -156,14 +157,14 @@ example (E : CoPset) (ℓ : Layer) :
 `γ i a := a` of the witnesses. -/
 example (E : CoPset) (ℓ : Layer) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
     (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
-    (X : ThreadId → Prop) (hLb : OWitInvLb (fun _ a => a) Ω W) :
-    thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tc X
+    (crashed : ThreadId → Prop) (hLb : OWitInvLb (fun _ a => a) Ω W) :
+    thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tc crashed
       ⊢@{IProp TestGF} |={E}=> ∃ k : Oid, Obl.assigned k 1 ∗ historyTInterp h n σ tp := by
   iintro ⟨Hk, HB, HT, HM⟩
   ihave #Hb := Par.le_thread (GF := TestGF) 0 ℓ
   ihave H := Obl.new (Expr := Expr) (State := State) E (.thread 0) ∅ ∅ ℓ 1 $$ Hb Hk HB
   imod mupd_modelInterp_steps (fun _ a => a) ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
-    E E h n σ tp g v Ω W tc X _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, -, Ha, -⟩, HT, -⟩
+    E E h n σ tp g v Ω W tc crashed _ hLb $$ H HT HM with ⟨⟨%k, -, -, -, -, Ha, -⟩, HT, -⟩
   imodintro
   iexists k
   iframe Ha HT

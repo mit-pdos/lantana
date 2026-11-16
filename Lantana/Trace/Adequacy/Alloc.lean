@@ -48,24 +48,24 @@ variable {Expr State : Type} {GF : BundledGFunctors} [ModelGpreS GF] [RegGpreS E
   [MonoListG GF (HistEntry Expr State)]
 
 /-- The ghost state of adequacy for the initial configuration `(tp, σ)` whose crashed threads
-are `X`, at names `γ`: the credits, world satisfaction, the model at step `0`, the pieces of the
-initial threads, the history for any state interpretation, and the empty registry. -/
-theorem adequacy_alloc_names (σ : State) (tp : ThreadPool Expr) (X : ThreadId → Prop) :
+are `crashed`, at names `γ`: the credits, world satisfaction, the model at step `0`, the pieces
+of the initial threads, the history for any state interpretation, and the empty registry. -/
+theorem adequacy_alloc_names (σ : State) (tp : ThreadPool Expr) (crashed : ThreadId → Prop) :
     ⊢@{IProp GF} |==> ∃ γ : ModelNames × TemporalNames,
       letI := ModelGS.ofNames (GF := GF) γ.1
       letI := TemporalGS.ofNames (Expr := Expr) (State := State) (GF := GF) γ.2
       iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
-        Model.modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length X ∗
+        Model.modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length crashed ∗
         ([∗list] j ∈ List.range tp.length,
-          (⌜¬X j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ∗
+          (⌜¬crashed j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ∗
         (∀ _ : StateInterp Expr State GF,
           stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp) ∗
         regAuth []) := by
-  imod Model.modelInterp_alloc_names (GF := GF) 0 X with ⟨%γm, Hc, Hw, HE, HM⟩
+  imod Model.modelInterp_alloc_names (GF := GF) 0 crashed with ⟨%γm, Hc, Hw, HE, HM⟩
   imod historyInterp_init_names (GF := GF) σ tp with ⟨%γh, HH⟩
   imod regGS_alloc_names (Expr := Expr) (State := State) (GF := GF) with ⟨%γr, HR⟩
   letI := ModelGS.ofNames (GF := GF) γm
-  have hk := Th.alloc_threads (GF := GF) ∅ 0 tp.length X
+  have hk := Th.alloc_threads (GF := GF) ∅ 0 tp.length crashed
   rw [Nat.zero_add, ← List.range_eq_range'] at hk
   unfold Model.modelInterp
   icases HM with ⟨HMH, Hs, Hf, Hwit, %hI⟩

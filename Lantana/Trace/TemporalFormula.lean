@@ -191,16 +191,16 @@ theorem mupd_read_fupd :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr),
       historyInterp h n σ tp -∗ regState -∗
         |={E,∅}=> ∀ (g : List MEvent) (i : Nat) (Ω : Obligations)
-        (W : Witnesses) (tc : Nat) (X : ThreadId → Prop), modelInterp g i Ω W n tc X -∗
-          modelInterp g i Ω W n tc X ∗ |={∅,E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
+        (W : Witnesses) (tc : Nat) (crashed : ThreadId → Prop), modelInterp g i Ω W n tc crashed -∗
+          modelInterp g i Ω W n tc crashed ∗ |={∅,E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
       |={E}=>m P := by
   unfold mupd mupdFancy historyTInterp
   iintro H %h %n %σ %tp ⟨HI, TI⟩
   imod H $$ %h %n %σ %tp HI TI with H
   imodintro
   iapply mupdBase_read
-  iintro %g %i %Ω %W %tc %X MI
-  icases H $$ %g %i %Ω %W %tc %X MI with ⟨MI, H⟩
+  iintro %g %i %Ω %W %tc %crashed MI
+  icases H $$ %g %i %Ω %W %tc %crashed MI with ⟨MI, H⟩
   iframe MI
   imod H with ⟨HI, TI, HP⟩
   imodintro
@@ -214,16 +214,16 @@ registry. -/
 theorem mupd_read :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
       (g : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
-      (X : ThreadId → Prop),
-      historyInterp h n σ tp -∗ regState -∗ modelInterp g i Ω W n tc X -∗
-        modelInterp g i Ω W n tc X ∗ |={E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
+      (crashed : ThreadId → Prop),
+      historyInterp h n σ tp -∗ regState -∗ modelInterp g i Ω W n tc crashed -∗
+        modelInterp g i Ω W n tc crashed ∗ |={E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
       |={E}=>m P := by
   iintro H
   iapply mupd_read_fupd
   iintro %h %n %σ %tp HI TI
   iapply fupd_mask_intro Std.LawfulSet.empty_subset
-  iintro Hclose %g %i %Ω %W %tc %X MI
-  icases H $$ %h %n %σ %tp %g %i %Ω %W %tc %X HI TI MI with ⟨MI, H⟩
+  iintro Hclose %g %i %Ω %W %tc %crashed MI
+  icases H $$ %h %n %σ %tp %g %i %Ω %W %tc %crashed HI TI MI with ⟨MI, H⟩
   iframe MI
   imod Hclose with -
   iexact H
