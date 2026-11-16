@@ -27,7 +27,7 @@ forest is acyclic without a separate condition.  The children of `p` are defined
 (`Forest.kids Par p`), the owner of an obligation is read from `Ω` (`Obligations.ownerOf`), and the
 obligations of thread `i` are the pure set `Forest.owned Ω Par i`.
 
-The invariant `oforest Ω tc X` holds such a forest with three authoritative ghost maps:
+The invariant `oforest Ω tc crashed` holds such a forest with three authoritative ghost maps:
 
 - the children map, which tabulates `Forest.kids` on the threads of the pool and on the nodes
   (`KidsMap`); its exclusive fragment `OForest.kids p K` is the core of the user's children
@@ -113,27 +113,29 @@ cell (`oblAssigned_shares`).  Hence:
 ## 4. The view of the pool and the nodes of crashed threads
 
 The forest sees the pool through a *view*: the thread count `tc` (thread ids are positions in
-the pool) and the crashed bits `X : ThreadId → Prop`.  For a thread `i < tc` whose bit is set,
-the invariant holds its node, `OForest.crashedInv X i`.  As the children fragment is exclusive,
+the pool) and the *crash map* `crashed : ThreadId → Prop`, which says which threads the model
+takes to be crashed.  For a crashed thread `i < tc`, the invariant holds its node,
+`OForest.crashedInv crashed i`.  As the children fragment is exclusive,
 nobody can then add a child below `i`, and as its children are empty, `i` owns no obligation
 (`oforest_crashed_owned`, `Th.crashed_modelInterp_not_owner`).  Its bill can be emptied against
 those children (`oforest_bill_crashed`), so its step pays for nothing (`mprog_step_crashed`).
 
-A new thread comes with an empty bill, and its node goes to the user if its bit is not set and
-to the invariant otherwise (`oforest_alloc_thread`, `oforest_alloc_threads`).  `oforest_bits`
-changes the bits from `X₁` to `X₂`: it takes the nodes of the threads that become crashed and
-gives back those of the threads that recover (`oforest_hand_in` and `oforest_hand_out` for one
-thread).  Every other lemma keeps the bits.
+A new thread comes with an empty bill, and its node goes to the user if it is not crashed and
+to the invariant otherwise (`oforest_alloc_thread`, `oforest_alloc_threads`).
+`oforest_crashed_change` changes the crash map from `crashed₁` to `crashed₂`: it takes the nodes
+of the threads that become crashed and gives back those of the threads that recover
+(`oforest_hand_in` and `oforest_hand_out` for one thread).  Every other lemma keeps the crash
+map.
 
 So the owners of obligations are active: a finished thread owns nothing by its `thDone`, a
-crashed one by its bit in the model.  Adequacy needs this at the view of the current
+crashed one by the crash map of the model.  Adequacy needs this at the view of the current
 configuration (`docs/activity.md`, §4).
 
 ## 5. The model update and the two rounds of a step
 
-The model interpretation `modelInterp h i Ω W n tc X` is the history of the model (`i + 1`
-events ending at `(n, Ω)`), the obligations `Ω` (`osat`), the forest at the view `tc`, `X`, and
-the witnesses `W` with their invariant.  The position `n` is the step index of the run: the
+The model interpretation `modelInterp h i Ω W n tc crashed` is the history of the model (`i + 1`
+events ending at `(n, Ω)`), the obligations `Ω` (`osat`), the forest at the view `tc`,
+`crashed`, and the witnesses `W` with their invariant.  The position `n` is the step index of the run: the
 physical round moves it from `n₁` to `n₂`, and the model updates in between keep it.
 
 The model update `mupd n P` (`|=[n]=>m P`) is the least fixpoint of `mupdPre n`: either `P` holds
@@ -153,18 +155,20 @@ strictly monotone and below `fairMeasureUb` (`owitInv_exists_witnesses`).
 
 The two rounds of a physical step alone read or change the view:
 
-- the progress round `mprog n tc X i P` of the scheduled thread `i`: every obligation of `i`
+- the progress round `mprog n tc crashed i P` of the scheduled thread `i`: every obligation of `i`
   and every assigned witness progress strictly, the witnesses being the environment's choice.
   `mprog_step_kids` plays it with one unit of fuel of each obligation of the bill:
   `oforest_step` gives a unit to every obligation of `i` (§1), `osat_progress_owner` makes them
   progress while keeping the owners (§8), and every assigned witness gets a positive credit
   (`owit_progress`);
-- the physical round `mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P`, in three stages: the model moves to the
-  position `n₂` and the thread count `tc₂` at the bits `X₁`, the forked threads getting their
-  pieces (`mphys_forks`); under the step's later credits, a model update at `n₂`; the bits
-  change from `X₁` to `X₂` (`mbits`, `mbits_kids`).  `mphys_run` runs it against the model.
+- the physical round `mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P`, in three stages: the model moves
+  to the position `n₂` and the thread count `tc₂` at the crash map `crashed₁`, the forked
+  threads getting their pieces (`mphys_forks`); under the step's later credits, a model update
+  at `n₂`; the crash map changes from `crashed₁` to `crashed₂` (`mcrash`, `mcrash_kids`).
+  `mphys_run` runs it against the model.
 
-The update of the second stage runs after the step, at the new position and with the old bits:
+The update of the second stage runs after the step, at the new position and with the old crash
+map:
 there a thread can discharge the obligations below a node before handing the node in at the
 third stage (`docs/activity.md`, §3).
 
@@ -223,7 +227,7 @@ and that terminated and crashed threads own none.
   running status and is what a step pays for.  Here these are the children, the running handle
   and the bill (§2).
 - **The view.**  Rocq's rounds take the pool `Θ`; here they take the view, a thread count and
-  the crashed bits, which Rocq does not have (§4).
+  the crash map, which Rocq does not have (§4).
 - **Moves.**  In Rocq `oforest_move_same` takes a piece `π` with
   `obl_fuel_of Ω q < π ≤ obl_fuel_of Ω k`; here it takes the forest's condition
   `Ω.fuelOf q < Ω.fuelOf k` and a `OForest.oblPiece`.

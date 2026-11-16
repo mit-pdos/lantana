@@ -46,20 +46,21 @@ noncomputable instance : OForestGpreS TestGF where
 
 /-! Allocation. -/
 
-example (X : ThreadId → Prop) : ⊢@{IProp TestGF} |==> ∃ _ : OSatGS TestGF,
-    ∃ _ : OForestGS TestGF, osat ∅ ∗ oforest ∅ 0 X := by
+example (crashed : ThreadId → Prop) : ⊢@{IProp TestGF} |==> ∃ _ : OSatGS TestGF,
+    ∃ _ : OForestGS TestGF, osat ∅ ∗ oforest ∅ 0 crashed := by
   imod osat_alloc with ⟨%GS, Hs⟩
-  imod @oforest_alloc _ GS _ X with ⟨%GF, Hf⟩
+  imod @oforest_alloc _ GS _ crashed with ⟨%GF, Hf⟩
   imodintro
   iexists GS, GF
   iframe
 
 section
-variable [OSatGS TestGF] [OForestGS TestGF] {X : ThreadId → Prop}
+variable [OSatGS TestGF] [OForestGS TestGF] {crashed : ThreadId → Prop}
 
 /-- Two new threads, not crashed, each without children and with an empty bill. -/
-example (Ω : Obligations) (h₀ : ¬X 0) (h₁ : ¬X 1) : oforest Ω 0 X ⊢@{IProp TestGF} |==>
-    (oforest Ω 2 X ∗ OForest.kids (.thread 0) ∅ ∗ OForest.bill 0 ∅ ∗
+example (Ω : Obligations) (h₀ : ¬crashed 0) (h₁ : ¬crashed 1) :
+    oforest Ω 0 crashed ⊢@{IProp TestGF} |==>
+    (oforest Ω 2 crashed ∗ OForest.kids (.thread 0) ∅ ∗ OForest.bill 0 ∅ ∗
       OForest.kids (.thread 1) ∅ ∗ OForest.bill 1 ∅) := by
   iintro Hf
   imod oforest_alloc_threads Ω 0 2 $$ Hf with ⟨Hf, Hl⟩
@@ -72,14 +73,14 @@ example (Ω : Obligations) (h₀ : ¬X 0) (h₁ : ¬X 1) : oforest Ω 0 X ⊢@{I
   iframe
 
 /-- A new thread, not crashed, with a new obligation below it, in its bill. -/
-example (Ω : Obligations) (tc : Nat) (hX : ¬X tc) :
-    osat Ω ∗ oforest Ω tc X ⊢@{IProp TestGF} |==>
+example (Ω : Obligations) (tc : Nat) (hcr : ¬crashed tc) :
+    osat Ω ∗ oforest Ω tc crashed ⊢@{IProp TestGF} |==>
       (osat (insert Ω Ω.fresh (.assigned 1 tc)) ∗ oforest (insert Ω Ω.fresh (.assigned 1 tc))
-        (tc + 1) X ∗ OForest.kids (.thread tc) ({Ω.fresh} ∪ ∅) ∗
+        (tc + 1) crashed ∗ OForest.kids (.thread tc) ({Ω.fresh} ∪ ∅) ∗
         OForest.bill tc ({Ω.fresh} ∪ ∅) ∗ OForest.kids (.obl Ω.fresh) ∅) := by
   iintro ⟨Hs, Hf⟩
   imod oforest_alloc_thread Ω tc $$ Hf with ⟨Hf, Hn, HB⟩
-  icases Hn $$ %hX with ⟨-, Hk⟩
+  icases Hn $$ %hcr with ⟨-, Hk⟩
   imod osat_alloc_obl_assigned (Obligations.get?_fresh Ω) (1 : Ordinal.{1}) tc $$ Hs
     with ⟨Hs, #Hb, -, -, -, -⟩
   imod oforest_alloc_obl (p := .thread tc) (Obligations.get?_fresh Ω) rfl Ordinal.le_rfl ∅
@@ -90,8 +91,9 @@ example (Ω : Obligations) (tc : Nat) (hX : ¬X tc) :
 /-- The life of a thread, not crashed, with one obligation: allocation of the thread and of the
 obligation (fuel `1`), a step of the thread (the obligation burns its unit), discharge,
 termination. -/
-example (Ω : Obligations) (tc : Nat) (hX : ¬X tc) :
-    osat Ω ∗ oforest Ω tc X ⊢@{IProp TestGF} |==> ∃ Ω', osat Ω' ∗ oforest Ω' (tc + 1) X ∗
+example (Ω : Obligations) (tc : Nat) (hcr : ¬crashed tc) :
+    osat Ω ∗ oforest Ω tc crashed ⊢@{IProp TestGF} |==> ∃ Ω', osat Ω' ∗
+      oforest Ω' (tc + 1) crashed ∗
       OForest.done tc := by
   have hsing : ({Ω.fresh} ∪ ∅ : Oids) = {Ω.fresh} :=
     LawfulSet.ext fun x => by
@@ -104,7 +106,7 @@ example (Ω : Obligations) (tc : Nat) (hX : ¬X tc) :
   have hk : Ω.fresh ∈ ({Ω.fresh} : Oids) := LawfulSet.mem_singleton.2 rfl
   iintro ⟨Hs, Hf⟩
   imod oforest_alloc_thread Ω tc $$ Hf with ⟨Hf, Hn, HB⟩
-  icases Hn $$ %hX with ⟨He, Hk⟩
+  icases Hn $$ %hcr with ⟨He, Hk⟩
   imod osat_alloc_obl_assigned (Obligations.get?_fresh Ω) (1 : Ordinal.{1}) tc $$ Hs
     with ⟨Hs, #Hb, -, Ha, Hu, -⟩
   imod oforest_alloc_obl (p := .thread tc) (Obligations.get?_fresh Ω) rfl Ordinal.le_rfl ∅
@@ -127,7 +129,7 @@ example (Ω : Obligations) (tc : Nat) (hX : ¬X tc) :
 
 /-- A terminated thread owns no obligation. -/
 example (Ω : Obligations) (tc : Nat) (k : Oid) (a : Fuel) (hk : get? Ω k = some (.assigned a 0)) :
-    oforest Ω tc X ∗ OForest.done 0 ⊢@{IProp TestGF} False :=
+    oforest Ω tc crashed ∗ OForest.done 0 ⊢@{IProp TestGF} False :=
   oforest_assigned_done_false hk
 
 end

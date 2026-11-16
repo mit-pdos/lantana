@@ -99,31 +99,31 @@ noncomputable instance : TemporalGpreS Exp State TestGF where
 /-! Allocation: the model (with its `ModelGS`), and with the ghost names in the existential:
 world satisfaction, the model, and everything adequacy allocates. -/
 
-example (X : ThreadId → Prop) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
-    (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 X :=
-  modelInterp_alloc 0 X
+example (crashed : ThreadId → Prop) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
+    (∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 crashed :=
+  modelInterp_alloc 0 crashed
 
 example : ⊢@{IProp TestGF} |==> ∃ γ : InvNames, letI := InvGS.ofNames (GF := TestGF) γ
     iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤) :=
   invGS_alloc_names
 
-example (X : ThreadId → Prop) :
+example (crashed : ThreadId → Prop) :
     ⊢@{IProp TestGF} |==> ∃ γ : ModelNames, letI := ModelGS.ofNames (GF := TestGF) γ
-      iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 X) :=
-  modelInterp_alloc_names 0 X
+      iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗ modelInterp [(0, ∅)] 0 ∅ ∅ 0 0 crashed) :=
+  modelInterp_alloc_names 0 crashed
 
-example (σ : State) (tp : ThreadPool Exp) (X : ThreadId → Prop) :
+example (σ : State) (tp : ThreadPool Exp) (crashed : ThreadId → Prop) :
     ⊢@{IProp TestGF} |==> ∃ γ : ModelNames × TemporalNames,
       letI := ModelGS.ofNames (GF := TestGF) γ.1
       letI := TemporalGS.ofNames (Expr := Exp) (State := State) (GF := TestGF) γ.2
       iprop((∃ x : Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
-        modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length X ∗
+        modelInterp [(0, ∅)] 0 ∅ ∅ 0 tp.length crashed ∗
         ([∗list] j ∈ List.range tp.length,
-          (⌜¬X j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ∗
+          (⌜¬crashed j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) ∗
         (∀ _ : StateInterp Exp State TestGF,
           stateInterp σ tp ==∗ historyInterp [(σ, tp)] 0 σ tp) ∗
         regAuth []) :=
-  adequacy_alloc_names σ tp X
+  adequacy_alloc_names σ tp crashed
 
 /-- The extraction of the names, as in adequacy (the model at the crashed threads of the initial
 configuration): the instances are rebuilt from them, then the state interpretation is chosen

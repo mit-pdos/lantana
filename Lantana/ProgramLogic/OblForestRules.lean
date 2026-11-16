@@ -1522,16 +1522,16 @@ section Steps
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 @[lantana_alias mprog_step]
-theorem mprog_step (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
+theorem mprog_step (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
     (|={∅}=> ∃ B : Oids, thCarriers i B ∗ Obl.fuels B 1 ∗
         ∃ R : Oids, ([∗set] r ∈ R, ∃ ℓ : Layer, Wit.layer r ℓ) ∗
           (thCarriers i B ∗ ([∗set] r ∈ R, Wit.cred r 1 ∨ Obl.discharged r) ={∅}=∗ P)) ⊢
-      mprog n tc X i P := by
+      mprog n tc crashed i P := by
   iintro H
   iapply fupd_mprog
   imod H with ⟨%B, T, F, %R, W, H⟩
   imodintro
-  have hstep := step_progress (GF := GF) n tc X i B R P
+  have hstep := step_progress (GF := GF) n tc crashed i B R P
   simp only [Wit.layers, Wit.creds] at hstep
   iapply hstep $$ T F W
   iintro T C
@@ -1540,14 +1540,15 @@ theorem mprog_step (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IPro
   · iexact T
   · iexact C
 
-/-- A step that keeps the crashed bits, under a fancy update (`step_fork`). -/
+/-- A step that keeps the crash map, under a fancy update (`step_fork`). -/
 @[lantana_alias mphys_step]
-theorem mphys_step (n₁ n₂ tc₁ tc₂ : Nat) (X : ThreadId → Prop) (P : IProp GF) (hn : n₁ ≤ n₂)
-    (htc : tc₁ ≤ tc₂) (hX : ∀ j, tc₁ ≤ j → ¬X j) :
+theorem mphys_step (n₁ n₂ tc₁ tc₂ : Nat) (crashed : ThreadId → Prop) (P : IProp GF) (hn : n₁ ≤ n₂)
+    (htc : tc₁ ≤ tc₂) (hcr : ∀ j, tc₁ ≤ j → ¬crashed j) :
     (|={∅}=> ([∗list] j ∈ List.range' tc₁ (tc₂ - tc₁), thActive j ∗ thKids j ∅ ∗ thCarriers j ∅)
       ={∅}=∗ alc (|=[n₂]=>m P)) ⊢
-      mphys n₁ n₂ tc₁ tc₂ X X P :=
-  (fupd_mono (step_fork n₁ n₂ tc₁ tc₂ X P hn htc hX)).trans (fupd_mphys n₁ n₂ tc₁ tc₂ X X P)
+      mphys n₁ n₂ tc₁ tc₂ crashed crashed P :=
+  (fupd_mono (step_fork n₁ n₂ tc₁ tc₂ crashed P hn htc hcr)).trans
+    (fupd_mphys n₁ n₂ tc₁ tc₂ crashed crashed P)
 
 /-! ### The nodes handed in and out -/
 
@@ -1629,10 +1630,12 @@ theorem Th.nodes_list (tc : Nat) {φ : ThreadId → Prop} {js : List ThreadId} (
       iintro -
       iempintro
 
-/-- When the crashed bits do not change (`Y = X`), no node goes in and none comes out. -/
-theorem Th.nodes_unchanged (tc : Nat) {X Y : ThreadId → Prop} (hXY : Y = X) (P : IProp GF) :
-    P ⊢ Th.nodes tc (fun j => ¬X j ∧ Y j) ∗ (Th.nodes tc (fun j => X j ∧ ¬Y j) -∗ P) := by
-  subst hXY
+/-- When the crash map does not change, no node goes in and none comes out. -/
+theorem Th.nodes_unchanged (tc : Nat) {crashed₁ crashed₂ : ThreadId → Prop}
+    (heq : crashed₂ = crashed₁) (P : IProp GF) :
+    P ⊢ Th.nodes tc (fun j => ¬crashed₁ j ∧ crashed₂ j) ∗
+      (Th.nodes tc (fun j => crashed₁ j ∧ ¬crashed₂ j) -∗ P) := by
+  subst heq
   exact emp_sep.2.trans (sep_mono (Th.nodes_none tc fun _ _ h => h.1 h.2)
     (wand_intro sep_elim_left))
 

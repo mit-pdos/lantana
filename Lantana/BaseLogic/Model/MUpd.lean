@@ -13,10 +13,10 @@ public import Lantana.BaseLogic.Model.OForest
 
 /-! # The model interpretation and the model update
 
-The ghost state `ModelGS` of the model, its interpretation `modelInterp h i Ω W n tc X`, the
+The ghost state `ModelGS` of the model, its interpretation `modelInterp h i Ω W n tc crashed`, the
 model update `mupd n P` as a least fixpoint of rounds with its elimination
 `modelInterp_mupd_steps`, and the two rounds of a physical step: `mprog`, and `mphys` with its
-last stage `mbits` and its run `mphys_run`.
+last stage `mcrash` and its run `mphys_run`.
 See `docs/model.md`, §5. Rocq: `mupd.v` and `model_physical_updates.v` in `lantana/base_logic/`.
 -/
 
@@ -61,30 +61,31 @@ section ModelInterp
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 /-- The model interpretation: the history of `i + 1` events ending at `(n, Ω)`, the obligations
-`Ω`, the forest at the view `tc`, `X`, and the witnesses `W` with their invariant. -/
+`Ω`, the forest at the view `tc`, `crashed`, and the witnesses `W` with their invariant. -/
 @[lantana_alias model_interp]
 def modelInterp (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (n tc : Nat)
-    (X : ThreadId → Prop) : IProp GF :=
-  iprop(modelHistoryInterp h i n Ω ∗ osat Ω ∗ oforest Ω tc X ∗ owit W ∗
+    (crashed : ThreadId → Prop) : IProp GF :=
+  iprop(modelHistoryInterp h i n Ω ∗ osat Ω ∗ oforest Ω tc crashed ∗ owit W ∗
     ⌜OWitInvFair Ω W⌝)
 
 instance modelInterp_timeless (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) : Timeless (modelInterp (GF := GF) h i Ω W n tc X) := by
+    (n tc : Nat) (crashed : ThreadId → Prop) :
+    Timeless (modelInterp (GF := GF) h i Ω W n tc crashed) := by
   unfold modelInterp; infer_instance
 
 @[lantana_alias model_interp_owit_inv]
 theorem modelInterp_owitInv (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) :
-    modelInterp (GF := GF) h i Ω W n tc X ⊢ ⌜OWitInvFair Ω W⌝ := by
+    (n tc : Nat) (crashed : ThreadId → Prop) :
+    modelInterp (GF := GF) h i Ω W n tc crashed ⊢ ⌜OWitInvFair Ω W⌝ := by
   unfold modelInterp
   iintro ⟨-, -, -, -, %h⟩
   ipureintro
   exact h
 
 theorem modelInterp_owitInv' (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) :
-    modelInterp (GF := GF) h i Ω W n tc X ⊢
-      modelInterp h i Ω W n tc X ∗ ⌜OWitInvFair Ω W⌝ := by
+    (n tc : Nat) (crashed : ThreadId → Prop) :
+    modelInterp (GF := GF) h i Ω W n tc crashed ⊢
+      modelInterp h i Ω W n tc crashed ∗ ⌜OWitInvFair Ω W⌝ := by
   unfold modelInterp
   iintro ⟨HH, Hs, Hf, Hw, %hI⟩
   iframe HH Hs Hf Hw
@@ -93,9 +94,9 @@ theorem modelInterp_owitInv' (h : List MEvent) (i : Nat) (Ω : Obligations) (W :
 
 /-- A trivial round: the obligations do not change, the environment may lower the witnesses. -/
 theorem modelInterp_trivial_round (h : List MEvent) (i : Nat) (Ω : Obligations) (W₁ W₂ : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) (hW : W₁.StayOrStep W₂) (hI₂ : OWitInvFair Ω W₂) :
-    modelInterp (GF := GF) h i Ω W₁ n tc X ⊢
-      |==> modelInterp (h ++ [(n, Ω)]) (i + 1) Ω W₂ n tc X := by
+    (n tc : Nat) (crashed : ThreadId → Prop) (hW : W₁.StayOrStep W₂) (hI₂ : OWitInvFair Ω W₂) :
+    modelInterp (GF := GF) h i Ω W₁ n tc crashed ⊢
+      |==> modelInterp (h ++ [(n, Ω)]) (i + 1) Ω W₂ n tc crashed := by
   unfold modelInterp
   iintro ⟨HH, Hs, Hf, Hw, %hI₁⟩
   imod modelHistoryInterp_step h i (Nat.le_refl n) (Obligations.le_refl Ω) $$ HH with HH
@@ -113,10 +114,10 @@ theorem modelInterp_trivial_round (h : List MEvent) (i : Nat) (Ω : Obligations)
 def mupdPre (n : Nat) (mupd : IProp GF → IProp GF) (P : IProp GF) : IProp GF :=
   iprop((|={∅}=> P) ∨
     ∀ (h : List MEvent) (i : Nat) (Ω₁ : Obligations) (W₁ : Witnesses) (tc : Nat)
-      (X : ThreadId → Prop),
-      modelInterp h i Ω₁ W₁ n tc X ={∅}=∗ ∃ Ω₂, ⌜Obligations.StayOrStep Ω₁ Ω₂⌝ ∗
+      (crashed : ThreadId → Prop),
+      modelInterp h i Ω₁ W₁ n tc crashed ={∅}=∗ ∃ Ω₂, ⌜Obligations.StayOrStep Ω₁ Ω₂⌝ ∗
         ∀ W₂, ⌜W₁.StayOrStep W₂ ∧ OWitInvFair Ω₂ W₂⌝ ={∅}=∗
-          modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc X ∗ mupd P)
+          modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc crashed ∗ mupd P)
 
 @[lantana_alias mupd_pre_mono]
 theorem mupdPre_mono (n : Nat) {Φ Ψ : IProp GF → IProp GF} :
@@ -127,7 +128,7 @@ theorem mupdPre_mono (n : Nat) {Φ Ψ : IProp GF → IProp GF} :
   · ileft
     iexact HP
   · iright
-    iintro %h %i %Ω₁ %W₁ %tc %X HM
+    iintro %h %i %Ω₁ %W₁ %tc %crashed HM
     imod Hround $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
     imodintro
     iexists Ω₂
@@ -151,7 +152,7 @@ instance mupdPre_monoPred (n : Nat) : BIMonoPred (mupdPre (GF := GF) n) where
     unfold mupdPre
     refine or_ne.ne (OFE.NonExpansive.ne hPQ) ?_
     refine forall_ne fun h => forall_ne fun i => forall_ne fun Ω₁ => forall_ne fun W₁ =>
-      forall_ne fun tc => forall_ne fun X => ?_
+      forall_ne fun tc => forall_ne fun crashed => ?_
     refine wand_ne.ne .rfl (OFE.NonExpansive.ne ?_)
     refine exists_ne fun Ω₂ => sep_ne.ne .rfl (forall_ne fun W₂ => ?_)
     refine wand_ne.ne .rfl (OFE.NonExpansive.ne ?_)
@@ -196,7 +197,7 @@ theorem fupd_mupd_elim (n : Nat) (P : IProp GF) :
   iapply (mupd_unfold n P).2
   unfold mupdPre
   iright
-  iintro %h %i %Ω₁ %W₁ %tc %X HM
+  iintro %h %i %Ω₁ %W₁ %tc %crashed HM
   imod H with H
   imodintro
   iexists Ω₁
@@ -204,28 +205,28 @@ theorem fupd_mupd_elim (n : Nat) (P : IProp GF) :
   · ipureintro
     exact Obligations.stayOrStep_refl Ω₁
   iintro %W₂ %⟨hW, hI₂⟩
-  imod modelInterp_trivial_round h i Ω₁ W₁ W₂ n tc X hW hI₂ $$ HM with HM
+  imod modelInterp_trivial_round h i Ω₁ W₁ W₂ n tc crashed hW hI₂ $$ HM with HM
   imodintro
   iframe
 
 /-- A model update that only reads the model, which it returns unchanged. -/
 theorem mupd_read (n : Nat) (P : IProp GF) :
     (∀ (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
-      (X : ThreadId → Prop),
-      modelInterp h i Ω W n tc X -∗ modelInterp h i Ω W n tc X ∗ P) ⊢ mupd n P := by
+      (crashed : ThreadId → Prop),
+      modelInterp h i Ω W n tc crashed -∗ modelInterp h i Ω W n tc crashed ∗ P) ⊢ mupd n P := by
   iintro H
   iapply (mupd_unfold n P).2
   unfold mupdPre
   iright
-  iintro %h %i %Ω₁ %W₁ %tc %X HM
-  icases H $$ %h %i %Ω₁ %W₁ %tc %X HM with ⟨HM, HP⟩
+  iintro %h %i %Ω₁ %W₁ %tc %crashed HM
+  icases H $$ %h %i %Ω₁ %W₁ %tc %crashed HM with ⟨HM, HP⟩
   imodintro
   iexists Ω₁
   isplitr
   · ipureintro
     exact Obligations.stayOrStep_refl Ω₁
   iintro %W₂ %⟨hW, hI₂⟩
-  imod modelInterp_trivial_round h i Ω₁ W₁ W₂ n tc X hW hI₂ $$ HM with HM
+  imod modelInterp_trivial_round h i Ω₁ W₁ W₂ n tc crashed hW hI₂ $$ HM with HM
   imodintro
   iframe HM
   iapply mupd_intro n P $$ HP
@@ -233,16 +234,16 @@ theorem mupd_read (n : Nat) (P : IProp GF) :
 /-- A snapshot of the current obligation `k`. -/
 @[lantana_alias model_interp_event_obl]
 theorem modelInterp_eventObl {h : List MEvent} {i : Nat} {Ω : Obligations} {W : Witnesses}
-    {n tc : Nat} {X : ThreadId → Prop} {k : Oid} {o : Obligation} (hk : get? Ω k = some o) :
-    modelInterp h i Ω W n tc X ⊢ eventObl (GF := GF) i (n, Ω) k o := by
+    {n tc : Nat} {crashed : ThreadId → Prop} {k : Oid} {o : Obligation} (hk : get? Ω k = some o) :
+    modelInterp h i Ω W n tc crashed ⊢ eventObl (GF := GF) i (n, Ω) k o := by
   unfold modelInterp
   iintro ⟨HH, -, -, -, -⟩
   iapply modelHistoryInterp_eventObl_now h i n Ω hk $$ HH
 
 /-- What a snapshot says about the current model (`eventObl_modelHistoryInterp_lookup`). -/
 theorem modelInterp_eventObl_lookup (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses)
-    (n tc : Nat) (X : ThreadId → Prop) (j : Nat) (e : MEvent) (k : Oid) (o : Obligation) :
-    modelInterp h i Ω W n tc X ∗ eventObl (GF := GF) j e k o ⊢
+    (n tc : Nat) (crashed : ThreadId → Prop) (j : Nat) (e : MEvent) (k : Oid) (o : Obligation) :
+    modelInterp h i Ω W n tc crashed ∗ eventObl (GF := GF) j e k o ⊢
       ⌜h[j]? = some e ∧ get? e.2 k = some o ∧ j ≤ i ∧ e.1 ≤ n ∧ Obligations.le e.2 Ω⌝ := by
   unfold modelInterp
   iintro ⟨⟨HH, -, -, -, -⟩, He⟩
@@ -265,7 +266,7 @@ theorem mupd_bind (n : Nat) (P Q : IProp GF) :
   · iapply (mupd_unfold n Q).2
     unfold mupdPre
     iright
-    iintro %h %i %Ω₁ %W₁ %tc %X HM
+    iintro %h %i %Ω₁ %W₁ %tc %crashed HM
     imod Hround $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
     imodintro
     iexists Ω₂
@@ -283,17 +284,17 @@ theorem mupd_bind (n : Nat) (P Q : IProp GF) :
 @[lantana_alias mupd_nd_step]
 theorem mupd_noDischarge_step (n : Nat) (P : IProp GF) :
     (∀ (h : List MEvent) (i : Nat) (Ω₁ : Obligations) (W₁ : Witnesses) (tc : Nat)
-      (X : ThreadId → Prop),
-      modelInterp h i Ω₁ W₁ n tc X ={∅}=∗ ∃ Ω₂, ⌜Obligations.NoDischarge Ω₁ Ω₂⌝ ∗
+      (crashed : ThreadId → Prop),
+      modelInterp h i Ω₁ W₁ n tc crashed ={∅}=∗ ∃ Ω₂, ⌜Obligations.NoDischarge Ω₁ Ω₂⌝ ∗
         ∀ W₂, ⌜W₁.NoDischarge W₂ ∧ OWitInvFair Ω₂ W₂⌝ ={∅}=∗
-          modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc X ∗ mupd n P)
+          modelInterp (h ++ [(n, Ω₂)]) (i + 1) Ω₂ W₂ n tc crashed ∗ mupd n P)
       ⊢@{IProp GF} mupd n P := by
   iintro H
   iapply (mupd_unfold n P).2
   unfold mupdPre
   iright
-  iintro %h %i %Ω₁ %W₁ %tc %X HM
-  icases modelInterp_owitInv' h i Ω₁ W₁ n tc X $$ HM with ⟨HM, %hI₁⟩
+  iintro %h %i %Ω₁ %W₁ %tc %crashed HM
+  icases modelInterp_owitInv' h i Ω₁ W₁ n tc crashed $$ HM with ⟨HM, %hI₁⟩
   imod H $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
   imodintro
   iexists Ω₂
@@ -309,20 +310,20 @@ witnesses keeping the lower bound `γ` can always be chosen. -/
 theorem modelInterp_mupd_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
     (hγ : OWitInvLbMonoFair γ) (P : IProp GF) :
     mupd n P ⊢@{IProp GF} ∀ (h : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
-      (X : ThreadId → Prop), ⌜OWitInvLb γ Ω W⌝ → modelInterp h i Ω W n tc X ={∅}=∗
+      (crashed : ThreadId → Prop), ⌜OWitInvLb γ Ω W⌝ → modelInterp h i Ω W n tc crashed ={∅}=∗
         P ∗ ∃ h' i' Ω' W', ⌜Obligations.le Ω Ω' ∧ OWitInvLb γ Ω' W'⌝ ∗
-          modelInterp (h ++ h') (i + i') Ω' W' n tc X := by
+          modelInterp (h ++ h') (i + i') Ω' W' n tc crashed := by
   letI Ψ : IProp GF → IProp GF := fun P => iprop(∀ (h : List MEvent) (i : Nat) (Ω : Obligations)
-    (W : Witnesses) (tc : Nat) (X : ThreadId → Prop), ⌜OWitInvLb γ Ω W⌝ →
-      modelInterp h i Ω W n tc X ={∅}=∗
+    (W : Witnesses) (tc : Nat) (crashed : ThreadId → Prop), ⌜OWitInvLb γ Ω W⌝ →
+      modelInterp h i Ω W n tc crashed ={∅}=∗
       P ∗ ∃ h' i' Ω' W', ⌜Obligations.le Ω Ω' ∧ OWitInvLb γ Ω' W'⌝ ∗
-        modelInterp (h ++ h') (i + i') Ω' W' n tc X)
+        modelInterp (h ++ h') (i + i') Ω' W' n tc crashed)
   letI : OFE.NonExpansive Ψ := ⟨fun _ _ _ h => forall_ne fun _ => forall_ne fun _ =>
     forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ =>
       imp_ne.ne .rfl (wand_ne.ne .rfl (OFE.NonExpansive.ne (sep_ne.ne h .rfl)))⟩
   iintro HM
   iapply mupd_ind n Ψ $$ [] HM
-  iintro !> %P' Hpre %h %i %Ω %W %tc %X %hLb HM
+  iintro !> %P' Hpre %h %i %Ω %W %tc %crashed %hLb HM
   unfold mupdPre
   icases Hpre with (HP | Hround)
   · imod HP with HP
@@ -334,11 +335,11 @@ theorem modelInterp_mupd_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
       exact ⟨Obligations.le_refl Ω, hLb⟩
     · rw [List.append_nil, Nat.add_zero]
       iexact HM
-  · icases modelInterp_owitInv' h i Ω W n tc X $$ HM with ⟨HM, %hI⟩
+  · icases modelInterp_owitInv' h i Ω W n tc crashed $$ HM with ⟨HM, %hI⟩
     imod Hround $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
     obtain ⟨W₂, hW, hI₂, hLb₂⟩ := owitInv_exists_witnesses hγ hΩ hI hLb
     imod Hk $$ %W₂ %(⟨hW, hI₂⟩) with ⟨HM, HΨ⟩
-    imod HΨ $$ %(h ++ [(n, Ω₂)]) %(i + 1) %Ω₂ %W₂ %tc %X %hLb₂ HM
+    imod HΨ $$ %(h ++ [(n, Ω₂)]) %(i + 1) %Ω₂ %W₂ %tc %crashed %hLb₂ HM
       with ⟨HP, %h', %i', %Ω', %W', %⟨hle, hLb'⟩, HM⟩
     imodintro
     iframe HP
@@ -375,15 +376,15 @@ structure _root_.Lantana.ModelNames where
 
 /-- `modelInterp_alloc` at ghost names `γ`. -/
 theorem modelInterp_alloc_names {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat)
-    (X : ThreadId → Prop) :
+    (crashed : ThreadId → Prop) :
     ⊢@{IProp GF} |==> ∃ γ : ModelNames, letI := ModelGS.ofNames (GF := GF) γ
       iprop((∃ x : Ordinals.Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
-        modelInterp [(n, ∅)] 0 ∅ ∅ n 0 X) := by
+        modelInterp [(n, ∅)] 0 ∅ ∅ n 0 crashed) := by
   imod invGS_alloc_names (GF := GF) with ⟨%γi, ⟨%x, Hc⟩, Hw, HE⟩
   imod modelHistoryInterp_init_names (GF := GF) n ∅ with ⟨%γh, HH⟩
   imod osat_alloc_names (GF := GF) with ⟨%γs, Hs⟩
   imod @owit_alloc_names GF (OSatGS.ofNames γs) _ with ⟨%γw, Hwit⟩
-  imod @oforest_alloc_names GF (OSatGS.ofNames γs) _ X with ⟨%γf, Hf⟩
+  imod @oforest_alloc_names GF (OSatGS.ofNames γs) _ crashed with ⟨%γf, Hf⟩
   imodintro
   iexists ⟨γi, γs, γw, γf, γh⟩
   isplitl [Hc]
@@ -396,14 +397,14 @@ theorem modelInterp_alloc_names {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat
   exact owitInv_empty
 
 /-- Allocation of the model, with the credit supply, world satisfaction and the full mask of the
-invariants, at any bits. -/
+invariants, at any crash map. -/
 @[lantana_alias model_interp_alloc]
 theorem modelInterp_alloc {GF : BundledGFunctors} [ModelGpreS GF] (n : Nat)
-    (X : ThreadId → Prop) :
+    (crashed : ThreadId → Prop) :
     ⊢@{IProp GF} |==> ∃ _ : ModelGS GF,
       (∃ x : Ordinals.Ordinal.{1}, ●£ₒ x) ∗ wsat ∗ ownE ⊤ ∗
-      modelInterp [(n, ∅)] 0 ∅ ∅ n 0 X := by
-  imod modelInterp_alloc_names (GF := GF) n X with ⟨%γ, H⟩
+      modelInterp [(n, ∅)] 0 ∅ ∅ n 0 crashed := by
+  imod modelInterp_alloc_names (GF := GF) n crashed with ⟨%γ, H⟩
 
   imodintro
   iexists ModelGS.ofNames γ
@@ -417,30 +418,30 @@ variable {GF : BundledGFunctors} [ModelGS GF]
 
 /-- The progress round of the scheduled thread `i`: every obligation of `i` and every assigned
 witness progress strictly, the witnesses being the environment's choice. -/
-def mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) : IProp GF :=
+def mprog (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (P : IProp GF) : IProp GF :=
   iprop(∀ (h : List MEvent) (a : Nat) (Ω₁ : Obligations) (W₁ : Witnesses),
-    modelInterp h a Ω₁ W₁ n tc X ={∅}=∗
+    modelInterp h a Ω₁ W₁ n tc crashed ={∅}=∗
       ∃ Ω₂, ⌜Obligations.CondProgress (Obligation.CondOwner i) Ω₁ Ω₂⌝ ∗
       ∀ W₂, ⌜Witnesses.CondProgress Witness.CondAssigned W₁ W₂ ∧
         OWitInvFair Ω₂ W₂⌝ ={∅}=∗
-        modelInterp (h ++ [(n, Ω₂)]) (a + 1) Ω₂ W₂ n tc X ∗ P)
+        modelInterp (h ++ [(n, Ω₂)]) (a + 1) Ω₂ W₂ n tc crashed ∗ P)
 
-/-- The last stage of the physical round: the bits change from `X₁` to `X₂`, the rest of the
-model does not. -/
-def mbits (n tc : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
+/-- The last stage of the physical round: the crash map changes from `crashed₁` to `crashed₂`,
+the rest of the model does not. -/
+def mcrash (n tc : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
   iprop(∀ (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses),
-    modelInterp h a Ω W n tc X₁ ={∅}=∗ modelInterp h a Ω W n tc X₂ ∗ P)
+    modelInterp h a Ω W n tc crashed₁ ={∅}=∗ modelInterp h a Ω W n tc crashed₂ ∗ P)
 
 /-- The physical round, in three stages: the position and the thread count change; under the
-step's later credits, a model update at `n₂`; the bits change (`mbits`). -/
-def mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
+step's later credits, a model update at `n₂`; the crash map changes (`mcrash`). -/
+def mphys (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P : IProp GF) : IProp GF :=
   iprop(∀ (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses),
-    modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
-      modelInterp (h ++ [(n₂, Ω)]) (a + 1) Ω W n₂ tc₂ X₁ ∗
-      alc (mupd n₂ (mbits n₂ tc₂ X₁ X₂ P)))
+    modelInterp h a Ω W n₁ tc₁ crashed₁ ={∅}=∗
+      modelInterp (h ++ [(n₂, Ω)]) (a + 1) Ω W n₂ tc₂ crashed₁ ∗
+      alc (mupd n₂ (mcrash n₂ tc₂ crashed₁ crashed₂ P)))
 
-instance mprog_ne (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) :
-    OFE.NonExpansive (mprog (GF := GF) n tc X i) :=
+instance mprog_ne (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) :
+    OFE.NonExpansive (mprog (GF := GF) n tc crashed i) :=
   ⟨fun _ _ _ h => by
     unfold mprog
     refine forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => ?_
@@ -448,23 +449,23 @@ instance mprog_ne (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) :
     refine exists_ne fun _ => sep_ne.ne .rfl (forall_ne fun _ => ?_)
     exact wand_ne.ne .rfl (OFE.NonExpansive.ne (sep_ne.ne .rfl h))⟩
 
-instance mbits_ne (n tc : Nat) (X₁ X₂ : ThreadId → Prop) :
-    OFE.NonExpansive (mbits (GF := GF) n tc X₁ X₂) :=
+instance mcrash_ne (n tc : Nat) (crashed₁ crashed₂ : ThreadId → Prop) :
+    OFE.NonExpansive (mcrash (GF := GF) n tc crashed₁ crashed₂) :=
   ⟨fun _ _ _ h => by
-    unfold mbits
+    unfold mcrash
     refine forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => ?_
     exact wand_ne.ne .rfl (OFE.NonExpansive.ne (sep_ne.ne .rfl h))⟩
 
-instance mphys_ne (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) :
-    OFE.NonExpansive (mphys (GF := GF) n₁ n₂ tc₁ tc₂ X₁ X₂) :=
+instance mphys_ne (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) :
+    OFE.NonExpansive (mphys (GF := GF) n₁ n₂ tc₁ tc₂ crashed₁ crashed₂) :=
   ⟨fun _ _ _ h => by
     unfold mphys
     refine forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => forall_ne fun _ => ?_
     refine wand_ne.ne .rfl (OFE.NonExpansive.ne (sep_ne.ne .rfl ?_))
-    exact alc_ne.ne ((mupd_ne n₂).ne ((mbits_ne n₂ tc₂ X₁ X₂).ne h))⟩
+    exact alc_ne.ne ((mupd_ne n₂).ne ((mcrash_ne n₂ tc₂ crashed₁ crashed₂).ne h))⟩
 
-theorem mprog_wand (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P Q : IProp GF) :
-    (P -∗ Q) ⊢ mprog n tc X i P -∗ mprog n tc X i Q := by
+theorem mprog_wand (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (P Q : IProp GF) :
+    (P -∗ Q) ⊢ mprog n tc crashed i P -∗ mprog n tc crashed i Q := by
   unfold mprog
   iintro HPQ H %h %a %Ω₁ %W₁ HM
   imod H $$ HM with ⟨%Ω₂, %hΩ, Hk⟩
@@ -480,40 +481,41 @@ theorem mprog_wand (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P Q : IP
   iapply HPQ $$ HP
 
 @[lantana_alias mprog_mono]
-theorem mprog_mono (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) {P Q : IProp GF}
-    (h : P ⊢ Q) : mprog n tc X i P ⊢ mprog n tc X i Q := by
+theorem mprog_mono (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) {P Q : IProp GF}
+    (h : P ⊢ Q) : mprog n tc crashed i P ⊢ mprog n tc crashed i Q := by
   iintro H
-  iapply mprog_wand n tc X i P Q $$ [] H
+  iapply mprog_wand n tc crashed i P Q $$ [] H
   iintro HP
   iapply h $$ HP
 
 @[lantana_alias fupd_mprog]
-theorem fupd_mprog (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
-    (|={∅}=> mprog n tc X i P) ⊢ mprog n tc X i P := by
+theorem fupd_mprog (n tc : Nat) (crashed : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
+    (|={∅}=> mprog n tc crashed i P) ⊢ mprog n tc crashed i P := by
   unfold mprog
   iintro H %h %a %Ω₁ %W₁ HM
   imod H with H
   iapply H $$ HM
 
-theorem mbits_wand (n tc : Nat) (X₁ X₂ : ThreadId → Prop) (P Q : IProp GF) :
-    (P -∗ Q) ⊢ mbits n tc X₁ X₂ P -∗ mbits n tc X₁ X₂ Q := by
-  unfold mbits
+theorem mcrash_wand (n tc : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P Q : IProp GF) :
+    (P -∗ Q) ⊢ mcrash n tc crashed₁ crashed₂ P -∗ mcrash n tc crashed₁ crashed₂ Q := by
+  unfold mcrash
   iintro HPQ H %h %a %Ω %W HM
   imod H $$ HM with ⟨HM, HP⟩
   imodintro
   iframe HM
   iapply HPQ $$ HP
 
-/-- When the bits do not change, the last stage of the physical round is trivial. -/
-theorem mbits_intro (n tc : Nat) (X : ThreadId → Prop) (P : IProp GF) :
-    P ⊢ mbits n tc X X P := by
-  unfold mbits
+/-- When the crash map does not change, the last stage of the physical round is trivial. -/
+theorem mcrash_intro (n tc : Nat) (crashed : ThreadId → Prop) (P : IProp GF) :
+    P ⊢ mcrash n tc crashed crashed P := by
+  unfold mcrash
   iintro HP %h %a %Ω %W HM
   imodintro
   iframe HM HP
 
-theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P Q : IProp GF) :
-    (P -∗ Q) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P -∗ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ Q := by
+theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P Q : IProp GF) :
+    (P -∗ Q) ⊢
+      mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P -∗ mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ Q := by
   unfold mphys
   iintro HPQ H %h %a %Ω %W HM
   imod H $$ HM with ⟨HM, HP⟩
@@ -524,40 +526,43 @@ theorem mphys_wand (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop)
   iapply mupd_bind n₂ _ _ $$ [HPQ] HP
   iintro HP
   iapply mupd_intro
-  iapply mbits_wand $$ HPQ HP
+  iapply mcrash_wand $$ HPQ HP
 
 @[lantana_alias mphys_mono]
-theorem mphys_mono (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) {P Q : IProp GF}
-    (h : P ⊢ Q) : mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ Q := by
+theorem mphys_mono (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) {P Q : IProp GF}
+    (h : P ⊢ Q) :
+    mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P ⊢ mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ Q := by
   iintro H
-  iapply mphys_wand n₁ n₂ tc₁ tc₂ X₁ X₂ P Q $$ [] H
+  iapply mphys_wand n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P Q $$ [] H
   iintro HP
   iapply h $$ HP
 
 @[lantana_alias fupd_mphys]
-theorem fupd_mphys (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (P : IProp GF) :
-    (|={∅}=> mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P) ⊢ mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P := by
+theorem fupd_mphys (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop) (P : IProp GF) :
+    (|={∅}=> mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P) ⊢
+      mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P := by
   unfold mphys
   iintro H %h %a %Ω %W HM
   imod H with H
   iapply H $$ HM
 
 /-- Running the physical round against the model, keeping the lower bound `γ` of the witnesses. -/
-theorem mphys_run (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop) (γ : ThreadId → Fuel → Fuel)
-    (hγ : OWitInvLbMonoFair γ) (P : IProp GF) :
-    mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses),
-      ⌜OWitInvLb γ Ω W⌝ → modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
+theorem mphys_run (n₁ n₂ tc₁ tc₂ : Nat) (crashed₁ crashed₂ : ThreadId → Prop)
+    (γ : ThreadId → Fuel → Fuel) (hγ : OWitInvLbMonoFair γ) (P : IProp GF) :
+    mphys n₁ n₂ tc₁ tc₂ crashed₁ crashed₂ P ⊢
+      ∀ (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses),
+      ⌜OWitInvLb γ Ω W⌝ → modelInterp h a Ω W n₁ tc₁ crashed₁ ={∅}=∗
         alc iprop(|={∅}=> P ∗ ∃ h' a' Ω' W', ⌜Obligations.le Ω Ω' ∧ OWitInvLb γ Ω' W'⌝ ∗
-          modelInterp (h ++ h') (a + a') Ω' W' n₂ tc₂ X₂) := by
+          modelInterp (h ++ h') (a + a') Ω' W' n₂ tc₂ crashed₂) := by
   unfold mphys
   iintro H %h %a %Ω %W %hLb HM
   imod H $$ %h %a %Ω %W HM with ⟨HM, H⟩
   imodintro
   iapply alc_wand $$ [HM] H
   iintro H
-  imod modelInterp_mupd_steps n₂ γ hγ _ $$ H %(h ++ [(n₂, Ω)]) %(a + 1) %Ω %W %tc₂ %X₁ %hLb HM
+  imod modelInterp_mupd_steps n₂ γ hγ _ $$ H %(h ++ [(n₂, Ω)]) %(a + 1) %Ω %W %tc₂ %crashed₁ %hLb HM
     with ⟨H, %h', %a', %Ω', %W', %⟨hle, hLb'⟩, HM⟩
-  unfold mbits
+  unfold mcrash
   imod H $$ %_ %_ %_ %_ HM with ⟨HM, HP⟩
   imodintro
   iframe HP

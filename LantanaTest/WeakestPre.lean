@@ -105,13 +105,13 @@ example : lWP e @ s; i; E {{ Φ }} ⊢ lWP (fill (EvContextOps.empty : Ectx) e) 
 
 example [Inhabited State] (ς : ThreadId → Expr → IProp GF) [PureExecSI ς i] {e₁ e₂ : Expr}
     [Language.PureExec True 2 e₁ e₂] (G R : Oids) (o : Fuel)
-    (hX : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed (Ectx := Ectx) i e) :
+    (hkeep : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed (Ectx := Ectx) i e) :
     ς i e₁ ∗ thCarriers i G ∗ Obl.fuels G ((2 : Nat) : Measure) ∗ Wit.layers R ∗
       (ς i e₂ -∗ thCarriers i G -∗
         ([∗set] r ∈ R, Wit.cred r ((2 : Nat) : Fuel) ∨ Obl.discharged r) -∗
         £ₒ (o ×ⱼ ((2 : Nat) : Fuel)) -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} :=
-  lwp_pure_step_simple 2 (by omega) G R o trivial hX
+  lwp_pure_step_simple 2 (by omega) G R o trivial hkeep
 
 end
 
