@@ -80,9 +80,9 @@ forks a thread that sets a flag and waits for the flag.
    formula holds (`untilI_discharge`, `finallyI_discharge`).
 3. Give the initial resources an `iProp` `P` with a guarantee `P ⊨ₜ G`, usually inferred by
    instance search (`IntoGuar.into_guar` in `guar_mainRes`).
-4. Show that `G.external` implies the trace property of interest (`gMain_external_subset`), and apply
-   `lwp_adequacy_temporal` (`main_adequacy`). `lwp_adequacy_safety` gives safety in the same way
-   (`main_safety_adequacy`), and `main_liveness_safety` states both.
+4. Show that `G.external` implies the trace property of interest (`gMain_external_subset`), and
+   apply `lwp_adequacy_temporal` (`main_adequacy`). `lwp_adequacy_safety` gives safety in the same
+   way (`main_safety_adequacy`), and `main_liveness_safety` states both.
 
 ## Layout
 
@@ -167,8 +167,8 @@ that are neither aliased nor ignored, which is no longer maintained.
 - **Fixed concrete choices**: the fair-scheduler bound `η a := ω ×ⱼ a +ₕ ω` and fuel `Ordinal.{1}`
   instead of classes; fairness counters are an explicit sequence instead of a coinductive
   predicate, read under a schedule the adequacy proof chooses by the fair-labelling theorem of
-  `Lantana/Temporal/Fairness/FairLabel.lean`; `always` reads a single formula and safety is derived from the
-  generalised single step `run_step`.
+  `Lantana/Temporal/Fairness/FairLabel.lean`; `always` reads a single formula and safety is
+  derived from the generalised single step `run_step`.
 - **Allocation exposes ghost names**: the ghost-state classes are too large for the existential
   property of the step index, so allocation lemmas return records of names from which the
   instances are rebuilt (used by both adequacy theorems).

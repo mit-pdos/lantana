@@ -826,36 +826,37 @@ theorem Wit.cred_lt (k : Oid) {a₀ a₁ : Fuel} (h : a₀ < a₁) :
 /-! ### Fuels of sets of obligations -/
 
 @[lantana_alias oblP_fuels_add_gen]
-theorem oblFuels_add_gen (K : Oids) (m₁ m₂ : Measure) :
-    oblFuels (GF := GF) K (m₁ + m₂) ⊢ oblFuels K m₁ ∗ oblFuels K m₂ :=
+theorem Obl.fuels_add_gen (K : Oids) (m₁ m₂ : Measure) :
+    Obl.fuels (GF := GF) K (m₁ + m₂) ⊢ Obl.fuels K m₁ ∗ Obl.fuels K m₂ :=
   (bigSepS_mono_of_forall fun k => exists_elim fun ℓ =>
     (Obl.fuel_add k ℓ m₁ m₂).1.trans (sep_mono (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ _) ℓ)
       (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ _) ℓ))).trans
     bigSepS_sep.1
 
 @[lantana_alias oblP_fuels_add]
-theorem oblFuels_add (n m : Nat) (K : Oids) :
-    oblFuels (GF := GF) K ((n + m : Nat) : Measure) ⊢
-      oblFuels K (n : Measure) ∗ oblFuels K (m : Measure) :=
+theorem Obl.fuels_add (n m : Nat) (K : Oids) :
+    Obl.fuels (GF := GF) K ((n + m : Nat) : Measure) ⊢
+      Obl.fuels K (n : Measure) ∗ Obl.fuels K (m : Measure) :=
   (bigSepS_mono_of_forall fun k => exists_elim fun ℓ =>
     (Obl.fuel_add_nat k ℓ rfl).1.trans (sep_mono (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ _) ℓ)
       (exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ _) ℓ))).trans
     bigSepS_sep.1
 
 @[lantana_alias oblP_fuels_add_nat]
-theorem oblFuels_add_nat (m₁ m₂ n : Nat) (K : Oids) (h : n = m₁ + m₂) :
-    oblFuels (GF := GF) K (n : Measure) ⊢ oblFuels K (m₁ : Measure) ∗ oblFuels K (m₂ : Measure) :=
-  h ▸ oblFuels_add m₁ m₂ K
+theorem Obl.fuels_add_nat (m₁ m₂ n : Nat) (K : Oids) (h : n = m₁ + m₂) :
+    Obl.fuels (GF := GF) K (n : Measure) ⊢
+      Obl.fuels K (m₁ : Measure) ∗ Obl.fuels K (m₂ : Measure) :=
+  h ▸ Obl.fuels_add m₁ m₂ K
 
 @[lantana_alias oblP_fuels_init]
-theorem oblFuels_init (K : Oids) (m : Measure) (ℓ : Layer) :
-    ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ m) ⊢ oblFuels K m :=
+theorem Obl.fuels_init (K : Oids) (m : Measure) (ℓ : Layer) :
+    ([∗set] k ∈ K, Obl.fuel (GF := GF) k ℓ m) ⊢ Obl.fuels K m :=
   bigSepS_mono_of_forall fun k => exists_intro (Ψ := fun ℓ => Obl.fuel k ℓ m) ℓ
 
 @[lantana_alias oblP_fuels_add_obl]
-theorem oblFuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
-    Obl.fuel (GF := GF) k ℓ n ⊢ oblFuels K n -∗ oblFuels (K.insert k) n := by
-  unfold oblFuels
+theorem Obl.fuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
+    Obl.fuel (GF := GF) k ℓ n ⊢ Obl.fuels K n -∗ Obl.fuels (K.insert k) n := by
+  unfold Obl.fuels
   refine wand_intro ?_
   rw [insert_eq_singleton_union_extTreeSet]
   refine (sep_mono_left ?_).trans bigSepS_union_2
@@ -863,18 +864,18 @@ theorem oblFuels_add_obl (K : Oids) (k : Oid) (ℓ : Layer) (n : Measure) :
     (bigSepS_singleton (Φ := fun k => iprop(∃ ℓ, Obl.fuel k ℓ n))).2
 
 @[lantana_alias oblP_fuels_add_obls]
-theorem oblFuels_add_obls (K₁ K₂ : Oids) (n : Measure) :
-    oblFuels (GF := GF) K₁ n ⊢ oblFuels K₂ n -∗ oblFuels (K₁ ∪ K₂) n :=
+theorem Obl.fuels_add_obls (K₁ K₂ : Oids) (n : Measure) :
+    Obl.fuels (GF := GF) K₁ n ⊢ Obl.fuels K₂ n -∗ Obl.fuels (K₁ ∪ K₂) n :=
   wand_intro bigSepS_union_2
 
 @[lantana_alias oblP_fuels_remove_obl]
-theorem oblFuels_remove_obl (k : Oid) (K : Oids) (n : Measure) :
-    oblFuels (GF := GF) K n ⊢ oblFuels (K.erase k) n :=
+theorem Obl.fuels_remove_obl (k : Oid) (K : Oids) (n : Measure) :
+    Obl.fuels (GF := GF) K n ⊢ Obl.fuels (K.erase k) n :=
   bigSepS_subseteq fun _ hx => (Std.ExtTreeSet.mem_erase.mp hx).2
 
 @[lantana_alias oblP_fuels_remove_obls]
-theorem oblFuels_remove_obls (K₂ K₁ : Oids) (n : Measure) :
-    oblFuels (GF := GF) K₁ n ⊢ oblFuels (K₁ \ K₂) n :=
+theorem Obl.fuels_remove_obls (K₂ K₁ : Oids) (n : Measure) :
+    Obl.fuels (GF := GF) K₁ n ⊢ Obl.fuels (K₁ \ K₂) n :=
   bigSepS_subseteq diff_subset_left
 
 end Fuel
@@ -1501,7 +1502,7 @@ variable {GF : BundledGFunctors} [ModelGS GF]
 
 @[lantana_alias mprog_step]
 theorem mprog_step (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P : IProp GF) :
-    (|={∅}=> ∃ B : Oids, thCarriers i B ∗ oblFuels B 1 ∗
+    (|={∅}=> ∃ B : Oids, thCarriers i B ∗ Obl.fuels B 1 ∗
         ∃ R : Oids, ([∗set] r ∈ R, ∃ ℓ : Layer, Wit.layer r ℓ) ∗
           (thCarriers i B ∗ ([∗set] r ∈ R, Wit.cred r 1 ∨ Obl.discharged r) ={∅}=∗ P)) ⊢
       mprog n tc X i P := by

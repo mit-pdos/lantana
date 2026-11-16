@@ -329,14 +329,14 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (φ : Val → Oids → IPr
   refine ⟨20 + μi, fun lc φ i G C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF⟩ HΦ
   icases (Obl.fuel_add_set G 0 20 μi).mp $$ HF with ⟨HF, Fi⟩
-  ihave HF := oblFuels_init G 20 0 $$ HF
+  ihave HF := Obl.fuels_init G 20 0 $$ HF
   unfold init
   lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(allocn(#1, v(none()))) HT
-  icases oblFuels_add 1 17 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 17 G $$ HF with ⟨HF1, HF⟩
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
@@ -355,7 +355,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (φ : Val → Oids → IPr
   imod TicketLock.lock_alive_persist γl _ $$ AL with #AL
   imod TicketLock.lock_config_persist γl _ 0 $$ CF with #CF
   lwp_bind hl(allocn(#1, #node)) HT
-  icases oblFuels_add 1 14 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 14 G $$ HF with ⟨HF1, HF⟩
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
@@ -363,7 +363,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (φ : Val → Oids → IPr
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_bind hl(allocn(#1, #node)) HT
-  icases oblFuels_add 1 13 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 13 G $$ HF with ⟨HF1, HF⟩
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
@@ -450,7 +450,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   iintro %Φ !> ⟨HT, HKi, HG, HF, HK, %hBK, HFB, Hφ, #IQ⟩ HΦ
   icases (Obl.fuel_add_set G _ (100 + μa) μr).mp $$ HF with ⟨HF, Fr⟩
   icases (Obl.fuel_add_set G _ 100 μa).mp $$ HF with ⟨HF, Fa⟩
-  ihave HF := oblFuels_init G 100 _ $$ HF
+  ihave HF := Obl.fuels_init G 100 _ $$ HF
   unfold isQueue
   icases IQ with ⟨%lhptr, %ltptr, %tl, %hql, #IQ, #AL, #CF, #IFLA⟩
   subst hql
@@ -475,7 +475,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add κu 0 _ _).mp $$ Fκ with ⟨Fκ, Fκr⟩
-  ihave HF := oblFuels_add_obl G κu 0 _ $$ Fκ HF
+  ihave HF := Obl.fuels_add_obl G κu 0 _ $$ Fκ HF
   unfold queueLock
   icases HR with ⟨%lh, %lt, %vs, Plh, Plt, Q, QC⟩
   lwp_step HT HG HF
@@ -487,7 +487,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(!#ltptr) HT
-  icases oblFuels_add 1 87 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 87 _ $$ HF with ⟨HF1, HF⟩
   iapply lwp_load (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Plt]
   · iframe HT Plt
     iapply stepPre_nil $$ HG HF1
@@ -500,7 +500,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(allocn(#1, v(none()))) HT
-  icases oblFuels_add 1 83 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 83 _ $$ HF with ⟨HF1, HF⟩
   iapply lwp_alloc (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
@@ -516,7 +516,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   -- The physical enqueue.
   icases contents_enqueue φ vs lh lt $$ QC with ⟨Plt', QC⟩
   lwp_bind hl(#lt ← v(injr((&x, #newt)))) HT
-  icases oblFuels_add 1 78 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 78 _ $$ HF with ⟨HF1, HF⟩
   iapply lwp_store (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Plt']
   · iframe HT Plt'
     iapply stepPre_nil $$ HG HF1
@@ -528,7 +528,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(#ltptr ← #newt) HT
-  icases oblFuels_add 1 75 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 75 _ $$ HF with ⟨HF1, HF⟩
   iapply lwp_store (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Plt]
   · iframe HT Plt
     iapply stepPre_nil $$ HG HF1
@@ -633,7 +633,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
   iintro %Φ !> ⟨HT, HK, HG, HF, HW, #IQ⟩ HΦ
   icases (Obl.fuel_add_set G _ (100 + μa) μr).mp $$ HF with ⟨HF, Fr⟩
   icases (Obl.fuel_add_set G _ 100 μa).mp $$ HF with ⟨HF, Fa⟩
-  ihave HF := oblFuels_init G 100 _ $$ HF
+  ihave HF := Obl.fuels_init G 100 _ $$ HF
   imod Obl.fuel_layer_mono_set (ℓ₁ := 0) (ℓ₂ := Ordinals.Ordinal.succ 0) G μr
     (Ordinals.Ordinal.zero_le _) $$ Fr with Fr
   unfold isQueue
@@ -658,7 +658,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add κu 0 _ _).mp $$ Fκ with ⟨Fκ, Fκr⟩
-  ihave HF := oblFuels_add_obl G κu 0 _ $$ Fκ HF
+  ihave HF := Obl.fuels_add_obl G κu 0 _ $$ Fκ HF
   ihave Fr := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g 0 μr) hκu).mpr $$ [Fκr Fr]
   · iframe Fκr Fr
   unfold queueLock
@@ -672,7 +672,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind hl(!#lhptr) HT
-  icases oblFuels_add 1 89 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 89 _ $$ HF with ⟨HF1, HF⟩
   iapply lwp_load (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Plh]
   · iframe HT Plh
     iapply stepPre_nil $$ HG HF1
@@ -687,7 +687,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     icases (contents_nil φ lh lt).mp $$ QC with ⟨%hlt, Pl⟩
     subst hlt
     lwp_bind hl(!#lh) HT
-    icases oblFuels_add 1 86 _ $$ HF with ⟨HF1, HF⟩
+    icases Obl.fuels_add 1 86 _ $$ HF with ⟨HF1, HF⟩
     iapply lwp_load (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Pl]
     · iframe HT Pl
       iapply stepPre_nil $$ HG HF1
@@ -723,7 +723,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         grind
       ihave HK := Par.kids_congr hG $$ HK
       ihave HG := Th.carriers_congr hG $$ HG
-      ihave HF := oblFuels_subset (B := G) _
+      ihave HF := Obl.fuels_subset (B := G) _
         (fun z hz => Std.ExtTreeSet.mem_insert.mpr (.inr hz)) $$ HF
       lwp_step HT HG HF
       lwp_step HT HG HF
@@ -785,7 +785,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       imod Hup with ⟨%ng, %hng, HK, HG, Kwg, Gw, Ang, Fng, Q⟩
       icases (Obl.fuel_add ng ℓ _ μr).mp $$ Fng with ⟨Fng, Fngr⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng83⟩
-      ihave HF := oblFuels_add_obl (G.insert κu) ng ℓ _ $$ Fng83 HF
+      ihave HF := Obl.fuels_add_obl (G.insert κu) ng ℓ _ $$ Fng83 HF
       imod Obl.fuel_layer_mono (ℓ₁ := 0) ng μr (Ordinals.Ordinal.zero_le ℓ) $$ Fngr with Fngr
       ihave Fr := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g 0 μr) hng).mpr $$ [Fngr Fr]
       · iframe Fngr Fr
@@ -811,7 +811,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         grind
       ihave HK := Par.kids_congr hG $$ HK
       ihave HG := Th.carriers_congr hG $$ HG
-      ihave HF := oblFuels_subset (B := G.insert ng) _
+      ihave HF := Obl.fuels_subset (B := G.insert ng) _
         (fun z hz => by simp only [Std.ExtTreeSet.mem_insert] at hz ⊢; grind) $$ HF
       lwp_step HT HG HF
       lwp_step HT HG HF
@@ -831,7 +831,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     obtain ⟨v, B⟩ := a
     icases (contents_cons φ v B vs lh lt).mp $$ QC with ⟨%ln, Pl, Hφ, QC⟩
     lwp_bind hl(!#lh) HT
-    icases oblFuels_add 1 86 _ $$ HF with ⟨HF1, HF⟩
+    icases Obl.fuels_add 1 86 _ $$ HF with ⟨HF1, HF⟩
     iapply lwp_load (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Pl]
     · iframe HT Pl
       iapply stepPre_nil $$ HG HF1
@@ -845,7 +845,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     lwp_step HT HG HF
     lwp_expr_simp
     lwp_bind hl(#lhptr ← #ln) HT
-    icases oblFuels_add 1 81 _ $$ HF with ⟨HF1, HF⟩
+    icases Obl.fuels_add 1 81 _ $$ HF with ⟨HF1, HF⟩
     iapply lwp_store (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Plh]
     · iframe HT Plh
       iapply stepPre_nil $$ HG HF1
@@ -856,7 +856,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     lwp_step HT HG HF
     lwp_expr_simp
     lwp_bind hl(free(#lh)) HT
-    icases oblFuels_add 1 78 _ $$ HF with ⟨HF1, HF⟩
+    icases Obl.fuels_add 1 78 _ $$ HF with ⟨HF1, HF⟩
     iapply lwp_free (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1 Pl]
     · iframe HT Pl
       iapply stepPre_nil $$ HG HF1
@@ -932,7 +932,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     imod Hup with ⟨%g, %hg, HK, HG, Kg, Ag, Fg, Q, F1⟩
     icases (Obl.fuel_add g ℓ _ μr).mp $$ Fg with ⟨Fg, Fgr⟩
     icases (Obl.fuel_add g ℓ m _).mp $$ Fg with ⟨Fg, Fg76⟩
-    ihave HF := oblFuels_add_obl (G.insert κu) g ℓ _ $$ Fg76 HF
+    ihave HF := Obl.fuels_add_obl (G.insert κu) g ℓ _ $$ Fg76 HF
     imod Obl.fuel_layer_mono (ℓ₁ := 0) g μr (Ordinals.Ordinal.zero_le ℓ) $$ Fgr with Fgr
     ihave Fr := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g 0 μr) hg).mpr $$ [Fgr Fr]
     · iframe Fgr Fr
@@ -957,7 +957,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         grind
       ihave HK := Par.kids_congr hG $$ HK
       ihave HG := Th.carriers_congr hG $$ HG
-      ihave HF := oblFuels_subset (B := G.insert g) _
+      ihave HF := Obl.fuels_subset (B := G.insert g) _
         (fun z hz => by simp only [Std.ExtTreeSet.mem_insert] at hz ⊢; grind) $$ HF
       lwp_step HT HG HF
       lwp_step HT HG HF
@@ -1040,7 +1040,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       imod Hup with ⟨%ng, %hng, HK, HG, Kwg, Gw, Ang, Fng, Q⟩
       icases (Obl.fuel_add ng ℓ _ μr).mp $$ Fng with ⟨Fng, Fngr⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng76⟩
-      ihave HF := oblFuels_add_obl ((G.insert κu).insert g) ng ℓ _ $$ Fng76 HF
+      ihave HF := Obl.fuels_add_obl ((G.insert κu).insert g) ng ℓ _ $$ Fng76 HF
       imod Obl.fuel_layer_mono (ℓ₁ := 0) ng μr (Ordinals.Ordinal.zero_le ℓ) $$ Fngr with Fngr
       ihave Fr := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g 0 μr) hng).mpr $$ [Fngr Fr]
       · iframe Fngr Fr
@@ -1064,7 +1064,7 @@ theorem dequeue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         grind
       ihave HK := Par.kids_congr hG $$ HK
       ihave HG := Th.carriers_congr hG $$ HG
-      ihave HF := oblFuels_subset (B := (G.insert g).insert ng) _
+      ihave HF := Obl.fuels_subset (B := (G.insert g).insert ng) _
         (fun z hz => by simp only [Std.ExtTreeSet.mem_insert] at hz ⊢; grind) $$ HF
       lwp_step HT HG HF
       lwp_step HT HG HF

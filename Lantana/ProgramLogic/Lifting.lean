@@ -106,7 +106,7 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G G', thCarriers i G ∗
-          (oblFuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
+          (Obl.fuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
           ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
@@ -123,7 +123,8 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
                     (tp.set i (fill K e₂) ++ efs) ∗
                   |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                     [∗list] j ↦ ef ∈ efs,
-                      lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))))
+                      lWP ef @ s; (tp.length + j); ⊤
+                        {{ lwp.liftTerm (tp.length + j) L.forkPost }})))))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
   rw [lwp_unfold.to_eq]
@@ -185,7 +186,7 @@ theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hX : KeepsCrashed i e
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G G', thCarriers i G ∗
-          (oblFuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
+          (Obl.fuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
           ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
@@ -231,7 +232,7 @@ theorem lwp_lift_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+        ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thCarriers i G -∗ Wit.creds R -∗
@@ -313,7 +314,7 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+        ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thCarriers i G -∗ Wit.creds R -∗
@@ -365,7 +366,7 @@ theorem lwp_lift_step_gen_si (he : toVal e₁ = none) :
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G G', thCarriers i G ∗
-          (oblFuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
+          (Obl.fuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
           ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
@@ -381,7 +382,8 @@ theorem lwp_lift_step_gen_si (he : toVal e₁ = none) :
                     Cfg.Crashed (tp, σ₁) j ∧ ¬Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) -∗
                   |={∅,E}=> |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                     [∗list] j ↦ ef ∈ efs,
-                      lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))))
+                      lWP ef @ s; (tp.length + j); ⊤
+                        {{ lwp.liftTerm (tp.length + j) L.forkPost }})))))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_lift_step_gen he
@@ -457,7 +459,7 @@ theorem lwp_lift_pure_step_no_fork [Inhabited State] {ς : ThreadId → Expr →
     (hsafe : ∀ σ₁, s.PureSafe e₁ σ₁)
     (hstep : ∀ σ₁ obs e₂ σ₂ efs, primStep (e₁, σ₁) obs (e₂, σ₂, efs) → σ₂ = σ₁ ∧ efs = [])
     (hX : KeepsCrashed i e₁) :
-    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
       ∀ (σ : State) (obs : List Obs) (e₂ : Expr), ⌜primStep (e₁, σ) obs (e₂, σ, [])⌝ -∗
         ς i e₂ -∗ thCarriers i G -∗ Wit.creds R -∗
         alc iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }}))
@@ -513,7 +515,7 @@ theorem lwp_lift_atomic_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁)
       ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+        ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thCarriers i G -∗ Wit.creds R -∗
@@ -561,7 +563,7 @@ theorem lwp_lift_pure_det_step_no_fork [Inhabited State] {ς : ThreadId → Expr
     (hsafe : ∀ σ₁, s.PureSafe e₁ σ₁)
     (hdet : ∀ σ₁ obs e₂' σ₂ efs, primStep (e₁, σ₁) obs (e₂', σ₂, efs) →
       σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) (hX : KeepsCrashed i e₁) :
-    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
       (ς i e₂ -∗ thCarriers i G -∗ Wit.creds R -∗
         alc iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
@@ -587,7 +589,7 @@ theorem lwp_pure_step [Inhabited State] {ς : ThreadId → Expr → IProp GF} [P
     [hex : Language.PureExec φ n e₁ e₂] (hφ : φ)
     (hX : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed i e) :
     ς i e₁ ∗ Nat.repeat (fun P => iprop(|={E,E'}=>
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+        ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
           (thCarriers i G -∗ Wit.creds R -∗ alc iprop(£ₒ o ={E',E}=∗ |={E}=>m P)))) n
       iprop(ς i e₂ -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
@@ -626,14 +628,15 @@ theorem lwp_pure_step [Inhabited State] {ς : ThreadId → Expr → IProp GF} [P
 
 /-! ## Several pure steps at once -/
 
-instance witLayers_persistent (R : Oids) : Persistent (Wit.layers (GF := GF) R) := by
+instance Wit.layers_persistent (R : Oids) : Persistent (Wit.layers (GF := GF) R) := by
   unfold Wit.layers
   infer_instance
 
 /-- `m + 1` units of fuel are `m` units and one unit. -/
-theorem oblFuels_succ (G : Oids) (m : Nat) :
-    oblFuels (GF := GF) G ((m + 1 : Nat) : Measure) ⊢ oblFuels G (m : Measure) ∗ oblFuels G 1 := by
-  unfold oblFuels
+theorem Obl.fuels_succ (G : Oids) (m : Nat) :
+    Obl.fuels (GF := GF) G ((m + 1 : Nat) : Measure) ⊢
+      Obl.fuels G (m : Measure) ∗ Obl.fuels G 1 := by
+  unfold Obl.fuels
   refine (BigSepS.bigSepS_mono fun _ => ?_).trans BigSepS.bigSepS_sep.mp
   iintro ⟨%ℓ, H⟩
   ihave H := (Obl.fuel_eq _ (ℓ := ℓ) (μ₂ := (m : Measure) + 1)
@@ -673,11 +676,11 @@ theorem credits_succ (o : Fuel) (m : Nat) :
 
 /-- The iterated premise of `lwp_pure_step` from the fuel of `m + 1` steps. -/
 private theorem pure_step_simple_aux (o : Fuel) (G R : Oids) (X : IProp GF) (m : Nat) :
-    thCarriers i G ∗ oblFuels G ((m + 1 : Nat) : Measure) ∗ Wit.layers R ∗
+    thCarriers i G ∗ Obl.fuels G ((m + 1 : Nat) : Measure) ∗ Wit.layers R ∗
       (thCarriers i G -∗ ([∗set] r ∈ R, Wit.cred r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) -∗
         £ₒ (o ×ⱼ ((m + 1 : Nat) : Fuel)) -∗ X)
       ⊢ Nat.repeat (fun P => iprop(|={E,E}=>
-          ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+          ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
             (thCarriers i G -∗ Wit.creds R -∗ alc iprop(£ₒ o ={E,E}=∗ |={E}=>m P)))) (m + 1) X := by
   induction m generalizing X with
   | zero =>
@@ -700,7 +703,7 @@ private theorem pure_step_simple_aux (o : Fuel) (G R : Oids) (X : IProp GF) (m :
     rw [show m + 1 + 1 = (m + 1) + 1 from rfl]
     simp only [Nat.repeat] at IH ⊢
     iintro ⟨HG, HF, #HR, H⟩
-    icases oblFuels_succ G (m + 1) $$ HF with ⟨HF, HF1⟩
+    icases Obl.fuels_succ G (m + 1) $$ HF with ⟨HF, HF1⟩
     imodintro
     iexists G
     iframe HG HF1
@@ -727,7 +730,7 @@ theorem lwp_pure_step_simple [Inhabited State] {ς : ThreadId → Expr → IProp
     (n : Nat) (hn : 0 < n) (G R : Oids) (o : Fuel) {φ : Prop} {e₂ : Expr}
     [Language.PureExec φ n e₁ e₂] (hφ : φ)
     (hX : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed i e) :
-    ς i e₁ ∗ thCarriers i G ∗ oblFuels G (n : Measure) ∗ Wit.layers R ∗
+    ς i e₁ ∗ thCarriers i G ∗ Obl.fuels G (n : Measure) ∗ Wit.layers R ∗
       (ς i e₂ -∗ thCarriers i G -∗ ([∗set] r ∈ R, Wit.cred r (n : Fuel) ∨ Obl.discharged r) -∗
         £ₒ (o ×ⱼ (n : Fuel)) -∗ |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by

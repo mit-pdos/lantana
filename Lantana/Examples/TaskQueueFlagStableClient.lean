@@ -99,7 +99,7 @@ theorem decrReentrant_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G
   subst harg
   icases (Obl.fuel_add_set G _ 100 (μs + μp)).mp $$ HF with ⟨HF, Fm⟩
   icases (Obl.fuel_add_set G _ μs μp).mp $$ Fm with ⟨Fs, Fp⟩
-  ihave HF := oblFuels_init G 100 _ $$ HF
+  ihave HF := Obl.fuels_init G 100 _ $$ HF
   iunfold isDecrReentrant at DRI
   icases DRI with ⟨%ql', %x', %n', %h, #Hflag, #ITQ⟩
   simp only [vArg, Val.pair.injEq, Val.lit.injEq, BaseLit.loc.injEq, BaseLit.int.injEq] at h
@@ -227,7 +227,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Fd⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Ffi⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Fti⟩
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold main
   lwp_step HT HG HF with Hlc : 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hc1, Hc2⟩
@@ -280,15 +280,15 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
     grind
   ihave HG := Th.carriers_congr hkc $$ HG
   ihave HK := Par.kids_congr hkc $$ HK
-  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
-  icases oblFuels_add 7 90 _ $$ HF with ⟨HF7, HF⟩
-  ihave HF7 := oblFuels_add_obl _ g0 ℓf _ $$ F0 HF7
+  ihave HF := Obl.fuels_subset _ (B := {kl}) (fun z hz => by simp_all) $$ HF
+  icases Obl.fuels_add 7 90 _ $$ HF with ⟨HF7, HF⟩
+  ihave HF7 := Obl.fuels_add_obl _ g0 ℓf _ $$ F0 HF7
   lwp_step HT HG HF7
   lwp_step HT HG HF7
   lwp_expr_simp
   -- Choose `n`.
   lwp_bind hl(chooseNat()) HT
-  icases oblFuels_add 1 4 _ $$ HF7 with ⟨HF1, HF7⟩
+  icases Obl.fuels_add 1 4 _ $$ HF7 with ⟨HF1, HF7⟩
   iapply lwp_chooseNat (o := 0) (G := ({kl} : Oids).insert g0) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
@@ -459,7 +459,8 @@ theorem gMain_external_subset (i : ThreadId) :
     (gMain (GF := GF) i).external ⊆ (rMain i ∧ₜ rQueue) := by
   intro τ ⟨hr, ⟨m, hm, ⟨⟨x, hx⟩, ⟨ql, hq⟩⟩, hbef⟩, _⟩
   obtain ⟨-, -, next, curr, -, hrp⟩ := TaskQueue.release_progress ql _ hq
-  exact ⟨⟨hr, m, hm, ⟨x, FlagStable.flagTrSpec_external_subset x _ hx⟩, hbef⟩, m, hm, ⟨next, curr, hrp⟩, hbef⟩
+  exact ⟨⟨hr, m, hm, ⟨x, FlagStable.flagTrSpec_external_subset x _ hx⟩, hbef⟩, m, hm,
+    ⟨next, curr, hrp⟩, hbef⟩
 
 variable [ModelGS GF] [HeapGS GF] [TicketLockG GF] [QueueG GF]
 
@@ -494,7 +495,8 @@ theorem taskQueueClient_init [ModelGS ExGF] [TemporalGS Exp State ExGF]
       ([∗list] j ∈ List.range tp0.length, thActive j ∗ thKids j ∅ ∗ thCarriers j ∅) -∗
       |={⊤}=>m ∃ μ : Measure, mainRes (GF := ExGF) 0 μ ∗
         (mainRes 0 μ -∗
-          |={⊤}=>m [∗list] j ↦ e ∈ tp0, lWP e @ j; ⊤ {{ lwp.liftTerm j (mainPost (GF := ExGF)) }}) := by
+          |={⊤}=>m [∗list] j ↦ e ∈ tp0,
+            lWP e @ j; ⊤ {{ lwp.liftTerm j (mainPost (GF := ExGF)) }}) := by
   letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
   iintro HT HG
   rw [show List.range (List.length tp0) = [0] from rfl]

@@ -54,6 +54,6 @@ example (Q : IProp GF) : TrSpec.canon Q ⊑ₛ (TrSpec.true : TrSpec Expr State 
   @Iff.mp _ _ (guar_canon_complete Q TrSpec.true) guar_true
 
 example (Q : IProp GF) : trCanon (Expr := Expr) (State := State) Q ⊆ ⌜True⌝ₜ :=
-  (trCanon_le Q _).mpr ⟨TrSpec.true, guar_true, fun _ h => h⟩
+  (trCanon_subset_iff Q _).mpr ⟨TrSpec.true, guar_true, fun _ h => h⟩
 
 end LantanaTest.Guarantee

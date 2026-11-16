@@ -189,7 +189,8 @@ returns unchanged. -/
 @[lantana_alias sfmupd_read_fupd]
 theorem mupd_read_fupd :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr),
-      historyInterp h n σ tp -∗ regState -∗ |={E,∅}=> ∀ (g : List MEvent) (i : Nat) (Ω : Obligations)
+      historyInterp h n σ tp -∗ regState -∗
+        |={E,∅}=> ∀ (g : List MEvent) (i : Nat) (Ω : Obligations)
         (W : Witnesses) (tc : Nat) (X : ThreadId → Prop), modelInterp g i Ω W n tc X -∗
           modelInterp g i Ω W n tc X ∗ |={∅,E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
       |={E}=>m P := by
@@ -212,7 +213,8 @@ registry. -/
 @[lantana_alias sfmupd_read]
 theorem mupd_read :
     (∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
-      (g : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat) (X : ThreadId → Prop),
+      (g : List MEvent) (i : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
+      (X : ThreadId → Prop),
       historyInterp h n σ tp -∗ regState -∗ modelInterp g i Ω W n tc X -∗
         modelInterp g i Ω W n tc X ∗ |={E}=> historyInterp h n σ tp ∗ regState ∗ P) ⊢
       |={E}=>m P := by

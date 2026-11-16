@@ -136,20 +136,20 @@ events ending at `(n, Ω)`), the obligations `Ω` (`osat`), the forest at the vi
 the witnesses `W` with their invariant.  The position `n` is the step index of the run: the
 physical round moves it from `n₁` to `n₂`, and the model updates in between keep it.
 
-The model update `mupd n P` (`|=[n]=>m P`) is the least fixpoint of `mupdPre n`: either `P`
-holds now, or the prover plays one round and the update continues.  In a round, given the model
-at any view, the prover changes the obligations by `Obligations.StayOrStep`; then, for every choice of
-witnesses that the environment may make, it returns the model at the same position and view,
-the history extended by `(n, Ω₂)`.  Being a least fixpoint, an update plays finitely many rounds
-(`mupd_ind`, `mupd_ind_strong`).  A round takes the model at any view and gives it back at the
-same one, so model updates neither read nor change the view and carry only the position.  The
-operations of the forest are rounds built from templates: `mupd_noDischarge_step` (a round without
-discharge, after which the environment's witnesses satisfy `Witnesses.NoDischarge`),
-`mupd_model_round`, `mupd_ghost_round` and `mupd_read`.
+The model update `mupd n P` (`|=[n]=>m P`) is the least fixpoint of `mupdPre n`: either `P` holds
+now, or the prover plays one round and the update continues.  In a round, given the model at any
+view, the prover changes the obligations by `Obligations.StayOrStep`; then, for every choice of
+witnesses that the environment may make, it returns the model at the same position and view, the
+history extended by `(n, Ω₂)`.  Being a least fixpoint, an update plays finitely many rounds
+(`mupd_ind`, `mupd_ind_strong`).  A round takes the model at any view and gives it back at the same
+one, so model updates neither read nor change the view and carry only the position.  The operations
+of the forest are rounds built from templates: `mupd_noDischarge_step` (a round without discharge,
+after which the environment's witnesses satisfy `Witnesses.NoDischarge`), `mupd_model_round`,
+`mupd_ghost_round` and `mupd_read`.
 
 Adequacy runs an update against the model with `modelInterp_mupd_steps`: the rounds compose into
-`Obligations.le`, and the environment can always choose witnesses that keep a lower bound `γ`, strictly
-monotone and below `fairMeasureUb` (`owitInv_exists_witnesses`).
+`Obligations.le`, and the environment can always choose witnesses that keep a lower bound `γ`,
+strictly monotone and below `fairMeasureUb` (`owitInv_exists_witnesses`).
 
 The two rounds of a physical step alone read or change the view:
 
@@ -202,7 +202,7 @@ and runs a base model update at the history's position between two fancy updates
 operations are proved as base model updates at every position and lifted by `mupd_of_base`.
 
 The last sections of the interface state what adequacy reads of the model, in terms of
-`Model.modelInterp`: the predicates of new threads (`thKids_alloc_threads`), the runs of the
+`Model.modelInterp`: the predicates of new threads (`Th.alloc_threads`), the runs of the
 modalities (`mupdBase_modelInterp_steps`, `mprog_modelInterp`, `mphys_modelInterp_run`,
 `mupd_modelInterp_steps`), and the facts that the obligations of the predicates are in the model
 and that terminated and crashed threads own none.

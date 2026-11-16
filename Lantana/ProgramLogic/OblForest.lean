@@ -220,7 +220,7 @@ def Par.le (p : Parent) (ℓ : Layer) : IProp GF :=
 
 /-- `n` units of fuel of each obligation of `K`, at any layers. -/
 @[lantana_alias oblf.oblP_fuels]
-def oblFuels (K : Oids) (n : Measure) : IProp GF :=
+def Obl.fuels (K : Oids) (n : Measure) : IProp GF :=
   iprop([∗set] k ∈ K, ∃ ℓ : Layer, Obl.fuel k ℓ n)
 
 /-- The witnesses `R` with their layers. -/
@@ -234,13 +234,13 @@ hands in and out when the crashed bits change. -/
 abbrev Th.nodes (tc : Nat) (φ : ThreadId → Prop) : IProp GF :=
   iprop([∗list] j ∈ List.range tc, ⌜φ j⌝ -∗ thActive j ∗ thKids j ∅)
 
-private theorem parLe_eq (p : Parent) (ℓ : Layer) :
+private theorem Par.le_eq (p : Parent) (ℓ : Layer) :
     Par.le (GF := GF) p ℓ = Model.OPreds.parLe p ℓ := by
   cases p with
   | thread j => rfl
   | obl q => unfold Par.le; rw [Wit.layer_unfold]
 
-private theorem parBelow_eq (p : Parent) (ℓ : Layer) :
+private theorem Par.below_eq (p : Parent) (ℓ : Layer) :
     Par.below (GF := GF) p ℓ = Model.OPreds.parBelow p ℓ := by
   cases p with
   | thread j => rfl
@@ -392,7 +392,8 @@ private theorem mupd_bind_aux (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
 @[lantana_alias oblf.sfmupd_bind]
 theorem mupd_bind (E₁ E₂ E₃ : CoPset) (P Q : IProp GF) :
     (P -∗ mupd (Expr := Expr) (State := State) E₂ E₃ Q) ⊢
-      mupd (Expr := Expr) (State := State) E₁ E₂ P -∗ mupd (Expr := Expr) (State := State) E₁ E₃ Q :=
+      mupd (Expr := Expr) (State := State) E₁ E₂ P -∗
+        mupd (Expr := Expr) (State := State) E₁ E₃ Q :=
   mupd_bind_aux E₁ E₂ E₃ P Q
 
 /-- A base model update at every position is a model update at one mask: how the forest
@@ -577,7 +578,7 @@ theorem Obl.new (E : CoPset) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Measu
       |={E}=>m ∃ k : Oid, ⌜k ∉ K⌝ ∗ Par.kids p (K.insert k) ∗ Par.bill p (B.insert k) ∗
         oblKids k ∅ ∗ Obl.assigned k 1 ∗ Obl.fuel k ℓ μ ∗ Wit.layer k ℓ := by
   rw [Par.kids_unfold, Par.bill_unfold, Obl.assigned_unfold, Obl.fuel_unfold, Wit.layer_unfold,
-    parLe_eq]
+    Par.le_eq]
   iintro Hb Hp HB
   iapply mupd_of_base
   iintro %n
@@ -597,7 +598,7 @@ theorem Obl.move (E : CoPset) (p₁ p₂ : Parent) (K₁ K₂ B₂ : Oids) (k : 
     Par.below (GF := GF) p₂ ℓ ⊢ Par.kids p₁ K₁ -∗ Par.kids p₂ K₂ -∗ Par.bill p₂ B₂ -∗
       Obl.fuel k ℓ 1 -∗ |={E}=>m ⌜k ∉ K₂⌝ ∗ Par.kids p₁ (K₁.erase k) ∗
         Par.kids p₂ (K₂.insert k) ∗ Par.bill p₂ (B₂.insert k) := by
-  rw [Par.kids_unfold, Par.bill_unfold, Obl.fuel_unfold, parBelow_eq]
+  rw [Par.kids_unfold, Par.bill_unfold, Obl.fuel_unfold, Par.below_eq]
   iintro Hb H₁ H₂ HB Hf
   iapply mupd_of_base
   iintro %n
@@ -687,9 +688,9 @@ one credit for each live witness in `R`. -/
 @[lantana_alias oblf.step_progress]
 theorem step_progress (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R : Oids)
     (P : IProp GF) :
-    thCarriers i B ⊢ oblFuels B 1 -∗ Wit.layers R -∗
+    thCarriers i B ⊢ Obl.fuels B 1 -∗ Wit.layers R -∗
       (thCarriers i B -∗ Wit.creds R ={∅}=∗ P) -∗ mprog n tc X i P := by
-  unfold oblFuels Wit.layers Wit.creds
+  unfold Obl.fuels Wit.layers Wit.creds
   rw [Th.carriers_unfold, Obl.fuel_unfold, Wit.layer_unfold, Wit.cred_unfold,
     Obl.discharged_unfold, mprog_unfold]
   exact Model.OPreds.mprog_step_kids n tc X i B R P
@@ -736,7 +737,7 @@ section Adequacy
 /-- New threads `tc, …, tc + m - 1`: each gets its bill, and its running handle and children
 predicate if its bit is not set. -/
 @[lantana_alias thP_kids_alloc_threads]
-theorem thKids_alloc_threads (Ω : Model.Obligations) (tc m : Nat) (X : ThreadId → Prop) :
+theorem Th.alloc_threads (Ω : Model.Obligations) (tc m : Nat) (X : ThreadId → Prop) :
     Model.oforest Ω tc X ⊢@{IProp GF} |==> (Model.oforest Ω (tc + m) X ∗
       [∗list] j ∈ List.range' tc m, (⌜¬X j⌝ -∗ thActive j ∗ thKids j ∅) ∗ thCarriers j ∅) := by
   rw [Th.active_unfold, Par.kids_unfold, Th.carriers_unfold]
@@ -744,11 +745,11 @@ theorem thKids_alloc_threads (Ω : Model.Obligations) (tc m : Nat) (X : ThreadId
 
 /-- `Model.modelInterp_mupd_steps` through the interface. -/
 theorem mupdBase_modelInterp_steps (n : Nat) (γ : ThreadId → Fuel → Fuel)
-    (hγ : Model.OwitInvLbMonoFair γ) (P : IProp GF) :
+    (hγ : Model.OWitInvLbMonoFair γ) (P : IProp GF) :
     (|=[n]=>m P) ⊢ ∀ (h : List Model.MEvent) (i : Nat) (Ω : Model.Obligations)
-      (W : Model.Witnesses) (tc : Nat) (X : ThreadId → Prop), ⌜Model.OwitInvLb γ Ω W⌝ →
+      (W : Model.Witnesses) (tc : Nat) (X : ThreadId → Prop), ⌜Model.OWitInvLb γ Ω W⌝ →
         Model.modelInterp h i Ω W n tc X ={∅}=∗
-        P ∗ ∃ h' i' Ω' W', ⌜Model.Obligations.le Ω Ω' ∧ Model.OwitInvLb γ Ω' W'⌝ ∗
+        P ∗ ∃ h' i' Ω' W', ⌜Model.Obligations.le Ω Ω' ∧ Model.OWitInvLb γ Ω' W'⌝ ∗
           Model.modelInterp (h ++ h') (i + i') Ω' W' n tc X := by
   rw [mupdBase_unfold]
   exact Model.modelInterp_mupd_steps n γ hγ P
@@ -793,7 +794,7 @@ theorem mprog_modelInterp (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (P
       (W₁ : Model.Witnesses), Model.modelInterp h a Ω₁ W₁ n tc X ={∅}=∗
         ∃ Ω₂, ⌜Model.Obligations.CondProgress (Model.Obligation.CondOwner i) Ω₁ Ω₂⌝ ∗
         ∀ W₂, ⌜Model.Witnesses.CondProgress Model.Witness.CondAssigned W₁ W₂ ∧
-          Model.OwitInvFair Ω₂ W₂⌝ ={∅}=∗
+          Model.OWitInvFair Ω₂ W₂⌝ ={∅}=∗
           Model.modelInterp (h ++ [(n, Ω₂)]) (a + 1) Ω₂ W₂ n tc X ∗ P := by
   rw [mprog_unfold]
   exact .rfl
@@ -809,11 +810,11 @@ theorem mphys_modelInterp (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId �
 
 /-- `Model.mphys_run` through the interface. -/
 theorem mphys_modelInterp_run (n₁ n₂ tc₁ tc₂ : Nat) (X₁ X₂ : ThreadId → Prop)
-    (γ : ThreadId → Fuel → Fuel) (hγ : Model.OwitInvLbMonoFair γ) (P : IProp GF) :
+    (γ : ThreadId → Fuel → Fuel) (hγ : Model.OWitInvLbMonoFair γ) (P : IProp GF) :
     mphys n₁ n₂ tc₁ tc₂ X₁ X₂ P ⊢ ∀ (h : List Model.MEvent) (a : Nat) (Ω : Model.Obligations)
-      (W : Model.Witnesses), ⌜Model.OwitInvLb γ Ω W⌝ →
+      (W : Model.Witnesses), ⌜Model.OWitInvLb γ Ω W⌝ →
         Model.modelInterp h a Ω W n₁ tc₁ X₁ ={∅}=∗
-        alc iprop(|={∅}=> P ∗ ∃ h' a' Ω' W', ⌜Model.Obligations.le Ω Ω' ∧ Model.OwitInvLb γ Ω' W'⌝ ∗
+        alc iprop(|={∅}=> P ∗ ∃ h' a' Ω' W', ⌜Model.Obligations.le Ω Ω' ∧ Model.OWitInvLb γ Ω' W'⌝ ∗
           Model.modelInterp (h ++ h') (a + a') Ω' W' n₂ tc₂ X₂) := by
   rw [mphys_unfold]
   exact Model.mphys_run n₁ n₂ tc₁ tc₂ X₁ X₂ γ hγ P
@@ -823,14 +824,14 @@ variable [TemporalGS Expr State GF] [StateInterp Expr State GF]
 
 /-- Running a model update against the model at any view, which it keeps. -/
 @[lantana_alias all_interp_sfmupd_steps]
-theorem mupd_modelInterp_steps (γ : ThreadId → Fuel → Fuel) (hγ : Model.OwitInvLbMonoFair γ)
+theorem mupd_modelInterp_steps (γ : ThreadId → Fuel → Fuel) (hγ : Model.OWitInvLbMonoFair γ)
     (E₁ E₂ : CoPset) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
     (tp : ThreadPool Expr) (g : List Model.MEvent) (v : Nat) (Ω : Model.Obligations)
     (W : Model.Witnesses) (tc : Nat) (X : ThreadId → Prop) (P : IProp GF)
-    (hLb : Model.OwitInvLb γ Ω W) :
+    (hLb : Model.OWitInvLb γ Ω W) :
     (|={E₁,E₂}=>m P) ⊢ historyTInterp h n σ tp -∗ Model.modelInterp g v Ω W n tc X ={E₁,E₂}=∗
       P ∗ historyTInterp h n σ tp ∗ ∃ g' v' Ω' W',
-        ⌜Model.Obligations.le Ω Ω' ∧ Model.OwitInvLb γ Ω' W'⌝ ∗
+        ⌜Model.Obligations.le Ω Ω' ∧ Model.OWitInvLb γ Ω' W'⌝ ∗
         Model.modelInterp (g ++ g') (v + v') Ω' W' n tc X := by
   unfold mupd mupdFancy
   rw [mupdBase_unfold]

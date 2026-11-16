@@ -48,7 +48,7 @@ theorem lwp_lift_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i e₁) :
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+        ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thCarriers i G -∗ Wit.creds R -∗
@@ -108,7 +108,7 @@ theorem lwp_lift_atomic_base_step (he : toVal e₁ = none) (hX : KeepsCrashed i 
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+        ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thCarriers i G -∗ Wit.creds R -∗
@@ -144,7 +144,7 @@ theorem lwp_lift_atomic_base_step_no_fork (he : toVal e₁ = none) (hX : KeepsCr
     (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr), ⌜tp[i]? = some (fill K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜BaseStep.Reducible (e₁, σ₁)⌝ ∗
-        ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+        ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜baseStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
             thCarriers i G -∗ Wit.creds R -∗
@@ -191,7 +191,7 @@ theorem lwp_lift_pure_det_base_step_no_fork [Inhabited State] {ς : ThreadId →
     (hsafe : ∀ σ₁, BaseStep.Reducible (e₁, σ₁))
     (hdet : ∀ σ₁ obs e₂' σ₂ efs, baseStep (e₁, σ₁) obs (e₂', σ₂, efs) →
       σ₂ = σ₁ ∧ e₂' = e₂ ∧ efs = []) :
-    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ oblFuels G 1 ∗ ∃ R, Wit.layers R ∗
+    (|={E,E'}=> ς i e₁ ∗ ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
       (ς i e₂ -∗ thCarriers i G -∗ Wit.creds R -∗
         alc iprop(|={E',E}=> |={E}=>m lWP e₂ @ s; i; E {{ Φ }})))
       ⊢ lWP e₁ @ s; i; E {{ Φ }} :=

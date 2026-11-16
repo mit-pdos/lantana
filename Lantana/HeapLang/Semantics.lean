@@ -243,7 +243,8 @@ abbrev allocCells (l : Loc) (n : Nat) (v : Option Val) : HeapF (Option Val) :=
 theorem heapArray_nil {l : Loc} : heapArray l [] = (∅ : HeapF (Option Val)) := rfl
 
 @[lantana_alias heap_lang.heap_array_singleton]
-theorem heapArray_singleton {l : Loc} {v : Option Val} : heapArray l [v] = PartialMap.singleton l v := rfl
+theorem heapArray_singleton {l : Loc} {v : Option Val} :
+    heapArray l [v] = PartialMap.singleton l v := rfl
 
 theorem heapArray_snoc {l : Loc} {vs : List (Option Val)} {v : Option Val} :
     heapArray l (vs ++ [v]) =
@@ -366,7 +367,8 @@ theorem initHeap_heap_eq {σ : State} {l : Loc} {n : Int} {v : Option Val} :
   intro k
   change PartialMap.get? (M := HeapF) ((List.range n.toNat).foldl
       (fun h (i : Nat) => Iris.Std.insert (M := HeapF) h (l + (i : Int)) v) σ.heap) k = _
-  rw [get?_foldl_insert, Iris.Std.PartialMap.union, Iris.Std.LawfulPartialMap.get?_merge, get?_allocCells]
+  rw [get?_foldl_insert, Iris.Std.PartialMap.union, Iris.Std.LawfulPartialMap.get?_merge,
+    get?_allocCells]
   by_cases hex : ∃ i, i < n.toNat ∧ k = l + (i : Int)
   · simp only [ite_eq_left hex]; cases PartialMap.get? (M := HeapF) σ.heap k <;> rfl
   · simp only [ite_eq_right hex]; cases PartialMap.get? (M := HeapF) σ.heap k <;> rfl

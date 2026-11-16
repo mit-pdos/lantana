@@ -256,7 +256,7 @@ theorem px_loop2_spec : ∀ (j n : Nat) (rm ci cj : GName) (ck : Oid) (C : List 
   iintro %Φ !> ⟨HT, HK, HG, Kck, Uck, Gf, #Hpx, Caj, #Mn⟩ HΦ
   unfold finallyI
   iloeb as IH generalizing! %n %ck
-  ihave HF := oblFuels_init {ck} 10 0 $$ [Gf]
+  ihave HF := Obl.fuels_init {ck} 10 0 $$ [Gf]
   · iapply BigSepS.bigSepS_singleton.mpr
     iexact Gf
   unfold loop
@@ -378,7 +378,7 @@ theorem px_loop1_spec [LwpNoLc GF] : ∀ (i : ThreadId) (z : Oid) (rm ci cj : GN
       iintro Hwc
       unfold loop
       lwp_expr_simp
-      icases witCreds_singleton ck $$ Hwc with (Hc | #Hd)
+      icases Wit.creds_singleton ck $$ Hwc with (Hc | #Hd)
       · -- A credit of `ck`: witness induction.
         imod HInd $$ Hc with ⟨-, HP⟩
         imodintro
@@ -589,7 +589,8 @@ configuration, eventually `False`. -/
 theorem loop_paradox (hnolc : ∀ [ModelGS ExGF] [HeapGS ExGF], LwpNoLc ExGF)
     (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ) (hpos : τ.pos = 0)
     (hinit : τ.seq 0 = (tp0, σ0)) : rMain τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gMain rMain gMain_external_subset τ hbeh hfair hpos
+  refine lwp_adequacy_temporal
+    (GF := ExGF) σ0 tp0 gMain rMain gMain_external_subset τ hbeh hfair hpos
     hinit ?_
   intro _ _
   refine ⟨Ordinals.Ordinal.ofNat 10, ?_⟩

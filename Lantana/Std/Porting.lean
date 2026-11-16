@@ -51,7 +51,8 @@ initialize registerBuiltinAttribute {
     let value := mkConst declName (sig.levelParams.map mkLevelParam)
     match info.kind with
     | .thm =>
-      addDecl (.thmDecl { name := aliasName, levelParams := sig.levelParams, type := sig.type, value })
+      addDecl (.thmDecl
+        { name := aliasName, levelParams := sig.levelParams, type := sig.type, value })
     | _ =>
       addDecl (.defnDecl { name := aliasName, levelParams := sig.levelParams, type := sig.type,
                            value, hints := .abbrev, safety := .safe })

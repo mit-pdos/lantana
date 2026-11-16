@@ -54,12 +54,13 @@ variable [Crash Expr State Obs Val] [instM : ModelGS GF] [instT : TemporalGS Exp
 #lantana_ignore tr_inferred "`trOf`."
 #lantana_ignore tr_of "A tactic; `trOf P` reduces to the inferred trace property."
 #lantana_ignore evar_headed "A tactic for Rocq's hints; `GuarOf` has an `outParam` instead."
-#lantana_ignore IntoGuarExist "`guarOf_ex` (inference) and the checking instances `intoGuar_ex_*`."
-#lantana_ignore IntoGuarExistCheck "The checking instances `intoGuar_ex_visible/ghost`."
+#lantana_ignore IntoGuarExist
+  "`guarOf_exists` (inference) and the checking instances `intoGuar_exists_*`."
+#lantana_ignore IntoGuarExistCheck "The checking instances `intoGuar_exists_visible/ghost`."
 #lantana_ignore into_guar_exist_body "The field of `IntoGuarExist`."
 #lantana_ignore into_guar_exist_check_body "The field of `IntoGuarExistCheck`."
 #lantana_ignore into_guar_exist_check "Checking is `IntoGuar` itself."
-#lantana_ignore into_guar_exist "`guarOf_ex` and `intoGuar_ex_visible/ghost`."
+#lantana_ignore into_guar_exist "`guarOf_exists` and `intoGuar_exists_visible/ghost`."
 
 attribute [lantana_alias into_guar_default] guarOf_default
 attribute [lantana_alias into_guar] IntoGuar.into_guar
@@ -106,20 +107,20 @@ instance (priority := low) simplEx_true {X : Sort u} (G : X → TrSpec Expr Stat
 
 /-- Inference: the body's guarantee for a generic witness, collapsed by `SimplExists`. -/
 @[lantana_alias into_guar_exist_infer]
-instance guarOf_ex {X : Sort u} (P : X → IProp GF) (Gx : X → TrSpec Expr State GF)
+instance guarOf_exists {X : Sort u} (P : X → IProp GF) (Gx : X → TrSpec Expr State GF)
     (G : TrSpec Expr State GF) [h : ∀ x, GuarOf (P x) (Gx x)] [SimplExists Gx G] :
     GuarOf iprop(∃ x, P x) G :=
   ⟨(forall_intro fun x => (h x).guar_of).trans (SimplExists.simpl_exists P)⟩
 
 /-- Checking against an existential over the same type: trace-visible. -/
 @[lantana_alias into_guar_exist_visible_check]
-instance intoGuar_ex_visible {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
+instance intoGuar_exists_visible {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
     [h : ∀ x, IntoGuar (P x) (G x)] [SIdxLarge SI X] : IntoGuar iprop(∃ x, P x) (TrSpec.exists G) :=
   ⟨(forall_intro fun x => (h x).into_guar).trans (guar_exists P G)⟩
 
 /-- Checking against any other target: ghost. -/
 @[lantana_alias into_guar_exist_ghost_check]
-instance (priority := mid) intoGuar_ex_ghost {X : Sort u} (P : X → IProp GF)
+instance (priority := mid) intoGuar_exists_ghost {X : Sort u} (P : X → IProp GF)
     (G : TrSpec Expr State GF) [h : ∀ x, IntoGuar (P x) G] : IntoGuar iprop(∃ x, P x) G :=
   ⟨(forall_intro fun x => (h x).into_guar).trans (guar_exists_ghost_sort P G)⟩
 
@@ -134,7 +135,7 @@ instance guarOf_imp (φ : Prop) (G : TrSpec Expr State GF) [GuarOf P G] :
     GuarOf iprop(⌜φ⌝ → P) (⌜φ⌝ₛ →ₛ G) :=
   ⟨GuarOf.guar_of.trans (guar_imp φ)⟩
 
-instance guarOf_all {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
+instance guarOf_forall {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
     [h : ∀ x, GuarOf (P x) (G x)] : GuarOf iprop(∀ x, P x) (TrSpec.forall G) :=
   ⟨(forall_intro fun x => (h x).guar_of).trans (guar_forall P G)⟩
 
@@ -223,7 +224,7 @@ instance intoGuar_imp (φ : Prop) (G : TrSpec Expr State GF) [IntoGuar P G] :
   ⟨IntoGuar.into_guar.trans (guar_imp φ)⟩
 
 @[lantana_alias into_guar_forall]
-instance intoGuar_all {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
+instance intoGuar_forall {X : Type u} (P : X → IProp GF) (G : X → TrSpec Expr State GF)
     [h : ∀ x, IntoGuar (P x) (G x)] : IntoGuar iprop(∀ x, P x) (TrSpec.forall G) :=
   ⟨(forall_intro fun x => (h x).into_guar).trans (guar_forall P G)⟩
 
@@ -322,7 +323,7 @@ theorem guar_trSpecOf (P : IProp GF) {G : TrSpec Expr State GF} [GuarOf P G] :
 /-- `TrSpec.true` reads as `⌜True⌝ₜ`. -/
 instance TrSpec.ext_true :
     TrSpec.Ext (TrSpec.true (Expr := Expr) (State := State) (GF := GF)) ⌜True⌝ₜ :=
-  ⟨TrProp.le_refl _⟩
+  ⟨TrProp.subset_refl _⟩
 
 /-- The trace reading of the canonical specification of `P`, through its inferred
 specification. -/
@@ -341,7 +342,7 @@ attribute [lantana_alias into_trace] IntoTrace.into_trace
 @[lantana_alias into_trace_of]
 instance intoTrace_of (P : IProp GF) (G : TrSpec Expr State GF) (R : TrProp (Cfg Expr State))
     [GuarOf P G] [TrSpec.Ext G R] : IntoTrace P R :=
-  ⟨(trCanon_le P R).mpr ⟨G, GuarOf.guar_of, TrSpec.Ext.ext_of⟩⟩
+  ⟨(trCanon_subset_iff P R).mpr ⟨G, GuarOf.guar_of, TrSpec.Ext.ext_of⟩⟩
 
 /-- The trace property inferred for `P` (Rocq `tr_inferred`, read with `tr_of`). -/
 abbrev trOf (P : IProp GF) {R : TrProp (Cfg Expr State)} [IntoTrace P R] :
@@ -466,7 +467,8 @@ def exampleTrSpecOfDone (k : Oid) (Q : IProp GF) (φ : State → ThreadPool Expr
 
 @[lantana_alias ex_trSpec_of_done_eq]
 theorem exampleTrSpecOfDone_eq (Q : IProp GF) (φ : State → ThreadPool Expr → Prop)
-    [StateFact Q φ] : exampleTrSpecOfDone (Expr := Expr) (State := State) k Q φ = ◇ₛ TrSpec.state φ :=
+    [StateFact Q φ] :
+    exampleTrSpecOfDone (Expr := Expr) (State := State) k Q φ = ◇ₛ TrSpec.state φ :=
   rfl
 
 @[lantana_alias ex_finally_done]
@@ -511,7 +513,7 @@ theorem example_imp_cast (φ : Prop) (P Q : IProp GF) (G H : TrSpec Expr State G
     [GuarOf Q H] :
     trCanon (Expr := Expr) (State := State) iprop((⌜φ⌝ ∗ P) ∨ (⌜¬φ⌝ ∗ Q)) ⊆
       (⌜φ⌝ₜ →ₜ G.external) :=
-  TrProp.le_trans IntoTrace.into_trace fun _ h hφ => by
+  TrProp.subset_trans IntoTrace.into_trace fun _ h hφ => by
     rcases h with ⟨-, hG⟩ | ⟨hnφ, -⟩
     · exact hG
     · exact absurd hφ hnφ

@@ -35,7 +35,8 @@ def finishedOrCrashed : TrProp (Cfg Exp St) :=
 def gCrash {GF : BundledGFunctors} : TrSpec Exp St GF :=
   ◇ₛ TrSpec.state fun σ tp => σ = false ∨ fin tp = true
 
-theorem gCrash_external_subset {GF : BundledGFunctors} : (gCrash (GF := GF)).external ⊆ finishedOrCrashed :=
+theorem gCrash_external_subset {GF : BundledGFunctors} :
+    (gCrash (GF := GF)).external ⊆ finishedOrCrashed :=
   fun τ h => TrProp.eventually_mono (S := TrProp.state fun σ tp => σ = false ∨ fin tp = true)
     (TrProp.state_mono fun σ tp h => by
       rcases h with h | h
@@ -124,7 +125,7 @@ theorem chain_alloc (m : Nat) (q : Oid) :
 theorem worker_obls_alloc (N m : Nat) :
     thKids 0 ∅ ⊢@{IProp GF} thCarriers 0 ∅ -∗
       |={⊤}=>m ∃ (k : Oid) (c T : Oids) (kids : Oid → Oids), ⌜k ∉ T ∧ HangsBelow c T kids⌝ ∗
-        thKids 0 {k} ∗ thCarriers 0 {k} ∗ oblFuels {k} ((N + 1 : Nat) : Measure) ∗
+        thKids 0 {k} ∗ thCarriers 0 {k} ∗ Obl.fuels {k} ((N + 1 : Nat) : Measure) ∗
         finallyI (oblN.@k) k 1 doneOrCrashed ∗ oblKids k c ∗
         [∗set] j ∈ T, finallyI (oblN.@j) j 1 doneOrCrashed ∗ oblKids j (kids j) := by
   iintro Hk0 HB0
@@ -147,7 +148,7 @@ theorem worker_obls_alloc (N m : Nat) :
   iframe Hk0 HB0 Hkk HT
   unfold finallyI
   iframe Uk
-  iapply oblFuels_init {k} _ 0
+  iapply Obl.fuels_init {k} _ 0
   iapply BigSepS.bigSepS_singleton.mpr
   iexact Fk
 

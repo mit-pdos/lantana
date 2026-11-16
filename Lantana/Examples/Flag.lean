@@ -212,12 +212,12 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
         flagTk x k ∗ isFlag x k ℓ }}} := by
   refine ⟨10, fun lc i G p K B ℓ m C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, #HB, HK, Hb⟩ HΦ
-  ihave HF := oblFuels_init G 10 0 $$ HF
+  ihave HF := Obl.fuels_init G 10 0 $$ HF
   unfold init
   lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
   iapply lwp_mupd
-  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  icases Obl.fuels_add 1 8 G $$ HF with ⟨HF, -⟩
   iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
   · iframe HT
     iapply stepPre_nil $$ HG HF
@@ -243,14 +243,14 @@ theorem set_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (G
         Par.kids p (K.erase k) ∗ Obl.discharged k }}} := by
   refine ⟨10, fun lc i l G p K k ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, HK, %hk, Hkk, HU, #Hflag⟩ HΦ
-  ihave HF := oblFuels_init G 10 0 $$ HF
+  ihave HF := Obl.fuels_init G 10 0 $$ HF
   unfold isFlag set
   icases Hflag with ⟨#Wk, #HA⟩
   lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
-  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  icases Obl.fuels_add 1 8 G $$ HF with ⟨HF, -⟩
   ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -299,12 +299,12 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
         Obl.fuel k ℓ m ∗ flagTk x k ∗ isFlag x k ℓ }}} := by
   refine ⟨10, fun lc i G ℓ m C => ?_⟩
   iintro %Φ !> ⟨HT, HK, HG, HF⟩ HΦ
-  ihave HF := oblFuels_init G 10 0 $$ HF
+  ihave HF := Obl.fuels_init G 10 0 $$ HF
   unfold init
   lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
   iapply lwp_mupd
-  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  icases Obl.fuels_add 1 8 G $$ HF with ⟨HF, -⟩
   iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
   · iframe HT
     iapply stepPre_nil $$ HG HF
@@ -332,14 +332,14 @@ theorem set_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : 
         thCarriers i (G.erase k) ∗ Obl.discharged k }}} := by
   refine ⟨10, fun lc i l G k ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HK, HG, HF, %hk, Hkk, HU, #Hflag⟩ HΦ
-  ihave HF := oblFuels_init G 10 0 $$ HF
+  ihave HF := Obl.fuels_init G 10 0 $$ HF
   unfold isFlag set
   icases Hflag with ⟨#Wk, #HA⟩
   lwp_step HT HG HF with Hlc : lc +ₕ 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc2⟩
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
-  icases oblFuels_add 1 8 G $$ HF with ⟨HF, -⟩
+  icases Obl.fuels_add 1 8 G $$ HF with ⟨HF, -⟩
   ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := flagInv l k)
     (fun _ _ => CoPset.mem_full) $$ HA
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -401,7 +401,7 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
       iintro IH
       imodintro
       iintro HT HG HΦ HF
-      ihave HF := oblFuels_init G 5 ℓ.succ $$ HF
+      ihave HF := Obl.fuels_init G 5 ℓ.succ $$ HF
       unfold wait
       lwp_step with Hc : 1 +ₕ 1
       icases tlc_split.mp $$ Hc with ⟨Hc1, Hc2⟩
@@ -421,12 +421,12 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         iapply lwp_credit_later $$ Hc2
         inext
         icases Hu with ⟨Hl, Hucl⟩
-        icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+        icases Obl.fuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
         iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := {k}) $$ [HT HG HF1 Hl]
         · iframe HT Hl
           iapply stepPre_wit $$ HG HF1 Wk
         iintro ⟨HT, ⟨-, HG, HW⟩, Hl⟩
-        icases witCreds_singleton k $$ HW with (Hwc | #Hd)
+        icases Wit.creds_singleton k $$ HW with (Hwc | #Hd)
         rotate_left
         · imod Hucl $$ [Hl] with Hu
           · inext
@@ -449,7 +449,7 @@ theorem wait_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (l : Loc) (
         lwp_step
         imod IH $$ Hwc with ⟨HF, HP⟩
         iapply HP $$ HT HG HΦ HF
-      · icases oblFuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
+      · icases Obl.fuels_add 1 3 G $$ HF with ⟨HF1, HF⟩
         iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hl]
         · iframe HT Hl
           iapply stepPre_nil $$ HG HF1

@@ -89,7 +89,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
         lwp.liftTerm i (fun _ _ => iprop(True)) hl_val(#()) }}} := by
   refine ⟨10, fun i kq kf x y => ?_⟩
   iintro %Φ !> ⟨HT, Hact, HK, HG, HF, %hne, Hkq, Hkf, Hx, Hy, HQ, HFf⟩ HΦ
-  ihave HF := oblFuels_init _ 10 0 $$ HF
+  ihave HF := Obl.fuels_init _ 10 0 $$ HF
   unfold main
   lwp_step HT HG HF with Hlc : 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hc1, Hc2⟩
@@ -99,7 +99,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
   lwp_expr_simp
   -- `x ← #1`
   lwp_bind hl(#x ← #1) HT
-  icases oblFuels_add 1 6 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 6 _ $$ HF with ⟨HF1, HF⟩
   iapply lwp_store (o := 0) (G := {kq, kf}) (R := ∅) x v0 hl_val(#1)
     $$ [HT HG HF1 Hx]
   · iframe HT Hx
@@ -129,10 +129,10 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kq kf : Oid) (x y : Lo
     grind
   ihave HG := Th.carriers_congr hdiff $$ HG
   ihave HK := Par.kids_congr hdiff $$ HK
-  ihave HF := oblFuels_subset _ (B := {kf}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
+  ihave HF := Obl.fuels_subset _ (B := {kf}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   unfold cdQ
   icases HQ with ⟨Hx, -, HFf⟩
-  icases oblFuels_add 1 3 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 3 _ $$ HF with ⟨HF1, HF⟩
   iapply lwp_store (o := 0) (G := {kf}) (R := ∅) x v1 hl_val(#2) $$ [HT HG HF1 Hx]
   · iframe HT Hx
     iapply stepPre_nil $$ HG HF1

@@ -83,7 +83,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   iintro %Φ !> ⟨HT, HA, HK, HG, HF, %hne, Hkr, Hkc, HFr, HFc⟩ HΦ
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfw⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfi⟩
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold main
   lwp_step HT HG HF with Hlc : 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hc1, Hc2⟩
@@ -110,11 +110,11 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     grind
   ihave HG := Th.carriers_congr hkc $$ HG
   ihave HK := Par.kids_congr hkc $$ HK
-  ihave HF := oblFuels_subset _ (B := {kr}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
+  ihave HF := Obl.fuels_subset _ (B := {kr}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   icases (Obl.fuel_add k _ _ _).mp $$ Hf with ⟨Hf, Hfr⟩
   icases (Obl.fuel_add k _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
-  icases oblFuels_add 3 6 _ $$ HF with ⟨Hf₃, HF⟩
-  ihave Hf₃ := oblFuels_add_obl _ k 0 _ $$ Hf Hf₃
+  icases Obl.fuels_add 3 6 _ $$ HF with ⟨Hf₃, HF⟩
+  ihave Hf₃ := Obl.fuels_add_obl _ k 0 _ $$ Hf Hf₃
   lwp_step HT HG Hf₃
   lwp_step HT HG Hf₃
   lwp_expr_simp
@@ -155,7 +155,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   · iframe HT HK Hkk Hfj Htk
     isplitl [HG Hf₃]
     · iapply stepPre_nil $$ HG Hf₃
-    · unfold oblFuels
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact Hmv
@@ -323,7 +323,8 @@ flag gets created that is `0` until it is `1`, and then `1`. -/
 @[lantana_alias flag_fork.main_adequacy]
 theorem main_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ) (hfair : fairScheduling τ)
     (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) : rMain 0 τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (rMain 0) (gMain_external_subset 0) τ hbeh
+  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 (gMain 0) (rMain 0)
+    (gMain_external_subset 0) τ hbeh
     hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩

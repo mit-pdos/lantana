@@ -265,7 +265,7 @@ variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem} {G R : 
 /-- What a step takes: the bill of the thread with one unit of fuel for each of its obligations,
 and witnesses. -/
 abbrev stepPre (i : ThreadId) (G R : Oids) : IProp GF :=
-  iprop(thCarriers i G ∗ oblFuels G 1 ∗ Wit.layers R)
+  iprop(thCarriers i G ∗ Obl.fuels G 1 ∗ Wit.layers R)
 
 /-- What a step gives back: later credits, the bill, the witnesses' credits. -/
 abbrev stepPost (i : ThreadId) (G R : Oids) (o : Fuel) : IProp GF :=
@@ -334,7 +334,7 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
 
 omit [HeapGS GF] [TemporalInterp Exp State GF] in
 /-- The credits of `m + 1` steps give those of one step. -/
-theorem witCreds_of_nat (R : Oids) (m : Nat) :
+theorem Wit.creds_of_nat (R : Oids) (m : Nat) :
     ([∗set] r ∈ R, Wit.cred (GF := GF) r ((m + 1 : Nat) : Fuel) ∨ Obl.discharged r) ⊢
       Wit.creds R := by
   unfold Wit.creds
@@ -350,7 +350,7 @@ theorem witCreds_of_nat (R : Oids) (m : Nat) :
 @[lantana_alias heap_lang.lwp_pure_step]
 theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IProp GF)
     [Language.PureExec φ n e₁ e₂] (hφ : φ) (hn : 0 < n) :
-    threadExpr i C e₁ ∗ thCarriers i G ∗ oblFuels G n ∗ Wit.layers R ∗
+    threadExpr i C e₁ ∗ thCarriers i G ∗ Obl.fuels G n ∗ Wit.layers R ∗
       (threadExpr i C e₂ -∗ thCarriers i G -∗ Wit.creds R -∗ £ₒ o -∗
         |={E}=>m lWP e₂ @ s; i; E {{ Φ }})
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
@@ -361,7 +361,7 @@ theorem lwp_pure_step (n : Nat) (e₁ e₂ : Exp) (φ : Prop) (Φ : Val → IPro
   iframe HT HG HF HR
   iintro HT HG HW Ho
   iapply H $$ HT HG [HW] [Ho]
-  · iapply witCreds_of_nat
+  · iapply Wit.creds_of_nat
     iexact HW
   · rw [show ((m + 1 : Nat) : Fuel) = Ordinals.Ordinal.succ (m : Fuel) from rfl,
       Ordinals.Ordinal.jmul_succ]
@@ -393,7 +393,7 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
         e @ s; j; ⊤
         l{{{ v, RET v; lwp.liftTerm j (fun _ _ => iprop(True)) v }}})
       ⊢@{IProp GF} l{{{ threadExpr i C (.fork e) ∗ stepPre i G R ∗ thKids i G ∗
-            oblFuels K 1 ∗ P }}}
+            Obl.fuels K 1 ∗ P }}}
           (Exp.fork e) @ s; i; E
         l{{{ RET Val.lit .unit; threadExpr i C (.val (.lit .unit)) ∗ stepPost i (G \ K) R o ∗
           thKids i (G \ K) }}} := by
@@ -429,7 +429,7 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
     iframe
   simp only [List.length_set, List.length_singleton, List.range_one]
   icases BigSepL.bigSepL_singleton.mp $$ Hforks with ⟨Haj, Hkj, Hbj⟩
-  unfold oblFuels
+  unfold Obl.fuels
   imod Obl.move_thread_set E (.thread i) tp.length G ∅ ∅ K hK $$ HG Hkj Hbj HK
     with ⟨-, HG, Hkj, Hbj⟩
   imod Th.carriers_resync E i G (G \ K) $$ HB HG with ⟨HB, HG⟩

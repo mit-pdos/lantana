@@ -140,8 +140,8 @@ variable {Ω Ω' : Obligations} {i : ThreadId}
 
 /-- After a progress round of thread `i`, the obligations of `i` have less fuel. -/
 @[lantana_alias prog_owned]
-theorem prog_owned (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid} {a : Fuel}
-    (hx : get? Ω x = some (.assigned a i)) :
+theorem prog_owned (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid}
+    {a : Fuel} (hx : get? Ω x = some (.assigned a i)) :
     ∃ a' t', get? Ω' x = some (.assigned a' t') ∧ a' < a := by
   obtain ⟨g', e', hr⟩ := MapForall2.lookup_left hp.1 hx
   have hkeep : Obligation.Keep (.assigned a i) g' := MapForall2.lookup hp.2 hx e'
@@ -154,7 +154,8 @@ theorem prog_owned (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω
 
 /-- After a progress round of thread `i`, the other obligations are unchanged. -/
 @[lantana_alias prog_other]
-theorem prog_other (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid} {g : Obligation}
+theorem prog_other (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid}
+    {g : Obligation}
     (hx : get? Ω x = some g) (hn : ¬Obligation.CondOwner i x g) : get? Ω' x = some g := by
   obtain ⟨g', e', hr⟩ := MapForall2.lookup_left hp.1 hx
   rcases hr with ⟨hc, _⟩ | ⟨_, rfl⟩
@@ -358,7 +359,8 @@ theorem owned_insert_other {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {p
 
 /-- Removing a node (discharge). -/
 @[lantana_alias forest_owned_remove]
-theorem owned_remove {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {g : Obligation} {j : ThreadId} :
+theorem owned_remove {Ω : Obligations} {Par : OidMap Parent} {k : Oid} {g : Obligation}
+    {j : ThreadId} :
     owned (insert Ω k g) (delete Par k) j = owned Ω Par j \ {k} :=
   LawfulSet.ext fun x => by
     rw [mem_owned, LawfulSet.mem_diff, LawfulSet.mem_singleton, mem_owned]
@@ -591,12 +593,14 @@ theorem alloc_obl (wf : ForestWf Ω tc Par) {k : Oid} {p : Parent} {a : Fuel} {i
       rw [get?_insert_eq rfl] at hx
       cases hx
       have hc : k ≠ c := hne c (wf.isSome_of_ownerOf hp.1)
-      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc, Obligations.ownerOf_insert_assigned,
+      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc,
+        Obligations.ownerOf_insert_assigned,
         Obligations.fuelOf_insert_assigned]
       exact hp
     · rw [get?_insert_ne h] at hx
       have hc : k ≠ c := hne c (wf.par_obl hx)
-      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc, Obligations.ownerOf_insert_ne h,
+      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc,
+        Obligations.ownerOf_insert_ne h,
         Obligations.fuelOf_insert_ne h]
       exact wf.obl x c hx
   · intro x j hx
@@ -629,7 +633,8 @@ theorem discharge (wf : ForestWf Ω tc Par) {k : Oid} (hk : kids Par (.obl k) = 
     · subst h; simp [get?_delete_eq] at hx
     · rw [get?_delete_ne h] at hx
       have hc : k ≠ c := fun e => by subst e; exact hk x hx
-      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc, Obligations.ownerOf_insert_ne h,
+      rw [Obligations.ownerOf_insert_ne hc, Obligations.fuelOf_insert_ne hc,
+        Obligations.ownerOf_insert_ne h,
         Obligations.fuelOf_insert_ne h]
       exact wf.obl x c hx
   · intro x j hx
@@ -985,7 +990,8 @@ theorem condProgress {i : ThreadId} (h : ChownRel S i i Ω Ω')
     Obligations.CondProgress (Obligation.CondOwner i) Ω Ω' := by
   have hrel : ∀ x, (get? Ω x = none ∧ get? Ω' x = none) ∨ ∃ g g', get? Ω x = some g ∧
       get? Ω' x = some g' ∧
-        ((Obligation.CondOwner i x g ∧ Obligation.Step g g') ∨ (¬Obligation.CondOwner i x g ∧ g = g')) ∧
+        ((Obligation.CondOwner i x g ∧ Obligation.Step g g') ∨
+          (¬Obligation.CondOwner i x g ∧ g = g')) ∧
         Obligation.Keep g g' := by
     intro x
     by_cases hxS : x ∈ S
@@ -1011,7 +1017,8 @@ end ChownRel
 
 /-- A progress round of `i` does not increase any fuel. -/
 theorem prog_fuelOf_le {Ω Ω' : Obligations} {i : ThreadId}
-    (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') (x : Oid) : Ω'.fuelOf x ≤ Ω.fuelOf x := by
+    (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') (x : Oid) :
+    Ω'.fuelOf x ≤ Ω.fuelOf x := by
   by_cases ho : Ω.ownerOf x = some i
   · exact Ordinal.le_of_lt (prog_fuelOf_lt hp ho)
   · exact Ordinal.le_of_eq (prog_fuelOf_of_ne hp ho)

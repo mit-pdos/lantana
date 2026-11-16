@@ -128,7 +128,7 @@ instance mono_id : Mono (Expr := Expr) (State := State) (GF := GF) fun X => X :=
 
 @[lantana_alias trSpec_mono_const]
 instance mono_const (G : TrSpec Expr State GF) : Mono fun _ => G :=
-  ⟨fun _ => le_refl G, fun _ => TrProp.le_refl _⟩
+  ⟨fun _ => le_refl G, fun _ => TrProp.subset_refl _⟩
 
 @[lantana_alias trSpec_mono_and]
 instance mono_and (F₁ F₂ : TrSpec Expr State GF → TrSpec Expr State GF) [Mono F₁] [Mono F₂] :
@@ -145,17 +145,18 @@ instance mono_or (F₁ F₂ : TrSpec Expr State GF → TrSpec Expr State GF) [Mo
 @[lantana_alias trSpec_mono_impl]
 instance mono_imp (A : TrSpec Expr State GF) (F : TrSpec Expr State GF → TrSpec Expr State GF)
     [Mono F] : Mono fun X => A →ₛ F X :=
-  ⟨fun h => imp_mono (TrProp.le_refl _) (Mono.mono_le h),
-   fun h => TrProp.imp_mono (TrProp.le_refl _) (Mono.mono_ext (F := F) h)⟩
+  ⟨fun h => imp_mono (TrProp.subset_refl _) (Mono.mono_le h),
+   fun h => TrProp.imp_mono (TrProp.subset_refl _) (Mono.mono_ext (F := F) h)⟩
 
 @[lantana_alias trSpec_mono_forall]
-instance mono_all {Y : Type _} (F : Y → TrSpec Expr State GF → TrSpec Expr State GF)
+instance mono_forall {Y : Type _} (F : Y → TrSpec Expr State GF → TrSpec Expr State GF)
     [∀ y, Mono (F y)] : Mono fun X => «forall» fun y => F y X :=
   ⟨fun h => forall_mono fun _ => Mono.mono_le h,
    fun h => TrProp.forall_mono fun y => Mono.mono_ext (F := F y) h⟩
 
 @[lantana_alias trSpec_mono_exist]
-instance mono_ex {Y : Type _} [SIdxLarge SI Y] (F : Y → TrSpec Expr State GF → TrSpec Expr State GF)
+instance mono_exists {Y : Type _} [SIdxLarge SI Y]
+    (F : Y → TrSpec Expr State GF → TrSpec Expr State GF)
     [∀ y, Mono (F y)] : Mono fun X => «exists» fun y => F y X :=
   ⟨fun h => exists_mono fun _ => Mono.mono_le h,
    fun h => TrProp.exists_mono fun y => Mono.mono_ext (F := F y) h⟩
@@ -226,7 +227,8 @@ bodies are not continuous: the step index ranges beyond `Fuel`, so `▷ ∃ α, 
 @[lantana_alias TrSpecCont]
 class Cont (F : TrSpec Expr State GF → TrSpec Expr State GF) : Prop where
   cont (X : Fuel → TrSpec Expr State GF) :
-    (∀ α β : Fuel, α ≤ β → X α ⊑ₛ X β) → F («exists» (X := Fuel) X) ⊑ₛ «exists» (X := Fuel) fun α => F (X α)
+    (∀ α β : Fuel, α ≤ β → X α ⊑ₛ X β) →
+      F («exists» (X := Fuel) X) ⊑ₛ «exists» (X := Fuel) fun α => F (X α)
 
 attribute [lantana_alias trSpec_cont] Cont.cont
 
@@ -270,7 +272,8 @@ instance cont_imp (A : TrSpec Expr State GF) (F : TrSpec Expr State GF → TrSpe
         (exists_intro (Ψ := fun α => (A →ₛ F (X α)).internal τ) 0)
 
 @[lantana_alias trSpec_cont_exist]
-instance cont_ex {Y : Type _} [SIdxLarge SI Y] (F : Y → TrSpec Expr State GF → TrSpec Expr State GF)
+instance cont_exists {Y : Type _} [SIdxLarge SI Y]
+    (F : Y → TrSpec Expr State GF → TrSpec Expr State GF)
     [∀ y, Cont (F y)] : Cont fun X => «exists» fun y => F y X where
   cont X hX := fun τ => exists_elim fun y => (Cont.cont X hX τ).trans <| BI.exists_mono fun α =>
     exists_intro (Ψ := fun y => (F y (X α)).internal τ) y
@@ -315,7 +318,7 @@ theorem nu_post [Mono F] (S : TrProp (Cfg Expr State))
       exists_intro (Ψ := fun X => iprop(⌜X ⊑ₛ F X⌝ ∧ X.internal τ')) X
   have hIN : nuInternal F τ ⊢ (F N).internal τ :=
     exists_elim fun X => pure_elim_left fun hX => (hX τ).trans (Mono.mono_le (hXN X hX) τ)
-  exact Mono.mono_ext (X := N) (Y := trp S) (TrProp.le_refl _) τ
+  exact Mono.mono_ext (X := N) (Y := trp S) (TrProp.subset_refl _) τ
     ((F N).adeq F' τ ((iPropSatLcAtFrame F' ⊤).mono hIN hs))
 
 /-- The greatest fixpoint: the union of the post-fixpoints. Its adequacy avoids the existential
@@ -387,7 +390,8 @@ theorem mu_rank (H : Fuel → TrSpec Expr State GF)
   induction α using Ordinals.Ordinal.lt_wf.induction with
   | _ α ih =>
   rw [muApprox_unfold]
-  exact le_trans (hH α) (Mono.mono_le (exists_mono (Y := { β : Fuel // β < α }) fun b => ih b.1 b.2))
+  exact le_trans (hH α)
+    (Mono.mono_le (exists_mono (Y := { β : Fuel // β < α }) fun b => ih b.1 b.2))
 
 @[lantana_alias trSpec_mu_intro]
 theorem mu_intro (H : Fuel → TrSpec Expr State GF)
@@ -482,12 +486,14 @@ theorem mu_ext_unfold_left (τ : Trace (Cfg Expr State)) :
     (mu F).external τ → (F (mu F)).external τ := by
   rintro ⟨α, hα⟩
   rw [muApprox_unfold] at hα
-  exact Mono.mono_ext (X := «exists» (X := { β : Fuel // β < α }) fun b => muApprox F b.1) (Y := mu F)
+  exact Mono.mono_ext (X := «exists» (X := { β : Fuel // β < α }) fun b => muApprox F b.1)
+    (Y := mu F)
     (fun _ ⟨b, h⟩ => ⟨b.1, h⟩) τ hα
 
 @[lantana_alias trSpec_mu_ext_unfold_r]
-theorem mu_ext_unfold_right (τ : Trace (Cfg Expr State)) : (F (mu F)).external τ → (mu F).external τ :=
-  fun h => mu_ext_pre F τ (Mono.mono_ext (X := mu F) (Y := trp _) (TrProp.le_refl _) τ h)
+theorem mu_ext_unfold_right (τ : Trace (Cfg Expr State)) :
+    (F (mu F)).external τ → (mu F).external τ :=
+  fun h => mu_ext_pre F τ (Mono.mono_ext (X := mu F) (Y := trp _) (TrProp.subset_refl _) τ h)
 
 end Mu
 
@@ -513,12 +519,12 @@ def untilBody (X : TrSpec Expr State GF) : TrSpec Expr State GF :=
 @[lantana_alias F_always_mono]
 instance alwaysBody_mono : Mono (alwaysBody G) :=
   ⟨fun h => later_mono (step_mono (and_mono (le_refl G) (shift_mono h))),
-   fun h => TrProp.and_mono (TrProp.le_refl _) fun τ => h τ.next⟩
+   fun h => TrProp.and_mono (TrProp.subset_refl _) fun τ => h τ.next⟩
 
 @[lantana_alias F_until_mono]
 instance untilBody_mono : Mono (untilBody G₁ G₂) :=
   ⟨fun h => later_mono (step_mono (or_mono (le_refl G₂) (and_mono (le_refl G₁) (shift_mono h)))),
-   fun h => TrProp.or_mono (TrProp.le_refl _) (TrProp.and_mono (TrProp.le_refl _)
+   fun h => TrProp.or_mono (TrProp.subset_refl _) (TrProp.and_mono (TrProp.subset_refl _)
      fun τ => h τ.next)⟩
 
 /-- `□ₛ G` is `ν X. ⊳ ⊚ (G ∧ shift X)`, in both directions. -/
@@ -620,7 +626,7 @@ def evenBody (X : TrSpec Expr State GF) : TrSpec Expr State GF :=
 @[lantana_alias F_even_mono]
 instance evenBody_mono : Mono (evenBody G) :=
   ⟨fun h => later_mono (step_mono (and_mono (le_refl G) (shift_mono (next_mono h)))),
-   fun h => TrProp.and_mono (TrProp.le_refl _) fun τ => h τ.next.next⟩
+   fun h => TrProp.and_mono (TrProp.subset_refl _) fun τ => h τ.next.next⟩
 
 @[lantana_alias trSpec_nu_even_ext]
 theorem nu_even_ext (τ : Trace (Cfg Expr State)) :

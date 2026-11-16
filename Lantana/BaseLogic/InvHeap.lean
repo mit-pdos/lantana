@@ -280,7 +280,8 @@ theorem invPointsToOwn_acc_strong {E : CoPset} (hN : (↑invHeapN : CoPset) ⊆ 
   iintro %w %hIw Hl
   imod iOwn_update_op (auth_update (singleton_local_update
       (get?_heap_some_toInvHeap hh)
-      (LocalUpdate.prod_1 _ _ (LocalUpdate.option (LocalUpdate.exclusive (x' := excl ⟨w⟩) trivial)))))
+      (LocalUpdate.prod_1 _ _
+        (LocalUpdate.option (LocalUpdate.exclusive (x' := excl ⟨w⟩) trivial)))))
     $$ [$Hauth $Hl_inv] with ⟨Hauth, Hfrag⟩
   iunfold invPointsToOwn
   iframe Hfrag

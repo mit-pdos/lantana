@@ -83,7 +83,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfw⟩
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfs⟩
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfi⟩
-    ihave HF := oblFuels_init G _ _ $$ HF
+    ihave HF := Obl.fuels_init G _ _ $$ HF
     unfold nest
     lwp_step HT HG HF
     lwp_expr_simp
@@ -106,7 +106,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfw⟩
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfs⟩
     icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfi⟩
-    ihave HF := oblFuels_init G _ _ $$ HF
+    ihave HF := Obl.fuels_init G _ _ $$ HF
     unfold nest
     lwp_step HT HG HF
     lwp_expr_simp
@@ -129,8 +129,8 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     lwp_expr_simp
     icases (Obl.fuel_add k₀ _ _ _).mp $$ Hf₀ with ⟨Hf₀, Hfr⟩
     icases (Obl.fuel_add k₀ _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
-    icases oblFuels_add 3 92 G $$ HF with ⟨Hf₃, HF⟩
-    ihave Hf₃ := oblFuels_add_obl G k₀ (ofNat m) _ $$ Hf₀ Hf₃
+    icases Obl.fuels_add 3 92 G $$ HF with ⟨Hf₃, HF⟩
+    ihave Hf₃ := Obl.fuels_add_obl G k₀ (ofNat m) _ $$ Hf₀ Hf₃
     lwp_step HT HG Hf₃
     lwp_step HT HG Hf₃
     lwp_expr_simp
@@ -145,8 +145,8 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     · -- The forked thread: `n - 1`, then `nest y (n - 1)` by induction.
       iintro %j %Φ' !> ⟨HTj, HAj, HKj, HGj, Hkk₀, Hfj, Htk₀⟩ HΦ'
       icases (Obl.fuel_add k₀ _ _ _).mp $$ Hfj with ⟨Hf1, Hfj⟩
-      ihave Hf1 : oblFuels {k₀} ((0 + 1 : Nat) : Measure) $$ [Hf1]
-      · unfold oblFuels
+      ihave Hf1 : Obl.fuels {k₀} ((0 + 1 : Nat) : Measure) $$ [Hf1]
+      · unfold Obl.fuels
         iapply BigSepS.bigSepS_singleton.mpr
         iexists _
         iexact Hf1
@@ -178,7 +178,7 @@ theorem nest_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (x : Loc) (
     · iframe HT HK Hkk₀ Hfj Htk₀
       isplitl [HG Hf₃]
       · iapply stepPre_nil $$ HG Hf₃
-      · unfold oblFuels
+      · unfold Obl.fuels
         iapply BigSepS.bigSepS_singleton.mpr
         iexists _
         iexact Hmv
@@ -231,12 +231,12 @@ theorem spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List ECtxIte
   icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hnn⟩
   icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfw⟩
   icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, Hfi⟩
-  ihave HF := oblFuels_init G _ _ $$ HF
+  ihave HF := Obl.fuels_init G _ _ $$ HF
   unfold nondet
   lwp_step HT HG HF
   lwp_expr_simp
   lwp_bind Exp.chooseNat HT
-  icases oblFuels_add 1 98 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 98 G $$ HF with ⟨HF1, HF⟩
   iapply lwp_chooseNat (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
@@ -258,8 +258,8 @@ theorem spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List ECtxIte
   lwp_expr_simp
   icases (Obl.fuel_add k _ _ _).mp $$ Hf with ⟨Hf, Hfr⟩
   icases (Obl.fuel_add k _ _ _).mp $$ Hfr with ⟨Hmv, Hfj⟩
-  icases oblFuels_add 3 93 G $$ HF with ⟨Hf₃, HF⟩
-  ihave Hf₃ := oblFuels_add_obl G k _ _ $$ Hf Hf₃
+  icases Obl.fuels_add 3 93 G $$ HF with ⟨Hf₃, HF⟩
+  ihave Hf₃ := Obl.fuels_add_obl G k _ _ $$ Hf Hf₃
   lwp_step HT HG Hf₃
   lwp_step HT HG Hf₃
   lwp_expr_simp
@@ -300,7 +300,7 @@ theorem spec : ∃ μ : Measure, ∀ (i : ThreadId) (G : Oids) (C : List ECtxIte
   · iframe HT HK Hkk Hfj Htk
     isplitl [HG Hf₃]
     · iapply stepPre_nil $$ HG Hf₃
-    · unfold oblFuels
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact Hmv

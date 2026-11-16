@@ -32,7 +32,7 @@ example (P : TrProp C) (τ : Trace C) (m : Nat) :
 
 /-- Weak fairness is weaker than strong fairness, for any enabling condition and grant. -/
 example (A G : TrProp C) : (□ₜ ◇ₜ A →ₜ □ₜ ◇ₜ G) ⊆ (◇ₜ □ₜ A →ₜ □ₜ ◇ₜ G) :=
-  TrProp.imp_mono TrProp.eventually_always_le (TrProp.le_refl _)
+  TrProp.imp_mono TrProp.eventually_always_subset (TrProp.subset_refl _)
 
 end Generic
 
@@ -81,9 +81,9 @@ end Lantana
 #print axioms TrProp.absolute_always_eventually
 
 /--
-info: 'Lantana.TrProp.not_always_eventually_le' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'Lantana.TrProp.not_always_eventually_subset' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms TrProp.not_always_eventually_le
+#print axioms TrProp.not_always_eventually_subset
 
 end LantanaTest.Temporal

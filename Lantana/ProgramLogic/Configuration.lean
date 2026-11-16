@@ -13,7 +13,7 @@ public import Lantana.ProgramLogic.Language
 `Cfg`, the step of a thread `ThreadStep` and the trace step `TraceStep`; the crashed and active
 threads of a configuration (`Cfg.Crashed`, `Cfg.Active`); the thread-system instance, the
 convexity of activity (`Cfg.active_convex`) and fair scheduling as weak fairness
-(`Cfg.sched_sf_iff_wf`).  See `docs/program-logic.md`, §1.
+(`Cfg.sched_strongFair_iff_weakFair`).  See `docs/program-logic.md`, §1.
 Rocq: the trace part of `lantana/program_logic/language.v`.
 -/
 
@@ -332,10 +332,10 @@ theorem Cfg.convex_of_isBehavior {i : ThreadId} :
 
 /-- Fair scheduling of a thread is weak fairness along a behavior where the thread, once
 crashed, stays crashed. -/
-theorem Cfg.sched_sf_iff_wf {τ : Trace (Cfg Expr State)} (hrun : isBehavior τ)
+theorem Cfg.sched_strongFair_iff_weakFair {τ : Trace (Cfg Expr State)} (hrun : isBehavior τ)
     (i : ThreadId) (hcr : (□ₜ TrProp.step (Cfg.StaysCrashed i)) τ) :
     Fairness.Sched.strongFair i τ ↔ Fairness.Action.weakFair (Fairness.Sched.action i) τ :=
-  Fairness.Action.sf_iff_wf_of_convex (Cfg.convex_of_isBehavior τ ⟨hrun, hcr⟩)
+  Fairness.Action.strongFair_iff_weakFair_of_convex (Cfg.convex_of_isBehavior τ ⟨hrun, hcr⟩)
 
 end Scheduling
 

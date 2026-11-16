@@ -85,7 +85,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, HFrel⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, HFacq⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, HFini⟩
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold main
   lwp_step HT HG HF with Hc : Ordinals.Ordinal.ofNat (1 + 1)
   icases (tlc_split_nat 1 1).mp $$ Hc with ⟨Hc1, Hc2⟩
@@ -94,7 +94,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   lwp_bind hl(v(&TicketLock2.init) #()) HT
   iapply hinit 0 0 i {kr, kc} _ $$ [HT HG HFini]
   · iframe HT HG
-    iapply oblFuels_init _ _ _ $$ HFini
+    iapply Obl.fuels_init _ _ _ $$ HFini
   iintro %tl %γ ⟨HT, -, HG, CF, Hmk⟩
   ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
   lwp_expr_simp
@@ -114,7 +114,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
     grind
   ihave HG := Th.carriers_congr hkc $$ HG
   ihave HK := Par.kids_congr hkc $$ HK
-  ihave HF := oblFuels_subset _ (B := {kr}) (fun z hz => by simp_all) $$ HF
+  ihave HF := Obl.fuels_subset _ (B := {kr}) (fun z hz => by simp_all) $$ HF
   ihave HFacq := BigSepS.bigSepS_subseteq (Y := ({kr} : Oids)) (fun z hz => by simp_all)
     $$ HFacq
   ihave HFrel := BigSepS.bigSepS_subseteq (Y := ({kr} : Oids)) (fun z hz => by simp_all)
@@ -133,15 +133,15 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kr kc : Oid),
   ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
   lwp_expr_simp
   icases (Obl.fuel_add κu _ _ _).mp $$ Fκu with ⟨Fκu, Fκur⟩
-  icases oblFuels_add 2 95 _ $$ HF with ⟨HF2, HF⟩
-  ihave HF2 := oblFuels_add_obl {kr} κu 0 _ $$ Fκu HF2
+  icases Obl.fuels_add 2 95 _ $$ HF with ⟨HF2, HF⟩
+  ihave HF2 := Obl.fuels_add_obl {kr} κu 0 _ $$ Fκu HF2
   lwp_step HT HG HF2
   lwp_step HT HG HF2
   lwp_expr_simp
   -- `release`.
   lwp_bind hl(v(&TicketLock2.release) v(&tl)) HT
-  ihave HFrel := oblFuels_init _ _ _ $$ HFrel
-  ihave HFrel := oblFuels_add_obl {kr} κu 0 _ $$ Fκur HFrel
+  ihave HFrel := Obl.fuels_init _ _ _ $$ HFrel
+  ihave HFrel := Obl.fuels_add_obl {kr} κu 0 _ $$ Fκur HFrel
   iapply hrel 0 i (({kr} : Oids).insert κu) tl γ iprop(True) κu _ $$ [HT HK HG HFrel Kκu Htok]
   · iframe HT HK HG HFrel Kκu Htok
     isplitr

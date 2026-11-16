@@ -644,7 +644,8 @@ theorem Forest.bigSepS_kids (Par : OidMap Parent) (p : Parent) (Φ : Oid → PRO
       [∗map] x ↦ q ∈ Par, if decide (q = p) then Φ x else emp :=
   bigSepS_dom_filter Par _ Φ
 
-theorem Forest.bigSepS_owned (Ω : Obligations) (Par : OidMap Parent) (i : ThreadId) (Φ : Oid → PROP) :
+theorem Forest.bigSepS_owned (Ω : Obligations) (Par : OidMap Parent) (i : ThreadId)
+    (Φ : Oid → PROP) :
     ([∗set] x ∈ Forest.owned Ω Par i, Φ x) ⊣⊢
       [∗map] x ↦ _q ∈ Par, if decide (Ω.ownerOf x = some i) then Φ x else emp :=
   bigSepS_dom_filter Par _ Φ
@@ -1982,7 +1983,8 @@ theorem oforest_move_cross {Ω : Obligations} {tc : Nat} {p₁ p₂ : Parent} {K
       | .obl q => Ω.ownerOf q = some j) (B₂ : Oids) :
     osat Ω ∗ oforest Ω tc X ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OForest.parBill p₂ B₂ ∗
         OSat.fuel k u ∗ forestPiece Ω k p₂
-      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obligations.NoDischarge Ω Ω' ∧ (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
+      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obligations.NoDischarge Ω Ω' ∧
+        (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
         k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc X ∗ OForest.kids p₁ (K₁ \ {k}) ∗
         OForest.kids p₂ ({k} ∪ K₂) ∗ OForest.parBill p₂ ({k} ∪ B₂) := by
   unfold oforest

@@ -19,8 +19,9 @@ module is in `Lantana`, `LantanaTest` or `Iris`:
 - result sort: `Prop`/`Type` when the type ends in a sort after its binders, otherwise `-`
   (syntactic: `IProp GF` and `TrProp C` count as `-`).
 
-Run it once with `Lantana` and once with `Iris` (Iris-Lean's and Lantana's HeapLang notations
-cannot be imported together), then merge as in `docs/naming.md`, §7.
+`scripts/naming/lint.sh` runs it on `Lantana` and on each test module.  To compare with
+Iris-Lean, run it once with `Lantana` and once with `Iris` (Iris-Lean's and Lantana's HeapLang
+notations cannot be imported together).
 -/
 
 open Lean Meta

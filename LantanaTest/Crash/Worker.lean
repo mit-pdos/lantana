@@ -58,15 +58,16 @@ omit [CrashGS GF] in
 /-- The worker pays its bill `B` (`∅` or `{k}`) out of the fuel of `k`. -/
 theorem worker_pay (k : Oid) (B : Oids) (hB : B = ∅ ∨ B = {k}) (tp : ThreadPool Exp) (σ : St)
     (m : Nat) :
-    oblFuels {k} ((m + 1 : Nat) : Measure) ⊢@{IProp GF}
-      oblFuels {k} (m : Measure) ∗ (oblFuels B 1 ∗ ⌜B = B⌝ ∨ ⌜Cfg.Crashed (tp, σ) 0 ∧ B = ∅⌝) := by
+    Obl.fuels {k} ((m + 1 : Nat) : Measure) ⊢@{IProp GF}
+      Obl.fuels {k} (m : Measure) ∗
+        (Obl.fuels B 1 ∗ ⌜B = B⌝ ∨ ⌜Cfg.Crashed (tp, σ) 0 ∧ B = ∅⌝) := by
   iintro HF
-  icases oblFuels_succ {k} m $$ HF with ⟨HF, HF1⟩
+  icases Obl.fuels_succ {k} m $$ HF with ⟨HF, HF1⟩
   iframe HF
   ileft
   rcases hB with rfl | rfl
   · isplitl
-    · iunfold oblFuels
+    · iunfold Obl.fuels
       iapply BigSepS.bigSepS_empty.mpr
       iempintro
     · ipureintro
@@ -79,7 +80,7 @@ theorem worker_pay (k : Oid) (B : Oids) (hB : B = ∅ ∨ B = {k}) (tp : ThreadP
 until it finishes, or loops for ever while crashed. -/
 theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow {k} S kids) :
     inv invN (crashInv (GF := GF) k S kids) ⊢ ∀ (m : Nat) (B : Oids), £ₙ 1 -∗ thCarriers 0 B -∗
-      ⌜B = ∅ ∨ B = {k}⌝ -∗ oblFuels {k} ((m + 1 : Nat) : Measure) -∗
+      ⌜B = ∅ ∨ B = {k}⌝ -∗ Obl.fuels {k} ((m + 1 : Nat) : Measure) -∗
       lWP (Exp.work m) @ 0; ⊤ {{ fun _ => Th.done 0 }} := by
   iintro #HI
   iloeb as IH

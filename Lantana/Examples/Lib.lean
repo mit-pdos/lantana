@@ -11,7 +11,7 @@ public import Lantana.Trace
 
 /-! # Lemmas shared by the examples
 
-* `bigSepS_pair`, `bigSepS_insert_oids`, `oblFuels_subset`: big separating conjunctions over
+* `bigSepS_pair`, `bigSepS_insert_oids`, `Obl.fuels_subset`: big separating conjunctions over
   two obligations and over a set with one more obligation; the fuel of a set of obligations
   gives that of a subset.
 * `pointsTo_halves`: a points-to is two halves.
@@ -59,9 +59,9 @@ section Fuel
 variable {GF : BundledGFunctors} [ModelGS GF]
 
 /-- The fuel of a set of obligations gives that of a subset. -/
-theorem oblFuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
-    oblFuels (GF := GF) A n ⊢ oblFuels B n := by
-  unfold oblFuels
+theorem Obl.fuels_subset {A B : Oids} (n : Measure) (h : B ⊆ A) :
+    Obl.fuels (GF := GF) A n ⊢ Obl.fuels B n := by
+  unfold Obl.fuels
   exact BigSepS.bigSepS_subseteq h
 
 end Fuel

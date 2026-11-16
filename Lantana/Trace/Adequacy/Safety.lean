@@ -72,7 +72,7 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
     ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State) (tp : ThreadPool Expr)
       (Ψ : ThreadId → Val → IProp GF) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses),
       ⌜schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
-        OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf ∧ j < tp.length ∧
+        OWitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf ∧ j < tp.length ∧
         ∀ v, Ψ j v ⊢ ⌜Φ j v⌝⌝ -∗
       historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
         threadsRun tp Ψ -∗
@@ -106,7 +106,7 @@ theorem threadsRun_safety (τf : Nat → Cfg Expr State) (sched : Nat → Thread
     simp only [Trace.now, hnow]
     exact hval
   have hfacts : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
-      OwitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
       j < tp'.length ∧ ∀ v, Ψ' j v ⊢ ⌜Φ j v⌝ :=
     ⟨hsch, hcnt, hLb', hh', Nat.lt_of_lt_of_le hj hle, by rw [hΨ' j hj]; exact hΨ⟩
   imodintro
@@ -156,7 +156,7 @@ theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
       obtain ⟨rfl, rfl⟩ := hn'
       exact hinit
     | succ n' => simp at hn'
-  have hLb₀ : OwitInvLb (fairMeasure (γc 0)) ∅ ∅ := mapForall2_empty
+  have hLb₀ : OWitInvLb (fairMeasure (γc 0)) ∅ ∅ := mapForall2_empty
   refine safetyIrisTrI_trProp iprop(emp) j Φ ⟨0, τf⟩ (SatFUpd.fupd
     (S := iPropSatLcAtFrame (GF := GF) iprop(emp)) (E₁ := ⊤) (E₂ := ⊤) ?_)
   refine iPropSatLcAtFrame_sat.mpr (iPropSat.sat_bupd (iPropSat.mono ?_ hγ))
@@ -192,7 +192,7 @@ theorem lwp_adequacy_safety [Crash Expr State Obs Val] {GF : BundledGFunctors}
     [(σ, tp)] 0 σ tp [(0, ∅)] 0 ∅ ∅ tp.length _ _ hLb₀ $$ Hwp HHT HM
     with ⟨HT, HHT, %g', %v', %Ω', %W', %⟨-, hLb'⟩, HM⟩
   have hfacts : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γc ⟨0, τf⟩ ∧
-      OwitInvLb (fairMeasure (γc 0)) Ω' W' ∧ HistTrace [(σ, tp)] τf ∧ j < tp.length ∧
+      OWitInvLb (fairMeasure (γc 0)) Ω' W' ∧ HistTrace [(σ, tp)] τf ∧ j < tp.length ∧
       ∀ v, Ψ j v ⊢ ⌜Φ j v⌝ :=
     ⟨hsch, hγc, hLb', hh₀, hj, hΨ⟩
   imodintro

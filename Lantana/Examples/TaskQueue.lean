@@ -113,7 +113,7 @@ theorem putTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   refine ⟨100 + μe, fun lc i G p K B γ ℓ ql f a C => ?_⟩
   iintro %Φ !> ⟨HT, HKi, HG, HF, HK, %hBK, HFB, Htask, #IQ⟩ HΦ
   icases (Obl.fuel_add_set G _ 100 μe).mp $$ HF with ⟨HF, Fe⟩
-  ihave HF := oblFuels_init G 100 _ $$ HF
+  ihave HF := Obl.fuels_init G 100 _ $$ HF
   unfold putTask
   lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
@@ -159,7 +159,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
   refine ⟨100 + μd, fun lc m b wg i G γ ℓ ql C => ?_⟩
   iintro %Φ !> ⟨HT, HK, HG, HF, Ft, HW, #IQ⟩ HΦ
   icases (Obl.fuel_add_set G _ 100 μd).mp $$ HF with ⟨HF, Fd⟩
-  ihave HF := oblFuels_init G 100 _ $$ HF
+  ihave HF := Obl.fuels_init G 100 _ $$ HF
   unfold runTask
   lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
@@ -192,7 +192,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
       icases Hx with ⟨%ng, HK, HG, %hng, HW, Kwg, Awg, Fng⟩
       icases (Obl.fuel_add ng ℓ _ 1).mp $$ Fng with ⟨Fng, -⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng99⟩
-      ihave HF := oblFuels_add_obl G ng ℓ _ $$ Fng99 HF
+      ihave HF := Obl.fuels_add_obl G ng ℓ _ $$ Fng99 HF
       lwp_step HT HG HF
       lwp_step HT HG HF
       lwp_expr_simp
@@ -214,7 +214,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
     icases Htask with ⟨%ℓt, %P, %hlt, HP, %μt, #Task⟩
     icases (Obl.fuel_add g ℓ _ 1).mp $$ Fg with ⟨Fg, Fg1⟩
     icases (Obl.fuel_add g ℓ m _).mp $$ Fg with ⟨-, Fg99⟩
-    ihave HF := oblFuels_add_obl G g ℓ _ $$ Fg99 HF
+    ihave HF := Obl.fuels_add_obl G g ℓ _ $$ Fg99 HF
     ihave Ft := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g ℓ 1) hg).mpr $$ [Fg1 Ft]
     · iframe Fg1 Ft
     have hgg : g ∈ G.insert g := Std.ExtTreeSet.mem_insert_self
@@ -261,7 +261,7 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
         grind
       icases (Obl.fuel_add ng ℓ _ 1).mp $$ Fng with ⟨Fng, Fng1⟩
       icases (Obl.fuel_add ng ℓ m _).mp $$ Fng with ⟨Fng, Fng99⟩
-      ihave HF := oblFuels_add_obl (G.insert g) ng ℓ _ $$ Fng99 HF
+      ihave HF := Obl.fuels_add_obl (G.insert g) ng ℓ _ $$ Fng99 HF
       ihave Ft := (bigSepS_insert_oids (Φ := fun g => Obl.fuel g ℓ 1) hng').mpr $$ [Fng1 Ft]
       · iframe Fng1 Ft
       lwp_step HT HG HF
@@ -304,8 +304,8 @@ theorem runTask_spec : ∃ μ : Measure, ∀ (lc : Fuel) (m : Measure) (b : Bool
 
 omit [HeapGS GF] [TicketLockG GF] [QueueG GF] in
 /-- A thread without children pays nothing. -/
-theorem oblFuels_empty (n : Measure) : ⊢ oblFuels (GF := GF) ∅ n := by
-  unfold oblFuels
+theorem Obl.fuels_empty (n : Measure) : ⊢ Obl.fuels (GF := GF) ∅ n := by
+  unfold Obl.fuels
   iapply BigSepS.bigSepS_empty.mpr
   iempintro
 
@@ -330,8 +330,8 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     subst hG
     iloeb as IH generalizing %g
     icases (Obl.fuel_add g ℓ _ _).mp $$ Fg with ⟨Fs, Fr⟩
-    ihave Fs : oblFuels {g} ((10 : Nat) : Measure) $$ [Fs]
-    · unfold oblFuels
+    ihave Fs : Obl.fuels {g} ((10 : Nat) : Measure) $$ [Fs]
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists ℓ
       iexact Fs
@@ -364,8 +364,8 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     ihave HK := Par.kids_congr hng' $$ HK
     ihave HG := Th.carriers_congr hng' $$ HG
     icases (Obl.fuel_add ng ℓ _ _).mp $$ Fng with ⟨F2, Fng⟩
-    ihave F2 : oblFuels {ng} ((2 : Nat) : Measure) $$ [F2]
-    · unfold oblFuels
+    ihave F2 : Obl.fuels {ng} ((2 : Nat) : Measure) $$ [F2]
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists ℓ
       iexact F2
@@ -383,7 +383,7 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     subst hG
     iloeb as IH
     unfold worker
-    ihave HF := oblFuels_empty (GF := GF) ((1 : Nat) : Measure)
+    ihave HF := Obl.fuels_empty (GF := GF) ((1 : Nat) : Measure)
     lwp_step HT HG HF
     lwp_expr_simp
     lwp_bind hl(v(&runTask) v(&ql)) HT
@@ -399,7 +399,7 @@ theorem worker_spec : ∃ μ : Measure, ∀ (b : Bool) (i : ThreadId) (G : Oids)
     iintro %rv ⟨HT, Hc, HK, HG⟩
     ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
     lwp_expr_simp
-    ihave HF := oblFuels_empty (GF := GF) ((2 : Nat) : Measure)
+    ihave HF := Obl.fuels_empty (GF := GF) ((2 : Nat) : Measure)
     lwp_step HT HG HF
     lwp_step HT HG HF
     lwp_expr_simp
@@ -423,7 +423,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   refine ⟨100 + μi, fun lc i G ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HK, HG, HF, %hℓ⟩ HΦ
   icases (Obl.fuel_add_set G _ 100 μi).mp $$ HF with ⟨HF, Fi⟩
-  ihave HF := oblFuels_init G 100 _ $$ HF
+  ihave HF := Obl.fuels_init G 100 _ $$ HF
   unfold init
   lwp_step HT HG HF with Hlc : lc
   lwp_expr_simp
@@ -444,8 +444,8 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   imod Queue.isQueue_initialize ⊤ ql γ ℓ (taskElem ℓ) gj $$ IQI Kgj Wgj Agj with ⟨#IQ, Wk⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨F1, Fgj⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨Fmv, Fw⟩
-  icases oblFuels_add 1 96 _ $$ HF with ⟨HF1, HF⟩
-  ihave HF1 := oblFuels_add_obl _ gj ℓ _ $$ F1 HF1
+  icases Obl.fuels_add 1 96 _ $$ HF with ⟨HF1, HF⟩
+  ihave HF1 := Obl.fuels_add_obl _ gj ℓ _ $$ F1 HF1
   lwp_bind hl(fork(v(&worker) v(&ql))) HT
   have hsub : ({gj} : Oids) ⊆ G.insert gj := fun z hz => by
     rw [LawfulSet.mem_singleton] at hz
@@ -473,7 +473,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   · iframe HT HK Fw Wk
     isplitl [HG HF1]
     · iapply stepPre_nil $$ HG HF1
-    · unfold oblFuels
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact Fmv

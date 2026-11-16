@@ -17,7 +17,7 @@ and *credits* (the bounded-credit camera `BCred Fuel` of `Algebra/BCred.lean`, u
 per-obligation ghost name recorded in a persistent name map). The invariant `owit W` holds, for
 every assigned witness `k` with bound `b`, credits `α ≥ b` (so credits can be split off whenever
 a witness makes progress); for discharged witnesses it holds the persistent `OSat.discharged k`.
-The pure relation between obligations and witnesses is `OwitInv` (`ModelRel.lean`).
+The pure relation between obligations and witnesses is `OWitInv` (`ModelRel.lean`).
 -/
 
 @[expose] public noncomputable section

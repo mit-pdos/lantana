@@ -94,7 +94,7 @@ about the run `τf : Nat → Cfg Expr State`, which the adequacy proof threads a
 - `schedule sched ⟨0, τf⟩` and `schedCounters sched γ ⟨0, τf⟩`: the schedule and the fairness
   counters that the proof chooses (`docs/temporal.md`, §3.6).  They are trace properties of the
   run from position `0`, read at `n` through `schedule_iff` and `schedCounters_iff`.
-- `OwitInvLb (fairMeasure (γ n)) Ω W`: the witnesses are bounded below by the fair-scheduler
+- `OWitInvLb (fairMeasure (γ n)) Ω W`: the witnesses are bounded below by the fair-scheduler
   measures of the current counters.
 - `HistTrace h τf`: the ghost history is a prefix of the run.
 - Across a step, `OblsDrop`: the measure of every assigned obligation drops (§5.4).

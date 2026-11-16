@@ -10,10 +10,10 @@ public import Lantana.Temporal.Fairness.Action
 /-! # Fair scheduling
 
 Fair scheduling is one more action, `Sched.action i`, enabled where the thread is active and
-granted at its trace step; `Sched.strongFair i` is its strong fairness and `Sched.assumption i` its
-strong recipe.  `fairScheduling := ∀ₜ i, Sched.strongFair i` is the hypothesis of the adequacy theorems
-and names no scheduled thread.  Under a schedule, the fairness counters of the run are
-`schedCounters`.  The Rocq counterpart is `fair_scheduling.v`.
+granted at its trace step; `Sched.strongFair i` is its strong fairness and `Sched.assumption i`
+its strong recipe.  `fairScheduling := ∀ₜ i, Sched.strongFair i` is the hypothesis of the
+adequacy theorems and names no scheduled thread.  Under a schedule, the fairness counters of the
+run are `schedCounters`.  The Rocq counterpart is `fair_scheduling.v`.
 See `docs/temporal.md`.
 -/
 
@@ -44,7 +44,8 @@ variable {i : ThreadId} {τ : Trace C}
 theorem holds_assumption : (assumption i).holds τ ↔ strongFair i τ := Action.holds_strong
 
 /-- A thread active infinitely often and fairly scheduled steps infinitely often. -/
-theorem stepOfInfOften_of_sf : (strongFair i ∧ₜ □ₜ ◇ₜ active i : TrProp C) ⊆ stepOfInfOften i :=
+theorem stepOfInfOften_of_strongFair :
+    (strongFair i ∧ₜ □ₜ ◇ₜ active i : TrProp C) ⊆ stepOfInfOften i :=
   fun τ ⟨hsf, hinf⟩ => TrProp.always_eventually_mono (fun _ h => h.2) τ (hsf hinf)
 
 end Fairness.Sched
@@ -58,7 +59,7 @@ def fairScheduling : TrProp C := ∀ₜ i : ThreadId, Fairness.Sched.strongFair 
 
 /-- Fair scheduling is the same at every position of the run. -/
 theorem fairScheduling_absolute : TrProp.Absolute (fairScheduling (C := C)) :=
-  TrProp.absolute_forall fun _ => Fairness.Action.sf_absolute
+  TrProp.absolute_forall fun _ => Fairness.Action.strongFair_absolute
 
 @[lantana_alias fair_scheduling_next]
 theorem fairScheduling_next {τ : Trace C} (h : fairScheduling τ) : fairScheduling τ.next :=

@@ -137,7 +137,7 @@ theorem lwp_step (he : toVal e₁ = none) :
     (∀ (σ₁ : St) (tp : ThreadPool Exp), ⌜tp[i]? = some e₁⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
-        ∃ G G', thCarriers i G ∗ (oblFuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
+        ∃ G G', thCarriers i G ∗ (Obl.fuels G 1 ∗ ⌜G' = G⌝ ∨ ⌜Cfg.Crashed (tp, σ₁) i ∧ G' = ∅⌝) ∗
         ∀ (e₂ : Exp) (σ₂ : St), ⌜Step e₁ σ₁ e₂ σ₂⌝ ={∅}=∗
           stateInterp σ₂ (tp.set i e₂) ∗
           (thCarriers i G' -∗ alc (|={∅}=>m

@@ -24,7 +24,8 @@ example (e : Nat) (Φ : Nat → IProp GF) : IProp GF := lWP e @ 3; ⊤ ?{{ v, Φ
 
 /-- Texan triples inside `iprop` (persistent); as a bare term the carrier must be known. -/
 example : IProp GF := iprop(l{{{ True }}} (5 : Nat) @ 3; ⊤ l{{{ RET 5; True }}})
-example : IProp GF := iprop(l{{{ True }}} (5 : Nat) @ 3 l{{{ (v : Nat) (w : Nat), RET v + w; True }}})
+example :
+    IProp GF := iprop(l{{{ True }}} (5 : Nat) @ 3 l{{{ (v : Nat) (w : Nat), RET v + w; True }}})
 example : Prop := ⊢@{IProp GF} l{{{ True }}} (5 : Nat) @ 3 l{{{ (v : Nat), RET v; True }}}
 
 /-- The unexpander shows the notation. -/

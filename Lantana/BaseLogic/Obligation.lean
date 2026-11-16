@@ -12,8 +12,8 @@ public import Lantana.Prelude.Ordinal
 
 An obligation is assigned (with fuel and an owner thread) or discharged (Rocq
 `lantana/base_logic/obligation.v`). This file defines the steps of one obligation and the
-relations on obligation maps `Obligations` used by the model: allocation, conditional steps and progress,
-and the order `Obligations.le` seen by adequacy.
+relations on obligation maps `Obligations` used by the model: allocation, conditional steps and
+progress, and the order `Obligations.le` seen by adequacy.
 
 Design: ids are `Nat` (`Oid`), fuel is fixed to `Fuel` (no `obl_class`), owners are
 positional thread ids (`ThreadId`), and the unused boolean state flag of Rocq is dropped. The
@@ -273,7 +273,8 @@ def CondOwner (i : ThreadId) : Oid → Obligation → Prop
   | _, discharged => False
 
 @[lantana_alias obl_cond_owner_dec]
-instance condOwner_decidable (i : ThreadId) (k : Oid) : (g : Obligation) → Decidable (CondOwner i k g)
+instance condOwner_decidable (i : ThreadId) (k : Oid) :
+    (g : Obligation) → Decidable (CondOwner i k g)
   | assigned _ j => inferInstanceAs (Decidable (j = i))
   | discharged => inferInstanceAs (Decidable False)
 
@@ -365,7 +366,8 @@ def Alloc (Ω₁ Ω₂ : Obligations) : Prop :=
 
 /-- The obligations satisfying `C` take an `R` step, the others stay. -/
 @[lantana_alias obls_cond_rel]
-abbrev CondRel (C : Oid → Obligation → Prop) (R : Obligation → Obligation → Prop) : Obligations → Obligations → Prop :=
+abbrev CondRel (C : Oid → Obligation → Prop) (R : Obligation → Obligation → Prop) :
+    Obligations → Obligations → Prop :=
   Model.CondRel C R
 
 /-- The obligations satisfying `C` take a step, the others stay. -/
@@ -429,9 +431,11 @@ theorem keep_of_le_of_le {Ω₁ Ω₂ : Obligations} (h₁₂ : le Ω₁ Ω₂) 
   | some g₁ =>
     cases e₂ : get? Ω₂ k with
     | none => have := h₁₂.1 k (by simp [e₁]); simp [e₂] at this
-    | some g₂ => exact .some (Obligation.keep_of_le_of_le (h₁₂.2 k g₁ g₂ e₁ e₂) (h₂₁.2 k g₂ g₁ e₂ e₁))
+    | some g₂ =>
+      exact .some (Obligation.keep_of_le_of_le (h₁₂.2 k g₁ g₂ e₁ e₂) (h₂₁.2 k g₂ g₁ e₂ e₁))
 
-theorem condRel_le {C : Oid → Obligation → Prop} {R : Obligation → Obligation → Prop} {Ω₁ Ω₂ : Obligations}
+theorem condRel_le {C : Oid → Obligation → Prop} {R : Obligation → Obligation → Prop}
+    {Ω₁ Ω₂ : Obligations}
     (hR : ∀ g₁ g₂, R g₁ g₂ → g₁.le g₂) (h : CondRel C R Ω₁ Ω₂) : le Ω₁ Ω₂ := by
   refine ⟨fun k => (condRel_dom h k).1, fun k g₁ g₂ e₁ e₂ => ?_⟩
   rcases MapForall2.lookup h e₁ e₂ with ⟨_, hr⟩ | ⟨_, rfl⟩
@@ -443,16 +447,18 @@ theorem condStep_le {C : Oid → Obligation → Prop} {Ω₁ Ω₂ : Obligations
   condRel_le (fun _ _ => Obligation.step_le) h
 
 @[lantana_alias obls_cond_progress_obls_le]
-theorem condProgress_le {C : Oid → Obligation → Prop} {Ω₁ Ω₂ : Obligations} (h : CondProgress C Ω₁ Ω₂) :
+theorem condProgress_le {C : Oid → Obligation → Prop} {Ω₁ Ω₂ : Obligations}
+    (h : CondProgress C Ω₁ Ω₂) :
     le Ω₁ Ω₂ :=
   condStep_le h.1
 
-theorem condStep_dom {C : Oid → Obligation → Prop} {Ω₁ Ω₂ : Obligations} (h : CondStep C Ω₁ Ω₂) (k : Oid) :
+theorem condStep_dom {C : Oid → Obligation → Prop} {Ω₁ Ω₂ : Obligations} (h : CondStep C Ω₁ Ω₂)
+    (k : Oid) :
     (get? Ω₁ k).isSome ↔ (get? Ω₂ k).isSome :=
   condRel_dom h k
 
-theorem condProgress_dom {C : Oid → Obligation → Prop} {Ω₁ Ω₂ : Obligations} (h : CondProgress C Ω₁ Ω₂)
-    (k : Oid) : (get? Ω₁ k).isSome ↔ (get? Ω₂ k).isSome :=
+theorem condProgress_dom {C : Oid → Obligation → Prop} {Ω₁ Ω₂ : Obligations}
+    (h : CondProgress C Ω₁ Ω₂) (k : Oid) : (get? Ω₁ k).isSome ↔ (get? Ω₂ k).isSome :=
   condRel_dom h.1 k
 
 end Obligations

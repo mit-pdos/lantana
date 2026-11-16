@@ -55,17 +55,18 @@ theorem fairMeasure_next_lt {τf : Nat → Cfg Expr State} {sched : Nat → Thre
 @[lantana_alias mprog_exists_step]
 theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {n : Nat} {i : ThreadId} {Ω₁ Ω₂ : Obligations} {W₁ : Witnesses}
-    (hi : sched n = i) (hact : OblsThreadActive Ω₁ (τf n)) (hI : OwitInvFair Ω₁ W₁)
-    (hLb : OwitInvLb (fairMeasure (γ n)) Ω₁ W₁) (hcnt : schedCounters sched γ ⟨0, τf⟩)
+    (hi : sched n = i) (hact : OblsThreadActive Ω₁ (τf n)) (hI : OWitInvFair Ω₁ W₁)
+    (hLb : OWitInvLb (fairMeasure (γ n)) Ω₁ W₁) (hcnt : schedCounters sched γ ⟨0, τf⟩)
     (hprog : Obligations.CondProgress (Obligation.CondOwner i) Ω₁ Ω₂) :
-    ∃ W₂ : Witnesses, Witnesses.CondProgress Witness.CondAssigned W₁ W₂ ∧ OwitInvFair Ω₂ W₂ ∧
-      OwitInvLb (fairMeasure (γ (n + 1))) Ω₂ W₂ := by
+    ∃ W₂ : Witnesses, Witnesses.CondProgress Witness.CondAssigned W₁ W₂ ∧ OWitInvFair Ω₂ W₂ ∧
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω₂ W₂ := by
   obtain ⟨W₂, hW₂⟩ := mapForall2_choice (B := Witness)
     (P := fun _ g₂ w₂ => w₂ = witOf (fairMeasure (γ (n + 1))) g₂) Ω₂
     (fun _ g₂ _ => ⟨_, rfl⟩)
   -- the new obligation of every old one
   have hnew : ∀ k g₁, get? Ω₁ k = some g₁ → ∃ g₂, get? Ω₂ k = some g₂ ∧ Obligation.Keep g₁ g₂ ∧
-      ((Obligation.CondOwner i k g₁ ∧ Obligation.Progress g₁ g₂) ∨ (¬Obligation.CondOwner i k g₁ ∧ g₁ = g₂)) := by
+      ((Obligation.CondOwner i k g₁ ∧ Obligation.Progress g₁ g₂) ∨
+        (¬Obligation.CondOwner i k g₁ ∧ g₁ = g₂)) := by
     intro k g₁ e₁
     obtain ⟨g₂, e₂, hr⟩ := MapForall2.lookup_left hprog.1 e₁
     have hkeep : Obligation.Keep g₁ g₂ := MapForall2.lookup hprog.2 e₁ e₂
@@ -96,14 +97,14 @@ theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → Thread
       cases g₁ with
       | discharged =>
         cases w₁ with
-        | assigned b => simp [OwitRel] at hr₁
+        | assigned b => simp [OWitRel] at hr₁
         | discharged =>
           cases g₂ with
           | assigned a' o' => simp [Obligation.Keep] at hkeep
           | discharged => exact .inr ⟨fun h => h, rfl⟩
       | assigned a o =>
         cases w₁ with
-        | discharged => simp [OwitRel] at hr₁
+        | discharged => simp [OWitRel] at hr₁
         | assigned b =>
           cases g₂ with
           | discharged => simp [Obligation.Keep] at hkeep
@@ -135,7 +136,8 @@ theorem mprog_exists_step {τf : Nat → Cfg Expr State} {sched : Nat → Thread
       obtain ⟨g₂, eg₂, hkeep, -⟩ := hnew k g₁ eg₁
       obtain ⟨w₂, ew₂, rfl⟩ := MapForall2.lookup_left hW₂ eg₂
       refine ⟨w₁, _, rfl, ew₂, ?_⟩
-      cases g₁ <;> cases g₂ <;> cases w₁ <;> simp_all [OwitRel, Obligation.Keep, Witness.Keep, witOf]
+      cases g₁ <;> cases g₂ <;> cases w₁ <;>
+        simp_all [OWitRel, Obligation.Keep, Witness.Keep, witOf]
   · -- the witness invariant
     exact hW₂.imp fun _ g₂ w₂ h => by
       subst h
@@ -232,8 +234,8 @@ the counters of the next position. -/
 theorem owitInvLb_step_na_turn {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} (hcnt : schedCounters sched γ ⟨0, τf⟩) {n : Nat}
     (hna : (τf n).Inactive (sched n)) {Ω : Obligations} {W : Witnesses}
-    (hact : OblsThreadActive Ω (τf n)) (hLb : OwitInvLb (fairMeasure (γ n)) Ω W) :
-    OwitInvLb (fairMeasure (γ (n + 1))) Ω W := by
+    (hact : OblsThreadActive Ω (τf n)) (hLb : OWitInvLb (fairMeasure (γ n)) Ω W) :
+    OWitInvLb (fairMeasure (γ (n + 1))) Ω W := by
   refine mapForall2_intro fun k => (hLb.inv k).imp id fun ⟨g, w, eg, ew, hr⟩ => ⟨g, w, eg, ew, ?_⟩
   cases g with
   | discharged => cases w <;> first | exact hr.elim | trivial
@@ -294,8 +296,8 @@ theorem modelInterp_owner_lt (h : List MEvent) (a : Nat) (Ω : Obligations) (W :
 threads and the model at the crashed threads of `ρ`. -/
 @[lantana_alias get_obls_thread_active_gen]
 theorem get_oblsThreadActive [Crash Expr State Obs Val] {tp : ThreadPool Expr}
-    {ρ : Cfg Expr State} (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obligations) (W : Witnesses)
-    (n : Nat) :
+    {ρ : Cfg Expr State} (hτ : ρ.1 = tp) (h : List MEvent) (a : Nat) (Ω : Obligations)
+    (W : Witnesses) (n : Nat) :
     doneTokens tp ∗ modelInterp (GF := GF) h a Ω W n tp.length (Cfg.Crashed ρ) ⊢
       ⌜OblsThreadActive Ω ρ⌝ := by
   classical

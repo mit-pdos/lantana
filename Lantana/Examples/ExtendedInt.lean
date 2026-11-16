@@ -120,7 +120,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 @[lantana_alias Int.lwp_lt]
 theorem lwp_lt : ∃ μ : Measure, ∀ (x y : ExtInt) (i : ThreadId) (G : Oids) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&lt) v(&(intoVal x)) v(&(intoVal y))) ∗ thCarriers i G ∗
-          oblFuels G μ }}}
+          Obl.fuels G μ }}}
         hl(v(&lt) v(&(intoVal x)) v(&(intoVal y))) @ i
       l{{{ RET hl_val(#(decide (LtRel x y))); threadExpr i C hl(#(decide (LtRel x y))) ∗
         thCarriers i G }}} := by

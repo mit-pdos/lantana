@@ -210,7 +210,7 @@ theorem fair_mono {attempt' : TrProp C} :
   exact ⟨m, hnm, hgr m (Nat.le_trans hn hnm) hh, hh.2⟩
 
 /-- Restriction with the inclusions as entailments. -/
-theorem fair_mono_of_le {attempt' : TrProp C} (hatt : attempt' ⊆ attempt)
+theorem fair_mono_of_subset {attempt' : TrProp C} (hatt : attempt' ⊆ attempt)
     (hgr : (attempt ∧ₜ grant) ⊆ attempt') : fair attempt grant ⊆ fair attempt' grant :=
   fun τ hag => fair_mono τ ⟨fun _ _ => hatt _, fun _ _ => hgr _, hag⟩
 

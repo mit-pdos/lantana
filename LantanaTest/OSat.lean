@@ -60,7 +60,8 @@ variable [OSatGS TestGF]
 
 /-- The life of an obligation at a fresh id: allocation with fuel `1`, one step of progress
 with the unit of fuel, and discharge. -/
-example (Ω : Obligations) : osat Ω ⊢@{IProp TestGF} |==> ∃ Ω', osat Ω' ∗ OSat.discharged Ω.fresh := by
+example (Ω : Obligations) :
+    osat Ω ⊢@{IProp TestGF} |==> ∃ Ω', osat Ω' ∗ OSat.discharged Ω.fresh := by
   iintro Hs
   imod osat_alloc_obl_assigned (Obligations.get?_fresh Ω) (1 : Ordinal.{1}) 0 $$ Hs
     with ⟨Hs, -, -, Ha, Hf, -⟩

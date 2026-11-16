@@ -209,7 +209,8 @@ theorem guar_forall {X : Type _} (P : X → IProp GF) (G : X → TrSpec Expr Sta
 
 /-- Trace-visible existential quantification, over small types. -/
 @[lantana_alias guar_exist]
-theorem guar_exists {X : Type _} [SIdxLarge SI X] (P : X → IProp GF) (G : X → TrSpec Expr State GF) :
+theorem guar_exists {X : Type _} [SIdxLarge SI X] (P : X → IProp GF)
+    (G : X → TrSpec Expr State GF) :
     (∀ x, P x ⊨ₜ G x) ⊢ iprop(∃ x, P x) ⊨ₜ TrSpec.exists G := by
   iintro #HG
   iapply guar_intro
@@ -347,7 +348,7 @@ validly guarantees. -/
 def trCanon (Q : IProp GF) : TrProp (Cfg Expr State) := (TrSpec.canon Q).external
 
 @[lantana_alias tr_canon_le]
-theorem trCanon_le (Q : IProp GF) (R : TrProp (Cfg Expr State)) :
+theorem trCanon_subset_iff (Q : IProp GF) (R : TrProp (Cfg Expr State)) :
     trCanon Q ⊆ R ↔ ∃ G : TrSpec Expr State GF, (⊢ Q ⊨ₜ G) ∧ G.external ⊆ R := by
   constructor
   · intro hR

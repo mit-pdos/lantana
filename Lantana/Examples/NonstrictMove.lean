@@ -80,7 +80,7 @@ theorem loop_spec (i : ThreadId) (r : Oid) (C : List ECtxItem) (Φ : Val → IPr
   ihave HG := Th.carriers_congr hr $$ HG
   ihave HK := Par.kids_congr hr $$ HK
   icases (Obl.fuel_add r' 0 1 1).mp $$ Fr' with ⟨HF, Fr'⟩
-  ihave HF := oblFuels_init {r'} 1 0 $$ [HF]
+  ihave HF := Obl.fuels_init {r'} 1 0 $$ [HF]
   · iapply BigSepS.bigSepS_singleton.mpr
     iexact HF
   unfold loop

@@ -139,10 +139,10 @@ theorem variant_half (j : Oid) (R : IProp GF) :
 omit [CrashGS GF] in
 /-- A thread that pays nothing: its bill is empty. -/
 theorem bill_empty (i : ThreadId) (tp : ThreadPool Exp) (σ : St) :
-    ⊢@{IProp GF} oblFuels ∅ 1 ∗ ⌜(∅ : Oids) = ∅⌝ ∨ ⌜Cfg.Crashed (tp, σ) i ∧ (∅ : Oids) = ∅⌝ := by
+    ⊢@{IProp GF} Obl.fuels ∅ 1 ∗ ⌜(∅ : Oids) = ∅⌝ ∨ ⌜Cfg.Crashed (tp, σ) i ∧ (∅ : Oids) = ∅⌝ := by
   ileft
   isplitl
-  · iunfold oblFuels
+  · iunfold Obl.fuels
     iapply BigSepS.bigSepS_empty.mpr
     iempintro
   · ipureintro

@@ -61,7 +61,7 @@ theorem histTrace_snoc {h : List (HistEntry Expr State)} {τf : Nat → Cfg Expr
 
 /-- The fair-scheduler measures of a counter satisfy the requirements of the model's witness
 lower bounds. -/
-theorem owitInvLbMonoFair_fairMeasure (c : Nat → Nat) : OwitInvLbMonoFair (fairMeasure c) :=
+theorem owitInvLbMonoFair_fairMeasure (c : Nat → Nat) : OWitInvLbMonoFair (fairMeasure c) :=
   ⟨fun _ _ _ _ h => fairMeasure_lt_mono h, fairMeasure_le_ub c⟩
 
 section Run
@@ -219,7 +219,7 @@ def runStepPost (c : Nat) (h : List (HistEntry Expr State)) (n : Nat)
     (Ψ : ThreadId → Val → IProp GF) (Ω : Obligations) : IProp GF :=
   iprop(∃ (σ' : State) (tp' : ThreadPool Expr) (Ψ' : ThreadId → Val → IProp GF)
       (g' : List MEvent) (v' : Nat) (Ω' : Obligations) (W' : Witnesses),
-    ⌜OwitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
+    ⌜OWitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
       OblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω' ∧
       (τf n).NotStuck ∧ tp.length ≤ tp'.length ∧ (∀ j, j < tp.length → Ψ' j = Ψ j)⌝ ∗
     £ₙ c ∗ historyTInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
@@ -283,7 +283,7 @@ theorem threadsRun_after_step (tp : ThreadPool Expr) (i : ThreadId) (e₂ : Expr
 theorem run_step_stuck {h : List (HistEntry Expr State)} {n : Nat} {σ : State}
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obligations} {W : Witnesses} {i : ThreadId} {c' : Nat → Nat}
-    (hLb : OwitInvLb (fairMeasure c') Ω W) (hst : ∃ e, tp[i]? = some e ∧ PrimStep.Stuck (e, σ))
+    (hLb : OWitInvLb (fairMeasure c') Ω W) (hst : ∃ e, tp[i]? = some e ∧ PrimStep.Stuck (e, σ))
     (P : IProp GF) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
       threadsRun tp Ψ ⊢ |={⊤,∅}=> P := by
@@ -302,7 +302,7 @@ theorem run_step_done (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : schedCounters sched γ ⟨0, τf⟩)
-    (hLb : OwitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) (hlen : h.length = n + 1)
+    (hLb : OWitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) (hlen : h.length = n + 1)
     (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).NotStuck)
     (hd : ThreadDone i (tp, σ) (τf (n + 1))) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
@@ -338,7 +338,7 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
     {tp : ThreadPool Expr} {Ψ : ThreadId → Val → IProp GF} {g : List MEvent} {v : Nat}
     {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} {i : ThreadId} (hcnt : schedCounters sched γ ⟨0, τf⟩)
-    (hLb : OwitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) (hlen : h.length = n + 1)
+    (hLb : OWitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) (hlen : h.length = n + 1)
     (hnow : τf n = (tp, σ)) (hi : sched n = i) (hns : (τf n).NotStuck)
     (hstep : ThreadStep i (tp, σ) (τf (n + 1))) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
@@ -389,7 +389,8 @@ theorem run_step_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ 
   iframe Hc HH HM HT
   ipureintro
   exact ⟨hLb₅, histTrace_snoc hh hlen hcfg,
-    oblsDrop_step hi hcnt hle₀ hprog (Obligations.le_trans hle₃ (Obligations.le_trans hle₄ hle₅)) hact₂, hns,
+    oblsDrop_step hi hcnt hle₀ hprog
+      (Obligations.le_trans hle₃ (Obligations.le_trans hle₄ hle₅)) hact₂, hns,
     by omega, fun _ hj => postFork_lt hj⟩
 
 /-- **One step of the run**: from the system at `n`, the system at `n + 1` with the facts about
@@ -400,7 +401,7 @@ theorem run_step (c : Nat) {h : List (HistEntry Expr State)} {n : Nat} {σ : Sta
     {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} (hsch : schedule sched ⟨0, τf⟩)
     (hcnt : schedCounters sched γ ⟨0, τf⟩)
-    (hLb : OwitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) :
+    (hLb : OWitInvLb (fairMeasure (γ n)) Ω W) (hh : HistTrace h τf) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
       threadsRun tp Ψ ⊢
       |={⊤,∅}=> alc iprop(|={∅,⊤}=> runStepPost c h n τf γ tp Ψ Ω) := by

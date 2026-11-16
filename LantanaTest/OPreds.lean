@@ -87,11 +87,11 @@ step's later credits, thread `0` runs, without children and with an empty bill, 
 at one thread. -/
 example (X : ThreadId → Prop) (hX : ∀ j, ¬X j) : ⊢@{IProp TestGF} |==> ∃ _ : ModelGS TestGF,
     |={∅}=> alc iprop(|={∅}=> (thActive 0 ∗ thKids 0 ∅ ∗ thCarriers 0 ∅) ∗
-      ∃ h' a' Ω' W', ⌜Obligations.le ∅ Ω' ∧ OwitInvLb (fun _ a => a) Ω' W'⌝ ∗
+      ∃ h' a' Ω' W', ⌜Obligations.le ∅ Ω' ∧ OWitInvLb (fun _ a => a) Ω' W'⌝ ∗
         modelInterp ([(0, ∅)] ++ h') (0 + a') Ω' W' 0 1 X) := by
-  have hγ : OwitInvLbMonoFair (fun _ a => a) :=
+  have hγ : OWitInvLbMonoFair (fun _ a => a) :=
     ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩
-  have hLb : OwitInvLb (fun _ a => a) (∅ : Obligations) (∅ : Witnesses) := mapForall2_empty
+  have hLb : OWitInvLb (fun _ a => a) (∅ : Obligations) (∅ : Witnesses) := mapForall2_empty
   imod modelInterp_alloc (GF := TestGF) 0 X with ⟨%G, -, -, -, HM⟩
   imodintro
   iexists G
@@ -156,7 +156,7 @@ example (E : CoPset) (ℓ : Layer) :
 `γ i a := a` of the witnesses. -/
 example (E : CoPset) (ℓ : Layer) (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
     (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) (tc : Nat)
-    (X : ThreadId → Prop) (hLb : OwitInvLb (fun _ a => a) Ω W) :
+    (X : ThreadId → Prop) (hLb : OWitInvLb (fun _ a => a) Ω W) :
     thKids 0 ∅ ∗ thCarriers 0 ∅ ∗ historyTInterp h n σ tp ∗ modelInterp g v Ω W n tc X
       ⊢@{IProp TestGF} |={E}=> ∃ k : Oid, Obl.assigned k 1 ∗ historyTInterp h n σ tp := by
   iintro ⟨Hk, HB, HT, HM⟩

@@ -90,14 +90,14 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfw⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hhs⟩
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfi⟩
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold main
   lwp_step HT HG HF with Hlc : 1 +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hc1, Hc2⟩
   lwp_expr_simp
   lwp_step HT HG HF
   lwp_bind hl(allocn(#1, v(none()))) HT
-  icases oblFuels_add 1 17 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 17 _ $$ HF with ⟨HF1, HF⟩
   iapply lwp_alloc (o := 0) (C := _) (G := {kl, kc}) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
@@ -117,8 +117,8 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   imod Handoff.isHandoff_initialize ⊤ b 1 gj $$ Hb0 Kgj Wgj with ⟨%γ, #Hh, Gv⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨F1, Fgj⟩
   icases (Obl.fuel_add gj _ _ _).mp $$ Fgj with ⟨Fmv, Fhr⟩
-  icases oblFuels_add 1 14 _ $$ HF with ⟨HF1, HF⟩
-  ihave HF1 := oblFuels_add_obl _ gj 0 _ $$ F1 HF1
+  icases Obl.fuels_add 1 14 _ $$ HF with ⟨HF1, HF⟩
+  ihave HF1 := Obl.fuels_add_obl _ gj 0 _ $$ F1 HF1
   lwp_bind hl(fork(v(&Handoff.receive) #b)) HT
   have hsub : ({gj} : Oids) ⊆ ({kl, kc} : Oids).insert gj := fun z hz => by
     rw [Iris.Std.LawfulSet.mem_singleton] at hz
@@ -148,7 +148,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   · iframe HT HK Agj Fhr Gv
     isplitl [HG HF1]
     · iapply stepPre_nil $$ HG HF1
-    · unfold oblFuels
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact Fmv
@@ -199,9 +199,9 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
     grind
   ihave HG := Th.carriers_congr hkc $$ HG
   ihave HK := Par.kids_congr hkc $$ HK
-  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
-  icases oblFuels_add 2 10 _ $$ HF with ⟨HF2, HF⟩
-  ihave HF2 := oblFuels_add_obl _ g0 1 _ $$ F0 HF2
+  ihave HF := Obl.fuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
+  icases Obl.fuels_add 2 10 _ $$ HF with ⟨HF2, HF⟩
+  ihave HF2 := Obl.fuels_add_obl _ g0 1 _ $$ F0 HF2
   lwp_step HT HG HF2
   lwp_step HT HG HF2
   lwp_expr_simp

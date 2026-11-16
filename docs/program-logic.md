@@ -10,7 +10,7 @@ the nodes of crashed threads) is described in `docs/model.md`, §4–§5.
 |---|---|
 | `ProgramLogic/Language.lean` | `Crash`; additions to Iris-Lean's language interface (§1) |
 | `ProgramLogic/Configuration.lean` | configurations, thread steps, activity (§1) |
-| `ProgramLogic/WeakestPre.lean` | `lWP`, its step `lwpStep`, its rules (§2) |
+| `ProgramLogic/WeakestPre.lean` | `lWP`, its step `lwp.step`, its rules (§2) |
 | `ProgramLogic/Lifting.lean`, `EctxLifting.lean` | the lifting lemmas (§3) |
 | `HeapLang/Instances.lean` | HeapLang as a language, its class instances (§4) |
 | `HeapLang/PrimitiveLaws.lean` | HeapLang's ghost state, the token, the primitive laws (§4) |
@@ -22,7 +22,7 @@ Languages are Iris-Lean's (`Language`, `EctxLanguage`, `EctxItemLanguage`), used
 `Language.lean` records the Rocq declarations that Iris-Lean provides and adds four things.  A
 language declares its crashed threads by the class `Crash`: whether the thread running an
 expression is crashed in a state, which is never the case for a value.
-`Stuckness.maybeReducible s e σ` is the reducibility that the stuckness `s` requires: a step for
+`Stuckness.MaybeReducible s (e, σ)` is the reducibility that the stuckness `s` requires: a step for
 `NotStuck`, nothing for `MaybeStuck`.  Iris-Lean has only the identity as a `Language.Context`;
 Lantana adds the composition of two contexts (`Language.Context.comp`) and, for an `EvContext`,
 the empty and the composed contexts (`fillEmpty`, `fillComp`), which `lwp_bind` needs; they are
@@ -59,7 +59,7 @@ inactive, since a value is never rewritten and a crashed thread stays crashed
 (`Cfg.inactive_of_step_of_isSome`); the thread must be in the pool, because a fork may fill a
 missing entry.  On behaviors this is `Cfg.convex_of_isBehavior`, and there fair scheduling
 (`fairScheduling`, the strong fairness of each thread's scheduling action) is weak fairness
-(`Cfg.sched_sf_iff_wf`).
+(`Cfg.sched_strongFair_iff_weakFair`).
 
 ## 2. `lWP` and the phases of a step
 
@@ -67,21 +67,21 @@ The ghost state of the program logic, `LantanaGS`, is the temporal layer, a stat
 `stateInterp σ tp` and the postcondition `forkPost` of forked threads (`True` for HeapLang).
 `lWP e @ s; i; E {{ Φ }}` is the weakest precondition of the expression `e` run by thread `i`.
 It is the least fixpoint of `lwp.pre` (`lwp.Internal.lfp`, over the uncurried arguments of
-`lwp.Internal.pre'`), as in Iris-Lean's `TotalWeakestPre`, and it is not sealed: `lwp_unfold` unfolds
-it and `lwp_ne` is its non-expansiveness.  `lwp.pre` gives the postcondition of a value under a
-model update, `|={E}=>m Φ v`; otherwise one step `lwpStep`, after which the thread continues with
-`lWP` and each forked thread `len + j` runs with the postcondition `lwp.liftTerm (len + j) forkPost`,
-that is `Th.done (len + j) ∗ forkPost (len + j) v`: a forked thread closes its node before it
-ends.
+`lwp.Internal.pre'`), as in Iris-Lean's `TotalWeakestPre`, and it is not sealed: `lwp_unfold`
+unfolds it and `lwp_ne` is its non-expansiveness.  `lwp.pre` gives the postcondition of a value
+under a model update, `|={E}=>m Φ v`; otherwise one step `lwp.step`, after which the thread
+continues with `lWP` and each forked thread `len + j` runs with the postcondition
+`lwp.liftTerm (len + j) forkPost`, that is `Th.done (len + j) ∗ forkPost (len + j) v`: a forked
+thread closes its node before it ends.
 
-`lwpStep s i E e₁ ν` quantifies over every evaluation context `K` (with
+`lwp.step s i E e₁ ν` quantifies over every evaluation context `K` (with
 `Language.Context (fill K)`) and every pool `tp` in which thread `i` runs `fill K e₁`, which lets
 HeapLang recover the context from the thread's token (§4).  For a history `h`, a position `n` and
 a state `σ₁`, the step runs in phases:
 
 1. the invariants are opened, `historyTInterp h n σ₁ tp ={E,∅}=∗`;
 2. a model update at position `n`, `|=[n]=>m`, which may discharge an until and which proves
-   `s.maybeReducible e₁ σ₁`;
+   `s.MaybeReducible (e₁, σ₁)`;
 3. for every step of `e₁` to `e₂` that forks the threads `efs`, with any observation, the
    progress round `mprog` at the view of the old configuration (its thread count and its crashed
    threads `Cfg.Crashed (tp, σ₁)`), where the thread pays its bill, or nothing if it is crashed;
@@ -117,7 +117,7 @@ in front of an atomic expression, with error messages for a wrong mask), and ope
 The lifting lemmas turn the steps of the language into rules of `lWP`, after Iris-Lean's
 `Lifting` and `EctxLifting`, and each step carries the obligation interface.  A step of thread `i`
 takes its bill `thCarriers i G` with one unit of fuel of each obligation of the bill,
-`oblFuels G 1`, and the layers `Wit.layers R` of a set `R` of witnesses.  It gives back the bill, a
+`Obl.fuels G 1`, and the layers `Wit.layers R` of a set `R` of witnesses.  It gives back the bill, a
 credit to each witness (`Wit.creds R`), later credits (`alc`), and to each forked thread `j` its
 running handle `thActive j`, no children `thKids j ∅` and an empty bill `thCarriers j ∅`.
 
@@ -160,13 +160,13 @@ hypothesis `Language.Context (fill K)`.
 A pure step changes the expression of the thread, which the state interpretation may know:
 HeapLang's holds the pool, and the thread holds a token of its own expression.  The class
 `PureExecSI ς i` says that a pure step of thread `i` updates the token `ς i e` and the state
-interpretation together.  The pure lemmas take the safety condition `Stuckness.pureSafe`, Rocq's
+interpretation together.  The pure lemmas take the safety condition `Stuckness.PureSafe`, Rocq's
 inline condition: reducible for `NotStuck`, not a value for `MaybeStuck`.
 `lwp_lift_pure_step_no_fork` and `lwp_lift_pure_det_step_no_fork` take one step, `lwp_pure_step`
 takes `n` steps paid one by one, and `lwp_pure_step_simple` pays for `n > 0` steps at once with
 `n` units of fuel of each obligation of the bill, and gives back `n` credits to each witness and
 `£ₒ (o ×ⱼ n)`: the paper's STEP-PURE, STEP-PURE-LC and STEP-PURE-WIT in one rule.  Its proof
-splits the fuel one unit per step (`oblFuels_succ`) and adds up the credits (`Wit.creds_succ`,
+splits the fuel one unit per step (`Obl.fuels_succ`) and adds up the credits (`Wit.creds_succ`,
 `credits_succ`).
 
 ## 4. HeapLang's laws
@@ -194,7 +194,7 @@ holds a value, and a freed location is `l ↦{q} none` (Rocq's `freed l q`).
 
 The token `threadExpr i C e` is exact ownership of the expression `fill C e` of thread `i`, split
 into the caller's context `C` and the current subexpression `e`; `threadExpr_fill` moves a
-context between the two, and `exits v @ i` is `threadExpr i [] (.val v)`.  Since `lwpStep`
+context between the two, and `exits v @ i` is `threadExpr i [] (.val v)`.  Since `lwp.step`
 quantifies over the contexts `K` that put the thread's expression in the pool, a law relates `K`
 to the token's `C`: when `e` can step, the token and the pool give `K = C` (`threadExpr_ctx`, by
 `fill_ctx_step_inj`).  So the pool after the step is `tp.set i (fill C e')`, and the token and
@@ -204,7 +204,7 @@ Every step law takes the token and `stepPre i G R` (the bill, one unit of fuel o
 obligations, the witness layers) and gives back the token and `stepPost i G R o` (the later
 credits `£ₒ o`, the bill, the witnesses' credits): the paper's STEP rules.  `stepPre_nil` and
 `stepPre_wit` (in `ProofMode.lean`) build `stepPre` for no witness or one, and
-`witCreds_singleton` reads back the credit of one witness.
+`Wit.creds_singleton` reads back the credit of one witness.
 
 `lwp_heap_step` is the common part of the laws of a step that forks no thread and ends in a
 value (`lwp_alloc`, `lwp_free`, `lwp_load`, `lwp_store`, `lwp_xchg`, `lwp_cmpXchg_fail`,
@@ -235,8 +235,8 @@ The tactics that take the hypotheses by name:
 
 - `lwp_pure H` (Rocq's `lwp_pure`) applies `tac_lwp_pure` with the token `H`, proves `0 < n`,
   tries the pure condition with `trivial` and `decide`, and leaves the premise of `tac_lwp_pure`,
-  `∃ G m R o, (thCarriers i G ∗ oblFuels G (n + m) ∗ witLayers R) ∗ (thCarriers i G -∗
-  oblFuels G m -∗ witCreds R -∗ £ₒ o -∗ threadExpr i C e' -∗ |={E}=>m lWP e' …)`.
+  `∃ G m R o, (thCarriers i G ∗ Obl.fuels G (n + m) ∗ Wit.layers R) ∗ (thCarriers i G -∗
+  Obl.fuels G m -∗ Wit.creds R -∗ £ₒ o -∗ threadExpr i C e' -∗ |={E}=>m lWP e' …)`.
 - `lwp_step H HG HF` applies `tac_lwp_step` with the token, the bill and its fuel, and
   introduces them again under their names; `with Hc : o` also introduces the later credits.
 - `lwp_bind e' H` (Rocq's `lwp_bind`) applies `tac_lwp_bind`.
@@ -253,7 +253,7 @@ The tactics that take the hypotheses by name:
 hypotheses in the context of the goal `lWP e @ s; i; E {{ Φ }}` by their shape: the token is the
 spatial hypothesis `threadExpr i C e` with the goal's thread and expression, the bill the spatial
 hypothesis `thCarriers i G` (also written `Par.bill (.thread i) G`), and the fuel the spatial
-hypothesis `oblFuels G n` with the same `G`.  The most recent such hypothesis is taken, and terms
+hypothesis `Obl.fuels G n` with the same `G`.  The most recent such hypothesis is taken, and terms
 are compared up to reducible unfolding without assigning metavariables.
 
 Before a step, `lwp_step` checks that the expression is not a value and finds the redex

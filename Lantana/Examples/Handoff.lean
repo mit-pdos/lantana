@@ -264,7 +264,7 @@ theorem send_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (
         Par.kids p (K' \ K) }}} := by
   refine ⟨20, fun lc i b f a G p K K' γ ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HG, HF, HK, %hK, HFK, Hb, Htask, #Hh⟩ HΦ
-  ihave HF := oblFuels_init G 20 0 $$ HF
+  ihave HF := Obl.fuels_init G 20 0 $$ HF
   unfold send
   lwp_step HT HG HF with Hlc : lc +ₕ 1
   lwp_expr_simp
@@ -277,7 +277,7 @@ theorem send_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc) (
   lwp_step HT HG HF
   lwp_step HT HG HF
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
-  icases oblFuels_add 1 12 G $$ HF with ⟨HF1, -⟩
+  icases Obl.fuels_add 1 12 G $$ HF with ⟨HF1, -⟩
   unfold isHandoff
   ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := handoffInv b γ.γd ℓ)
     (fun _ _ => CoPset.mem_full) $$ Hh
@@ -359,13 +359,13 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
   refine ⟨10, fun lc i b g γ ℓ C => ?_⟩
   iintro %Φ !> ⟨HT, HK, HG, HF, Ag, Gv, #Hh⟩ HΦ
   iloeb as IH generalizing %g
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold receive
   lwp_step HT HG HF with Hlc : lc +ₕ 1
   icases tlc_split.mp $$ Hlc with ⟨Hlc, Hc1⟩
   lwp_expr_simp
   lwp_bind hl(!#b) HT
-  icases oblFuels_add 1 8 _ $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 8 _ $$ HF with ⟨HF1, HF⟩
   unfold isHandoff
   ihave Hacc := alwaysI_acc (E := ⊤) (N := alwaysN) (P := handoffInv b γ.γd ℓ)
     (fun _ _ => CoPset.mem_full) $$ Hh
@@ -406,8 +406,8 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     · intro z
       simp
     icases (Obl.fuel_add g' _ _ _).mp $$ Fg' with ⟨F3, F10⟩
-    ihave F3 : oblFuels {g'} 3 $$ [F3]
-    · unfold oblFuels
+    ihave F3 : Obl.fuels {g'} 3 $$ [F3]
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact F3
@@ -458,8 +458,8 @@ theorem receive_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (b : Loc
     · intro z
       simp at hcg ⊢
       grind
-    ihave F10 : oblFuels {c} 10 $$ [F10]
-    · unfold oblFuels
+    ihave F10 : Obl.fuels {c} 10 $$ [F10]
+    · unfold Obl.fuels
       iapply BigSepS.bigSepS_singleton.mpr
       iexists _
       iexact F10

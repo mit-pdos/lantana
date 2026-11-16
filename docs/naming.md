@@ -2,8 +2,8 @@
 
 Lantana follows Iris-Lean's naming conventions (`Iris/style.md` in Iris-Lean), which are
 Mathlib's.  This note records them as they apply here (§1), the choices specific to Lantana (§2),
-the accepted exceptions (§3), the lint that checks them (§4), and the renaming of November 2026
-that aligned the library with them (§5).
+the accepted exceptions (§3), the lint that checks them (§4), and the tools for renaming
+declarations (§5).
 
 Rocq names do not constrain Lean names.  The correspondence with the Rocq development is kept
 by `@[lantana_alias rocqName]` (`docs/rocq-correspondence.md`), which records the Rocq name
@@ -26,7 +26,8 @@ Theorem names:
   theorem name, and an UpperCamelCase one is written in lowerCamelCase: `lwp.step_mono`,
   `satFrame_move`, `Obligations.stayOrStep_trans` (about `StayOrStep`),
   `isSome_toVal_of_baseStep`.  A name is not split into snake_case words: `sat_frame` would be
-  wrong for `satFrame`.
+  wrong for `satFrame`.  A name is not abbreviated either: `strongFair_iff_weakFair_of_convex`,
+  not `sf_iff_wf_of_convex`.
 - **Connecting words:** `_of_` for an implication, `_iff`, `_left`/`_right` (never `_l`/`_r`),
   and `_mp`/`_mpr` for the halves of an iff.  `_2` names a two-element variant
   (`supply_spend_2`, as Iris-Lean's `ghost_map_elem_valid_2`).
@@ -42,14 +43,34 @@ Theorem names:
   | `imp` (the connective, `BIBase.imp`) | `impl` |
   | `update` | `upd` |
 
-  The worked examples of a module are `example_…` (`GuaranteeInfer.example_iprop`).
+  The vocabulary also holds for the names of instances (`TrSpec.mono_exists`) and of
+  definitions (`TrProp.forall`).  The worked examples of a module are `example_…`
+  (`GuaranteeInfer.example_iprop`).
+- **Relations.** A name says `le` for `≤` and `⊑ₛ`, and `subset` for `⊆`
+  (`TrProp.subset_refl`, `Th.carriers_kids_subset`).
 - **Namespaces.**
   - Lemmas used with dot notation live in the namespace of their type or definition
     (`Model.ChownRel.fuel_in`, `HeapLang.Loc.add_assoc`).
   - A family of lemmas about a definition may also be flat, named after it: `Model.oforest_*`
     is about `Model.oforest`, `osat_*` about `osat`.
+  - A lemma about a namespaced definition names it with its namespace, wherever the lemma
+    lives: `Obl.fuels_add` and `HeapLang.Obl.fuels_add` are about `Obl.fuels`.  The flat
+    spelling `oblFuels_add` is not used.
   - A namespace is not repeated in its names: `Examples.FlagClient.adequacy`, not
     `Examples.FlagClient.flagClient_adequacy`.
+  - A word has one casing: `OWitRel` and `OWitInv`, as the namespace `OWit`.  Its
+    lowerCamelCase form is `owit` (`owitInv_exists_witnesses`), as `oforest` and `osat`.
+
+Instance names follow the instance of Iris-Lean they correspond to:
+
+- an instance of a proof-mode class, or of an inference class such as `IntoGuar`, is
+  `class_subject`: `elimModal_mupd`, `fromModal_alc`, `intoGuar_forall`, as Iris-Lean's
+  `elimModal_bupd` and `frame_fupd`;
+- the instances for `lWP` are those of Iris-Lean's `WP` with `Lwp` for `Wp`:
+  `elimModalBupdLwp`, `frameLwp`, `isExcept0Lwp`, as `elimModalBupdWp` and `frameWp`;
+- an instance that states a property of a definition is `subject_class`:
+  `Par.below_persistent`, `alc_ne`, `TrSpec.exists_complete`, as Iris-Lean's
+  `affinely_persistent`.
 
 ## 2. Lantana's choices
 
@@ -67,11 +88,16 @@ Theorem names:
     its definitions are lowerCamelCase: `isBehavior`, `schedule`, `stepOfInfOften`,
     `Fairness.Action.strongFair`/`weakFair`, `AttemptGrant.fair`/`isCounter`/`certain`.
   - A Prop-valued definition is UpperCamelCase: `Fairness.MissHit.Fair`, `TrProp.Along`.
+  - So the case tells the type, and one notion can have both forms: the engine's
+    `Fairness.MissHit.Fair` and `IsCounter` are propositions about positions, and
+    `Fairness.AttemptGrant.fair` and `isCounter` are the trace properties.  A lowerCamelCase
+    `isFoo` is an assertion, as Iris-Lean's `isLock`, not a `Bool`.
 - **Order relations.**
-  - A relation is a lowercase `le` only as the implementation of an order class, and then its
-    lemmas are `le_refl`, `le_trans`, ….  The `LE` instances are `TrSpec.le` (also `⊑ₛ`),
-    `Model.Obligation.le`, `Model.Obligations.le` and `Model.Witness.le`; the `HasSubset`
-    instance is `TrProp.le` (`R ⊆ S`).
+  - A relation is a lowercase `le` only as the implementation of `LE`, and then its lemmas are
+    `le_refl`, `le_trans`, ….  The `LE` instances are `TrSpec.le` (also `⊑ₛ`),
+    `Model.Obligation.le`, `Model.Obligations.le` and `Model.Witness.le`.
+  - The entailment of trace properties `R ⊆ S` is `TrProp.Subset`, protected, as Mathlib's
+    `Set.Subset`; its lemmas are `TrProp.subset_refl`, `subset_trans`, ….
   - The other relations are UpperCamelCase (`Model.EventLe`, `Model.Witness.NoDischargeLe`).
 - **The model and the logic.**
   - The model's types and relations are spelled out:
@@ -80,8 +106,10 @@ Theorem names:
       `Obligations.StayOrStep` (every obligation stays or takes a step), the same for the
       witnesses;
     - the pointwise `Witness.NoDischargeLe`.
-  - The assertion families of the program logic keep short namespaces: `Obl.*` (with
-    `Obl.discharge_inv`, …), `Par.*` (`Par.below`, `Par.le`) and `Wit.*` (`Wit.creds`).
+  - The assertion families of the program logic keep short namespaces: `Obl.*` (`Obl.fuels`,
+    `Obl.discharge_inv`, …), `Par.*` (`Par.below`, `Par.le`), `Wit.*` (`Wit.creds`) and `Th.*`
+    (`Th.carriers`, `Th.alloc_threads`).  The model has its own flat definitions under
+    `Model.OPreds` (`parBelow`, `witCred`), which the families wrap.
 - **Ghost-state classes:** `…G` for a bundle of `inG`s (`MonoListPG`, `HandoffG`), `…GS` with
   its ghost names (`InvHeapGS`), and `…GpreS` before allocation (`InvHeapGpreS`).
 - **Namespace constants** are `fooN`, from their label (Iris-Lean's `ticketLockN`):
@@ -122,29 +150,21 @@ Theorem names:
   - a definition with an underscore;
   - a theorem with an UpperCamelCase word, or named in lowerCamelCase without a definition of
     that name;
-  - the vocabulary of §1;
+  - the vocabulary of §1, in the names of theorems and instances and as the name of a
+    definition;
+  - an abbreviation of a definition's name (`sf`, `ndf`; the list is in `lint.py`);
+  - a theorem or an instance named after the flat spelling of a namespaced definition
+    (`witLayers_persistent`, when the definition is `Wit.layers`);
+  - a word cased differently from the namespace or type it comes from (`OwitRel`);
   - an `N…` namespace constant;
   - types and constructors in the wrong case.
 
 The check of the result sort is syntactic: an IProp-, `TrProp`- or Set-valued definition counts
-as term-valued.  Its exceptions are listed in `lint.py` with their reasons.
+as term-valued.  Its exceptions are listed in `lint.py` with their reasons.  The lint reads
+names, not statements: that a lemma about `⊆` says `subset` is checked by review.
 
-## 5. The renaming of November 2026
+## 5. Renaming declarations
 
-The library was measured against all of Iris-Lean's declarations at its pin (`439abbb`):
-- how its `style.md` is applied;
-- how its Rocq names were turned into Lean names;
-- its vocabulary, layer by layer.
-
-Measured that way, 519 of Lantana's 4,465 declarations deviated.  The renaming changed 541
-declarations: those deviations, the names that follow them, and what the lint then found in the
-test suite.  It touched about 3,000 usages in 120 Lean files, plus their mentions in comments
-and documents.  It also:
-- added the `LE` instances of §2;
-- gave `Stuckness.MaybeReducible` Iris-Lean's signature;
-- moved the general `List`/`Option` facts to `Lantana.Prelude` (one of them was there twice).
-
-Tools, for a later renaming of the same kind:
 - `scripts/naming/rename.py RENAMES.tsv [NAMESPACES.tsv]` renames declarations everywhere
   from the build's `.ilean` reference data: the declarations, every resolved usage
   (generalized field notation included), the `namespace`/`end`/`open` commands, and the

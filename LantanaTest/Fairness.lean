@@ -25,10 +25,10 @@ info: 'Lantana.Fairness.FairnessAssumption.counter_of_holds' depends on axioms: 
 #print axioms Lantana.Fairness.FairnessAssumption.counter_of_holds
 
 /--
-info: 'Lantana.Fairness.Action.sf_iff_counter' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'Lantana.Fairness.Action.strongFair_iff_counter' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms Lantana.Fairness.Action.sf_iff_counter
+#print axioms Lantana.Fairness.Action.strongFair_iff_counter
 
 /--
 info: 'Lantana.Fairness.Action.holds_weak' depends on axioms: [propext, Classical.choice, Quot.sound]
@@ -36,15 +36,15 @@ info: 'Lantana.Fairness.Action.holds_weak' depends on axioms: [propext, Classica
 #guard_msgs in
 #print axioms Lantana.Fairness.Action.holds_weak
 
-/-- info: 'Lantana.Fairness.Action.sf_iff_wf_of_convex' depends on axioms: [propext] -/
+/-- info: 'Lantana.Fairness.Action.strongFair_iff_weakFair_of_convex' depends on axioms: [propext] -/
 #guard_msgs in
-#print axioms Lantana.Fairness.Action.sf_iff_wf_of_convex
+#print axioms Lantana.Fairness.Action.strongFair_iff_weakFair_of_convex
 
 /--
-info: 'Lantana.Fairness.Action.sf_iff_own_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'Lantana.Fairness.Action.strongFair_iff_own_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms Lantana.Fairness.Action.sf_iff_own_holds
+#print axioms Lantana.Fairness.Action.strongFair_iff_own_holds
 
 /--
 info: 'Lantana.Fairness.exists_fair_schedule' depends on axioms: [propext, Classical.choice, Quot.sound]
@@ -64,9 +64,9 @@ info: 'Lantana.exists_fair_schedule_schedCounters' depends on axioms: [propext, 
 #guard_msgs in
 #print axioms Lantana.exists_fair_schedule_schedCounters
 
-/-- info: 'Lantana.Cfg.sched_sf_iff_wf' depends on axioms: [propext] -/
+/-- info: 'Lantana.Cfg.sched_strongFair_iff_weakFair' depends on axioms: [propext] -/
 #guard_msgs in
-#print axioms Lantana.Cfg.sched_sf_iff_wf
+#print axioms Lantana.Cfg.sched_strongFair_iff_weakFair
 
 open Lantana
 open Iris.ProgramLogic (Language)
@@ -87,7 +87,7 @@ example {C : Type} [ThreadSystem C] (τ : Trace C) (i : ThreadId) :
 /-- The thread's own view of an action is an assumption, read by dot notation. -/
 example {C : Type} [ThreadSystem C] (a : Fairness.Action C) (i : ThreadId) (τ : Trace C)
     (hown : a.OwnGrant i) (hsf : a.strongFair τ) : (a.own i).holds τ :=
-  Fairness.Action.own_holds_of_sf hown τ hsf
+  Fairness.Action.own_holds_of_strongFair hown τ hsf
 
 /-! Lantana's configurations are a thread system, and fair scheduling of a thread is weak
 fairness along a behavior where the thread, once crashed, stays crashed: along every behavior in
@@ -102,17 +102,17 @@ example : ThreadSystem (Cfg Expr State) := inferInstance
 example (τ : Trace (Cfg Expr State)) (h : isBehavior τ) (i : ThreadId)
     (hcr : (□ₜ TrProp.step (Cfg.StaysCrashed i)) τ) :
     Fairness.Sched.strongFair i τ ↔ Fairness.Action.weakFair (Fairness.Sched.action i) τ :=
-  Cfg.sched_sf_iff_wf h i hcr
+  Cfg.sched_strongFair_iff_weakFair h i hcr
 
 example (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crashed e σ) (τ : Trace (Cfg Expr State))
     (h : isBehavior τ) (i : ThreadId) :
     Fairness.Sched.strongFair i τ ↔ Fairness.Action.weakFair (Fairness.Sched.action i) τ :=
-  Cfg.sched_sf_iff_wf h i fun _ _ => Cfg.staysCrashed_of_never hnc i _ _
+  Cfg.sched_strongFair_iff_weakFair h i fun _ _ => Cfg.staysCrashed_of_never hnc i _ _
 
 end ThreadSystem
 
 example (τ : Trace (Cfg HeapLang.Exp HeapLang.State)) (h : isBehavior τ) (i : ThreadId) :
     Fairness.Sched.strongFair i τ ↔ Fairness.Action.weakFair (Fairness.Sched.action i) τ :=
-  Cfg.sched_sf_iff_wf h i fun _ _ => HeapLang.staysCrashed i _ _
+  Cfg.sched_strongFair_iff_weakFair h i fun _ _ => HeapLang.staysCrashed i _ _
 
 end LantanaTest.Fairness

@@ -26,8 +26,8 @@ open scoped Lantana.TrProp
 
 #lantana_ignore tr_unfold "the definitions are a local simp set"
 
-attribute [local simp] le HasSubset.Subset pure and or imp «forall» «exists» always strongUntil eventually next
-  atomic step not atPos
+attribute [local simp] TrProp.Subset HasSubset.Subset pure and or imp «forall» «exists» always
+  strongUntil eventually next atomic step not atPos
 
 @[simp] theorem pos_set_pos (τ : Trace C) (m : Nat) :
     ({ τ with pos := m } : Trace C).pos = m := rfl
@@ -39,11 +39,11 @@ theorem next_eq_set_pos (τ : Trace C) :
 /-! ## Entailment -/
 
 @[lantana_alias tr_le_preorder, refl]
-theorem le_refl (R : TrProp C) : R ⊆ R := fun _ h => h
+theorem subset_refl (R : TrProp C) : R ⊆ R := fun _ h => h
 
-theorem le_trans (h₁ : R ⊆ S) (h₂ : S ⊆ X) : R ⊆ X := fun τ h => h₂ τ (h₁ τ h)
+theorem subset_trans (h₁ : R ⊆ S) (h₂ : S ⊆ X) : R ⊆ X := fun τ h => h₂ τ (h₁ τ h)
 
-instance : Trans (α := TrProp C) (· ⊆ ·) (· ⊆ ·) (· ⊆ ·) := ⟨le_trans⟩
+instance : Trans (α := TrProp C) (· ⊆ ·) (· ⊆ ·) (· ⊆ ·) := ⟨subset_trans⟩
 
 /-! ## Pure -/
 
@@ -256,13 +256,13 @@ theorem until_mono (h₁ : R ⊆ R') (h₂ : S ⊆ S') : (R Uₜ S) ⊆ (R' Uₜ
   fun _ ⟨m, hm, hS, hb⟩ => ⟨m, hm, h₂ _ hS, fun l hl hlm => h₁ _ (hb l hl hlm)⟩
 
 @[lantana_alias tr_until_finally]
-theorem until_eventually : (R Uₜ S) ⊆ (◇ₜ S) := until_mono true_intro (le_refl _)
+theorem until_eventually : (R Uₜ S) ⊆ (◇ₜ S) := until_mono true_intro (subset_refl _)
 
 @[lantana_alias tr_finally_intro]
 theorem eventually_intro : S ⊆ (◇ₜ S) := until_now
 
 @[lantana_alias tr_finally_mono]
-theorem eventually_mono (h : S ⊆ S') : (◇ₜ S) ⊆ (◇ₜ S') := until_mono (le_refl _) h
+theorem eventually_mono (h : S ⊆ S') : (◇ₜ S) ⊆ (◇ₜ S') := until_mono (subset_refl _) h
 
 @[lantana_alias tr_finally_idemp]
 theorem eventually_idem : (◇ₜ ◇ₜ S) ⊆ (◇ₜ S) := by
@@ -339,33 +339,33 @@ theorem next_eventually_always : (○ₜ ◇ₜ □ₜ R) ⊆ (◇ₜ □ₜ R) 
   exact eventually_always_iff.mpr ⟨n, Nat.le_of_succ_le (by simpa using hn), hR⟩
 
 /-- Eventually always gives infinitely often. -/
-theorem eventually_always_le : (◇ₜ □ₜ R) ⊆ (□ₜ ◇ₜ R) := by
+theorem eventually_always_subset : (◇ₜ □ₜ R) ⊆ (□ₜ ◇ₜ R) := by
   intro τ h
   obtain ⟨n, -, hR⟩ := eventually_always_iff.mp h
   exact always_eventually_iff.mpr fun m _ =>
     ⟨max m n, Nat.le_max_left _ _, hR _ (Nat.le_max_right _ _)⟩
 
 /-- Not infinitely often is eventually never (classical). -/
-theorem not_always_eventually_le : (¬ₜ □ₜ ◇ₜ R) ⊆ (◇ₜ □ₜ ¬ₜ R) := by
+theorem not_always_eventually_subset : (¬ₜ □ₜ ◇ₜ R) ⊆ (◇ₜ □ₜ ¬ₜ R) := by
   intro τ h
   refine eventually_always_iff.mpr (Classical.byContradiction fun hn => h ?_)
   refine always_eventually_iff.mpr fun n hn' => Classical.byContradiction fun hm => hn ?_
   exact ⟨n, hn', fun m hnm hR => hm ⟨m, hnm, hR⟩⟩
 
 /-- Not eventually always is infinitely often not (classical). -/
-theorem not_eventually_always_le : (¬ₜ ◇ₜ □ₜ R) ⊆ (□ₜ ◇ₜ ¬ₜ R) := by
+theorem not_eventually_always_subset : (¬ₜ ◇ₜ □ₜ R) ⊆ (□ₜ ◇ₜ ¬ₜ R) := by
   intro τ h
   refine always_eventually_iff.mpr fun n hn => Classical.byContradiction fun hm => h ?_
   exact eventually_always_iff.mpr ⟨n, hn, fun m hnm =>
     Classical.byContradiction fun hR => hm ⟨m, hnm, hR⟩⟩
 
-theorem eventually_always_not_le : (◇ₜ □ₜ ¬ₜ R) ⊆ (¬ₜ □ₜ ◇ₜ R) := by
+theorem eventually_always_not_subset : (◇ₜ □ₜ ¬ₜ R) ⊆ (¬ₜ □ₜ ◇ₜ R) := by
   intro τ h hR
   obtain ⟨n, hn, hnR⟩ := eventually_always_iff.mp h
   obtain ⟨m, hnm, hm⟩ := always_eventually_iff.mp hR n hn
   exact hnR m hnm hm
 
-theorem always_eventually_not_le : (□ₜ ◇ₜ ¬ₜ R) ⊆ (¬ₜ ◇ₜ □ₜ R) := by
+theorem always_eventually_not_subset : (□ₜ ◇ₜ ¬ₜ R) ⊆ (¬ₜ ◇ₜ □ₜ R) := by
   intro τ h hR
   obtain ⟨n, hn, hnR⟩ := eventually_always_iff.mp hR
   obtain ⟨m, hnm, hm⟩ := always_eventually_iff.mp h n hn
@@ -384,7 +384,7 @@ def Absolute (P : TrProp C) : Prop := ∀ τ m, P τ ↔ P { τ with pos := m }
 theorem Absolute.next (h : Absolute P) {τ : Trace C} : P τ ↔ P τ.next := h τ (τ.pos + 1)
 
 /-- An absolute property, once true, is true at every position. -/
-theorem Absolute.le_always (h : Absolute P) : P ⊆ (□ₜ P) := fun τ hP m _ => (h τ m).mp hP
+theorem Absolute.subset_always (h : Absolute P) : P ⊆ (□ₜ P) := fun τ hP m _ => (h τ m).mp hP
 
 theorem absolute_always_eventually : Absolute (□ₜ ◇ₜ P) := by
   intro τ k

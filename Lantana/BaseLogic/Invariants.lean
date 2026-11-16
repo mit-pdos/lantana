@@ -18,7 +18,7 @@ public import Iris.Std.CoPset
 
 Invariants over Lantana's fancy update (Rocq: `lantana/base_logic/invariants.v`, itself Transfinite
 Iris's `base_logic/lib/invariants.v` over Lantana's `invGS`). This file is Iris-Lean's
-`Iris.Instances.Lib.Invariants` re-instantiated over `Lantana.InvGS` and `Lantana.uPred_fupd`:
+`Iris.Instances.Lib.Invariants` re-instantiated over `Lantana.InvGS` and `Lantana.uPredFUpd`:
 the same declarations, names and statements, in namespace `Lantana`. The proofs differ only by
 the explicit `◇` of Lantana's fancy update.
 

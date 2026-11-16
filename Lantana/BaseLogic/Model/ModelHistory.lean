@@ -255,8 +255,8 @@ theorem modelHistoryInterp_lookup (h : List MEvent) (i n : Nat) (Ω : Obligation
   ipureintro
   exact List.getLast?_eq_getElem?_of_length hlen hlast
 
-/-- A round appends an event: the index does not decrease and the obligations grow in `Obligations.le`
-(Rocq `model_history_interp_step`; called by every round). -/
+/-- A round appends an event: the index does not decrease and the obligations grow in
+`Obligations.le` (Rocq `model_history_interp_step`; called by every round). -/
 @[lantana_alias model_history_interp_step]
 theorem modelHistoryInterp_step (h : List MEvent) (i : Nat) {n₁ n₂ : Nat} {Ω₁ Ω₂ : Obligations}
     (hn : n₁ ≤ n₂) (hΩ : Obligations.le Ω₁ Ω₂) :
@@ -350,7 +350,8 @@ theorem modelHistoryInterp_init_names {GF : BundledGFunctors} [MHistGpreS GF] (n
 
 /-- Allocating the model history with its first event (Rocq `model_history_interp_init`). -/
 @[lantana_alias model_history_interp_init]
-theorem modelHistoryInterp_init {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat) (Ω : Obligations) :
+theorem modelHistoryInterp_init {GF : BundledGFunctors} [MHistGpreS GF] (n : Nat)
+    (Ω : Obligations) :
     ⊢@{IProp GF} |==> ∃ _ : MHistGS GF, modelHistoryInterp [(n, Ω)] 0 n Ω := by
   imod modelHistoryInterp_init_names (GF := GF) n Ω with ⟨%γ, H⟩
   imodintro

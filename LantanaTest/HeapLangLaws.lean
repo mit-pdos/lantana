@@ -36,7 +36,7 @@ credit. -/
 
 example (Φ : Val → IProp GF) :
     threadExpr i C hl(if #true then #1 else #2) ∗ thCarriers i G ∗
-      oblFuels G ((1 : Nat) : Measure) ∗ Wit.layers R ∗
+      Obl.fuels G ((1 : Nat) : Measure) ∗ Wit.layers R ∗
       (threadExpr i C hl(#1) -∗ thCarriers i G -∗ Wit.creds R -∗ £ₒ o -∗
         |={E}=>m lWP hl(#1) @ s; i; E {{ Φ }})
       ⊢ lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} :=
@@ -90,8 +90,8 @@ example : PureExecCtx True 1 hl((if #true then #1 else #2) + #3) hl(#1 + #3) := 
 
 example (Φ : Val → IProp GF) :
     threadExpr i C hl((if #true then #1 else #2) + #3) ∗ thCarriers i G ∗
-      oblFuels G ((1 + 2 : Nat) : Measure) ∗
-      (threadExpr i C hl(#1 + #3) -∗ thCarriers i G -∗ oblFuels G ((2 : Nat) : Measure) -∗
+      Obl.fuels G ((1 + 2 : Nat) : Measure) ∗
+      (threadExpr i C hl(#1 + #3) -∗ thCarriers i G -∗ Obl.fuels G ((2 : Nat) : Measure) -∗
         |={E}=>m lWP hl(#1 + #3) @ s; i; E {{ Φ }})
       ⊢ lWP hl((if #true then #1 else #2) + #3) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
@@ -106,7 +106,7 @@ example (Φ : Val → IProp GF) :
   iapply H $$ HT HG HF
 
 example (Φ : Val → IProp GF) :
-    threadExpr i C hl(v(λ x, x + #1) #2) ∗ thCarriers i G ∗ oblFuels G ((1 + 0 : Nat) : Measure) ∗
+    threadExpr i C hl(v(λ x, x + #1) #2) ∗ thCarriers i G ∗ Obl.fuels G ((1 + 0 : Nat) : Measure) ∗
       (threadExpr i C hl(#2 + #1) -∗ |={E}=>m lWP hl(#2 + #1) @ s; i; E {{ Φ }})
       ⊢ lWP hl(v(λ x, x + #1) #2) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
@@ -139,9 +139,9 @@ example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
 and into its bill. -/
 
 example (K X : Oids) (j : ThreadId) (hX : X ⊆ K) :
-    thKids i K ∗ thKids j ∅ ∗ thCarriers j ∅ ∗ oblFuels X 1 ⊢@{IProp GF}
+    thKids i K ∗ thKids j ∅ ∗ thCarriers j ∅ ∗ Obl.fuels X 1 ⊢@{IProp GF}
       |={E}=>m (⌜X ## ∅⌝ ∗ thKids i (K \ X) ∗ thKids j (X ∪ ∅) ∗ thCarriers j (X ∪ ∅)) := by
-  unfold oblFuels
+  unfold Obl.fuels
   iintro ⟨Hi, Hj, HB, HF⟩
   iapply Obl.move_thread_set E (.thread i) j K ∅ ∅ X hX $$ Hi Hj HB HF
 
@@ -157,7 +157,7 @@ example (n : Int) : PureExecCtx True 1 hl(#n - #1) hl(#(n - 1 : Int)) := inferIn
 example (n : Int) : PureExecCtx True 1 hl(#n ≤ #0) hl(#(decide (n ≤ 0))) := inferInstance
 
 example (Φ : Val → IProp GF) :
-    threadExpr i C hl(if ~#false then #1 else #2) ∗ thCarriers i G ∗ oblFuels G 2 ∗
+    threadExpr i C hl(if ~#false then #1 else #2) ∗ thCarriers i G ∗ Obl.fuels G 2 ∗
       (threadExpr i C hl(#1) -∗ thCarriers i G -∗ lWP hl(#1) @ s; i; E {{ Φ }})
       ⊢ lWP hl(if ~#false then #1 else #2) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
@@ -167,7 +167,7 @@ example (Φ : Val → IProp GF) :
   iapply H $$ HT HG
 
 example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
-    threadExpr i C hl(v(λ x, !x + #1) #l) ∗ thCarriers i G ∗ oblFuels G 2 ∗ l ↦ some v ∗
+    threadExpr i C hl(v(λ x, !x + #1) #l) ∗ thCarriers i G ∗ Obl.fuels G 2 ∗ l ↦ some v ∗
       (threadExpr i C hl(&v + #1) -∗ lWP hl(&v + #1) @ s; i; E {{ Φ }})
       ⊢ lWP hl(v(λ x, !x + #1) #l) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, Hl, H⟩
@@ -206,7 +206,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TemporalInterp Exp St
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {C : List ECtxItem} {G : Oids}
 
 example (Φ : Val → IProp GF) :
-    threadExpr i C hl(#1) ∗ thCarriers i G ∗ oblFuels G 2 ∗ (threadExpr i C hl(#1) -∗ Φ hl_val(#1))
+    threadExpr i C hl(#1) ∗ thCarriers i G ∗ Obl.fuels G 2 ∗ (threadExpr i C hl(#1) -∗ Φ hl_val(#1))
       ⊢ lWP hl(#1) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
   fail_if_success lwp_step
@@ -217,7 +217,7 @@ example (Φ : Val → IProp GF) :
 
 /-- A beta step, then an addition (`lwp_step` computes the substitution first). -/
 example (Φ : Val → IProp GF) :
-    threadExpr i C hl(v(λ x, x + #1) #2) ∗ thCarriers i G ∗ oblFuels G 2 ∗
+    threadExpr i C hl(v(λ x, x + #1) #2) ∗ thCarriers i G ∗ Obl.fuels G 2 ∗
       (threadExpr i C hl(#3) -∗ Φ hl_val(#3)) ⊢
       lWP hl(v(λ x, x + #1) #2) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
@@ -229,7 +229,7 @@ example (Φ : Val → IProp GF) :
 
 /-- The comparison of closed values is computed. -/
 example (Φ : Val → IProp GF) :
-    threadExpr i C hl(v(λ x, if x = #1 then #4 else x + #1) #2) ∗ thCarriers i G ∗ oblFuels G 5 ∗
+    threadExpr i C hl(v(λ x, if x = #1 then #4 else x + #1) #2) ∗ thCarriers i G ∗ Obl.fuels G 5 ∗
       (threadExpr i C hl(#3) -∗ Φ hl_val(#3)) ⊢
       lWP hl(v(λ x, if x = #1 then #4 else x + #1) #2) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
@@ -239,7 +239,7 @@ example (Φ : Val → IProp GF) :
 
 /-- `lwp_pures` stops at a load; `lwp_bind` finds the token. -/
 example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
-    threadExpr i C hl(v(λ x, !x + #1) #l) ∗ thCarriers i G ∗ oblFuels G 2 ∗ l ↦ some v ∗
+    threadExpr i C hl(v(λ x, !x + #1) #l) ∗ thCarriers i G ∗ Obl.fuels G 2 ∗ l ↦ some v ∗
       (threadExpr i C hl(&v + #1) -∗ lWP hl(&v + #1) @ s; i; E {{ Φ }})
       ⊢ lWP hl(v(λ x, !x + #1) #l) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, Hl, H⟩
@@ -256,8 +256,8 @@ example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
 /-- A symbolic amount of fuel; the fuel left is given back. -/
 example (n : Nat) (Φ : Val → IProp GF) :
     threadExpr i C hl(if #true then #1 else #2) ∗ thCarriers i G ∗
-      oblFuels G ((n + 1 : Nat) : Measure) ∗
-      (threadExpr i C hl(#1) -∗ thCarriers i G -∗ oblFuels G (n : Measure) -∗ Φ hl_val(#1))
+      Obl.fuels G ((n + 1 : Nat) : Measure) ∗
+      (threadExpr i C hl(#1) -∗ thCarriers i G -∗ Obl.fuels G (n : Measure) -∗ Φ hl_val(#1))
       ⊢ lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
   lwp_pures
@@ -266,7 +266,7 @@ example (n : Nat) (Φ : Val → IProp GF) :
 
 /-- The later credits of a step. -/
 example (Φ : Val → IProp GF) :
-    threadExpr i C hl(if #true then #1 else #2) ∗ thCarriers i G ∗ oblFuels G 1 ∗
+    threadExpr i C hl(if #true then #1 else #2) ∗ thCarriers i G ∗ Obl.fuels G 1 ∗
       (£ₒ 3 -∗ threadExpr i C hl(#1) -∗ Φ hl_val(#1))
       ⊢ lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
@@ -277,8 +277,8 @@ example (Φ : Val → IProp GF) :
 /-- `lwp_pure` finds the token. -/
 example (Φ : Val → IProp GF) :
     threadExpr i C hl((if #true then #1 else #2) + #3) ∗ thCarriers i G ∗
-      oblFuels G ((1 + 2 : Nat) : Measure) ∗
-      (threadExpr i C hl(#1 + #3) -∗ thCarriers i G -∗ oblFuels G ((2 : Nat) : Measure) -∗
+      Obl.fuels G ((1 + 2 : Nat) : Measure) ∗
+      (threadExpr i C hl(#1 + #3) -∗ thCarriers i G -∗ Obl.fuels G ((2 : Nat) : Measure) -∗
         |={E}=>m lWP hl(#1 + #3) @ s; i; E {{ Φ }})
       ⊢ lWP hl((if #true then #1 else #2) + #3) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF, H⟩
@@ -286,13 +286,13 @@ example (Φ : Val → IProp GF) :
   iexists G, 2, ∅, 0
   isplitl [HG HF]
   · iframe
-    iapply witLayers_empty
+    iapply Wit.layers_empty
   iintro HG HF - - HT
   iapply H $$ HT HG HF
 
 /-- Errors: no fuel left; no token; no redex; a pure condition that `decide` does not prove. -/
 example (Φ : Val → IProp GF) (l : Loc) (v w : Val) :
-    threadExpr i C hl(if #true then #1 else #2) ∗ thCarriers i G ∗ oblFuels G 0 ∗
+    threadExpr i C hl(if #true then #1 else #2) ∗ thCarriers i G ∗ Obl.fuels G 0 ∗
       lWP hl(if #true then #1 else #2) @ s; i; E {{ Φ }} ∗
       threadExpr i [] hl(!#l) ∗ lWP hl(!#l) @ s; i; E {{ Φ }} ∗
       threadExpr i [] hl(&v = &w) ∗ lWP hl(&v = &w) @ s; i; E {{ Φ }}
@@ -314,7 +314,7 @@ example (Φ : Val → IProp GF) (l : Loc) (v w : Val) :
 /-- error: lwp_step: the expression is a value -/
 #guard_msgs in
 example (Φ : Val → IProp GF) :
-    threadExpr i C hl(#1) ∗ thCarriers i G ∗ oblFuels G 2 ⊢ lWP hl(#1) @ s; i; E {{ Φ }} := by
+    threadExpr i C hl(#1) ∗ thCarriers i G ∗ Obl.fuels G 2 ⊢ lWP hl(#1) @ s; i; E {{ Φ }} := by
   iintro ⟨HT, HG, HF⟩
   lwp_step
 

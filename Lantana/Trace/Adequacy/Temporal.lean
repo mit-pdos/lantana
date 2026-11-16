@@ -101,7 +101,7 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
     {tp : ThreadPool Expr} (Ψ : ThreadId → Val → IProp GF) {g : List MEvent} {v : Nat}
     {Ω : Obligations} {W : Witnesses} {τf : Nat → Cfg Expr State} {sched : Nat → ThreadId}
     {γ : Nat → ThreadId → Nat} (G : TrSpec Expr State GF) (hsch : schedule sched ⟨0, τf⟩)
-    (hcnt : schedCounters sched γ ⟨0, τf⟩) (hLb : OwitInvLb (fairMeasure (γ n)) Ω W)
+    (hcnt : schedCounters sched γ ⟨0, τf⟩) (hLb : OWitInvLb (fairMeasure (γ n)) Ω W)
     (hh : HistTrace h τf) :
     historyTInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
       (|={⊤}=>m ∃ P : IProp GF, (P ⊨ₜ G) ∗ P ∗
@@ -145,7 +145,7 @@ theorem lwp_adequacy_internal {h : List (HistEntry Expr State)} {n : Nat} {σ : 
   icases (historyTInterp_reg _ _ _ _).mp $$ HH with ⟨HI, HR⟩
   imodintro
   have hf : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
-      OwitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf :=
+      OWitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf :=
     ⟨hsch, hcnt, h₃, h₄⟩
   iapply record_elim G
     (Sys := sysLwp (Expr := Expr) (State := State) (Obs := Obs) (Val := Val) (GF := GF))
@@ -214,7 +214,7 @@ theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr St
       obtain ⟨rfl, rfl⟩ := hn'
       exact hinit
     | succ n' => simp at hn'
-  have hLb₀ : OwitInvLb (fairMeasure (γc 0)) ∅ ∅ := mapForall2_empty
+  have hLb₀ : OWitInvLb (fairMeasure (γc 0)) ∅ ∅ := mapForall2_empty
   refine G.adeq iprop(emp) ⟨0, τf⟩ ?_
   refine SatFUpd.fupd (S := iPropSatLcAtFrame (GF := GF) iprop(emp)) (E₁ := ∅) (E₂ := ⊤) ?_
   refine sat_alc (S := iPropSatLcAtFrame (GF := GF) iprop(emp) ∅) (A := Ordinal.{1}) ?_

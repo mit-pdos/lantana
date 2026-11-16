@@ -992,8 +992,8 @@ theorem osat_alloc_obl_discharged {Ω : Obligations} {k : Oid} (hk : get? Ω k =
 same time (Rocq `osat_progress_one_owner`: without owner ghost state, the owner is just part of
 the new `Ω`). -/
 @[lantana_alias osat_progress_one_owner]
-theorem osat_progress_one_owner {Ω : Obligations} {k : Oid} {a : Fuel} {t₁ : ThreadId} (t₂ : ThreadId)
-    {c : Fuel} (hk : get? Ω k = some (.assigned a t₁)) (hc : 0 < c) :
+theorem osat_progress_one_owner {Ω : Obligations} {k : Oid} {a : Fuel} {t₁ : ThreadId}
+    (t₂ : ThreadId) {c : Fuel} (hk : get? Ω k = some (.assigned a t₁)) (hc : 0 < c) :
     osat Ω ∗ OSat.fuel k c ⊢@{IProp GF} |==> ∃ a', osat (insert Ω k (.assigned a' t₂)) ∗
       ⌜Obligation.Progress (.assigned a t₁) (.assigned a' t₂)⌝ := by
   unfold osat
@@ -1160,7 +1160,8 @@ theorem osat_progress_owner {Ω : Obligations} (i : ThreadId) (G : Oids)
     (hG : ∀ x, x ∈ G ↔ Ω.ownerOf x = some i) :
     osat Ω ∗ ([∗set] x ∈ G, ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) ⊢@{IProp GF}
       |==> ∃ Ω', osat Ω' ∗
-        ⌜Obligations.CondProgress (Obligation.CondOwner i) Ω Ω' ∧ ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ := by
+        ⌜Obligations.CondProgress (Obligation.CondOwner i) Ω Ω' ∧
+          ∀ x, Ω'.ownerOf x = Ω.ownerOf x⌝ := by
   iintro H
   imod osat_chown_set G i (fun x hx => (hG x).1 hx) $$ H with ⟨%Ω', Hs, %h⟩
   imodintro

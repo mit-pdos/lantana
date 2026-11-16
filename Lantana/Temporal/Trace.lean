@@ -139,12 +139,12 @@ scoped notation:max "¬ₜ " P:40 => TrProp.not P
 
 /-- Trace entailment `R ⊆ S`: the validity of `R →ₜ S`. -/
 @[lantana_alias tr_le]
-def le (R S : TrProp C) : Prop := ∀ τ, R τ → S τ
+protected def Subset (R S : TrProp C) : Prop := ∀ τ, R τ → S τ
 
-instance : HasSubset (TrProp C) := ⟨le⟩
+instance : HasSubset (TrProp C) := ⟨TrProp.Subset⟩
 
 @[lantana_alias tr_le_impl]
-theorem le_iff_imp (R S : TrProp C) : R ⊆ S ↔ ∀ τ, (R →ₜ S) τ := Iff.rfl
+theorem subset_iff_imp (R S : TrProp C) : R ⊆ S ↔ ∀ τ, (R →ₜ S) τ := Iff.rfl
 
 /-! ## Fixpoints (Knaster–Tarski at `Prop`) -/
 

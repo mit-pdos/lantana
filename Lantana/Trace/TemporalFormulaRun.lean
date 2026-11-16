@@ -164,7 +164,8 @@ theorem cert_of_entry (n : Nat) (e : RegEntry) (h : List (HistEntry Expr State))
 /-- The certificates of all the registered entries. -/
 @[lantana_alias certify_entries]
 theorem certify_entries (n : Nat) (l : List (Nat × RegEntry)) (h : List (HistEntry Expr State))
-    (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses) :
+    (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations)
+    (W : Witnesses) :
     regEntries (regEntryInterp (Expr := Expr) (State := State)) l ⊢ historyInterp h n σ tp -∗
       modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ={⊤}=∗
       historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
@@ -346,13 +347,13 @@ theorem sysStep_iter (Sys : SysT Expr State GF) (c : Nat) (h : List (HistEntry E
     (W : Witnesses) (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId)
     (γ : Nat → ThreadId → Nat) (C Φ : IProp GF)
     (hf : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
-      OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf) :
+      OWitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf) :
     sysStep Sys ⊢ historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
         Sys n σ tp -∗
       (∀ l, bundle (Expr := Expr) (State := State) l n -∗ ▷ C) -∗
       ▷ (∀ (l : List (Nat × RegEntry)) (σ' : State) (tp' : ThreadPool Expr) (g' : List MEvent)
           (v' : Nat) (Ω' : Obligations) (W' : Witnesses),
-        ⌜OwitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
+        ⌜OWitInvLb (fairMeasure (γ (n + 1))) Ω' W' ∧ HistTrace (h ++ [(σ', tp')]) τf ∧
           OblsDrop (fairMeasure (γ n)) (fairMeasure (γ (n + 1))) Ω Ω'⌝ -∗
         bundle (Expr := Expr) (State := State) l n -∗ C -∗ £ₙ c -∗
         historyInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
@@ -391,7 +392,7 @@ theorem always_run (Sys : SysT Expr State GF) (N : Namespace) (γa : GName)
         (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses)
         (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat),
         ⌜r < n ∧ schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
-          OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf⌝ -∗
+          OWitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf⌝ -∗
         historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
           Sys n σ tp -∗
         TrIProp.always G.internal ⟨n, τf⟩ := by
@@ -427,7 +428,7 @@ theorem until_run_discharged (Sys : SysT Expr State GF) (fP : TrIProp Expr State
     (σ : State) (tp : ThreadPool Expr) (g : List MEvent) (v : Nat) (Ω : Obligations) (W : Witnesses)
     (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
     (hf : schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
-      OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf) :
+      OWitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf) :
     sysStep Sys ⊢ record G₂ n -∗
       historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗ Sys n σ tp -∗
       TrIProp.strongUntil fP G₂.internal a ⟨n, τf⟩ := by
@@ -462,7 +463,7 @@ theorem until_run (Sys : SysT Expr State GF) (N : Namespace) (k : Oid) (γP γQ 
         (τf : Nat → Cfg Expr State) (sched : Nat → ThreadId) (γ : Nat → ThreadId → Nat)
         (fu : Fuel) (o : ThreadId),
         ⌜r < n ∧ schedule sched ⟨0, τf⟩ ∧ schedCounters sched γ ⟨0, τf⟩ ∧
-          OwitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf ∧
+          OWitInvLb (fairMeasure (γ n)) Ω W ∧ HistTrace h τf ∧
           get? Ω k = some (.assigned fu o)⌝ -∗
         historyInterp h n σ tp ∗ modelInterp g v Ω W n tp.length (Cfg.Crashed (tp, σ)) ∗
           Sys n σ tp -∗

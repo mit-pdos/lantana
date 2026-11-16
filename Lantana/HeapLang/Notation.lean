@@ -324,7 +324,8 @@ partial def unexpLamVal : Term → UnexpandM Term
 @[app_unexpander Val.rec_]
 def unexpRecVal : Unexpander
   | `($_ $f $x $e) => do
-    unexpLamVal <| ← `(hl_val(rec $(← unpackHLBinder f) $(← unpackHLBinder x) := $(← unpackHLExp e)))
+    unexpLamVal <|
+      ← `(hl_val(rec $(← unpackHLBinder f) $(← unpackHLBinder x) := $(← unpackHLExp e)))
   | _ => throw ()
 
 partial def unexpPairVal' : Term → UnexpandM Term
@@ -394,7 +395,8 @@ def unexpUnop : Unexpander
 
 @[app_unexpander Exp.if]
 def unexpIf : Unexpander
-  | `($_ $e1 $e2 $e3) => do `(hl(if $(← unpackHLExp e1) then $(← unpackHLExp e2) else $(← unpackHLExp e3) ))
+  | `($_ $e1 $e2 $e3) =>
+    do `(hl(if $(← unpackHLExp e1) then $(← unpackHLExp e2) else $(← unpackHLExp e3) ))
   | _ => throw ()
 
 partial def unexpLam : Term → UnexpandM Term
@@ -485,7 +487,8 @@ def unexpStore : Unexpander
 
 @[app_unexpander Exp.cmpXchg]
 def unexpCmpXChg : Unexpander
-  | `($_ $e1 $e2 $e3) => do `(hl(cmpXchg($(← unpackHLExp e1), $(← unpackHLExp e2), $(← unpackHLExp e3))))
+  | `($_ $e1 $e2 $e3) =>
+    do `(hl(cmpXchg($(← unpackHLExp e1), $(← unpackHLExp e2), $(← unpackHLExp e3))))
   | _ => throw ()
 
 @[app_unexpander Exp.xchg]

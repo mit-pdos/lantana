@@ -78,7 +78,8 @@ class SatRUpdUpdate {X : Type v} [RUpdG GF X] (S : SatPred GF) : Prop where
 
 attribute [lantana_alias sat_pred_upd] SatRUpdUpdate.pred_update
 
-/-- A mask-indexed family of satisfiability predicates (Rocq: `sat_at : coPset → iProp Σ → Prop`). -/
+/-- A mask-indexed family of satisfiability predicates (Rocq:
+`sat_at : coPset → iProp Σ → Prop`). -/
 abbrev SatAt (GF : BundledGFunctors.{u}) := CoPset → SatPred GF
 
 /-- Satisfiability eliminates fancy updates, changing the mask. -/
@@ -226,7 +227,8 @@ instance satFrame_rupdUpdate {X : Type v} [RUpdG GF X] [SatRUpdUpdate S] :
     SatRUpdUpdate (satFrame S F) where
   pred_update hup h := S.mono sep_assoc.mp (SatRUpdUpdate.pred_update hup h)
 
-theorem satFrame_move {P : IProp GF} : (satFrame S F).sat P ↔ (satFrame S iprop(emp)).sat iprop(F ∗ P) :=
+theorem satFrame_move {P : IProp GF} :
+    (satFrame S F).sat P ↔ (satFrame S iprop(emp)).sat iprop(F ∗ P) :=
   ⟨S.mono emp_sep.mpr, S.mono emp_sep.mp⟩
 
 theorem sat_satFrame {P : IProp GF} : (satFrame S iprop(emp)).sat P ↔ S.sat P :=

@@ -12,7 +12,7 @@ An `Action` is an enabling condition on configurations and a grant relation on s
 state form of a fairness assumption.  Its strong fairness `SF` is the textbook one and its weak
 fairness `weakFair` has `◇ₜ □ₜ a.enabledNow` as premise.  Both are assumptions by a recipe:
 `a.strong.holds ↔ a.SF` (`holds_strong`) and `a.weak.holds ↔ a.WF` (`holds_weak`).  For a convex
-enabling condition (`convex`) the two coincide (`sf_iff_wf_of_convex`).
+enabling condition (`convex`) the two coincide (`strongFair_iff_weakFair_of_convex`).
 See `docs/temporal.md`.
 -/
 
@@ -68,14 +68,14 @@ variable {a : Action C} {τ : Trace C}
 /-! ### Strong fairness -/
 
 /-- `SF` is the same at every position of the run. -/
-theorem sf_absolute : TrProp.Absolute a.strongFair :=
+theorem strongFair_absolute : TrProp.Absolute a.strongFair :=
   TrProp.absolute_imp TrProp.absolute_always_eventually TrProp.absolute_always_eventually
 
 /-- The strong recipe holds exactly when the action is strongly fair. -/
 theorem holds_strong : a.strong.holds τ ↔ a.strongFair τ := AttemptGrant.fair_iff_attempt
 
 /-- `SF` is the existence of a counter of the strong recipe. -/
-theorem sf_iff_counter : a.strongFair τ ↔ ∃ δ, a.strong.isCounter δ τ :=
+theorem strongFair_iff_counter : a.strongFair τ ↔ ∃ δ, a.strong.isCounter δ τ :=
   holds_strong.symm.trans FairnessAssumption.holds_iff_counter
 
 /-! ### Weak fairness -/
@@ -87,7 +87,7 @@ theorem holds_weak : a.weak.holds τ ↔ a.weakFair τ := by
     refine Classical.byContradiction fun hno => ?_
     obtain ⟨N, hN, hen⟩ := TrProp.eventually_always_iff.mp hev
     obtain ⟨N', -, hnh⟩ :=
-      TrProp.eventually_always_iff.mp (TrProp.not_always_eventually_le τ hno)
+      TrProp.eventually_always_iff.mp (TrProp.not_always_eventually_subset τ hno)
     have hle : ∀ m, max N N' ≤ m → N ≤ m ∧ N' ≤ m := fun m hm =>
       ⟨Nat.le_trans (Nat.le_max_left _ _) hm, Nat.le_trans (Nat.le_max_right _ _) hm⟩
     have hmiss : (□ₜ ◇ₜ a.weak.miss) τ := TrProp.always_eventually_iff.mpr fun n _ =>
@@ -107,8 +107,8 @@ theorem holds_weak : a.weak.holds τ ↔ a.weakFair τ := by
     exact hno ⟨m, hm, trivial, Or.inr hg⟩
 
 /-- `SF` gives weak fairness. -/
-theorem wf_of_sf : a.strongFair ⊆ a.weakFair :=
-  fun τ hsf hev => hsf (TrProp.eventually_always_le τ hev)
+theorem weakFair_of_strongFair : a.strongFair ⊆ a.weakFair :=
+  fun τ hsf hev => hsf (TrProp.eventually_always_subset τ hev)
 
 /-! ### A convex enabling condition -/
 
@@ -121,8 +121,9 @@ theorem eventually_always_of_infOften_of_convex :
     ⟨m, hm, fun l hl => hconv m hm hA l hl (hinf l (Nat.le_trans hm hl))⟩
 
 /-- For a convex enabling condition, strong and weak fairness coincide. -/
-theorem sf_iff_wf_of_convex (hconv : a.convex τ) : a.strongFair τ ↔ a.weakFair τ :=
-  ⟨wf_of_sf τ, fun hwf hinf => hwf (eventually_always_of_infOften_of_convex τ ⟨hconv, hinf⟩)⟩
+theorem strongFair_iff_weakFair_of_convex (hconv : a.convex τ) : a.strongFair τ ↔ a.weakFair τ :=
+  ⟨weakFair_of_strongFair τ,
+    fun hwf hinf => hwf (eventually_always_of_infOften_of_convex τ ⟨hconv, hinf⟩)⟩
 
 end Action
 

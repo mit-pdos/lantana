@@ -260,13 +260,15 @@ instance intoWand_rupd {p q m} {R P Q : IProp GF} [h : IntoWand false false R m 
 instance intoWand_rupd_persistent {p q m} {R P Q : IProp GF} [h : IntoWand false q R m P Q] :
     IntoWand p q iprop(|==>r R) m P iprop(|==>r Q) where
   into_wand := intuitionisticallyIf_elim.trans <| wand_intro <|
-    (sep_mono_left (rupd_mono h.into_wand)).trans <| rupd_frame_right.trans (rupd_mono wand_elim_left)
+    (sep_mono_left (rupd_mono h.into_wand)).trans <|
+      rupd_frame_right.trans (rupd_mono wand_elim_left)
 
 @[lantana_alias into_wand_rupd_args]
 instance (priority := low) intoWand_rupd_args {p q} {s : WandMode.Side} {R P Q : IProp GF}
     [h : IntoWand p false R (.matching s) P Q] :
     IntoWand p q R (.matching s) iprop(|==>r P) iprop(|==>r Q) where
-  into_wand := wand_intro_left <| (sep_mono intuitionisticallyIf_elim h.into_wand).trans rupd_wand_right
+  into_wand :=
+    wand_intro_left <| (sep_mono intuitionisticallyIf_elim h.into_wand).trans rupd_wand_right
 
 @[lantana_alias from_sep_rupd]
 instance fromSep_rupd {P Q1 Q2 : IProp GF} [h : FromSep P Q1 Q2] :
@@ -295,7 +297,8 @@ instance fromModal_rupd {io} {P : IProp GF} :
 @[lantana_alias elim_modal_rupd]
 instance elimModal_rupd {p io} {P Q : IProp GF} :
     ElimModal True p io false iprop(|==>r P) P iprop(|==>r Q) iprop(|==>r Q) where
-  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <| rupd_wand_right.trans rupd_trans
+  elim_modal _ := (sep_mono_left intuitionisticallyIf_elim).trans <|
+    rupd_wand_right.trans rupd_trans
 
 @[lantana_alias add_modal_rupd]
 instance addModal_rupd {P Q : IProp GF} : AddModal iprop(|==>r P) P iprop(|==>r Q) where

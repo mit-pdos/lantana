@@ -105,7 +105,8 @@ theorem noDischargeLe_refl (w : Witness) : NoDischargeLe w w := by
   · exact Ordinal.le_rfl
   · trivial
 
-theorem noDischargeLe_trans {w₁ w₂ w₃ : Witness} (h₁₂ : NoDischargeLe w₁ w₂) (h₂₃ : NoDischargeLe w₂ w₃) :
+theorem noDischargeLe_trans {w₁ w₂ w₃ : Witness} (h₁₂ : NoDischargeLe w₁ w₂)
+    (h₂₃ : NoDischargeLe w₂ w₃) :
     NoDischargeLe w₁ w₃ := by
   cases w₁ <;> cases w₂ <;> cases w₃ <;> simp_all [NoDischargeLe]
   exact Ordinal.le_trans h₂₃ h₁₂
@@ -165,7 +166,8 @@ theorem mono_refl (W : Witnesses) : Mono W W :=
 @[lantana_alias wits_mon_transitive]
 theorem mono_trans {W₁ W₂ W₃ : Witnesses} (h₁₂ : Mono W₁ W₂) (h₂₃ : Mono W₂ W₃) :
     Mono W₁ W₃ :=
-  MapForall2.trans (P := fun _ => Witness.NoDischargeLe) (fun _ _ _ _ => Witness.noDischargeLe_trans) h₁₂ h₂₃
+  MapForall2.trans (P := fun _ => Witness.NoDischargeLe)
+    (fun _ _ _ _ => Witness.noDischargeLe_trans) h₁₂ h₂₃
 
 theorem condStep_dom {C : Oid → Witness → Prop} {W₁ W₂ : Witnesses} (h : CondStep C W₁ W₂)
     (k : Oid) : (get? W₁ k).isSome ↔ (get? W₂ k).isSome :=

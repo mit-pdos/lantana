@@ -14,7 +14,8 @@ open Ordinals Ordinal Lantana Lantana.Model
 
 /-! Obligations and witnesses. -/
 
-example : Obligation.Step (.assigned 2 0) (.assigned 1 3) := .inl (ofNat_lt_ofNat_iff.mpr (by decide))
+example :
+    Obligation.Step (.assigned 2 0) (.assigned 1 3) := .inl (ofNat_lt_ofNat_iff.mpr (by decide))
 
 example : Obligation.Step (.assigned 2 0) .discharged := .inr trivial
 
@@ -31,16 +32,17 @@ example : decide (Witness.CondAssigned 0 .discharged) = false := rfl
 
 /-! Round relations. -/
 
-example (Ω : Obligations) (k : Oid) (hk : get? Ω k = none) : Ω.NoDischarge (insert Ω k (.assigned 1 0)) :=
+example (Ω : Obligations) (k : Oid) (hk : get? Ω k = none) :
+    Ω.NoDischarge (insert Ω k (.assigned 1 0)) :=
   Obligations.noDischarge_insert_fresh _ hk
 
 example (Ω₁ Ω₂ : Obligations) (h : Ω₁.StayOrStep Ω₂) : Ω₁.le Ω₂ := h.le
 
 /-- After any round, witnesses keeping the invariants exist; here with the scheduler bound
 `γ i a := a` and `η := fairMeasureUb`. -/
-example (Ω₁ Ω₂ : Obligations) (W₁ : Witnesses) (h : Ω₁.StayOrStep Ω₂) (hI : OwitInvFair Ω₁ W₁)
-    (hLb : OwitInvLb (fun _ a => a) Ω₁ W₁) :
-    ∃ W₂, W₁.StayOrStep W₂ ∧ OwitInvFair Ω₂ W₂ ∧ OwitInvLb (fun _ a => a) Ω₂ W₂ :=
+example (Ω₁ Ω₂ : Obligations) (W₁ : Witnesses) (h : Ω₁.StayOrStep Ω₂) (hI : OWitInvFair Ω₁ W₁)
+    (hLb : OWitInvLb (fun _ a => a) Ω₁ W₁) :
+    ∃ W₂, W₁.StayOrStep W₂ ∧ OWitInvFair Ω₂ W₂ ∧ OWitInvLb (fun _ a => a) Ω₂ W₂ :=
   owitInv_exists_witnesses ⟨fun _ _ _ _ h => h, fun _ a => le_fairMeasureUb a⟩ h hI hLb
 
 /-! The forest: thread `0` with a child `0` (fuel `5`), which has a child `1` (fuel `7`). -/

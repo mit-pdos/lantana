@@ -11,8 +11,8 @@ ten-line change that made Lantana's build a quarter faster.
 ## 1. Universe-polymorphic constant functor (`constOF`)
 
 - **Now:** `Iris.constOF (B : Type)`. Lantana's ordinal-valued cameras (`Auth Ordinal.{1}` credits,
-  `Bank Fuel`, `BCred Fuel`, `Agree (DiscreteO Fuel)`, `MonoList (Nat × Obligations)`) live in `Type 2`, so
-  Lantana defines `Lantana.constOFP (B : Type v)` with its four functor instances
+  `Bank Fuel`, `BCred Fuel`, `Agree (DiscreteO Fuel)`, `MonoList (Nat × Obligations)`) live in
+  `Type 2`, so Lantana defines `Lantana.constOFP (B : Type v)` with its four functor instances
   (`Lantana/BaseLogic/LaterCredits.lean`) and includes the cameras through `ULiftOF.{4}` slots.
 - **Proposal:** make `constOF` universe-polymorphic (`B : Type v`), keeping `constOFU` for the
   universe-lifted case. Check `ElemG.ofEqLift`/`ofLift` for the `ULiftOF` level inference
@@ -23,8 +23,8 @@ ten-line change that made Lantana's build a quarter faster.
 
 - **Now:** `GhostMapG GF K V H` and `MonoListG GF α` use `constOF`, so they store `Type 0` data
   only. Lantana copies them: `Lantana/BaseLogic/MonoListP.lean` (253 lines, the model history of
-  `Nat × Obligations`) and `Lantana/Examples/GhostMapP.lean` (199 lines, maps to layers/measures in the
-  ticket lock). Lantana's obligation model also keeps its ordinal-valued cells under
+  `Nat × Obligations`) and `Lantana/Examples/GhostMapP.lean` (199 lines, maps to layers/measures in
+  the ticket lock). Lantana's obligation model also keeps its ordinal-valued cells under
   per-obligation ghost names, rather than in a single ghost map, for this reason.
 - **Proposal:** after (1), generalise the value type of `GhostMapG`/`MonoListG` (and `GhostVarG`,
   `SavedPropG` if they share the pattern) to `Type v`.

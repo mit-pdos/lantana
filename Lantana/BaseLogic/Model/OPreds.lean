@@ -283,7 +283,8 @@ variable [ModelGS GF]
 forest at any view. -/
 @[lantana_alias omodel.mupd_model_round]
 theorem mupd_model_round (n : Nat) (P : IProp GF) :
-    (∀ (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop), osat Ω ∗ oforest Ω tc X ==∗ ∃ Ω' : Obligations,
+    (∀ (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop),
+      osat Ω ∗ oforest Ω tc X ==∗ ∃ Ω' : Obligations,
         ⌜Obligations.NoDischarge Ω Ω' ∧ ∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome⌝ ∗
         osat Ω' ∗ oforest Ω' tc X ∗ P) ⊢ mupd n P := by
   iintro H
@@ -399,15 +400,15 @@ theorem parBelow_owner (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) (p 
 /-- The witness bound of a new obligation keeps the witnesses chosen by the environment below the
 old ones. -/
 private theorem wits_mono_new {Ω₁ : Obligations} {W₁ W₂ : Witnesses} {k : Oid} {g : Obligation}
-    (hI₁ : OwitInvFair Ω₁ W₁) (hW : W₁.NoDischarge W₂) (hI₂ : OwitInvFair (insert Ω₁ k g) W₂) :
+    (hI₁ : OWitInvFair Ω₁ W₁) (hW : W₁.NoDischarge W₂) (hI₂ : OWitInvFair (insert Ω₁ k g) W₂) :
     Witnesses.Mono (insert W₁ k (match g with
       | .assigned a _ => .assigned (fairMeasureUb a)
       | .discharged => .discharged)) W₂ :=
   Witnesses.noDischarge_insert_mono hI₁ hW hI₂ fun w₂ hw₂ => by
     have hr := MapForall2.lookup hI₂ (get?_insert_eq rfl) hw₂
-    cases g <;> cases w₂ <;> simp_all [OwitRel, Witness.NoDischargeLe]
+    cases g <;> cases w₂ <;> simp_all [OWitRel, Witness.NoDischargeLe]
 
-private theorem get?_none_wits {Ω : Obligations} {W : Witnesses} {k : Oid} (hI : OwitInvFair Ω W)
+private theorem get?_none_wits {Ω : Obligations} {W : Witnesses} {k : Oid} (hI : OWitInvFair Ω W)
     (hk : get? Ω k = none) : get? W k = none := by
   have h := hI.dom k
   rw [hk] at h
@@ -558,7 +559,8 @@ theorem oforest_move {Ω : Obligations} {tc : Nat} {X : ThreadId → Prop} {p₁
       | .obl q => Ω.ownerOf q = some j ∧ Ω.fuelOf q < π) :
     osat Ω ∗ oforest Ω tc X ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗
         OForest.parBill p₂ B₂ ∗ OSat.fuel k u ∗ OSat.fuel k π
-      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obligations.NoDischarge Ω Ω' ∧ (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
+      ⊢@{IProp GF} |==> ∃ Ω', ⌜Obligations.NoDischarge Ω Ω' ∧
+        (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
         k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc X ∗ OForest.kids p₁ (K₁ \ {k}) ∗
         OForest.kids p₂ ({k} ∪ K₂) ∗ OForest.parBill p₂ ({k} ∪ B₂) := by
   iintro ⟨Hs, Hf, H₁, H₂, HB, Hu, Hπ⟩
@@ -738,7 +740,7 @@ private theorem witLayer_cred_or (r : Oid) (a : Fuel) :
     iframe Hd
     iexact He
 
-private theorem witLayers_creds (R : Oids) (a : Fuel) :
+private theorem bigSepS_witLayer_cred_or (R : Oids) (a : Fuel) :
     ([∗set] r ∈ R, ∃ ℓ, witLayer (GF := GF) r ℓ) ∗
         ([∗set] r ∈ R, OWit.cred r a ∨ OSat.discharged r) ⊢
       [∗set] r ∈ R, witCred r a ∨ oblDischarged r :=
@@ -778,7 +780,7 @@ theorem obl_check_witnesses_mupd (n : Nat) (R : Oids) :
     · ipureintro
       exact hI₂
   iapply mupd_intro
-  iapply witLayers_creds R 0
+  iapply bigSepS_witLayer_cred_or R 0
   isplitr [Hc]
   · iexact HR
   · iexact Hc
@@ -815,7 +817,7 @@ theorem obl_discharge_mupd (n : Nat) (p : Parent) (K : Oids) (k : Oid) (hk : k �
   obtain ⟨b, rfl⟩ : ∃ b, w = .assigned b := by
     cases w with
     | assigned b => exact ⟨b, rfl⟩
-    | discharged => simp [OwitRel] at hr
+    | discharged => simp [OWitRel] at hr
   ihave Hw := owit_discharge hw $$ [$Hw $Hd]
   have hlef := Obligations.stayOrStep_insert_step (g₂ := .discharged) hk₁ (.inr trivial)
   imod modelHistoryInterp_step h i (Nat.le_refl n) hlef.le $$ HH with HH
@@ -952,7 +954,7 @@ theorem mprog_step_kids (n tc : Nat) (X : ThreadId → Prop) (i : ThreadId) (B R
   ihave Hc := bigSepM_restrict W₁ R (fun r hr => (hI₁.dom r).1 (hR r hr)) hpt $$ Hc
   imod BigSepS.bigSepS_bupd _ R $$ Hc with Hc
   imod H $$ Hb [Hc] with HP
-  · iapply witLayers_creds R 1
+  · iapply bigSepS_witLayer_cred_or R 1
     isplitr [Hc]
     · iexact HR
     · iexact Hc

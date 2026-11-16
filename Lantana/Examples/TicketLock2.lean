@@ -20,9 +20,9 @@ Ghost state (`TicketLock2G`): a ghost map `γt` from tickets to their obligation
 Rocq `auth_mra (ord.le)`, notation `γ ↪LOCK{dq} ℓ`: `ownFairLockLevel γ ℓ dq`). The invariant
 `lockInv` holds `next ↦ n`, half of `curr ↦ c` and, for each ticket `t ≤ n`, its registered
 obligation `κ` with a witness at the layer `ℓ + t` (`tkLayer`) for a level `ℓ` the lock has had;
-`κ` is discharged if `t ≤ c`, else half of `finallyI eventuallyN κ (curr ↦ t ∗ R)` is there. The thread
-of ticket `t` (whose `faa` returned `t - 1`) owns the other half; the acknowledgements make sure
-that only it takes `R` when `curr` reaches `t - 1`.
+`κ` is discharged if `t ≤ c`, else half of `finallyI eventuallyN κ (curr ↦ t ∗ R)` is there.
+The thread of ticket `t` (whose `faa` returned `t - 1`) owns the other half; the
+acknowledgements make sure that only it takes `R` when `curr` reaches `t - 1`.
 
 * `init_spec` (measure `4`): the cells, ticket `0` with a discharged obligation, and the lock,
   whose invariant is allocated later for any `R` (Rocq: same).
@@ -173,7 +173,8 @@ def ticketEntry (γt γc : GName) (curr : Loc) (R : IProp GF) (c n t : Int) (κ 
   iprop((∃ ℓ : Layer, (γt ↪◯MAP[t]{.discard} κ) ∗ Wit.layer κ (tkLayer ℓ t) ∗
       lockLevelLb γc ℓ) ∗
     ((⌜0 ≤ t ∧ t ≤ c⌝ ∧ Obl.discharged κ) ∨
-      (⌜c + 1 ≤ t ∧ t ≤ n⌝ ∧ finallyI eventuallyN κ (1 : Qp).half iprop(curr ↦{half} some (vInt t) ∗ R))))
+      (⌜c + 1 ≤ t ∧ t ≤ n⌝ ∧
+        finallyI eventuallyN κ (1 : Qp).half iprop(curr ↦{half} some (vInt t) ∗ R))))
 
 /-- The acknowledgement of the ticket `t`: served tickets are acknowledged, the next one is
 being served, and the later ones are not acknowledged (the other half is with their thread). -/
@@ -353,7 +354,7 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF] [TicketLock2G GF]
 @[lantana_alias ticket_lock2.TicketLock_init_spec]
 theorem init_spec : ∃ m : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadId) (G : Oids)
     (C : List ECtxItem),
-    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thCarriers i G ∗ oblFuels G m }}}
+    ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&init) #()) ∗ thCarriers i G ∗ Obl.fuels G m }}}
         hl(v(&init) #()) @ i
       l{{{ (tl : Val) (γ : TicketLockName), RET tl; threadExpr i C hl(v(&tl)) ∗ £ₒ lc ∗
         thCarriers i G ∗ ownFairLockLevel γ ℓ (.own 1) ∗
@@ -364,7 +365,7 @@ theorem init_spec : ∃ m : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadId
   lwp_step HT HG HF
   lwp_expr_simp
   -- `curr` first (right to left), then `next`.
-  icases oblFuels_add 1 2 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 2 G $$ HF with ⟨HF1, HF⟩
   lwp_bind hl(ref(#0)) HT
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
@@ -372,7 +373,7 @@ theorem init_spec : ∃ m : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadId
   iintro %curr ⟨HT, ⟨-, HG, -⟩, Hcurr⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
-  icases oblFuels_add 1 1 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 1 G $$ HF with ⟨HF1, HF⟩
   lwp_bind hl(ref(#0)) HT
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
@@ -467,13 +468,13 @@ iteration. When `my` is served, the thread acknowledges its ticket `my + 1` and 
 theorem acquire_spin (i : ThreadId) (C : List ECtxItem) (G : Oids) (next curr : Loc)
     (γ : TicketLockName) (R : IProp GF) (my : Int) (κp κu : Oid) (ℓw : Layer)
     (F : OidMap (Layer × Measure))
-    (hF : ([∗map] f ↦ lm ∈ F, Obl.fuel (GF := GF) f lm.1 lm.2) ⊢ oblFuels G 4)
+    (hF : ([∗map] f ↦ lm ∈ F, Obl.fuel (GF := GF) f lm.1 lm.2) ⊢ Obl.fuels G 4)
     (lc : Fuel) (Φ : Val → IProp GF) (α : Fuel) :
     alwaysI invN (lockInv γ.γt γ.γa γ.γc next curr R) ⊢
       (γ.γt ↪◯MAP[my]{.discard} κp) -∗ Wit.layer κp ℓw -∗
       (γ.γt ↪◯MAP[my + 1]{.discard} κu) -∗ (γ.γa ↪◯MAP[my + 1]{half} false) -∗
       Wit.fuels κp ℓw α F -∗
-      threadExpr i C hl(v(&(spin curr my)) #()) -∗ thCarriers i G -∗ oblFuels G 4 -∗
+      threadExpr i C hl(v(&(spin curr my)) #()) -∗ thCarriers i G -∗ Obl.fuels G 4 -∗
       (threadExpr i C hl(#()) -∗ £ₒ lc -∗ thCarriers i G -∗ curr ↦{half} some (vInt my) -∗
         R -∗
         Φ hl_val(#())) -∗
@@ -494,7 +495,7 @@ theorem acquire_spin (i : ThreadId) (C : List ECtxItem) (G : Oids) (next curr : 
   iunfold lockInv at Hi
   icases Hi with ⟨%n, %c, %tickets, %acks, Hnext, Hcurr, ⟨GMt, GMa⟩, %hdom, %hc, %hdomt, HMt,
     HMa, Hlast⟩
-  icases oblFuels_add 1 2 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 2 G $$ HF with ⟨HF1, HF⟩
   iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := {κp}) $$ [HT HG HF1 Hcurr]
   · iframe HT Hcurr
     iapply stepPre_wit $$ HG HF1 Wp
@@ -554,7 +555,7 @@ theorem acquire_spin (i : ThreadId) (C : List ECtxItem) (G : Oids) (next curr : 
     iapply lwp_value'
     iapply HΦ $$ HT Hlc HG Hcurr2 HR
   · -- Not my turn: `κp` is not discharged, and its credit pays the next iteration.
-    icases witCreds_singleton κp $$ HW with (Hcr | #Hd)
+    icases Wit.creds_singleton κp $$ HW with (Hcr | #Hd)
     rotate_left
     · iexfalso
       ihave %LUp := ghost_map_lookup $$ GMt Mtp
@@ -608,7 +609,7 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
   -- The fuel of the children, at the layer `ℓ + ω`: `100` for the steps, `1` for the loop.
   imod Obl.fuel_extend_set G (omega_lt_aleph ℓ) ((100 : Measure) + 1) $$ HF with HF
   icases (Obl.fuel_add_set G _ _ _).mp $$ HF with ⟨HF, HFw⟩
-  ihave HF := oblFuels_init G 100 _ $$ HF
+  ihave HF := Obl.fuels_init G 100 _ $$ HF
   unfold isFairLock
   icases Hfl with ⟨%next, %curr, %htl, #Hinv⟩
   subst htl
@@ -625,7 +626,7 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
   lwp_expr_simp
   -- The ticket: `faa` on `next`, in the invariant; the unlock obligation follows the step.
   lwp_bind hl(faa(#next, #1)) HT
-  icases oblFuels_add 1 92 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 92 G $$ HF with ⟨HF1, HF⟩
   ihave Hacc := alwaysI_acc (E := ⊤) (N := invN) (P := lockInv γ.γt γ.γa γ.γc next curr R)
     (fun _ _ => CoPset.mem_full) $$ Hinv
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc
@@ -759,8 +760,8 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
   lwp_expr_simp
   -- The fuel of the steps: `50` from the old children and from `κu`.
   icases (Obl.fuel_add κu _ _ _).mp $$ Fκu with ⟨Fκu, Fκw⟩
-  icases oblFuels_add 42 50 G $$ HF with ⟨-, HF⟩
-  ihave HF := oblFuels_add_obl G κu _ _ $$ Fκu HF
+  icases Obl.fuels_add 42 50 G $$ HF with ⟨-, HF⟩
+  ihave HF := Obl.fuels_add_obl G κu _ _ $$ Fκu HF
   lwp_step HT HG HF
   lwp_step HT HG HF
   lwp_expr_simp
@@ -775,14 +776,14 @@ theorem acquire_spec : ∃ m : Measure, ∀ (lc : Fuel) (μ : Measure) (i : Thre
   have hF : ([∗map] f ↦ lm ∈ ((∅ : OidMap (Layer × Measure)) ∪
       (Iris.Std.FiniteMap.ofSet (tkLayer ℓ (n + 1), (50 : Measure)) (G.insert κu) :
         OidMap (Layer × Measure))), Obl.fuel (GF := GF) f lm.1 lm.2) ⊢
-      oblFuels (G.insert κu) 4 := by
+      Obl.fuels (G.insert κu) 4 := by
     rw [OidMap.empty_union]
     refine (BigSepM.bigSepM_ofSet
       (fun f (lm : Layer × Measure) => Obl.fuel (GF := GF) f lm.1 lm.2) (G.insert κu)
       _).1.trans ?_
-    refine (oblFuels_init _ 50 _).trans ?_
-    exact (oblFuels_add 4 46 _).trans sep_elim_left
-  icases oblFuels_add 4 43 _ $$ HF with ⟨HF, -⟩
+    refine (Obl.fuels_init _ 50 _).trans ?_
+    exact (Obl.fuels_add 4 46 _).trans sep_elim_left
+  icases Obl.fuels_add 4 43 _ $$ HF with ⟨HF, -⟩
   iapply acquire_spin i C (G.insert κu) next curr γ R n κp κu (tkLayer ℓ0 n) _ hF lc Φ α
     $$ Hinv Mtp Wp Mtu Ma1 WF HT HG HF [HΦ HK Kκu Qκu CF U1]
   iintro HT Hlc HG Hcurr2 HR
@@ -807,7 +808,7 @@ acknowledgement pending. -/
 theorem release_spec : ∃ m : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) (tl : Val)
     (γ : TicketLockName) (R : IProp GF) (κu : Oid) (C : List ECtxItem),
     ⊢@{IProp GF} l{{{ threadExpr i C hl(v(&release) v(&tl)) ∗ thKids i G ∗ thCarriers i G ∗
-          oblFuels G m ∗ ⌜κu ∈ G⌝ ∗ oblKids κu ∅ ∗ lockToken tl γ κu R ∗ R ∗
+          Obl.fuels G m ∗ ⌜κu ∈ G⌝ ∗ oblKids κu ∅ ∗ lockToken tl γ κu R ∗ R ∗
           isFairLock tl γ R }}}
         hl(v(&release) v(&tl)) @ i
       l{{{ RET hl_val(#()); threadExpr i C hl(#()) ∗ £ₒ lc ∗ thKids i (G.erase κu) ∗
@@ -830,7 +831,7 @@ theorem release_spec : ∃ m : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
   lwp_expr_simp
   -- The load of `curr`, with the holder's half.
   lwp_bind hl(!#curr) HT
-  icases oblFuels_add 1 95 G $$ HF with ⟨HF1, HF⟩
+  icases Obl.fuels_add 1 95 G $$ HF with ⟨HF1, HF⟩
   iapply lwp_load (o := 0) (C := _ ++ C) (G := G) (R := ∅) $$ [HT HG HF1 Hcu]
   · iframe HT Hcu
     iapply stepPre_nil $$ HG HF1
@@ -840,7 +841,7 @@ theorem release_spec : ∃ m : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids
   lwp_step HT HG HF
   -- The store, in the invariant; the discharge of `κu` follows the step.
   lwp_bind hl(#curr ← v(&(vInt (u + 1)))) HT
-  icases oblFuels_add 1 93 G $$ HF with ⟨HF1, -⟩
+  icases Obl.fuels_add 1 93 G $$ HF with ⟨HF1, -⟩
   ihave Hacc := alwaysI_acc (E := ⊤) (N := invN) (P := lockInv γ.γt γ.γa γ.γc next curr R)
     (fun _ _ => CoPset.mem_full) $$ Hinv
   ihave Hacc := fupd_mupd (Expr := Exp) (State := State) _ _ _ $$ Hacc

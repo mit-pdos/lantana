@@ -70,15 +70,17 @@ variable {GF : BundledGFunctors} [ModelGS GF] [HeapGS GF]
 theorem writer_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
     ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&writer) #()) ∗ thActive i ∗ thKids i {k, kl} ∗
           thCarriers i {k, kl} ∗ ([∗set] g ∈ ({k, kl} : Oids), Obl.fuel g 0 μ) ∗ ⌜k ≠ kl⌝ ∗
-          oblKids k ∅ ∗ oblKids kl ∅ ∗ flagTk xLoc k ∗ finallyI writerReturnN kl 1 (exits vUnit @ i) ∗
+          oblKids k ∅ ∗ oblKids kl ∅ ∗ flagTk xLoc k ∗
+            finallyI writerReturnN kl 1 (exits vUnit @ i) ∗
           isFlag xLoc k 0 }}}
         hl(v(&writer) #()) @ i
-      l{{{ RET vUnit; threadExpr i [] hl(#()) ∗ lwp.liftTerm i (fun _ _ => iprop(True)) vUnit }}} := by
+      l{{{ RET vUnit; threadExpr i [] hl(#()) ∗
+        lwp.liftTerm i (fun _ _ => iprop(True)) vUnit }}} := by
   obtain ⟨μs, hfs⟩ := Flag.set_thread_spec (GF := GF)
   refine ⟨4 + μs, fun i k kl => ?_⟩
   iintro %Φ !> ⟨HT, HA, HK, HG, HF, %hne, Hk, Hkl, Htk, HFl, #Hflag⟩ HΦ
   icases (Obl.fuel_add_set _ _ _ _).mp $$ HF with ⟨HF, Hfs⟩
-  ihave HF := oblFuels_init _ _ _ $$ HF
+  ihave HF := Obl.fuels_init _ _ _ $$ HF
   unfold writer xVal
   lwp_step HT HG HF
   lwp_expr_simp
@@ -98,7 +100,7 @@ theorem writer_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
     grind
   ihave HG := Th.carriers_congr hdiff $$ HG
   ihave HK := Par.kids_congr hdiff $$ HK
-  ihave HF := oblFuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
+  ihave HF := Obl.fuels_subset _ (B := {kl}) (fun z hz => by simp at hz ⊢; simp [hz]) $$ HF
   lwp_step HT HG HF
   lwp_step HT HG HF
   lwp_expr_simp
@@ -121,7 +123,8 @@ flag's. -/
 @[lantana_alias reader_spec]
 theorem reader_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
     ⊢@{IProp GF} l{{{ threadExpr i [] hl(v(&reader) #()) ∗ thActive i ∗ thKids i {kl} ∗
-          thCarriers i {kl} ∗ Obl.fuel kl 1 μ ∗ oblKids kl ∅ ∗ finallyI writerReturnN kl 1 (exits v1 @ i) ∗
+          thCarriers i {kl} ∗ Obl.fuel kl 1 μ ∗ oblKids kl ∅ ∗
+            finallyI writerReturnN kl 1 (exits v1 @ i) ∗
           isFlag xLoc k 0 }}}
         hl(v(&reader) #()) @ i
       l{{{ RET v1; threadExpr i [] hl(#1) ∗ lwp.liftTerm i (fun _ _ => iprop(True)) v1 }}} := by
@@ -129,8 +132,8 @@ theorem reader_spec : ∃ μ : Measure, ∀ (i : ThreadId) (k kl : Oid),
   refine ⟨10 + μw, fun i k kl => ?_⟩
   iintro %Φ !> ⟨HT, HA, HK, HG, HF, Hkl, HFl, #Hflag⟩ HΦ
   icases (Obl.fuel_add _ _ _ _).mp $$ HF with ⟨HF, Hfw⟩
-  ihave HF : oblFuels {kl} 10 $$ [HF]
-  · unfold oblFuels
+  ihave HF : Obl.fuels {kl} 10 $$ [HF]
+  · unfold Obl.fuels
     iapply BigSepS.bigSepS_singleton.mpr
     iexists _
     iexact HF
@@ -354,7 +357,8 @@ then `1`, the writer returns `()` and the reader returns `1`. -/
 theorem adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (hfair : fairScheduling τ) (hpos : τ.pos = 0) (hinit : τ.seq 0 = (tp0, σ0)) :
     rClient τ := by
-  refine lwp_adequacy_temporal (GF := ExGF) σ0 tp0 gClient rClient gClient_external_subset τ hbeh hfair
+  refine lwp_adequacy_temporal
+    (GF := ExGF) σ0 tp0 gClient rClient gClient_external_subset τ hbeh hfair
     hpos hinit ?_
   intro _ _
   refine ⟨4, ?_⟩
