@@ -41,17 +41,17 @@ The invariant `oforest Ω tc X` holds such a forest with three authoritative gho
 It also holds, for each thread of the pool, its entry `OForest.threadInv`: half of its running
 status (the other half is the user's), or its terminated status with its empty children
 fragment, in which case it owns no obligation (`oforest_done_owned`); the nodes of the crashed
-threads (§4); and, for each node `x` below `p`, `forestNode Ω x p`: `x` exists, its fuel is
+threads (§4); and, for each node `x` below `p`, `OForest.oblNode Ω x p`: `x` exists, its fuel is
 below its bound, and its piece.
 
 **Pieces.**  A node `x` below an obligation `c` holds some fuel `π` of its own above the fuel of
-`c` (`forestPiece`).  Held fuel is a lower bound of the model's fuel (`osat_fuel_le`), so the
+`c` (`OForest.oblPiece`).  Held fuel is a lower bound of the model's fuel (`osat_fuel_le`), so the
 piece witnesses that `x` has more fuel than `c`, and it keeps doing so when both lose fuel.  At a
 step of their owner (§5), `x` splits a unit off its piece, keeping exactly the old fuel of `c`,
 and spends the unit on its own progress.  After the round, `x` still has at least the old fuel of
 `c`, which is above the new one, and the piece is above the new fuel of `c` again
-(`node_step`, `nodes_stepped_pieces`, `node_unstep`).  An owner change of a subtree works the
-same way (`forestNodeMoved`).
+(`OForest.oblNode_step`, `OForest.oblNodes_stepped_pieces`, `OForest.oblNode_unstep`).  An owner
+change of a subtree works the same way (`OForest.oblNodeMoved`).
 
 **Creating and moving.**  A new obligation below `p` gets the owner of `p`.  Its model fuel is
 the user's fuel, an extra `▽`, and a piece, above the fuel of `p` if `p` is an obligation:
@@ -226,7 +226,7 @@ and that terminated and crashed threads own none.
   the crashed bits, which Rocq does not have (§4).
 - **Moves.**  In Rocq `oforest_move_same` takes a piece `π` with
   `obl_fuel_of Ω q < π ≤ obl_fuel_of Ω k`; here it takes the forest's condition
-  `Ω.fuelOf q < Ω.fuelOf k` and a `forestPiece`.
+  `Ω.fuelOf q < Ω.fuelOf k` and a `OForest.oblPiece`.
 - **One layer in `Obl.fuel_eq_of_rep`.**  Rocq's `oblP_fuel_proper` takes two layers and
   `ℓ1 == ℓ2`; `Obl.fuel_eq_of_rep` takes one layer.  Without the equality it would be unsound:
   `rep ℓ 1 = rep ℓ' 1`, while the model fuels differ by the `▽` of the encoding, and

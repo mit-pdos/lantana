@@ -51,13 +51,13 @@ instance appL [h : PureExecCtx φ n e e'] :
     PureExecCtx φ n (.app e (.ofVal v₂)) (.app e' (.ofVal v₂)) :=
   fillItem (.appL v₂) h
 instance unOp {op : UnOp} [h : PureExecCtx φ n e e'] :
-    PureExecCtx φ n (.unop op e) (.unop op e') :=
+    PureExecCtx φ n (.unOp op e) (.unOp op e') :=
   fillItem (.unOp op) h
 instance binOpR {op : BinOp} [h : PureExecCtx φ n e e'] :
-    PureExecCtx φ n (.binop op e₁ e) (.binop op e₁ e') :=
+    PureExecCtx φ n (.binOp op e₁ e) (.binOp op e₁ e') :=
   fillItem (.binOpR op e₁) h
 instance binOpL {op : BinOp} [h : PureExecCtx φ n e e'] :
-    PureExecCtx φ n (.binop op e (.ofVal v₂)) (.binop op e' (.ofVal v₂)) :=
+    PureExecCtx φ n (.binOp op e (.ofVal v₂)) (.binOp op e' (.ofVal v₂)) :=
   fillItem (.binOpL op v₂) h
 instance «if» [h : PureExecCtx φ n e e'] : PureExecCtx φ n (.if e e₁ e₂) (.if e' e₁ e₂) :=
   fillItem (.if e₁ e₂) h
@@ -127,34 +127,34 @@ variable {b : Bool} {n₁ n₂ : Int}
 
 /-- `~#b`. -/
 instance instPureExecNegBool :
-    PureExec True 1 (Exp.unop .neg (.ofVal (.lit (.bool b)))) (.ofVal (.lit (.bool !b))) :=
+    PureExec True 1 (Exp.unOp .neg (.ofVal (.lit (.bool b)))) (.ofVal (.lit (.bool !b))) :=
   ⟨fun _ => (instPureExecUnOp (op := .neg) (v := .lit (.bool b))
     (v' := .lit (.bool !b))).pureExec rfl⟩
 
 /-- `#n₁ + #n₂`. -/
 instance instPureExecPlusInt :
-    PureExec True 1 (Exp.binop .plus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+    PureExec True 1 (Exp.binOp .plus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
       (.ofVal (.lit (.int (n₁ + n₂)))) :=
   ⟨fun _ => (instPureExecBinOp (op := .plus) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
     (v' := .lit (.int (n₁ + n₂)))).pureExec rfl⟩
 
 /-- `#n₁ - #n₂`. -/
 instance instPureExecMinusInt :
-    PureExec True 1 (Exp.binop .minus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+    PureExec True 1 (Exp.binOp .minus (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
       (.ofVal (.lit (.int (n₁ - n₂)))) :=
   ⟨fun _ => (instPureExecBinOp (op := .minus) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
     (v' := .lit (.int (n₁ - n₂)))).pureExec rfl⟩
 
 /-- `#n₁ ≤ #n₂`. -/
 instance instPureExecLeInt :
-    PureExec True 1 (Exp.binop .le (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+    PureExec True 1 (Exp.binOp .le (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
       (.ofVal (.lit (.bool (decide (n₁ ≤ n₂))))) :=
   ⟨fun _ => (instPureExecBinOp (op := .le) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
     (v' := .lit (.bool (decide (n₁ ≤ n₂))))).pureExec rfl⟩
 
 /-- `#n₁ < #n₂`. -/
 instance instPureExecLtInt :
-    PureExec True 1 (Exp.binop .lt (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
+    PureExec True 1 (Exp.binOp .lt (.ofVal (.lit (.int n₁))) (.ofVal (.lit (.int n₂))))
       (.ofVal (.lit (.bool (decide (n₁ < n₂))))) :=
   ⟨fun _ => (instPureExecBinOp (op := .lt) (v1 := .lit (.int n₁)) (v2 := .lit (.int n₂))
     (v' := .lit (.bool (decide (n₁ < n₂))))).pureExec rfl⟩
@@ -182,13 +182,13 @@ instance appR [h : InCtx e' e K] : InCtx e' (.app e₁ e) (K ++ [.appR e₁]) :=
   fillItem (.appR e₁) h
 instance appL [h : InCtx e' e K] : InCtx e' (.app e (.ofVal v₂)) (K ++ [.appL v₂]) :=
   fillItem (.appL v₂) h
-instance unOp {op : UnOp} [h : InCtx e' e K] : InCtx e' (.unop op e) (K ++ [.unOp op]) :=
+instance unOp {op : UnOp} [h : InCtx e' e K] : InCtx e' (.unOp op e) (K ++ [.unOp op]) :=
   fillItem (.unOp op) h
 instance binOpR {op : BinOp} [h : InCtx e' e K] :
-    InCtx e' (.binop op e₁ e) (K ++ [.binOpR op e₁]) :=
+    InCtx e' (.binOp op e₁ e) (K ++ [.binOpR op e₁]) :=
   fillItem (.binOpR op e₁) h
 instance binOpL {op : BinOp} [h : InCtx e' e K] :
-    InCtx e' (.binop op e (.ofVal v₂)) (K ++ [.binOpL op v₂]) :=
+    InCtx e' (.binOp op e (.ofVal v₂)) (K ++ [.binOpL op v₂]) :=
   fillItem (.binOpL op v₂) h
 instance «if» [h : InCtx e' e K] : InCtx e' (.if e e₁ e₂) (K ++ [.if e₁ e₂]) :=
   fillItem (.if e₁ e₂) h

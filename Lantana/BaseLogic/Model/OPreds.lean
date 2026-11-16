@@ -238,9 +238,10 @@ theorem oblFuel_pos (k : Oid) :
   exact Ordinal.lt_of_lt_of_le zero_lt_one (le_nadd_self _ _)
 
 /-- The fuel `π` of `k` is a piece below `p` if it is above the fuel of the parent. -/
-theorem fuel_forestPiece {Ω : Obligations} {k : Oid} {p : Parent} {π : Fuel}
+theorem _root_.Lantana.Model.OForest.oblPiece_of_fuel {Ω : Obligations} {k : Oid} {p : Parent}
+    {π : Fuel}
     (h : ∀ q, p = .obl q → Ω.fuelOf q < π) :
-    OSat.fuel k π ⊢@{IProp GF} forestPiece Ω k p := by
+    OSat.fuel k π ⊢@{IProp GF} OForest.oblPiece Ω k p := by
   cases p with
   | thread j =>
     iintro -
@@ -432,7 +433,7 @@ theorem obl_new_mupd (n : Nat) (p : Parent) (K B : Oids) (ℓ : Layer) (μ : Mea
     $$ Hos with ⟨Hos, #Hβ, #He, Ha, Hfu, -⟩
   icases (OSat.fuel_split Ω₁.fresh _ _).mp $$ Hfu with ⟨Hfu, Hπ⟩
   icases (OSat.fuel_split Ω₁.fresh _ _).mp $$ Hfu with ⟨Hfu, -⟩
-  ihave Hπ := fuel_forestPiece hpiece $$ Hπ
+  ihave Hπ := OForest.oblPiece_of_fuel hpiece $$ Hπ
   imod oforest_alloc_obl hk hpa Ordinal.le_rfl B $$ [$Hf $Hk $HB $Hβ $Hπ]
     with ⟨Hf, %hkK, Hk, HB, Hkk⟩
   imod owit_alloc_witness_assigned hkW
@@ -564,7 +565,7 @@ theorem oforest_move {Ω : Obligations} {tc : Nat} {X : ThreadId → Prop} {p₁
       cases p₂ with
       | thread j' => exact hp₂ ▸ ht
       | obl q => exact ⟨hp₂.1.trans ht.symm, Ordinal.lt_of_lt_of_le hp₂.2 hπk⟩
-    ihave Hπ := fuel_forestPiece hpiece $$ Hπ
+    ihave Hπ := OForest.oblPiece_of_fuel hpiece $$ Hπ
     imod oforest_move_same hk hp₂' B₂ $$ [$Hf $H₁ $H₂ $HB $Hπ] with ⟨%hkK, Hf, H₁, H₂, HB⟩
     imodintro
     iexists Ω
@@ -577,7 +578,7 @@ theorem oforest_move {Ω : Obligations} {tc : Nat} {X : ThreadId → Prop} {p₁
       cases p₂ with
       | thread j' => exact hp₂
       | obl q => exact hp₂.1
-    ihave Hπ := fuel_forestPiece hpiece $$ Hπ
+    ihave Hπ := OForest.oblPiece_of_fuel hpiece $$ Hπ
     imod oforest_move_cross hk ht htj hu hp₂' B₂ $$ [$Hs $Hf $H₁ $H₂ $HB $Hu $Hπ]
       with ⟨%Ω', %hΩ', Hs, Hf, H₁, H₂, HB⟩
     imodintro

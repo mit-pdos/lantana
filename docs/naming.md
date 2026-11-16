@@ -62,8 +62,10 @@ Theorem names:
     other implicit arguments.
   - A namespace is not repeated in its names: `Examples.FlagClient.adequacy`, not
     `Examples.FlagClient.flagClient_adequacy`.
-  - A word has one casing: `OWitRel` and `OWitInv`, as the namespace `OWit`.  Its
-    lowerCamelCase form is `owit` (`owitInv_exists_witnesses`), as `oforest` and `osat`.
+  - A word has one casing: `OWitRel` and `OWitInv`, as the namespace `OWit`.  A word made of
+    a capital prefix and a word is lowercased as a whole in lowerCamelCase, as Iris-Lean's
+    `BUpd` and `FUpd` are `bupd` and `fupd`: `owit` (`owitInv_exists_witnesses`), `oforest`,
+    `osat`, and `rupdG` for `RUpdG`.
 
 Instance names follow the instance of Iris-Lean they correspond to:
 

@@ -298,8 +298,8 @@ mutual
     | rec_ (f x : Binder) (e : Exp)
     | app (e₁ e₂ : Exp)
     /- Base types and their operations -/
-    | unop (op : UnOp) (e : Exp)
-    | binop (op : BinOp) (e₁ e₂ : Exp)
+    | unOp (op : UnOp) (e : Exp)
+    | binOp (op : BinOp) (e₁ e₂ : Exp)
     | if (e₀ e₁ e₂ : Exp)
     /- Products -/
     | pair (e₁ e₂ : Exp)
@@ -369,8 +369,8 @@ def Exp.enc : Exp → Pos
   | .var x            => encNode 1 [Pos.Countable.encode x]
   | .rec_ f x e       => encNode 2 [Pos.Countable.encode f, Pos.Countable.encode x, e.enc]
   | .app e₁ e₂        => encNode 3 [e₁.enc, e₂.enc]
-  | .unop op e        => encNode 4 [Pos.Countable.encode op, e.enc]
-  | .binop op e₁ e₂   => encNode 5 [Pos.Countable.encode op, e₁.enc, e₂.enc]
+  | .unOp op e        => encNode 4 [Pos.Countable.encode op, e.enc]
+  | .binOp op e₁ e₂   => encNode 5 [Pos.Countable.encode op, e₁.enc, e₂.enc]
   | .if e₀ e₁ e₂      => encNode 6 [e₀.enc, e₁.enc, e₂.enc]
   | .pair e₁ e₂       => encNode 7 [e₁.enc, e₂.enc]
   | .fst e            => encNode 8 [e.enc]
@@ -484,8 +484,8 @@ def Exp.substStr (x : String) (v : Val) (e : Exp) : Exp :=
   | .var x' => if x == x' then .val v else e
   | .rec_ f x' e => .rec_ f x' <| if .named x != f && .named x != x' then e.substStr x v else e
   | .app e₁ e₂ => .app (e₁.substStr x v) (e₂.substStr x v)
-  | .unop op e' => .unop op (e'.substStr x v)
-  | .binop op e₁ e₂ => .binop op (e₁.substStr x v) (e₂.substStr x v)
+  | .unOp op e' => .unOp op (e'.substStr x v)
+  | .binOp op e₁ e₂ => .binOp op (e₁.substStr x v) (e₂.substStr x v)
   | .if e₀ e₁ e₂ => .if (e₀.substStr x v) (e₁.substStr x v) (e₂.substStr x v)
   | .pair e₁ e₂ => .pair (e₁.substStr x v) (e₂.substStr x v)
   | .fst e' => .fst (e'.substStr x v)

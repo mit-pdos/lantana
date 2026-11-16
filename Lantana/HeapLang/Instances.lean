@@ -201,11 +201,11 @@ instance instAtomicBeta {a : Atomicity} {f x : Binder} {v1 v2 : Val} :
 
 @[lantana_alias heap_lang.unop_atomic]
 instance instAtomicUnOp {a : Atomicity} {op : UnOp} {v : Val} :
-    Atomic a (Exp.unop op (.ofVal v)) := by solve_atomic
+    Atomic a (Exp.unOp op (.ofVal v)) := by solve_atomic
 
 @[lantana_alias heap_lang.binop_atomic]
 instance instAtomicBinOp {a : Atomicity} {op : BinOp} {v1 v2 : Val} :
-    Atomic a (Exp.binop op (.ofVal v1) (.ofVal v2)) := by solve_atomic
+    Atomic a (Exp.binOp op (.ofVal v1) (.ofVal v2)) := by solve_atomic
 
 @[lantana_alias heap_lang.if_true_atomic]
 instance instAtomicIfTrue {a : Atomicity} {v1 : Val} {e2 : Exp} :
@@ -298,14 +298,14 @@ instance instPureExecBeta {f x : Binder} {e : Exp} {v : Val} :
 set_option synthInstance.checkSynthOrder false in
 @[lantana_alias heap_lang.pure_unop]
 instance instPureExecUnOp {op : UnOp} {v v' : Val} :
-    PureExec (op.eval v = some v') 1 (Exp.unop op (.ofVal v)) (.ofVal v') where
+    PureExec (op.eval v = some v') 1 (Exp.unOp op (.ofVal v)) (.ofVal v') where
   pureExec h :=
     .once <| pureStep_of_baseStep (fun _ => .unOpS _ _ _ _ h) (fun hs => by cases hs; simp_all)
 
 set_option synthInstance.checkSynthOrder false in
 @[lantana_alias heap_lang.pure_binop]
 instance instPureExecBinOp {op : BinOp} {v1 v2 v' : Val} :
-    PureExec (op.eval v1 v2 = some v') 1 (Exp.binop op (.ofVal v1) (.ofVal v2)) (.ofVal v') where
+    PureExec (op.eval v1 v2 = some v') 1 (Exp.binOp op (.ofVal v1) (.ofVal v2)) (.ofVal v') where
   pureExec h :=
     .once <| pureStep_of_baseStep (fun _ => .binOpS _ _ _ _ _ h) (fun hs => by cases hs; simp_all)
 
@@ -313,7 +313,7 @@ instance instPureExecBinOp {op : BinOp} {v1 v2 v' : Val} :
 @[lantana_alias heap_lang.pure_eqop]
 instance (priority := default + 10) instPureExecEqOp {v1 v2 : Val} :
     PureExec (v1.compareSafe v2) 1
-      (Exp.binop .eq (.ofVal v1) (.ofVal v2)) (.ofVal (.lit (.bool (v1 == v2)))) where
+      (Exp.binOp .eq (.ofVal v1) (.ofVal v2)) (.ofVal (.lit (.bool (v1 == v2)))) where
   pureExec := by
     intro hφ
     refine .once <| pureStep_of_baseStep (fun _ => .binOpS _ _ _ _ _ ?_) (fun h => ?_)

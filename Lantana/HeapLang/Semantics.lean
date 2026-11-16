@@ -81,9 +81,9 @@ def ECtxItem.fill (Ki : ECtxItem) (e : Exp) : Exp :=
   match Ki with
   | .appL v2        => .app e (.ofVal v2)
   | .appR e1        => .app e1 e
-  | .unOp op        => .unop op e
-  | .binOpL op v2   => .binop op e (.ofVal v2)
-  | .binOpR op e1   => .binop op e1 e
+  | .unOp op        => .unOp op e
+  | .binOpL op v2   => .binOp op e (.ofVal v2)
+  | .binOpR op e1   => .binOp op e1 e
   | .if e1 e2       => .if e e1 e2
   | .pairL v2       => .pair e (.ofVal v2)
   | .pairR e1       => .pair e1 e
@@ -428,10 +428,10 @@ inductive BaseStep : Exp → State → Exp → State → List Exp → Prop where
       BaseStep (.app (.ofVal (.rec_ f x e1)) (.ofVal v2)) σ e' σ []
   | unOpS (op : UnOp) (v v' : Val) (σ : State) :
       op.eval v = some v' →
-      BaseStep (.unop op (.ofVal v)) σ (.ofVal v') σ []
+      BaseStep (.unOp op (.ofVal v)) σ (.ofVal v') σ []
   | binOpS (op : BinOp) (v1 v2 v' : Val) (σ : State) :
       op.eval v1 v2 = some v' →
-      BaseStep (.binop op (.ofVal v1) (.ofVal v2)) σ (.ofVal v') σ []
+      BaseStep (.binOp op (.ofVal v1) (.ofVal v2)) σ (.ofVal v') σ []
   | ifTrueS (e1 e2 : Exp) (σ : State) :
       BaseStep (.if (.ofVal (.lit (.bool true))) e1 e2) σ e1 σ []
   | ifFalseS (e1 e2 : Exp) (σ : State) :

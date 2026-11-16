@@ -828,49 +828,50 @@ variable {GF : BundledGFunctors} [OSatGS GF]
 
 /-- The piece of fuel that a node `x` below an obligation `c` stores: strictly above the fuel of
 `c`. -/
-@[reducible] def forestPiece (Ω : Obligations) (x : Oid) : Parent → IProp GF
+@[reducible] def OForest.oblPiece (Ω : Obligations) (x : Oid) : Parent → IProp GF
   | .obl c => iprop(∃ π, ⌜Ω.fuelOf c < π⌝ ∗ OSat.fuel x π)
   | .thread _ => iprop(True)
 
 /-- What the invariant holds for the node `x` below `p`: it exists, its fuel is below its bound,
 and its piece. -/
 @[lantana_alias forest_node, reducible]
-def forestNode (Ω : Obligations) (x : Oid) (p : Parent) : IProp GF :=
-  iprop(OSat.elem x ∗ (∃ β, OSat.bound x β ∗ ⌜Ω.fuelOf x ≤ β⌝) ∗ forestPiece Ω x p)
+def OForest.oblNode (Ω : Obligations) (x : Oid) (p : Parent) : IProp GF :=
+  iprop(OSat.elem x ∗ (∃ β, OSat.bound x β ∗ ⌜Ω.fuelOf x ≤ β⌝) ∗ OForest.oblPiece Ω x p)
 
 /-- The piece of a node right after a step of thread `i`: exactly the fuel of the parent if the
 node is owned by `i` (it split off a unit), unchanged otherwise. -/
-@[reducible] def forestPieceStepped (Ω : Obligations) (i : ThreadId) (x : Oid) : Parent → IProp GF
+@[reducible] def OForest.oblPieceStepped (Ω : Obligations) (i : ThreadId)
+    (x : Oid) : Parent → IProp GF
   | .obl c => iprop(∃ π, ⌜(Ω.ownerOf x = some i → π = Ω.fuelOf c) ∧
       (Ω.ownerOf x ≠ some i → Ω.fuelOf c < π)⌝ ∗ OSat.fuel x π)
   | .thread _ => iprop(True)
 
 /-- A node of the forest right after a step of thread `i`, before the model round. -/
 @[lantana_alias forest_node_stepped, reducible]
-def forestNodeStepped (Ω : Obligations) (i : ThreadId) (x : Oid) (p : Parent) : IProp GF :=
-  iprop(OSat.elem x ∗ (∃ β, OSat.bound x β ∗ ⌜Ω.fuelOf x ≤ β⌝) ∗ forestPieceStepped Ω i x p)
+def OForest.oblNodeStepped (Ω : Obligations) (i : ThreadId) (x : Oid) (p : Parent) : IProp GF :=
+  iprop(OSat.elem x ∗ (∃ β, OSat.bound x β ∗ ⌜Ω.fuelOf x ≤ β⌝) ∗ OForest.oblPieceStepped Ω i x p)
 
-instance forestPiece_timeless (Ω : Obligations) (x : Oid) (p : Parent) :
-    Timeless (forestPiece (GF := GF) Ω x p) := by
-  cases p <;> unfold forestPiece <;> infer_instance
+instance OForest.oblPiece_timeless (Ω : Obligations) (x : Oid) (p : Parent) :
+    Timeless (OForest.oblPiece (GF := GF) Ω x p) := by
+  cases p <;> unfold OForest.oblPiece <;> infer_instance
 
-instance forestNode_timeless (Ω : Obligations) (x : Oid) (p : Parent) :
-    Timeless (forestNode (GF := GF) Ω x p) := by
-  unfold forestNode; infer_instance
+instance OForest.oblNode_timeless (Ω : Obligations) (x : Oid) (p : Parent) :
+    Timeless (OForest.oblNode (GF := GF) Ω x p) := by
+  unfold OForest.oblNode; infer_instance
 
-instance forestPieceStepped_timeless (Ω : Obligations) (i : ThreadId) (x : Oid) (p : Parent) :
-    Timeless (forestPieceStepped (GF := GF) Ω i x p) := by
-  cases p <;> unfold forestPieceStepped <;> infer_instance
+instance OForest.oblPieceStepped_timeless (Ω : Obligations) (i : ThreadId) (x : Oid) (p : Parent) :
+    Timeless (OForest.oblPieceStepped (GF := GF) Ω i x p) := by
+  cases p <;> unfold OForest.oblPieceStepped <;> infer_instance
 
-instance forestNodeStepped_timeless (Ω : Obligations) (i : ThreadId) (x : Oid) (p : Parent) :
-    Timeless (forestNodeStepped (GF := GF) Ω i x p) := by
-  unfold forestNodeStepped; infer_instance
+instance OForest.oblNodeStepped_timeless (Ω : Obligations) (i : ThreadId) (x : Oid) (p : Parent) :
+    Timeless (OForest.oblNodeStepped (GF := GF) Ω i x p) := by
+  unfold OForest.oblNodeStepped; infer_instance
 
 /-- A piece below `p` is a piece below `p'` if the fuel of the new parent is at most the fuel of
 the old one. -/
-theorem forestPiece_reparent {Ω Ω' : Obligations} {x : Oid} {p p' : Parent}
+theorem OForest.oblPiece_reparent {Ω Ω' : Obligations} {x : Oid} {p p' : Parent}
     (h : ∀ c', p' = .obl c' → ∃ c, p = .obl c ∧ Ω'.fuelOf c' ≤ Ω.fuelOf c) :
-    forestPiece Ω x p ⊢@{IProp GF} forestPiece Ω' x p' := by
+    OForest.oblPiece Ω x p ⊢@{IProp GF} OForest.oblPiece Ω' x p' := by
   cases p' with
   | thread j =>
     iintro -
@@ -885,16 +886,17 @@ theorem forestPiece_reparent {Ω Ω' : Obligations} {x : Oid} {p p' : Parent}
     exact Ordinal.lt_of_le_of_lt hc hπ
 
 /-- The pieces only need the fuels of the parents not to increase. -/
-theorem forestPiece_mono {Ω Ω' : Obligations} {x : Oid} {p : Parent}
+theorem OForest.oblPiece_mono {Ω Ω' : Obligations} {x : Oid} {p : Parent}
     (h : ∀ c, p = .obl c → Ω'.fuelOf c ≤ Ω.fuelOf c) :
-    forestPiece Ω x p ⊢@{IProp GF} forestPiece Ω' x p :=
-  forestPiece_reparent fun c hc => ⟨c, hc, h c hc⟩
+    OForest.oblPiece Ω x p ⊢@{IProp GF} OForest.oblPiece Ω' x p :=
+  OForest.oblPiece_reparent fun c hc => ⟨c, hc, h c hc⟩
 
 /-- A node only needs its fuel and the fuel of its parent not to increase. -/
-theorem forestNode_mono {Ω Ω' : Obligations} {x : Oid} {p : Parent} (hx : Ω'.fuelOf x ≤ Ω.fuelOf x)
+theorem OForest.oblNode_mono {Ω Ω' : Obligations} {x : Oid} {p : Parent}
+    (hx : Ω'.fuelOf x ≤ Ω.fuelOf x)
     (hp : ∀ c, p = .obl c → Ω'.fuelOf c ≤ Ω.fuelOf c) :
-    forestNode Ω x p ⊢@{IProp GF} forestNode Ω' x p := by
-  unfold forestNode
+    OForest.oblNode Ω x p ⊢@{IProp GF} OForest.oblNode Ω' x p := by
+  unfold OForest.oblNode
   iintro ⟨#He, ⟨%β, #Hb, %hβ⟩, Hp⟩
   iframe He
   isplitr
@@ -902,21 +904,22 @@ theorem forestNode_mono {Ω Ω' : Obligations} {x : Oid} {p : Parent} (hx : Ω'.
     iframe Hb
     ipureintro
     exact Ordinal.le_trans hx hβ
-  · iapply forestPiece_mono hp $$ Hp
+  · iapply OForest.oblPiece_mono hp $$ Hp
 
-theorem nodes_mono {Ω Ω' : Obligations} {Par : OidMap Parent}
+theorem OForest.oblNodes_mono {Ω Ω' : Obligations} {Par : OidMap Parent}
     (h : ∀ x p, get? Par x = some p →
       Ω'.fuelOf x ≤ Ω.fuelOf x ∧ ∀ c, p = .obl c → Ω'.fuelOf c ≤ Ω.fuelOf c) :
-    ([∗map] x ↦ p ∈ Par, forestNode Ω x p) ⊢@{IProp GF}
-      [∗map] x ↦ p ∈ Par, forestNode Ω' x p :=
-  BigSepM.bigSepM_mono fun hx => forestNode_mono (h _ _ hx).1 (h _ _ hx).2
+    ([∗map] x ↦ p ∈ Par, OForest.oblNode Ω x p) ⊢@{IProp GF}
+      [∗map] x ↦ p ∈ Par, OForest.oblNode Ω' x p :=
+  BigSepM.bigSepM_mono fun hx => OForest.oblNode_mono (h _ _ hx).1 (h _ _ hx).2
 
 /-- The nodes are unchanged when the fuels of the nodes are. -/
-theorem nodes_congr {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent} (wf : ForestWf Ω tc Par)
+theorem OForest.oblNodes_congr {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent}
+    (wf : ForestWf Ω tc Par)
     (h : ∀ x, (get? Par x).isSome → Ω'.fuelOf x = Ω.fuelOf x) :
-    ([∗map] x ↦ p ∈ Par, forestNode Ω x p) ⊢@{IProp GF}
-      [∗map] x ↦ p ∈ Par, forestNode Ω' x p :=
-  nodes_mono fun x p hx =>
+    ([∗map] x ↦ p ∈ Par, OForest.oblNode Ω x p) ⊢@{IProp GF}
+      [∗map] x ↦ p ∈ Par, OForest.oblNode Ω' x p :=
+  OForest.oblNodes_mono fun x p hx =>
     ⟨Ordinal.le_of_eq (h x (by simp [hx])), fun c hc => by
       subst hc
       exact Ordinal.le_of_eq (h c (wf.par_obl hx))⟩
@@ -933,11 +936,12 @@ private theorem ite_decide_neg {α : Type _} {P : Prop} [Decidable P] (h : ¬P) 
 
 /-- A node at a step of thread `i`: a child of `i` takes the unit given by the user, any other
 node of `i` splits a unit off its piece, keeping exactly the fuel of its parent. -/
-theorem node_step {Ω : Obligations} {tc : Nat} {Par : OidMap Parent} (wf : ForestWf Ω tc Par)
+theorem OForest.oblNode_step {Ω : Obligations} {tc : Nat} {Par : OidMap Parent}
+    (wf : ForestWf Ω tc Par)
     (i : ThreadId) {x : Oid} {p : Parent} (hx : get? Par x = some p) :
-    forestNode Ω x p ∗
+    OForest.oblNode Ω x p ∗
         (if decide (p = .thread i) then iprop(∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) else emp)
-      ⊢@{IProp GF} |==> (forestNodeStepped Ω i x p ∗
+      ⊢@{IProp GF} |==> (OForest.oblNodeStepped Ω i x p ∗
         if decide (Ω.ownerOf x = some i) then iprop(OSat.elem x ∗ ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c)
         else emp) := by
   cases p with
@@ -999,16 +1003,17 @@ theorem node_step {Ω : Obligations} {tc : Nat} {Par : OidMap Parent} (wf : Fore
           exact ⟨fun h => (ho h).elim, fun _ => hπ⟩
       · iempintro
 
-theorem nodes_step {Ω : Obligations} {tc : Nat} {Par : OidMap Parent} (wf : ForestWf Ω tc Par)
+theorem OForest.oblNodes_step {Ω : Obligations} {tc : Nat} {Par : OidMap Parent}
+    (wf : ForestWf Ω tc Par)
     (i : ThreadId) :
-    ([∗map] x ↦ p ∈ Par, forestNode Ω x p) ∗
+    ([∗map] x ↦ p ∈ Par, OForest.oblNode Ω x p) ∗
         ([∗map] x ↦ p ∈ Par,
           if decide (p = .thread i) then iprop(∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) else emp)
-      ⊢@{IProp GF} |==> (([∗map] x ↦ p ∈ Par, forestNodeStepped Ω i x p) ∗
+      ⊢@{IProp GF} |==> (([∗map] x ↦ p ∈ Par, OForest.oblNodeStepped Ω i x p) ∗
         [∗map] x ↦ _p ∈ Par, if decide (Ω.ownerOf x = some i) then
           iprop(OSat.elem x ∗ ∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) else emp) := by
   rw [← BigSepM.bigSepM_sep_eq, ← BigSepM.bigSepM_sep_eq]
-  exact (BigSepM.bigSepM_mono fun hx => node_step wf i hx).trans (BigSepM.bigSepM_bupd _)
+  exact (BigSepM.bigSepM_mono fun hx => OForest.oblNode_step wf i hx).trans (BigSepM.bigSepM_bupd _)
 
 private theorem entails_pure_forall₂ {PROP : Type _} [BI PROP] {P : PROP} {α β : Sort _}
     {φ : α → β → Prop} (h : ∀ a b, P ⊢ ⌜φ a b⌝) : P ⊢ ⌜∀ a b, φ a b⌝ :=
@@ -1016,9 +1021,10 @@ private theorem entails_pure_forall₂ {PROP : Type _} [BI PROP] {P : PROP} {α 
     BI.pure_forall.2
 
 /-- After the round, the pieces of the nodes of `i` are below their new fuels. -/
-theorem nodes_stepped_pieces {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent} {i : ThreadId}
+theorem OForest.oblNodes_stepped_pieces {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent}
+    {i : ThreadId}
     (wf : ForestWf Ω tc Par) (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') :
-    osat Ω' ∗ ([∗map] x ↦ p ∈ Par, forestNodeStepped Ω i x p) ⊢@{IProp GF}
+    osat Ω' ∗ ([∗map] x ↦ p ∈ Par, OForest.oblNodeStepped Ω i x p) ⊢@{IProp GF}
       ⌜∀ x c, get? Par x = some (.obl c) → Ω.ownerOf x = some i →
         Ω.fuelOf c ≤ Ω'.fuelOf x⌝ := by
   refine entails_pure_forall₂ fun x c => ?_
@@ -1036,10 +1042,10 @@ theorem nodes_stepped_pieces {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Par
   · exact BI.pure_intro fun h => (hx h).elim
 
 /-- After the round, a stepped node is a node again. -/
-theorem node_unstep {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent} {i : ThreadId}
+theorem OForest.oblNode_unstep {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent} {i : ThreadId}
     (wf : ForestWf Ω tc Par) (hp : Obligations.CondProgress (Obligation.CondOwner i) Ω Ω') {x : Oid}
     {p : Parent} (hx : get? Par x = some p) :
-    forestNodeStepped Ω i x p ⊢@{IProp GF} forestNode Ω' x p := by
+    OForest.oblNodeStepped Ω i x p ⊢@{IProp GF} OForest.oblNode Ω' x p := by
   cases p with
   | thread j =>
     iintro ⟨#He, ⟨%β, #Hb, %hβ⟩, Hp⟩
@@ -1074,20 +1080,21 @@ theorem node_unstep {Ω Ω' : Obligations} {tc : Nat} {Par : OidMap Parent} {i :
 
 /-- A node `x` during an owner change of the subtree `S`: a node of `S` has split off a unit,
 keeping exactly the fuel of its parent; the other nodes are unchanged. -/
-@[reducible] def forestNodeMoved (Ω : Obligations) (S : Oids) (x : Oid) (p : Parent) : IProp GF :=
+@[reducible] def OForest.oblNodeMoved (Ω : Obligations) (S : Oids) (x : Oid)
+    (p : Parent) : IProp GF :=
   if decide (x ∈ S) then
     iprop(OSat.elem x ∗ (∃ β, OSat.bound x β ∗ ⌜Ω.fuelOf x ≤ β⌝) ∗
       ∃ c, ⌜p = .obl c⌝ ∗ OSat.fuel x (Ω.fuelOf c))
-  else forestNode Ω x p
+  else OForest.oblNode Ω x p
 
 /-- The nodes of `S` other than `k` are below obligations, and split a unit off their piece. -/
-theorem node_cross_split {Ω : Obligations} {Par : OidMap Parent} {S : Oids} {k : Oid}
+theorem OForest.oblNode_cross_split {Ω : Obligations} {Par : OidMap Parent} {S : Oids} {k : Oid}
     (hS : ∀ x, x ∈ S → x ≠ k → ∃ c, get? Par x = some (.obl c)) {x : Oid} {p : Parent}
     (hx : get? (delete Par k) x = some p) :
-    forestNode Ω x p ⊢@{IProp GF}
+    OForest.oblNode Ω x p ⊢@{IProp GF}
       |==> ((if decide (x ∈ S) then iprop(∃ c, ⌜0 < c⌝ ∗ OSat.fuel x c) else emp) ∗
-        forestNodeMoved Ω S x p) := by
-  unfold forestNodeMoved
+        OForest.oblNodeMoved Ω S x p) := by
+  unfold OForest.oblNodeMoved
   by_cases hxS : x ∈ S
   · rw [ite_decide_pos hxS, ite_decide_pos hxS]
     have hkx : k ≠ x := fun e => by
@@ -1111,15 +1118,15 @@ theorem node_cross_split {Ω : Obligations} {Par : OidMap Parent} {S : Oids} {k 
     iframe H
 
 /-- After the owner change, the moved nodes are nodes again. -/
-theorem node_cross_join {Ω Ω' : Obligations} {Par : OidMap Parent} {k : Oid}
+theorem OForest.oblNode_cross_join {Ω Ω' : Obligations} {Par : OidMap Parent} {k : Oid}
     {t j : ThreadId} (hrel : ChownRel (Forest.subtree Par k) t j Ω Ω') {x : Oid} {p : Parent}
     (hx : get? (delete Par k) x = some p) :
-    forestNodeMoved Ω (Forest.subtree Par k) x p ⊢@{IProp GF} forestNode Ω' x p := by
+    OForest.oblNodeMoved Ω (Forest.subtree Par k) x p ⊢@{IProp GF} OForest.oblNode Ω' x p := by
   have hkx : k ≠ x := fun e => by
     subst e
     simp [get?_delete_eq] at hx
   rw [get?_delete_ne hkx] at hx
-  unfold forestNodeMoved
+  unfold OForest.oblNodeMoved
   by_cases hxS : x ∈ Forest.subtree Par k
   · rw [ite_decide_pos hxS]
     have hcS : ∀ c, p = .obl c → c ∈ Forest.subtree Par k := by
@@ -1143,14 +1150,15 @@ theorem node_cross_join {Ω Ω' : Obligations} {Par : OidMap Parent} {k : Oid}
       ipureintro
       exact (hrel.fuel_in (hcS c rfl)).2
   · rw [ite_decide_neg hxS]
-    refine forestNode_mono (Ordinal.le_of_eq (hrel.fuel_out hxS)) fun c hc => ?_
+    refine OForest.oblNode_mono (Ordinal.le_of_eq (hrel.fuel_out hxS)) fun c hc => ?_
     subst hc
     exact Ordinal.le_of_eq (hrel.fuel_out fun hcS => hxS (Forest.subtree_closed hx hcS))
 
 /-- After the owner change, the pieces of the moved nodes are below their new fuels. -/
-theorem nodes_moved_pieces {Ω Ω' : Obligations} {Par : OidMap Parent} {k : Oid} {t j : ThreadId}
+theorem OForest.oblNodes_moved_pieces {Ω Ω' : Obligations} {Par : OidMap Parent} {k : Oid}
+    {t j : ThreadId}
     (hrel : ChownRel (Forest.subtree Par k) t j Ω Ω') :
-    osat Ω' ∗ ([∗map] x ↦ p ∈ delete Par k, forestNodeMoved Ω (Forest.subtree Par k) x p)
+    osat Ω' ∗ ([∗map] x ↦ p ∈ delete Par k, OForest.oblNodeMoved Ω (Forest.subtree Par k) x p)
       ⊢@{IProp GF} ⌜∀ x c, x ∈ Forest.subtree Par k → x ≠ k → get? Par x = some (.obl c) →
         Ω.fuelOf c ≤ Ω'.fuelOf x⌝ := by
   refine entails_pure_forall₂ fun x c => ?_
@@ -1163,7 +1171,7 @@ theorem nodes_moved_pieces {Ω Ω' : Obligations} {Par : OidMap Parent} {k : Oid
           exact hx
         iintro ⟨Hs, Hn⟩
         icases BigSepM.bigSepM_lookup hx' $$ Hn with Hx
-        unfold forestNodeMoved
+        unfold OForest.oblNodeMoved
         rw [ite_decide_pos hxS]
         icases Hx with ⟨-, -, %c', %hc', Hf⟩
         cases hc'
@@ -1177,8 +1185,8 @@ theorem nodes_moved_pieces {Ω Ω' : Obligations} {Par : OidMap Parent} {k : Oid
   · exact BI.pure_intro fun h => (hxS h).elim
 
 /-- The new piece of a moved node is below its new fuel. -/
-theorem osat_forestPiece {Ω Ω' : Obligations} {k : Oid} {p : Parent} (hk : Ω'.Live k) :
-    osat Ω' ∗ forestPiece Ω k p ⊢@{IProp GF} ⌜∀ q, p = .obl q → Ω.fuelOf q < Ω'.fuelOf k⌝ := by
+theorem OForest.oblPiece_lt_of_osat {Ω Ω' : Obligations} {k : Oid} {p : Parent} (hk : Ω'.Live k) :
+    osat Ω' ∗ OForest.oblPiece Ω k p ⊢@{IProp GF} ⌜∀ q, p = .obl q → Ω.fuelOf q < Ω'.fuelOf k⌝ := by
   cases p with
   | thread j =>
     exact BI.pure_intro fun q h => Parent.noConfusion h
@@ -1210,7 +1218,7 @@ def oforest (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) : IProp GF :=
     OForest.kidsAuth M ∗ OForest.statusAuth T ∗ OForest.billAuth C ∗
     ([∗list] i ∈ List.range tc, OForest.threadInv Ω Par i) ∗
     ([∗list] i ∈ List.range tc, OForest.crashedInv X i) ∗
-    [∗map] x ↦ p ∈ Par, forestNode Ω x p)
+    [∗map] x ↦ p ∈ Par, OForest.oblNode Ω x p)
 
 instance oforest_timeless (Ω : Obligations) (tc : Nat) (X : ThreadId → Prop) :
     Timeless (oforest (GF := GF) Ω tc X) := by
@@ -1663,7 +1671,7 @@ theorem oforest_alloc_discharged {Ω : Obligations} {tc : Nat} {k : Oid} (hk : g
   iframe HM HT HC Hx
   isplitl [Hth]
   · iapply OForest.threads_mono hown $$ Hth
-  · iapply nodes_congr wf (fun x hx => Obligations.fuelOf_insert_ne (hne x hx)) $$ Hn
+  · iapply OForest.oblNodes_congr wf (fun x hx => Obligations.fuelOf_insert_ne (hne x hx)) $$ Hn
 
 /-- A new obligation `k` of `i`, allocated in the model, becomes a leaf below `p` and enters its
 bill; below an obligation, it brings its piece. -/
@@ -1674,7 +1682,8 @@ theorem oforest_alloc_obl {Ω : Obligations} {tc : Nat} {p : Parent} {K : Oids} 
       | .thread j => j = i
       | .obl q => Ω.ownerOf q = some i ∧ Ω.fuelOf q < a)
     (hab : a ≤ β) (B : Oids) :
-    oforest Ω tc X ∗ OForest.kids p K ∗ OForest.parBill p B ∗ OSat.bound k β ∗ forestPiece Ω k p
+    oforest Ω tc X ∗ OForest.kids p K ∗ OForest.parBill p B ∗ OSat.bound k β
+        ∗ OForest.oblPiece Ω k p
       ⊢@{IProp GF} |==> (oforest (insert Ω k (.assigned a i)) tc X ∗ ⌜k ∉ K⌝ ∗
         OForest.kids p ({k} ∪ K) ∗ OForest.parBill p ({k} ∪ B) ∗ OForest.kids (.obl k) ∅) := by
   unfold oforest
@@ -1739,8 +1748,9 @@ theorem oforest_alloc_obl {Ω : Obligations} {tc : Nat} {p : Parent} {K : Oids} 
             ipureintro
             rw [Obligations.fuelOf_insert_assigned]
             exact hab
-          · iapply forestPiece_mono hpc $$ Hpc
-        · iapply nodes_congr wf (fun x hx => Obligations.fuelOf_insert_ne (hne x hx)) $$ Hn
+          · iapply OForest.oblPiece_mono hpc $$ Hpc
+        · iapply OForest.oblNodes_congr wf (fun x hx => Obligations.fuelOf_insert_ne (hne x hx))
+              $$ Hn
     · ipureintro
       exact hkK
   · cases p with
@@ -1789,7 +1799,7 @@ theorem oforest_discharge_obl {Ω : Obligations} {tc : Nat} {p : Parent} {K : Oi
   isplitl [Hth]
   · iapply OForest.threads_mono hown $$ Hth
   · icases (BigSepM.bigSepM_delete hPk).mp $$ Hn with ⟨-, Hn⟩
-    iapply nodes_mono ?_ $$ Hn
+    iapply OForest.oblNodes_mono ?_ $$ Hn
     intro x p' hx
     have hxk : k ≠ x := fun e => by
       subst e
@@ -1810,7 +1820,7 @@ theorem oforest_move_same {Ω : Obligations} {tc : Nat} {p₁ p₂ : Parent} {K�
       | .thread j => Ω.ownerOf k = some j
       | .obl q => Ω.ownerOf q = Ω.ownerOf k ∧ Ω.fuelOf q < Ω.fuelOf k) (B₂ : Oids) :
     oforest Ω tc X ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OForest.parBill p₂ B₂ ∗
-        forestPiece Ω k p₂
+        OForest.oblPiece Ω k p₂
       ⊢@{IProp GF} |==> (⌜k ∉ K₂⌝ ∗ oforest Ω tc X ∗ OForest.kids p₁ (K₁ \ {k}) ∗
         OForest.kids p₂ ({k} ∪ K₂) ∗ OForest.parBill p₂ ({k} ∪ B₂)) := by
   unfold oforest
@@ -1909,7 +1919,7 @@ theorem oforest_move_up {Ω : Obligations} {tc : Nat} {p : Parent} {K : Oids} {k
     · iexact He
     isplitl [Hbnd]
     · iexact Hbnd
-    · iapply forestPiece_reparent hpc $$ Hpc
+    · iapply OForest.oblPiece_reparent hpc $$ Hpc
 
 /-! ### Steps of a thread -/
 
@@ -1928,7 +1938,7 @@ theorem oforest_step (Ω : Obligations) (tc : Nat) (i : ThreadId) (B : Oids) :
   icases OForest.billAuth_lookup C i B $$ [$HC $Hk] with %hB
   ihave Hu := BigSepS.bigSepS_subseteq (hC.lookup hB) $$ Hu
   icases (Forest.bigSepS_kids Par _ _).mp $$ Hu with Hu
-  imod nodes_step wf i $$ [$Hn $Hu] with ⟨Hn, Hg⟩
+  imod OForest.oblNodes_step wf i $$ [$Hn $Hu] with ⟨Hn, Hg⟩
   icases (Forest.bigSepS_owned Ω Par i _).mpr $$ Hg with Hg
   imodintro
   iexists Forest.owned Ω Par i
@@ -1938,7 +1948,7 @@ theorem oforest_step (Ω : Obligations) (tc : Nat) (i : ThreadId) (B : Oids) :
     exact wf.mem_owned_iff
   iframe Hk Hg
   iintro %Ω' %hp %hown Hs
-  icases nodes_stepped_pieces wf hp $$ [$Hs $Hn] with %hpiece
+  icases OForest.oblNodes_stepped_pieces wf hp $$ [$Hs $Hn] with %hpiece
   have howned : ∀ j, j < tc → Forest.owned Ω Par j = ∅ → Forest.owned Ω' Par j = ∅ :=
     fun j _ h => by
       rw [Forest.owned_ext fun x _ => hown x]
@@ -1951,7 +1961,7 @@ theorem oforest_step (Ω : Obligations) (tc : Nat) (i : ThreadId) (B : Oids) :
   iframe HM HT HC Hx
   isplitl [Hth]
   · iapply OForest.threads_mono howned $$ Hth
-  · iapply BigSepM.bigSepM_mono (fun hx => node_unstep wf hp hx) $$ Hn
+  · iapply BigSepM.bigSepM_mono (fun hx => OForest.oblNode_unstep wf hp hx) $$ Hn
 
 /-- `oforest_step` with its progress round (`osat_progress_owner`). -/
 theorem oforest_osat_step (Ω : Obligations) (tc : Nat) (i : ThreadId) (B : Oids) :
@@ -1982,7 +1992,7 @@ theorem oforest_move_cross {Ω : Obligations} {tc : Nat} {p₁ p₂ : Parent} {K
       | .thread j' => j' = j
       | .obl q => Ω.ownerOf q = some j) (B₂ : Oids) :
     osat Ω ∗ oforest Ω tc X ∗ OForest.kids p₁ K₁ ∗ OForest.kids p₂ K₂ ∗ OForest.parBill p₂ B₂ ∗
-        OSat.fuel k u ∗ forestPiece Ω k p₂
+        OSat.fuel k u ∗ OForest.oblPiece Ω k p₂
       ⊢@{IProp GF} |==> ∃ Ω', ⌜Obligations.NoDischarge Ω Ω' ∧
         (∀ x, (get? Ω' x).isSome ↔ (get? Ω x).isSome) ∧
         k ∉ K₂⌝ ∗ osat Ω' ∗ oforest Ω' tc X ∗ OForest.kids p₁ (K₁ \ {k}) ∗
@@ -2038,7 +2048,7 @@ theorem oforest_move_cross {Ω : Obligations} {tc : Nat} {p₁ p₂ : Parent} {K
       rw [hownd] at hmem
       exact (LawfulSet.mem_empty hmem).elim
   icases (BigSepM.bigSepM_delete hPk).mp $$ Hn with ⟨⟨#Hek, ⟨%βk, #Hbk, %hβk⟩, -⟩, Hn⟩
-  ihave Hn := (BigSepM.bigSepM_mono fun hx => node_cross_split (Ω := Ω) hSobl hx) $$ Hn
+  ihave Hn := (BigSepM.bigSepM_mono fun hx => OForest.oblNode_cross_split (Ω := Ω) hSobl hx) $$ Hn
   imod BigSepM.bigSepM_bupd _ $$ Hn with Hn
   rw [BigSepM.bigSepM_sep_eq]
   icases Hn with ⟨Hus, Hn⟩
@@ -2051,8 +2061,8 @@ theorem oforest_move_cross {Ω : Obligations} {tc : Nat} {p₁ p₂ : Parent} {K
     exact hu
   imod osat_chown_set (Forest.subtree Par k) j hSown $$ [$Hs $Hus] with ⟨%Ω', Hs, %hrel⟩
   have hkΩ' : Ω'.Live k := (hrel.live k).1 (wf.live_of_isSome hkD)
-  icases osat_forestPiece hkΩ' $$ [$Hs $Hpc] with %hpk
-  icases nodes_moved_pieces hrel $$ [$Hs $Hn] with %hpx
+  icases OForest.oblPiece_lt_of_osat hkΩ' $$ [$Hs $Hpc] with %hpk
+  icases OForest.oblNodes_moved_pieces hrel $$ [$Hs $Hn] with %hpx
   have hwf' : ForestWf Ω' tc (insert Par k p₂) := by
     refine wf.move_cross hkD ht htj ?_ hrel hpk hpx
     cases p₂ with
@@ -2093,10 +2103,10 @@ theorem oforest_move_cross {Ω : Obligations} {tc : Nat} {p₁ p₂ : Parent} {K
         iframe Hbk
         ipureintro
         exact Ordinal.le_trans (Ordinal.le_of_lt (hrel.fuel_in hkS).2) hβk
-      · iapply forestPiece_mono ?_ $$ Hpc
+      · iapply OForest.oblPiece_mono ?_ $$ Hpc
         rintro q rfl
         exact Ordinal.le_of_eq (hrel.fuel_out (hq q rfl))
-    · iapply BigSepM.bigSepM_mono (fun hx => node_cross_join hrel hx) $$ Hn
+    · iapply BigSepM.bigSepM_mono (fun hx => OForest.oblNode_cross_join hrel hx) $$ Hn
 
 end Oforest
 
