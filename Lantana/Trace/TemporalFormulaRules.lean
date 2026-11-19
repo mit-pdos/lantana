@@ -470,15 +470,15 @@ theorem untilIGuar_acc_assigned {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N �
 
 /-- The record of the right formula of a discharged obligation at the current position, from a
 resource `X` that implies `Q`, which is given back. -/
-theorem untilIGuar_record_discharged {G₂ : TrSpec Expr State GF} (E : CoPset) {X : IProp GF}
-    (hX : X ⊢ Q) : (Q ⊨ₜ G₂) ⊢ Obl.discharged k -∗ X -∗ |={E}=>m X ∗ untilDischarged k G₂ := by
-  iintro #HG₂ #D HX
+theorem untilIGuar_record_discharged {G₂ : TrSpec Expr State GF} (E : CoPset) {X : IProp GF} :
+    (Q ⊨ₜ G₂) ⊢ Obl.discharged k -∗ X -∗ (X -∗ Q) -∗ |={E}=>m X ∗ untilDischarged k G₂ := by
+  iintro #HG₂ #D HX HXQ
   iapply mupd_read
   iintro %h %n %σ %tp %g %i %Ω %W %tc %crashed HI TI MI
-  ihave #TQ : record G₂ n $$ [HI MI HX]
+  ihave #TQ : record G₂ n $$ [HI MI HX HXQ]
   · iapply guar_elim Q G₂ h n σ tp g i Ω W tc crashed $$ HG₂
     iframe HI MI
-    iapply hX $$ HX
+    iapply HXQ $$ HX
   icases Obl.discharged_modelInterp_lookup k g i Ω W n tc crashed $$ [D MI] with %hkd
   · iframe D MI
   ihave #EF := modelInterp_eventObl hkd $$ MI
@@ -493,13 +493,13 @@ theorem untilIGuar_record_discharged {G₂ : TrSpec Expr State GF} (E : CoPset) 
 /-- The discharge of an until whose invariant is open, at any mask, with a resource `X` that
 implies `Q`; `X` is given back with the content that closes the invariant. -/
 theorem untilIGuar_discharge_opened {G₂ : TrSpec Expr State GF} (E : CoPset) (p : Parent)
-    (K : Oids) (hk : k ∈ K) {X : IProp GF} (hX : X ⊢ Q) :
-    (Q ⊨ₜ G₂) ⊢ Obl.assigned k 1 -∗ Par.kids p K -∗ oblKids k ∅ -∗ X -∗
+    (K : Oids) (hk : k ∈ K) {X : IProp GF} :
+    (Q ⊨ₜ G₂) ⊢ Obl.assigned k 1 -∗ Par.kids p K -∗ oblKids k ∅ -∗ X -∗ (X -∗ Q) -∗
       |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
         Obl.variant k P (untilDischarged k G₂) := by
-  iintro #HG₂ Oa Kp Kk HX
+  iintro #HG₂ Oa Kp Kk HX HXQ
   imod Obl.discharge_leaf E p K k hk $$ Kp Kk Oa with ⟨Kp, #D⟩
-  imod untilIGuar_record_discharged E hX $$ HG₂ D HX with ⟨HX, #R⟩
+  imod untilIGuar_record_discharged E $$ HG₂ D HX HXQ with ⟨HX, #R⟩
   imodintro
   iframe HX Kp D
   iapply (Obl.variant_unfold k P _).2
@@ -516,19 +516,19 @@ theorem untilI_acc_assigned (hN : ↑N ⊆ E) :
   imodintro
   iframe H ACC
 
-theorem untilI_record_discharged (E : CoPset) {X : IProp GF} (hX : X ⊢ Q) :
-    Obl.discharged k ⊢ X -∗
+theorem untilI_record_discharged (E : CoPset) {X : IProp GF} :
+    Obl.discharged k ⊢ X -∗ (X -∗ Q) -∗
       |={E}=>m X ∗ untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q) :=
   (emp_sep.2.trans (sep_mono_left (guar_canon Q))).trans
-    (wand_elim (untilIGuar_record_discharged E hX))
+    (wand_elim (untilIGuar_record_discharged E))
 
 theorem untilI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K)
-    {X : IProp GF} (hX : X ⊢ Q) :
-    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗
+    {X : IProp GF} :
+    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗ (X -∗ Q) -∗
       |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
         Obl.variant k P (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q)) :=
   (emp_sep.2.trans (sep_mono_left (guar_canon Q))).trans
-    (wand_elim (untilIGuar_discharge_opened E p K hk hX))
+    (wand_elim (untilIGuar_discharge_opened E p K hk))
 
 theorem finallyI_acc_assigned (hN : ↑N ⊆ E) :
     finallyI N k 1 Q ⊢ |={E, E \ ↑N}=> ▷ Obl.assigned k 1 ∗
@@ -545,12 +545,12 @@ theorem finallyI_acc_assigned (hN : ↑N ⊆ E) :
   iexact H
 
 theorem finallyI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K)
-    {X : IProp GF} (hX : X ⊢ Q) :
-    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗
+    {X : IProp GF} :
+    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗ (X -∗ Q) -∗
       |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
         Obl.variant k iprop(True)
           (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q)) :=
-  untilI_discharge_opened E p K hk hX
+  untilI_discharge_opened E p K hk
 
 /-- Discharge: `P` is taken out, and once `Q` holds the until becomes a done until. -/
 @[lantana_alias untilI_guar_discharge_done]
@@ -566,8 +566,10 @@ theorem untilIGuar_discharge_done {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N 
   icases H with ⟨Oa, HP⟩
   iframe HP
   iintro %p %K %hk Kp Kk HQ %E'
-  imod untilIGuar_discharge_opened (P := P) E' p K hk .rfl $$ HG₂ Oa Kp Kk HQ
+  imod untilIGuar_discharge_opened (P := P) (X := Q) E' p K hk $$ HG₂ Oa Kp Kk HQ []
     with ⟨HQ, Kp, #D, V⟩
+  · iintro HQ
+    iexact HQ
   imodintro
   imod ACC $$ [V] with -
   · inext
@@ -697,11 +699,17 @@ theorem untilIGuar_acc_assigned_set_ndot {G₁ G₂ : Oid → TrSpec Expr State 
   have ⟨hE', hNk, hdisj⟩ := ndot_masks hN
   untilIGuar_acc_assigned_set hE' (fun k _ => hNk k) fun k k' _ _ => hdisj k k'
 
-/-- The records of the right formulas of a set of discharged obligations, from one resource `X`
-that implies all of them. -/
+omit instM in
+/-- The wands of the rules below, when a lemma gives every right formula from `X`. -/
+theorem bigSepS_wand_intro {X : IProp GF} {Φ : Oid → IProp GF} (h : ∀ k, k ∈ S → X ⊢ Φ k) :
+    ⊢ [∗set] k ∈ S, (X -∗ Φ k) :=
+  bigSepS_intro fun hk => wand_intro (emp_sep.1.trans (h _ hk))
+
+/-- The records of the right formulas of a set of discharged obligations, from one resource `X`,
+given back, that implies each of them by its own wand. -/
 theorem untilIGuar_record_discharged_set {G₂ : Oid → TrSpec Expr State GF} (E : CoPset)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
-    ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.discharged k) ⊢ X -∗
+    {X : IProp GF} :
+    ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.discharged k ∗ (X -∗ Q k)) ⊢ X -∗
       |={E}=>m X ∗ [∗set] k ∈ S, Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
   induction S using FiniteSet.set_ind with
   | hemp =>
@@ -712,10 +720,9 @@ theorem untilIGuar_record_discharged_set {G₂ : Oid → TrSpec Expr State GF} (
     iempintro
   | hadd x T hx ih =>
     iintro Hs HX
-    icases (bigSepS_insert hx).1 $$ Hs with ⟨⟨#HG₂, #D⟩, Hs⟩
-    imod untilIGuar_record_discharged E (hX x (mem_insert.2 (.inl rfl))) $$ HG₂ D HX
-      with ⟨HX, #R⟩
-    imod ih (fun k hk => hX k (mem_insert_of_mem hk)) $$ Hs HX with ⟨HX, Vs⟩
+    icases (bigSepS_insert hx).1 $$ Hs with ⟨⟨#HG₂, #D, HXQ⟩, Hs⟩
+    imod untilIGuar_record_discharged E $$ HG₂ D HX HXQ with ⟨HX, #R⟩
+    imod ih $$ Hs HX with ⟨HX, Vs⟩
     imodintro
     iframe HX
     iapply (bigSepS_insert hx).2
@@ -748,12 +755,12 @@ theorem untilI_acc_assigned_set_ndot {N₀ : Namespace} (hN : ↑N₀ ⊆ E) :
   have ⟨hE', hNk, hdisj⟩ := ndot_masks hN
   untilI_acc_assigned_set hE' (fun k _ => hNk k) fun k k' _ _ => hdisj k k'
 
-theorem untilI_record_discharged_set (E : CoPset) {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
-    ([∗set] k ∈ S, Obl.discharged k) ⊢ X -∗ |={E}=>m X ∗ [∗set] k ∈ S,
+theorem untilI_record_discharged_set (E : CoPset) {X : IProp GF} :
+    ([∗set] k ∈ S, Obl.discharged k ∗ (X -∗ Q k)) ⊢ X -∗ |={E}=>m X ∗ [∗set] k ∈ S,
       Obl.variant k (P k)
         (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
   (bigSepS_mono_of_forall fun k => emp_sep.2.trans (sep_mono_left (guar_canon (Q k)))).trans
-    (untilIGuar_record_discharged_set E hX)
+    (untilIGuar_record_discharged_set E)
 
 theorem finallyI_acc_assigned_set (hE' : E' ⊆ E) (hN : ∀ k, k ∈ S → ↑(N k) ⊆ E \ E')
     (hdisj : ∀ k k', k ∈ S → k' ∈ S → k ≠ k' → (↑(N k) : CoPset) ## ↑(N k')) :
@@ -779,31 +786,35 @@ theorem finallyI_acc_assigned_set_ndot {N₀ : Namespace} (hN : ↑N₀ ⊆ E) :
   have ⟨hE', hNk, hdisj⟩ := ndot_masks hN
   finallyI_acc_assigned_set hE' (fun k _ => hNk k) fun k k' _ _ => hdisj k k'
 
-theorem finallyI_record_discharged_set (E : CoPset) {X : IProp GF}
-    (hX : ∀ k, k ∈ S → X ⊢ Q k) :
-    ([∗set] k ∈ S, Obl.discharged k) ⊢ X -∗ |={E}=>m X ∗ [∗set] k ∈ S,
+theorem finallyI_record_discharged_set (E : CoPset) {X : IProp GF} :
+    ([∗set] k ∈ S, Obl.discharged k ∗ (X -∗ Q k)) ⊢ X -∗ |={E}=>m X ∗ [∗set] k ∈ S,
       Obl.variant k iprop(True)
         (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
-  untilI_record_discharged_set E hX
+  untilI_record_discharged_set E
 
 /-- The discharge of a forest of untils whose invariants are open, in one model update at any
-mask, with one resource `X` that implies all their right formulas. -/
+mask, with one resource `X`, given back, that implies each right formula by its own wand. -/
 theorem untilIGuar_discharge_opened_forest {G₂ : Oid → TrSpec Expr State GF} (E : CoPset)
     (ps : List Parent) (K : Parent → Oids) (kids : Oid → Oids)
     (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
-      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗
+        X -∗
         |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p (K p \ S)) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
   iintro Hps HS HX
   icases bigSepS_sep.1 $$ HS with ⟨#HG, HS⟩
+  icases (bigSepS_mono_of_forall fun _ => sep_assoc.2).trans bigSepS_sep.1 $$ HS with ⟨HS, HXQ⟩
   imod Obl.discharge_forest E ps K S kids hclosed hcovered $$ Hps [HS] with ⟨Hps, #HD⟩
   · iapply bigSepS_mono_of_forall (fun _ => sep_comm.1) $$ HS
-  imod untilIGuar_record_discharged_set (P := P) E hX $$ [] HX with ⟨HX, HV⟩
+  imod untilIGuar_record_discharged_set (P := P) E $$ [HXQ] HX with ⟨HX, HV⟩
   · iapply bigSepS_sep.2
-    iframe HG HD
+    isplitr
+    · iexact HG
+    iapply bigSepS_sep.2
+    iframe HD HXQ
   imodintro
   iframe HX Hps
   iapply bigSepS_sep.2
@@ -814,13 +825,14 @@ theorem untilIGuar_discharge_opened_forest_all {G₂ : Oid → TrSpec Expr State
     (ps : List Parent) (K : Parent → Oids) (kids : Oid → Oids) (hK : ∀ p, p ∈ ps → K p ⊆ S)
     (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
-      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗
+        X -∗
         |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p ∅) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
   iintro Hps HS HX
-  imod untilIGuar_discharge_opened_forest (P := P) E ps K kids hclosed hcovered hX $$ Hps HS HX
+  imod untilIGuar_discharge_opened_forest (P := P) E ps K kids hclosed hcovered $$ Hps HS HX
     with ⟨HX, Hps, HV⟩
   imodintro
   iframe HX HV
@@ -834,108 +846,106 @@ theorem untilIGuar_discharge_opened_forest_threads {G₂ : Oid → TrSpec Expr S
     (E : CoPset) (js : List ThreadId) (K : ThreadId → Oids) (kids : Oid → Oids)
     (hK : ∀ j, j ∈ js → K j ⊆ S) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ j, j ∈ js ∧ x ∈ K j) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] j ∈ js, thKids j (K j)) ⊢
-      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗
+        X -∗
         |={E}=>m X ∗ ([∗list] j ∈ js, thKids j ∅) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k) (untilDischarged k (G₂ k)) := by
   let K' : Parent → Oids := fun p => match p with
     | .thread j => K j
     | .obl _ => ∅
-  have h := untilIGuar_discharge_opened_forest_all (P := P) (G₂ := G₂) E (js.map .thread) K'
-    kids
+  have h := untilIGuar_discharge_opened_forest_all (P := P) (Q := Q) (G₂ := G₂) (X := X) E
+    (js.map .thread) K' kids
     (fun p hp => by
       obtain ⟨j, hj, rfl⟩ := List.mem_map.1 hp
       exact hK j hj)
     hclosed
     (fun x hx => (hcovered x hx).imp_left fun ⟨j, hj, hxj⟩ =>
       ⟨.thread j, List.mem_map_of_mem hj, hxj⟩)
-    hX
   rw [BigSepL.bigSepL_map, BigSepL.bigSepL_map] at h
   exact h
 
 /-- The guarantees of the canonical readings, for the set `S`. -/
-private theorem bigSepS_guar_canon (kids : Oid → Oids) :
-    ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) ⊢@{IProp GF}
-      [∗set] k ∈ S, (Q k ⊨ₜ TrSpec.canon (Expr := Expr) (State := State) (Q k)) ∗
-        Obl.assigned k 1 ∗ oblKids k (kids k) :=
+private theorem bigSepS_guar_canon (Φ : Oid → IProp GF) :
+    ([∗set] k ∈ S, Φ k) ⊢
+      [∗set] k ∈ S, (Q k ⊨ₜ TrSpec.canon (Expr := Expr) (State := State) (Q k)) ∗ Φ k :=
   bigSepS_mono_of_forall fun k => emp_sep.2.trans (sep_mono_left (guar_canon (Q k)))
 
 theorem untilI_discharge_opened_forest (E : CoPset) (ps : List Parent) (K : Parent → Oids)
     (kids : Oid → Oids) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
-      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗ X -∗
         |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p (K p \ S)) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k)
             (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) := by
   iintro Hps HS
-  iapply untilIGuar_discharge_opened_forest (P := P) E ps K kids hclosed hcovered hX $$ Hps
-  iapply bigSepS_guar_canon kids $$ HS
+  iapply untilIGuar_discharge_opened_forest (P := P) E ps K kids hclosed hcovered $$ Hps
+  iapply bigSepS_guar_canon $$ HS
 
 theorem untilI_discharge_opened_forest_all (E : CoPset) (ps : List Parent) (K : Parent → Oids)
     (kids : Oid → Oids) (hK : ∀ p, p ∈ ps → K p ⊆ S) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
-      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗ X -∗
         |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p ∅) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k)
             (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) := by
   iintro Hps HS
-  iapply untilIGuar_discharge_opened_forest_all (P := P) E ps K kids hK hclosed hcovered hX
-    $$ Hps
-  iapply bigSepS_guar_canon kids $$ HS
+  iapply untilIGuar_discharge_opened_forest_all (P := P) E ps K kids hK hclosed hcovered $$ Hps
+  iapply bigSepS_guar_canon $$ HS
 
 theorem untilI_discharge_opened_forest_threads (E : CoPset) (js : List ThreadId)
     (K : ThreadId → Oids) (kids : Oid → Oids) (hK : ∀ j, j ∈ js → K j ⊆ S)
     (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ j, j ∈ js ∧ x ∈ K j) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] j ∈ js, thKids j (K j)) ⊢
-      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗ X -∗
         |={E}=>m X ∗ ([∗list] j ∈ js, thKids j ∅) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k (P k)
             (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) := by
   iintro Hjs HS
-  iapply untilIGuar_discharge_opened_forest_threads (P := P) E js K kids hK hclosed hcovered hX
+  iapply untilIGuar_discharge_opened_forest_threads (P := P) E js K kids hK hclosed hcovered
     $$ Hjs
-  iapply bigSepS_guar_canon kids $$ HS
+  iapply bigSepS_guar_canon $$ HS
 
 theorem finallyI_discharge_opened_forest (E : CoPset) (ps : List Parent) (K : Parent → Oids)
     (kids : Oid → Oids) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
-      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗ X -∗
         |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p (K p \ S)) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k iprop(True)
             (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
-  untilI_discharge_opened_forest E ps K kids hclosed hcovered hX
+  untilI_discharge_opened_forest E ps K kids hclosed hcovered
 
 theorem finallyI_discharge_opened_forest_all (E : CoPset) (ps : List Parent) (K : Parent → Oids)
     (kids : Oid → Oids) (hK : ∀ p, p ∈ ps → K p ⊆ S) (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ p, p ∈ ps ∧ x ∈ K p) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] p ∈ ps, Par.kids p (K p)) ⊢
-      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗ X -∗
         |={E}=>m X ∗ ([∗list] p ∈ ps, Par.kids p ∅) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k iprop(True)
             (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
-  untilI_discharge_opened_forest_all E ps K kids hK hclosed hcovered hX
+  untilI_discharge_opened_forest_all E ps K kids hK hclosed hcovered
 
 theorem finallyI_discharge_opened_forest_threads (E : CoPset) (js : List ThreadId)
     (K : ThreadId → Oids) (kids : Oid → Oids) (hK : ∀ j, j ∈ js → K j ⊆ S)
     (hclosed : ∀ k, k ∈ S → kids k ⊆ S)
     (hcovered : ∀ x, x ∈ S → (∃ j, j ∈ js ∧ x ∈ K j) ∨ ∃ k, k ∈ S ∧ x ∈ kids k)
-    {X : IProp GF} (hX : ∀ k, k ∈ S → X ⊢ Q k) :
+    {X : IProp GF} :
     ([∗list] j ∈ js, thKids j (K j)) ⊢
-      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k)) -∗ X -∗
+      ([∗set] k ∈ S, Obl.assigned k 1 ∗ oblKids k (kids k) ∗ (X -∗ Q k)) -∗ X -∗
         |={E}=>m X ∗ ([∗list] j ∈ js, thKids j ∅) ∗
           [∗set] k ∈ S, Obl.discharged k ∗ Obl.variant k iprop(True)
             (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) (Q k))) :=
-  untilI_discharge_opened_forest_threads E js K kids hK hclosed hcovered hX
+  untilI_discharge_opened_forest_threads E js K kids hK hclosed hcovered
 
 end Sets
 

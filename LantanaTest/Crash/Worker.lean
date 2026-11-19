@@ -195,13 +195,16 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
             exact hS' _ (.inr rfl)
           iintro HG
           iapply alc_intro
-          imod finallyI_discharge_opened_forest_threads ∅ [0] (fun _ => {k}) kids hF.roots
-            hF.2.1 hF.covered (fun _ _ => stVar_doneOrCrashed_fin (Qp.half 1) true)
-            $$ [Hk0] [Oa Hkk] Hv with ⟨Hv, Hk0, HD⟩
+          imod finallyI_discharge_opened_forest_threads (Q := fun _ => doneOrCrashed) ∅ [0]
+            (fun _ => {k}) kids hF.roots hF.2.1 hF.covered $$ [Hk0] [Oa Hkk] Hv
+            with ⟨Hv, Hk0, HD⟩
           · iapply BigSepL.bigSepL_singleton.2
             iexact Hk0
           · iapply BigSepS.bigSepS_sep.2
-            iframe Oa Hkk
+            iframe Oa
+            iapply BigSepS.bigSepS_sep.2
+            iframe Hkk
+            iapply bigSepS_wand_intro fun _ _ => stVar_doneOrCrashed_fin (Qp.half 1) true
           icases BigSepL.bigSepL_singleton.1 $$ Hk0 with Hk0
           icases BigSepS.bigSepS_sep.1 $$ HD with ⟨-, HV⟩
           imod Th.terminate ∅ 0 $$ Ha0 Hk0 with #Hd
