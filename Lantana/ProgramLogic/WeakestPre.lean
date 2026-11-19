@@ -20,8 +20,9 @@ public import Lantana.ProgramLogic.Notation
 
 `lWP e @ s; i; E {{ Φ }}`, the least fixpoint of `lwp.pre`, whose step is `lwp.step`: its unfolding
 `lwp_unfold`, induction `lwp_ind_strong`, the structural and derived rules, the later-credit rules
-and the proof-mode instances.  Structured as Iris-Lean's `TotalWeakestPre`, with a thread id and
-the rounds of the obligation model in each step; see `docs/program-logic.md`, §2.
+and the proof-mode instances.  Structured as Iris-Lean's `TotalWeakestPre`, with a thread id, an
+evaluation context and the rounds of the obligation model in each step; see
+`docs/program-logic.md`, §2, and §2.1 for the contexts.
 Rocq: `lantana/program_logic/weakestpre.v`.
 -/
 
@@ -30,9 +31,8 @@ Rocq: `lantana/program_logic/weakestpre.v`.
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode
-open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
+open Iris.ProgramLogic (toVal Language PrimStep)
 open Iris.ProgramLogic.PrimStep (primStep)
-open Iris.ProgramLogic.EvContext (fill)
 
 
 /-- The ghost state of the program logic: the temporal layer, the state interpretation, and the
@@ -46,19 +46,20 @@ class LantanaGS (Expr : Type) (State : Type) (Obs Val : outParam Type) (GF : Bun
 
 section Lwp
 
-variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
-variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [ModelGS GF]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors}
+variable [Λ : Language Expr State Obs Val] [ModelGS GF]
 variable [Crash Expr State Obs Val] [L : LantanaGS Expr State Obs Val GF]
   [TemporalInterp Expr State GF]
 
-/-- One step of `lWP` for thread `i` running `fill K e₁`, in phases (`docs/program-logic.md`, §2);
-`ν e₂ len efs` holds after a step to `e₂` that forks the threads `efs` from the id `len`. -/
+/-- One step of `lWP` for thread `i` running `e₁` in an evaluation context `K`, in phases
+(`docs/program-logic.md`, §2); `ν e₂ len efs` holds after a step to `e₂` that forks the threads
+`efs` from the id `len`. -/
 @[lantana_alias lwp_step]
 def lwp.step (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
     (ν : Expr → Nat → List Expr → IProp GF) : IProp GF :=
-  iprop(∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+  iprop(∀ (K : Expr → Expr) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
     (tp : ThreadPool Expr),
-    ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+    ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
     historyTInterp h n σ₁ tp ={E,∅}=∗
     |=[n]=>m
     ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
@@ -66,10 +67,10 @@ def lwp.step (s : Stuckness) (i : ThreadId) (E : CoPset) (e₁ : Expr)
       ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ -∗
       mprog n tp.length (Cfg.Crashed (tp, σ₁)) i
         (mphys n (n + 1) tp.length (tp.length + efs.length)
-          (Cfg.Crashed (tp, σ₁)) (Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂))
+          (Cfg.Crashed (tp, σ₁)) (Cfg.Crashed (tp.set i (K e₂) ++ efs, σ₂))
           (|=[n + 1]=>m |={∅,E}=>
-            historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
-              (tp.set i (fill K e₂) ++ efs) ∗
+            historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
+              (tp.set i (K e₂) ++ efs) ∗
             ν e₂ tp.length efs)))
 
 @[lantana_alias lwp_step_mono]
@@ -482,13 +483,13 @@ theorem lwp_atomic_mupd [hatom : Language.Atomic ↑s e] :
       iapply lwp_atomic_value he₂ $$ H Hσ Hefs
 
 @[lantana_alias lwp_bind]
-theorem lwp_bind (K : Ectx) [hK : Language.Context (fill (Expr := Expr) K)] :
-    lWP e @ s; i; E {{ v, lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }} ⊢
-      lWP (fill K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind (K : Expr → Expr) [hK : Language.Context K] :
+    lWP e @ s; i; E {{ v, lWP (K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (K e) @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_ind_strong s (fun i E e Ψ => iprop(∀ Φ,
-      (∀ v, Ψ v -∗ lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }}) -∗
-        lWP (fill K e) @ s; i; E {{ Φ }}))
+      (∀ v, Ψ v -∗ lWP (K ((v : Val) : Expr)) @ s; i; E {{ Φ }}) -∗
+        lWP (K e) @ s; i; E {{ Φ }}))
     $$ [] %i %e %E %_ H %Φ []
   · iintro !> %i %e %E %Ψ IH %Φ HΦ
     unfold lwp.pre
@@ -500,21 +501,19 @@ theorem lwp_bind (K : Ectx) [hK : Language.Context (fill (Expr := Expr) K)] :
       imodintro
       iapply HΦ $$ IH
     | none =>
-      rw [(lwp_unfold (e := fill K e)).to_eq]
+      rw [(lwp_unfold (e := K e)).to_eq]
       simp only [lwp.pre, hK.toVal_eq_none_fill he]
       unfold lwp.step
       iintro %K₁ %h %n %σ₁ %tp %hK₁ %hi Hσ
-      rw [EvContext.fill_comp] at hi
-      imod IH $$ %(EvContextOps.comp K₁ K) %h %n %σ₁ %tp %(Language.Context.fillComp K₁ K) %hi Hσ
-        with IH
-      isimp only [← EvContext.fill_comp] at IH
+      imod IH $$ %(K₁ ∘ K) %h %n %σ₁ %tp %(Language.Context.comp K₁ K) %hi Hσ with IH
+      isimp only [Function.comp_apply] at IH
       imodintro
       imod IH with ⟨%hred, IH⟩
       imodintro
       isplitr
       · ipureintro
         cases s
-        · exact Language.Context.reducible_fill (fill K) hred
+        · exact Language.Context.reducible_fill K hred
         · trivial
       iintro %obs %e₂ %σ₂ %efs %hstep
       obtain ⟨e₂', rfl, hstep'⟩ := hK.primStep_fill_inv he hstep
@@ -535,9 +534,9 @@ theorem lwp_bind (K : Ectx) [hK : Language.Context (fill (Expr := Expr) K)] :
     iexact Hv
 
 @[lantana_alias lwp_bind_step]
-theorem lwp_bind_step (K : Ectx) [Language.Context (fill (Expr := Expr) K)] :
-    lWP e @ s; i; E {{ v, |={E}=>m lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }} ⊢
-      lWP (fill K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind_step (K : Expr → Expr) [Language.Context K] :
+    lWP e @ s; i; E {{ v, |={E}=>m lWP (K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }} ⊢
+      lWP (K e) @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_bind K
   iapply lwp_strong_mono (Std.IsPreorder.le_refl _) Std.LawfulSet.subset_refl $$ H
@@ -546,9 +545,9 @@ theorem lwp_bind_step (K : Ectx) [Language.Context (fill (Expr := Expr) K)] :
   iapply mupd_lwp $$ Hv
 
 @[lantana_alias lwp_bind_sfmupd]
-theorem lwp_bind_mupd (K : Ectx) [Language.Context (fill (Expr := Expr) K)] :
-    (|={E}=>m lWP e @ s; i; E {{ v, |={E}=>m lWP (fill K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }}) ⊢
-      |={E}=>m lWP (fill K e) @ s; i; E {{ Φ }} := by
+theorem lwp_bind_mupd (K : Expr → Expr) [Language.Context K] :
+    (|={E}=>m lWP e @ s; i; E {{ v, |={E}=>m lWP (K ((v : Val) : Expr)) @ s; i; E {{ Φ }} }}) ⊢
+      |={E}=>m lWP (K e) @ s; i; E {{ Φ }} := by
   iintro H
   imod H
   imodintro

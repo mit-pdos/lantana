@@ -62,7 +62,9 @@ roots (`docs/adequacy.md`, §4.1–§4.2).
 - **Steps.**  The usual lifting lemmas take `KeepsCrashed i e₁` (the step changes no thread's
   status); `lwp_lift_step_or_crashed` serves a thread that learns only at the step whether it
   is crashed; `lwp_lift_step_gen` and `lwp_lift_step_gen_si` serve steps that crash or recover
-  threads (`docs/program-logic.md`, §3).
+  threads (`docs/program-logic.md`, §3).  The crashed threads are read from the pool, where the
+  stepping thread is under an evaluation context of `lwp.step`, so a language whose threads
+  crash says what its contexts do to an expression (`docs/program-logic.md`, §2.1).
 - **Adequacy.**  Every owner of an obligation is active: a finished thread owns nothing by its
   `Th.done`, a crashed one by the crash map of the model.  The premise of the adequacy theorems
   gives every initial thread its bill, and its node if it is not crashed (`docs/adequacy.md`,

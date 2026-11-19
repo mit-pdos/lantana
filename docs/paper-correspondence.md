@@ -92,7 +92,7 @@ fuel type, and ghost names exposed by allocation.
 | EXIT | `lwp_value`; `Th.terminate` turns `thActive i` and `thKids i ∅` into `Th.done i`, which forked threads owe in their postcondition (`lwp.liftTerm`) | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/OblForest.lean` |
 | FINALLY-EXIT* | `Examples.threadExpr_terminate_finally` | `Examples/Lib.lean` |
 | FINALLY-ALLOC* | `untilI_alloc` with left formula `True` (`finallyI`) | `Trace/TemporalFormulaRules.lean` |
-| BIND | `lwp_bind` | `ProgramLogic/WeakestPre.lean` |
+| BIND | `lwp_bind`, at any `K` with Iris-Lean's `Language.Context K`; `lwp_bind_fill` at an evaluation context of an `EctxLanguage` | `ProgramLogic/WeakestPre.lean`, `ProgramLogic/EctxLifting.lean` |
 | FRAME, UPD-ELIM | `lwp_strong_mono`, `fupd_lwp` / `lwp_fupd` / `mupd_lwp` / `lwp_mupd` | `ProgramLogic/WeakestPre.lean` |
 | CARRIER-ALLOC | no carriers: `Obl.new` creates an obligation below a parent | `ProgramLogic/OblForest.lean` |
 | CARRIER-DELETE | no carriers: `Obl.discharge_leaf` discharges a childless obligation; its children can first move up for free (`Obl.move_up`; both: `Obl.discharge_lift_kids`) | `ProgramLogic/OblForest.lean`, `ProgramLogic/OblForestRules.lean` |

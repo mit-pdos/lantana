@@ -184,17 +184,21 @@ example (l : Loc) (v : Val) (Φ : Val → IProp GF) :
 
 end
 
-/-! The context of a thread that can step is determined by its expression, also for
-`chooseNat`: contexts are lists of items, and a redex has one context in an expression. -/
-
-example (tp : ThreadPool Exp) (i : ThreadId) (K C : List ECtxItem) (σ : State) (n : Nat)
-    (hK : tp[i]? = some (fill K .chooseNat)) (hC : tp[i]? = some (fill C .chooseNat)) : C = K :=
-  ctx_eq_of_primStep (EctxLanguage.primStep_of_baseStep (obs := []) (.chooseNatS n σ)) hC hK
+/-! An evaluation context that puts the expression of a token at its thread agrees with the
+token's items, and still does after a step, also a step of `chooseNat`, whose result the state
+does not determine. -/
 
 example {GF : BundledGFunctors} [HeapStateGS GF] (tp : ThreadPool Exp) (i : ThreadId)
-    (K C : List ECtxItem) (σ : State) (n : Nat) (hK : tp[i]? = some (fill K .chooseNat)) :
-    threadMapAuth (GF := GF) tp ∗ threadExpr i C .chooseNat ⊢ ⌜C = K⌝ :=
-  threadExpr_ctx tp i C K _ hK (EctxLanguage.primStep_of_baseStep (obs := []) (.chooseNatS n σ))
+    (K : Exp → Exp) (C : List ECtxItem) (hK : tp[i]? = some (K .chooseNat)) :
+    threadMapAuth (GF := GF) tp ∗ threadExpr i C .chooseNat ⊢
+      ⌜K .chooseNat = fill C .chooseNat⌝ :=
+  threadExpr_ctx tp i C K _ hK
+
+example (K : Exp → Exp) [Iris.ProgramLogic.Language.Context K] (C : List ECtxItem) (σ : State)
+    (n : Nat) (h : K .chooseNat = fill C .chooseNat) :
+    K (.val (.lit (.int n))) = fill C (.val (.lit (.int n))) :=
+  context_eq_fill_of_primStep h
+    (EctxLanguage.primStep_of_baseStep (obs := []) (.chooseNatS n σ))
 
 /-! The step tactics that find their hypotheses (M10): `lwp_step`, `lwp_step with`,
 `lwp_pure`, `lwp_bind e'` and `lwp_pures`; on a value they fail with an error that `try`,

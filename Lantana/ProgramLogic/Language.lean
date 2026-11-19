@@ -9,9 +9,11 @@ public import Lantana.Init
 
 /-! # Lantana's additions to Iris-Lean's language interface
 
-Lantana's languages are Iris-Lean's.  This module adds the class `Crash` of the crashed threads of
-a language, `Stuckness.MaybeReducible`, the evaluation-context instances `Language.Context.comp`,
-`fillEmpty` and `fillComp`, and `EctxItemLanguage.fill_ctx_step_inj`.
+Lantana's languages are Iris-Lean's, and its evaluation contexts are the functions
+`K : Expr → Expr` with Iris-Lean's `Language.Context K`.  This module adds the class `Crash` of the
+crashed threads of a language, `Stuckness.MaybeReducible`, the composition
+`Language.Context.comp` of contexts, `Language.Context.eq_of_primStep` (two contexts that agree
+before a step agree after it) and `EctxItemLanguage.fill_ctx_step_inj`.
 See `docs/program-logic.md`, §1.
 -/
 
@@ -24,13 +26,14 @@ open Iris.ProgramLogic Iris.ProgramLogic.Language.Notation
 /-! ## The Rocq declarations that Iris-Lean provides -/
 
 #lantana_ignore language "Iris-Lean's `Language`"
-#lantana_ignore LanguageCtxMixin "contexts are Iris-Lean's `EvContext`, outside the language"
-#lantana_ignore ctx "Iris-Lean's `EvContext` (its type of contexts)"
-#lantana_ignore ctx_apply "Iris-Lean's `EvContext.fill`"
-#lantana_ignore ctx_id "Iris-Lean's `EvContextOps.empty`"
-#lantana_ignore ctx_comp "Iris-Lean's `EvContextOps.comp`"
-#lantana_ignore ctx_id_apply "Iris-Lean's `EvContext.fill_empty`"
-#lantana_ignore ctx_comp_apply "Iris-Lean's `EvContext.fill_comp`"
+#lantana_ignore LanguageCtxMixin
+  "contexts are the functions `K` with Iris-Lean's `Language.Context K`"
+#lantana_ignore ctx "contexts are the functions `K` with Iris-Lean's `Language.Context K`"
+#lantana_ignore ctx_apply "contexts are functions: application"
+#lantana_ignore ctx_id "contexts are functions: `id` (Iris-Lean's `Language.instContext_id`)"
+#lantana_ignore ctx_comp "contexts are functions: `∘` (`Language.Context.comp`)"
+#lantana_ignore ctx_id_apply "contexts are functions: `id e = e` by `rfl`"
+#lantana_ignore ctx_comp_apply "contexts are functions: `(K₁ ∘ K₂) e = K₁ (K₂ e)` by `rfl`"
 #lantana_ignore reducible "Iris-Lean's `PrimStep.Reducible`"
 #lantana_ignore irreducible "Iris-Lean's `PrimStep.Irreducible`"
 #lantana_ignore stuck "Iris-Lean's `PrimStep.Stuck`"
@@ -142,7 +145,7 @@ open Iris.ProgramLogic Iris.ProgramLogic.Language.Notation
   "Iris-Lean's `EctxItemLanguage.subredexes_are_values`"
 #lantana_ignore ectxi_lang_ctx_item "Iris-Lean's `EctxLanguage.instContextFill [Ki]`"
 
-variable {Expr State Obs Val Ectx : Type}
+variable {Expr State Obs Val : Type}
 
 /-! ## Crashed threads -/
 
@@ -190,19 +193,24 @@ instance comp (K₁ K₂ : Expr → Expr) [Language.Context K₁] [Language.Cont
     obtain ⟨e₂, rfl, h₂⟩ := Language.Context.primStep_fill_inv (K := K₂) hv h₁
     exact ⟨e₂, rfl, h₂⟩
 
-variable [EvContext Expr Ectx]
+/-- Two evaluation contexts that agree on `e₁` agree on the result of a step of `e₁`, up to the
+results with the same observations, state and forked threads. -/
+theorem exists_eq_of_primStep (K K' : Expr → Expr) [Language.Context K] [Language.Context K']
+    {e₁ e₂ : Expr} {σ₁ σ₂ : State} {obs : List Obs} {efs : List Expr} (heq : K e₁ = K' e₁)
+    (hs : (e₁, σ₁) -<obs>-> (e₂, σ₂, efs)) :
+    ∃ e₂', K e₂ = K' e₂' ∧ (e₁, σ₁) -<obs>-> (e₂', σ₂, efs) := by
+  have h := Language.Context.primStep_fill (K := K) hs
+  rw [heq] at h
+  exact Language.Context.primStep_fill_inv (Language.toVal_none_of_reducible ⟨_, _, _, _, hs⟩) h
 
-/-- The empty context is an evaluation context. -/
-instance fillEmpty : Language.Context (fill (Expr := Expr) (empty : Ectx)) :=
-  (funext (EvContext.fill_empty (Ectx := Ectx)) : fill (Expr := Expr) (empty : Ectx) = id) ▸
-    Language.instContext_id
-
-/-- The composition of two evaluation contexts is an evaluation context. -/
-instance fillComp (K₁ K₂ : Ectx) [Language.Context (fill (Expr := Expr) K₁)]
-    [Language.Context (fill (Expr := Expr) K₂)] :
-    Language.Context (fill (Expr := Expr) (EvContextOps.comp K₁ K₂)) :=
-  (funext fun e => (EvContext.fill_comp K₁ K₂ e).symm :
-      fill (Expr := Expr) (EvContextOps.comp K₁ K₂) = fill K₁ ∘ fill K₂) ▸ comp _ _
+/-- Two evaluation contexts that agree on `e₁` agree on the result of a step of `e₁` that its
+observations, state and forked threads determine. -/
+theorem eq_of_primStep (K K' : Expr → Expr) [Language.Context K] [Language.Context K']
+    {e₁ e₂ : Expr} {σ₁ σ₂ : State} {obs : List Obs} {efs : List Expr} (heq : K e₁ = K' e₁)
+    (hs : (e₁, σ₁) -<obs>-> (e₂, σ₂, efs))
+    (hdet : ∀ e₂', (e₁, σ₁) -<obs>-> (e₂', σ₂, efs) → e₂' = e₂) : K e₂ = K' e₂ := by
+  obtain ⟨e₂', h, hs'⟩ := exists_eq_of_primStep K K' heq hs
+  rw [h, hdet e₂' hs']
 
 end Language.Context
 
