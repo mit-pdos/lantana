@@ -219,13 +219,14 @@ pool after the step is `tp.set i (fill C e')`, and the token and the map change 
 `context_eq_fill_of_primStep` (`HeapLang/Context.lean`) is about an arbitrary function `K` with
 the laws of `Language.Context`, which need not be a list of items.  The step is a base step of
 a redex under items, which join `K` and `C`.  The final state determines the result of every
-base step but `chooseNat`'s (`allocN` picks a location, which the state records), so
-`Language.Context.eq_of_primStep` applies.  `chooseNat` steps to every number with the same
-state, and the laws of a context only say that `K` sends the numbers onto the numbers under
-`C`; that it sends each number to itself follows from another expression, `!ℓ`, which reads the
-number from the state: `K !ℓ` steps as `!ℓ` does, so it is a redex that reads `ℓ` under some
-items, which sends each number to itself, and these items are `C` because two lists of items
-that agree on two different values are equal.
+base step but `chooseNat`'s (`BaseStep.eq_or_eq_chooseNat`; `allocN` picks a location, which the
+state records), and then `Language.Context.exists_eq_of_primStep` gives the result.  `chooseNat`
+steps to every number with the same state, so the laws of a context only say that `K` maps the
+numbers onto the numbers under `C`.  That it maps each number to itself is read off another
+expression: `K (!ℓ)` steps as `!ℓ` does, to `K n` in a state whose cell `ℓ` holds `n`, so it is
+a redex under some items `D` whose result is read from the state
+(`BaseStep.exists_eq_ofVal_of_ne`), and `K n = fill D n`; then `D = C`, since two lists of items
+that agree on two different values are equal (`eq_of_fill_ofVal_eq`).
 
 Every step law takes the token and `stepPre i G R` (the bill, one unit of fuel of each of its
 obligations, the witness layers) and gives back the token and `stepPost i G R o` (the later
