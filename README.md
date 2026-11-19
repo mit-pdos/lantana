@@ -158,6 +158,11 @@ that are neither aliased nor ignored, which is no longer maintained.
   `Type`), with the evaluation contexts of `lWP` an Iris-Lean `EvContext Expr Ectx`, and the
   temporal ghost state determines the language; thread ids are list positions and pools are
   `List Expr`; `lWP` and traces ignore observations, and prophecies are dropped.
+- **Evaluation contexts are declared**: a step of `lWP` quantifies over the contexts `K : Ectx`
+  of the `EvContext` that the language declares, as a Rocq language carries its type of
+  contexts. Every language has one to declare (`Ectx := Unit` for a language without contexts),
+  so the logic does not need an `EctxLanguage`. It does not quantify over every function with
+  `Language.Context K`, the contexts of Iris-Lean's `wp_bind`: `docs/program-logic.md`, §2.1.
 - **The obligation model** keeps Rocq's rules but not its ghost layout: owners are read from the
   obligation map (no owner ghost state), there is no boolean state flag, the per-thread maps are
   folded into the forest invariant, and ordinal-valued cells live under per-obligation ghost

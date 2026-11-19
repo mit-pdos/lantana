@@ -2,9 +2,10 @@
 
 The program logic of Lantana is a weakest precondition `lWP` for one thread of a language with a
 thread pool, in which every step pays for the obligations of the thread.  This note describes
-the configurations and their steps, one step of `lWP`, the lifting lemmas, HeapLang's laws, and
-the tactics that take HeapLang's steps.  What a step does to the obligation model (the rounds,
-the nodes of crashed threads) is described in `docs/model.md`, §4–§5.
+the configurations and their steps, one step of `lWP` and its evaluation contexts, the lifting
+lemmas, HeapLang's laws, and the tactics that take HeapLang's steps.  What a step does to the
+obligation model (the rounds, the nodes of crashed threads) is described in `docs/model.md`,
+§4–§5.
 
 | module | contents |
 |---|---|
@@ -19,6 +20,8 @@ the nodes of crashed threads) is described in `docs/model.md`, §4–§5.
 ## 1. Configurations, thread steps and activity
 
 Languages are Iris-Lean's (`Language`, `EctxLanguage`, `EctxItemLanguage`), used as they are.
+The program logic needs a `Language` and the evaluation contexts that it declares, an Iris-Lean
+`EvContext` (§2.1); it does not need an `EctxLanguage`.
 `Language.lean` records the Rocq declarations that Iris-Lean provides and adds four things.  A
 language declares its crashed threads by the class `Crash`: whether the thread running an
 expression is crashed in a state, which is never the case for a value.
@@ -75,9 +78,9 @@ continues with `lWP` and each forked thread `len + j` runs with the postconditio
 thread closes its node before it ends.
 
 `lwp.step s i E e₁ ν` quantifies over every evaluation context `K` (with
-`Language.Context (fill K)`) and every pool `tp` in which thread `i` runs `fill K e₁`, which lets
-HeapLang recover the context from the thread's token (§4).  For a history `h`, a position `n` and
-a state `σ₁`, the step runs in phases:
+`Language.Context (fill K)`, §2.1) and every pool `tp` in which thread `i` runs `fill K e₁`,
+which lets HeapLang recover the context from the thread's token (§4).  For a history `h`, a
+position `n` and a state `σ₁`, the step runs in phases:
 
 1. the invariants are opened, `historyTInterp h n σ₁ tp ={E,∅}=∗`;
 2. a model update at position `n`, `|=[n]=>m`, which may discharge an until and which proves
@@ -104,13 +107,73 @@ is non-expansive, and a rewriting along the internal equality brings each case b
 
 The rules are those of a weakest precondition: the updates around `lWP` (`fupd_lwp`, `mupd_lwp`,
 `lwp_fupd`, `lwp_mupd`), monotonicity (`lwp_strong_mono_mupd`, from which the other forms
-follow), `lwp_bind`, the atomic rule `lwp_atomic_mupd`, framing and the wands, and the later
-credits (`lwp_credit_later` for a transfinite credit `£ₒ 1`, `lwp_credit_laterN`).  Rocq's
+follow), `lwp_bind` (§2.1), the atomic rule `lwp_atomic_mupd`, framing and the wands, and the
+later credits (`lwp_credit_later` for a transfinite credit `£ₒ 1`, `lwp_credit_laterN`).  Rocq's
 `sfmupd` is `mupd` in the Lean names, and there are no `Proper` instances, only a `NonExpansive`
 instance and dist lemmas.  The proof-mode instances, after Iris-Lean's `WeakestPre`, frame into
 the postcondition, eliminate fancy, basic and model updates in front of `lWP` (mask-changing ones
 in front of an atomic expression, with error messages for a wrong mask), and open accessors
 (`ElimAcc`).
+
+### 2.1 Evaluation contexts
+
+The evaluation contexts of `lWP` are those that the language declares, by an instance of
+Iris-Lean's `EvContext Expr Ectx`: a type `Ectx` of contexts with `fill : Ectx → Expr → Expr`, the
+empty context and composition.  `lwp.step` quantifies over the contexts `K : Ectx` for which
+`fill K` is a context of the language, Iris-Lean's `Language.Context (fill K)`: `fill K e` is not
+a value when `e` is not, a step of `e` is a step of `fill K e`, and every step of `fill K e`, for
+`e` not a value, is a step of `e`.  `lwp_bind` binds at such a context:
+
+```lean
+theorem lwp_bind (K : Ectx) [Language.Context (fill K)] :
+    lWP e @ s; i; E {{ v, lWP (fill K v) @ s; i; E {{ Φ }} }} ⊢ lWP (fill K e) @ s; i; E {{ Φ }}
+```
+
+Iris-Lean's weakest preconditions do not mention contexts in their definition, because their
+state interpretation does not see the expressions of the threads.  Lantana's does: the history
+holds the pools, and a language may hold the pool in its state interpretation.  So a step says
+where the expression is in the pool: `lwp.step` takes a pool with
+`tp[i]? = some (fill K e₁)`, and the pool after the step holds `fill K e₂`.  `lwp_bind K`
+composes the context of the step with `K` (`Language.Context.fillComp`), and adequacy takes the
+step at the empty context (`threadRun_step`, `Language.Context.fillEmpty`).  A Rocq language
+carries its type of contexts (`ctx`, `LanguageCtxMixin`); here the type is declared beside the
+`Language`, with Iris-Lean's class.
+
+**Every language has contexts to declare.**  The program logic needs a `Language` and an
+`EvContext`, not an `EctxLanguage`.
+
+- An `EctxLanguage` declares its own evaluation contexts, and each of them is a context
+  (`EctxLanguage.instContextFill`).  HeapLang's are the lists of context items (§4).
+- A language without evaluation contexts declares the trivial ones: `Ectx := Unit` with
+  `fill _ e := e`, six lines (the crashing test language, `LantanaTest.Crash.instEvContext`).
+  A step then sees the expression of the thread itself, `tp[i]? = some e₁`.  This is also the
+  choice for a language that sequences inside its expressions and has no values, such as a
+  machine whose threads run a monadic program: its bind rule is a rule of that program, not
+  `lwp_bind`.
+- Between the two, a language may declare any type of injective functions that has the identity
+  and is closed under composition.  Injectivity (`fill_inj`) is the one law of `EvContext` that
+  `lWP` does not use.
+
+**What a law knows about the context.**  A law that follows the expression of a thread in the
+pool (HeapLang's token of the thread's expression, §4; the crashed threads of a language whose
+threads crash, which `Cfg.Crashed` reads from the pool) must know `fill K e₂` from what it knows
+of `fill K e₁`.  With declared contexts this is a fact about their type.  For the lists of
+items of an `EctxItemLanguage`, an expression that can step determines the context around it
+(`EctxItemLanguage.fill_ctx_step_inj`), so the context of the step is the one that the law
+holds; with the trivial contexts there is nothing to relate.
+
+**Why not every function.**  Iris-Lean's `wp_bind` binds at any function `K : Expr → Expr` with
+`Language.Context K`, and `lwp.step` could quantify over these functions, with no `EvContext`.
+It does not.  Iris-Lean uses that class only where a context is given, as a hypothesis of
+`wp_bind`, where a larger class makes the rule more general; in `lwp.step` it would be under a
+quantifier that every law of a language discharges, where a larger class makes each law harder.
+A law would be proved for functions that no program binds at, and the laws of
+`Language.Context` relate two contexts that agree on an expression only up to the results of
+its step with the same observations, state and forked threads.  A law that follows the thread
+across a step that these do not determine, such as HeapLang's `chooseNat` or the choices in the
+cycle of a machine, would then need an argument about the whole language (for `chooseNat`, that
+another expression reads the heap), and a language need not have one.  With declared contexts,
+a law is about its own step, and a language chooses the contexts it binds at.
 
 ## 3. The lifting lemmas
 
@@ -196,9 +259,10 @@ The token `threadExpr i C e` is exact ownership of the expression `fill C e` of 
 into the caller's context `C` and the current subexpression `e`; `threadExpr_fill` moves a
 context between the two, and `exits v @ i` is `threadExpr i [] (.val v)`.  Since `lwp.step`
 quantifies over the contexts `K` that put the thread's expression in the pool, a law relates `K`
-to the token's `C`: when `e` can step, the token and the pool give `K = C` (`threadExpr_ctx`, by
-`fill_ctx_step_inj`).  So the pool after the step is `tp.set i (fill C e')`, and the token and
-the map change together (`threadMapAuth_update`, and `threadExpr_pureExecSI` for pure steps).
+to the token's `C` (§2.1): when `e` can step, the token and the pool give `K = C`
+(`threadExpr_ctx`, by `fill_ctx_step_inj`).  So the pool after the step is
+`tp.set i (fill C e')`, and the token and the map change together (`threadMapAuth_update`, and
+`threadExpr_pureExecSI` for pure steps).
 
 Every step law takes the token and `stepPre i G R` (the bill, one unit of fuel of each of its
 obligations, the witness layers) and gives back the token and `stepPost i G R o` (the later
