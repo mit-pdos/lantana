@@ -9,9 +9,9 @@ public import Lantana
 /-! # A language whose threads crash: the language, its world, its state interpretation
 
 A worker `work n` with `n` steps of work left, a killer and a reviver, over a boolean state "the
-worker is alive"; the worker is crashed while the state is `false` (`instCrash`). The closed
-world `CrashGF`, the state interpretation `crashInterp` and the state fact `doneOrCrashed`.
-See `docs/adequacy.md`, §7.
+worker is alive"; the worker is crashed while the state is `false` (`instCrash`), and the only
+evaluation context is the identity (`context_eq_id`). The closed world `CrashGF`, the state
+interpretation `crashInterp` and the state fact `doneOrCrashed`. See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section

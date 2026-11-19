@@ -20,8 +20,9 @@ public import Lantana.ProgramLogic.Notation
 
 `lWP e @ s; i; E {{ Φ }}`, the least fixpoint of `lwp.pre`, whose step is `lwp.step`: its unfolding
 `lwp_unfold`, induction `lwp_ind_strong`, the structural and derived rules, the later-credit rules
-and the proof-mode instances.  Structured as Iris-Lean's `TotalWeakestPre`, with a thread id and
-the rounds of the obligation model in each step; see `docs/program-logic.md`, §2.
+and the proof-mode instances.  Structured as Iris-Lean's `TotalWeakestPre`, with a thread id, an
+evaluation context and the rounds of the obligation model in each step; see
+`docs/program-logic.md`, §2, and §2.1 for the contexts.
 Rocq: `lantana/program_logic/weakestpre.v`.
 -/
 
