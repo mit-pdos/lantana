@@ -20,11 +20,11 @@ See `docs/adequacy.md`, §5.5. Rocq: `lantana/trace/adequacy_safety.v`.
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Ordinals
-open Iris.ProgramLogic (toVal Language EvContext)
+open Iris.ProgramLogic (toVal Language)
 open Lantana.Model
 open scoped Lantana.TrProp
 
-variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvContext Expr Ectx]
+variable {Expr State Obs Val : Type} [Language Expr State Obs Val]
 
 /-- If thread `j` has terminated with the value `v`, then `Φ j v`. -/
 @[lantana_alias if_term_val]

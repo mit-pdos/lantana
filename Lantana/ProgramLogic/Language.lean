@@ -26,7 +26,8 @@ open Iris.ProgramLogic Iris.ProgramLogic.Language.Notation
 /-! ## The Rocq declarations that Iris-Lean provides -/
 
 #lantana_ignore language "Iris-Lean's `Language`"
-#lantana_ignore LanguageCtxMixin "contexts are the functions `K` with Iris-Lean's `Language.Context K`"
+#lantana_ignore LanguageCtxMixin
+  "contexts are the functions `K` with Iris-Lean's `Language.Context K`"
 #lantana_ignore ctx "contexts are the functions `K` with Iris-Lean's `Language.Context K`"
 #lantana_ignore ctx_apply "contexts are functions: application"
 #lantana_ignore ctx_id "contexts are functions: `id` (Iris-Lean's `Language.instContext_id`)"

@@ -19,7 +19,7 @@ namespace LantanaTest.Crash
 
 open Iris Iris.BI Iris.ProofMode Iris.Std
 open Ordinals Ordinal Lantana
-open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
+open Iris.ProgramLogic (toVal Language PrimStep)
 
 /-! ## Namespaces -/
 

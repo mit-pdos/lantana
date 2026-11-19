@@ -19,16 +19,22 @@ the nodes of crashed threads) is described in `docs/model.md`, §4–§5.
 ## 1. Configurations, thread steps and activity
 
 Languages are Iris-Lean's (`Language`, `EctxLanguage`, `EctxItemLanguage`), used as they are.
+The program logic (`lWP`, the lifting lemmas, adequacy) needs a `Language` only: its evaluation
+contexts are the functions `K : Expr → Expr` with Iris-Lean's `Language.Context K`, not a type of
+contexts that the language provides.
 `Language.lean` records the Rocq declarations that Iris-Lean provides and adds four things.  A
 language declares its crashed threads by the class `Crash`: whether the thread running an
 expression is crashed in a state, which is never the case for a value.
 `Stuckness.MaybeReducible s (e, σ)` is the reducibility that the stuckness `s` requires: a step for
 `NotStuck`, nothing for `MaybeStuck`.  Iris-Lean has only the identity as a `Language.Context`;
-Lantana adds the composition of two contexts (`Language.Context.comp`) and, for an `EvContext`,
-the empty and the composed contexts (`fillEmpty`, `fillComp`), which `lwp_bind` needs; they are
-proposed for Iris-Lean in `docs/iris-lean-proposal.md`, §7.  Last,
-`EctxItemLanguage.fill_ctx_step_inj`: an expression that can step determines the context around
-it, which HeapLang uses to recover the context of a thread (§4).
+Lantana adds the composition of two contexts (`Language.Context.comp`), which `lwp_bind` needs
+and which is proposed for Iris-Lean in `docs/iris-lean-proposal.md`, §7.  Two contexts that
+agree on an expression need not agree on the result of its step, only up to the results with the
+same observations, state and forked threads (`Language.Context.exists_eq_of_primStep`); they do
+agree when these determine the result (`Language.Context.eq_of_primStep`), which a language uses
+to follow the context of a thread across a step (§2, §4).  Last,
+`EctxItemLanguage.fill_ctx_step_inj`: an expression that can step determines the list of context
+items around it.
 
 A configuration `Cfg Expr State` is a thread pool, `List Expr`, and a state; a thread id is a
 position in the pool.  A step of thread `i` (`ThreadStep i`) is Iris-Lean's `primStep` of its
@@ -74,10 +80,10 @@ continues with `lWP` and each forked thread `len + j` runs with the postconditio
 `lwp.liftTerm (len + j) forkPost`, that is `Th.done (len + j) ∗ forkPost (len + j) v`: a forked
 thread closes its node before it ends.
 
-`lwp.step s i E e₁ ν` quantifies over every evaluation context `K` (with
-`Language.Context (fill K)`) and every pool `tp` in which thread `i` runs `fill K e₁`, which lets
-HeapLang recover the context from the thread's token (§4).  For a history `h`, a position `n` and
-a state `σ₁`, the step runs in phases:
+`lwp.step s i E e₁ ν` quantifies over every evaluation context `K : Expr → Expr` (with
+`Language.Context K`) and every pool `tp` in which thread `i` runs `K e₁`: `lwp_bind` puts a
+context around the expression, and the state interpretation sees the whole pool.  For a history
+`h`, a position `n` and a state `σ₁`, the step runs in phases:
 
 1. the invariants are opened, `historyTInterp h n σ₁ tp ={E,∅}=∗`;
 2. a model update at position `n`, `|=[n]=>m`, which may discharge an until and which proves
@@ -96,6 +102,15 @@ What the rounds do to the model is in `docs/model.md`, §5.  Compared with Iris-
 weakest preconditions, `lWP` thus has a thread id, sees the history, quantifies over the context
 of the thread, runs the rounds of the obligation model between model updates, and ignores
 observations.
+
+The quantification is over every function that is a context, whether or not a program can
+put it around an expression, so a law of a language is proved for all of them.  A law that only
+uses the state does not look at `K`.  A law whose state interpretation holds the pool (HeapLang's
+does, §4) must know the thread after the step, `K e₂`, from what it knows before, `K e₁`: the
+laws of `Language.Context` give this when the observations, the state and the forked threads of
+the step determine `e₂` (`Language.Context.eq_of_primStep`), and a language proves it for its
+other steps (HeapLang for `chooseNat`, §4; the crashing test language shows that its only context
+is the identity, `LantanaTest.Crash.context_eq_id`).
 
 Induction on `lWP`, `lwp_ind_strong`, takes any predicate `Ψ`, non-expansive or not.  It applies
 the induction principle of the least fixpoint to the closure `fun x => ∀ y, x ≡ y → Ψ y`, which
@@ -153,9 +168,8 @@ Which lemma to use:
 For a language with evaluation contexts, `EctxLifting.lean` states these lemmas with base steps
 and base reducibility (`lwp_lift_base_step`, `lwp_lift_atomic_base_step`,
 `lwp_lift_atomic_base_step_no_fork`, `lwp_lift_pure_det_base_step_no_fork`, the stuck forms),
-and `lwp_bind_fill` binds at an evaluation context.  Every evaluation context is a context of an
-`EctxLanguage` (`EctxLanguage.instContextFill`), so these lemmas quantify over `K` without the
-hypothesis `Language.Context (fill K)`.
+and `lwp_bind_fill` binds at an evaluation context of the language, which is a context
+(`EctxLanguage.instContextFill`).
 
 A pure step changes the expression of the thread, which the state interpretation may know:
 HeapLang's holds the pool, and the thread holds a token of its own expression.  The class

@@ -27,25 +27,24 @@ Rocq: `lantana/program_logic/lifting.v`.
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Ordinals Ordinal
-open Iris.ProgramLogic (toVal Language PrimStep EvContext)
+open Iris.ProgramLogic (toVal Language PrimStep)
 open Iris.ProgramLogic.PrimStep (primStep)
-open Iris.ProgramLogic.EvContext (fill)
 
 section Lifting
 
-variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
-variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [ModelGS GF]
+variable {Expr State Obs Val : Type} {GF : BundledGFunctors}
+variable [Λ : Language Expr State Obs Val] [ModelGS GF]
 variable [Crash Expr State Obs Val] [L : LantanaGS Expr State Obs Val GF]
   [TemporalInterp Expr State GF]
 
-/-- A pure step of thread `i` from `fill K e₁` to `fill K e₂` updates the token `ς i e₁` and the
+/-- A pure step of thread `i` from `K e₁` to `K e₂` updates the token `ς i e₁` and the
 state interpretation together. -/
 @[lantana_alias PureExecSI]
 class PureExecSI (ς : ThreadId → Expr → IProp GF) (i : ThreadId) : Prop where
-  pureExecSI {K : Ectx} {e₁ e₂ : Expr} {σ : State} {obs : List Obs} {tp : ThreadPool Expr} :
-    Language.Context (fill (Expr := Expr) K) → tp[i]? = some (fill K e₁) →
+  pureExecSI {K : Expr → Expr} {e₁ e₂ : Expr} {σ : State} {obs : List Obs} {tp : ThreadPool Expr} :
+    Language.Context K → tp[i]? = some (K e₁) →
       primStep (e₁, σ) obs (e₂, σ, []) →
-      ς i e₁ ∗ stateInterp σ tp ⊢ |==> (ς i e₂ ∗ stateInterp σ (tp.set i (fill K e₂)))
+      ς i e₁ ∗ stateInterp σ tp ⊢ |==> (ς i e₂ ∗ stateInterp σ (tp.set i (K e₂)))
 
 attribute [lantana_alias pure_exec_si] PureExecSI.pureExecSI
 
@@ -87,22 +86,22 @@ theorem bigSepL_range'_sub {Ψ : Nat → IProp GF} (tc n : Nat) :
 /-- Every step of thread `i` from `e₁`, in any evaluation context and any pool, keeps the
 statuses: the same threads are crashed before and after. -/
 def KeepsCrashed (i : ThreadId) (e₁ : Expr) : Prop :=
-  ∀ (K : Ectx) (tp : ThreadPool Expr) (σ₁ : State) (obs : List Obs) (e₂ : Expr) (σ₂ : State)
-    (efs : List Expr), Language.Context (fill (Expr := Expr) K) → tp[i]? = some (fill K e₁) →
+  ∀ (K : Expr → Expr) (tp : ThreadPool Expr) (σ₁ : State) (obs : List Obs) (e₂ : Expr) (σ₂ : State)
+    (efs : List Expr), Language.Context K → tp[i]? = some (K e₁) →
     primStep (e₁, σ₁) obs (e₂, σ₂, efs) →
-    Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂) = Cfg.Crashed (tp, σ₁)
+    Cfg.Crashed (tp.set i (K e₂) ++ efs, σ₂) = Cfg.Crashed (tp, σ₁)
 
 /-- In a language that never crashes, every step keeps the statuses. -/
 theorem KeepsCrashed.of_never (hnc : ∀ (e : Expr) (σ : State), ¬ Crash.crashed e σ)
-    (i : ThreadId) (e₁ : Expr) : KeepsCrashed (Ectx := Ectx) i e₁ :=
+    (i : ThreadId) (e₁ : Expr) : KeepsCrashed i e₁ :=
   fun _ _ _ _ _ _ _ _ _ _ => Cfg.crashed_eq_of_never hnc _ _
 
 /-- The most general lifting lemma: the thread pays its bill or, crashed, steps for free; after
 the step, it hands in the nodes of the threads the step crashes and receives those it recovers. -/
 theorem lwp_lift_step_gen (he : toVal e₁ = none) :
-    (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+    (∀ (K : Expr → Expr) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
-      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G G', thCarriers i G ∗
@@ -115,12 +114,12 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
             alc (|=[n + 1]=>m
               Th.nodes (tp.length + efs.length) (fun j =>
-                ¬Cfg.Crashed (tp, σ₁) j ∧ Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) ∗
+                ¬Cfg.Crashed (tp, σ₁) j ∧ Cfg.Crashed (tp.set i (K e₂) ++ efs, σ₂) j) ∗
               (Th.nodes (tp.length + efs.length) (fun j =>
-                  Cfg.Crashed (tp, σ₁) j ∧ ¬Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) -∗
+                  Cfg.Crashed (tp, σ₁) j ∧ ¬Cfg.Crashed (tp.set i (K e₂) ++ efs, σ₂) j) -∗
               mupdFancy ∅ E (n + 1)
-                iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
-                    (tp.set i (fill K e₂) ++ efs) ∗
+                iprop(historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
+                    (tp.set i (K e₂) ++ efs) ∗
                   |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                     [∗list] j ↦ ef ∈ efs,
                       lWP ef @ s; (tp.length + j); ⊤
@@ -141,10 +140,10 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
   iintro %obs %e₂ %σ₂ %efs %hstep
   ihave H : thCarriers i G' -∗ Wit.creds R ={∅}=∗
       mphys n (n + 1) tp.length (tp.length + efs.length) (Cfg.Crashed (tp, σ₁))
-        (Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂))
+        (Cfg.Crashed (tp.set i (K e₂) ++ efs, σ₂))
         (|=[n + 1]=>m |={∅,E}=>
-          historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
-            (tp.set i (fill K e₂) ++ efs) ∗
+          historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
+            (tp.set i (K e₂) ++ efs) ∗
           lWP e₂ @ s; i; E {{ Φ }} ∗
           [∗list] j ↦ ef ∈ efs,
             lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }}) $$ [H]
@@ -180,9 +179,9 @@ theorem lwp_lift_step_gen (he : toVal e₁ = none) :
 /-- `lwp_lift_step_gen` for a step that keeps the statuses: having seen the configuration, the
 thread pays its bill or, crashed, nothing. -/
 theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
-    (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+    (∀ (K : Expr → Expr) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
-      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G G', thCarriers i G ∗
@@ -194,8 +193,8 @@ theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hkeep : KeepsCrashed 
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
             alc (mupdFancy ∅ E (n + 1)
-              iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
-                  (tp.set i (fill K e₂) ++ efs) ∗
+              iprop(historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
+                  (tp.set i (K e₂) ++ efs) ∗
                 |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                   [∗list] j ↦ ef ∈ efs,
                     lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }}))))
@@ -227,9 +226,9 @@ theorem lwp_lift_step_or_crashed (he : toVal e₁ = none) (hkeep : KeepsCrashed 
 /-- A step that keeps the statuses, for a thread that pays its bill. -/
 @[lantana_alias lwp_lift_step, lantana_alias lwp_step_step]
 theorem lwp_lift_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
-    (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+    (∀ (K : Expr → Expr) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
-      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
@@ -239,8 +238,8 @@ theorem lwp_lift_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
             alc (mupdFancy ∅ E (n + 1)
-              iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
-                  (tp.set i (fill K e₂) ++ efs) ∗
+              iprop(historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
+                  (tp.set i (K e₂) ++ efs) ∗
                 |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                   [∗list] j ↦ ef ∈ efs,
                     lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }}))))
@@ -269,9 +268,9 @@ theorem lwp_lift_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
 /-- `lwp_lift_step` for a thread crashed in the current configuration: it takes its bill `G`,
 pays nothing, and gets it back empty. -/
 theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
-    (∀ (K : Ectx) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
+    (∀ (K : Expr → Expr) (h : List (HistEntry Expr State)) (n : Nat) (σ₁ : State)
         (tp : ThreadPool Expr),
-      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
       historyTInterp h n σ₁ tp ={E,∅}=∗ |=[n]=>m
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗ ⌜Cfg.Crashed (tp, σ₁) i⌝ ∗
         ∃ G, thCarriers i G ∗ ∃ R, Wit.layers R ∗
@@ -281,8 +280,8 @@ theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hkeep : KeepsCrashed i e
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
             alc (mupdFancy ∅ E (n + 1)
-              iprop(historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
-                  (tp.set i (fill K e₂) ++ efs) ∗
+              iprop(historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
+                  (tp.set i (K e₂) ++ efs) ∗
                 |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                   [∗list] j ↦ ef ∈ efs,
                     lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }}))))
@@ -310,8 +309,8 @@ theorem lwp_lift_step_crashed (he : toVal e₁ = none) (hkeep : KeepsCrashed i e
 /-- `lwp_lift_step` over the state interpretation, with no model update around the step. -/
 @[lantana_alias lwp_lift_step_si]
 theorem lwp_lift_step_si (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
-    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+    (∀ (K : Expr → Expr) (σ₁ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
@@ -320,7 +319,7 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) 
             thCarriers i G -∗ Wit.creds R -∗
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
-            alc iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
+            alc iprop(|={∅,E}=> stateInterp σ₂ (tp.set i (K e₂) ++ efs) ∗
               |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                 [∗list] j ↦ ef ∈ efs,
                   lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))
@@ -351,7 +350,7 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) 
   imodintro
   imodintro
   imod H with ⟨Hs, H⟩
-  imod histAuth_append h [(σ₂, tp.set i (fill K e₂) ++ efs)] $$ Ha with Ha
+  imod histAuth_append h [(σ₂, tp.set i (K e₂) ++ efs)] $$ Ha with Ha
   imodintro
   iunfold historyTInterp, historyInterp
   iframe Hs Ha HT H
@@ -361,8 +360,8 @@ theorem lwp_lift_step_si (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) 
 /-- `lwp_lift_step_gen` over the state interpretation; the update inside the physical round is a
 model update at the empty mask. -/
 theorem lwp_lift_step_gen_si (he : toVal e₁ = none) :
-    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+    (∀ (K : Expr → Expr) (σ₁ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G G', thCarriers i G ∗
@@ -370,16 +369,16 @@ theorem lwp_lift_step_gen_si (he : toVal e₁ = none) :
           ∃ R, Wit.layers R ∗
           ∀ (obs : List Obs) (e₂ : Expr) (σ₂ : State) (efs : List Expr),
             ⌜primStep (e₁, σ₁) obs (e₂, σ₂, efs)⌝ ={∅}=∗
-            stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
+            stateInterp σ₂ (tp.set i (K e₂) ++ efs) ∗
             (thCarriers i G' -∗ Wit.creds R -∗
               ([∗list] j ∈ List.range efs.length,
                 thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗
                   thCarriers (tp.length + j) ∅) -∗
               alc (|={∅}=>m
                 Th.nodes (tp.length + efs.length) (fun j =>
-                  ¬Cfg.Crashed (tp, σ₁) j ∧ Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) ∗
+                  ¬Cfg.Crashed (tp, σ₁) j ∧ Cfg.Crashed (tp.set i (K e₂) ++ efs, σ₂) j) ∗
                 (Th.nodes (tp.length + efs.length) (fun j =>
-                    Cfg.Crashed (tp, σ₁) j ∧ ¬Cfg.Crashed (tp.set i (fill K e₂) ++ efs, σ₂) j) -∗
+                    Cfg.Crashed (tp, σ₁) j ∧ ¬Cfg.Crashed (tp.set i (K e₂) ++ efs, σ₂) j) -∗
                   |={∅,E}=> |={E}=>m (lWP e₂ @ s; i; E {{ Φ }} ∗
                     [∗list] j ↦ ef ∈ efs,
                       lWP ef @ s; (tp.length + j); ⊤
@@ -402,14 +401,14 @@ theorem lwp_lift_step_gen_si (he : toVal e₁ = none) :
   iframe HR
   iintro %obs %e₂ %σ₂ %efs %hstep
   imod H $$ %obs %e₂ %σ₂ %efs %hstep with ⟨Hs, H⟩
-  imod histAuth_append h [(σ₂, tp.set i (fill K e₂) ++ efs)] $$ Ha with Ha
+  imod histAuth_append h [(σ₂, tp.set i (K e₂) ++ efs)] $$ Ha with Ha
   imodintro
   iintro HG HW Hforks
   ispecialize H $$ HG HW Hforks
   iapply alc_wand $$ [Ha HT Hs] H
   iintro H
-  ihave HH : historyTInterp (h ++ [(σ₂, tp.set i (fill K e₂) ++ efs)]) (n + 1) σ₂
-      (tp.set i (fill K e₂) ++ efs) $$ [Ha HT Hs]
+  ihave HH : historyTInterp (h ++ [(σ₂, tp.set i (K e₂) ++ efs)]) (n + 1) σ₂
+      (tp.set i (K e₂) ++ efs) $$ [Ha HT Hs]
   · iunfold historyTInterp, historyInterp
     iframe Ha HT Hs
     ipureintro
@@ -430,8 +429,8 @@ theorem lwp_lift_step_gen_si (he : toVal e₁ = none) :
 
 @[lantana_alias lwp_lift_stuck]
 theorem lwp_lift_stuck (he : toVal e = none) :
-    (∀ (K : Ectx) (σ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e)⌝ →
+    (∀ (K : Expr → Expr) (σ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e)⌝ →
       stateInterp σ tp ={E,∅}=∗ ⌜PrimStep.Stuck (e, σ)⌝)
       ⊢ lWP e @ i; E ?{{ Φ }} := by
   iintro H
@@ -511,8 +510,8 @@ theorem lwp_lift_pure_stuck [Inhabited State] (hstuck : ∀ σ, PrimStep.Stuck (
 /-- An atomic step: the thread reaches a value. -/
 @[lantana_alias lwp_lift_atomic_step]
 theorem lwp_lift_atomic_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e₁) :
-    (∀ (K : Ectx) (σ₁ : State) (tp : ThreadPool Expr),
-      ⌜Language.Context (fill (Expr := Expr) K)⌝ → ⌜tp[i]? = some (fill K e₁)⌝ →
+    (∀ (K : Expr → Expr) (σ₁ : State) (tp : ThreadPool Expr),
+      ⌜Language.Context K⌝ → ⌜tp[i]? = some (K e₁)⌝ →
       stateInterp σ₁ tp ={E₁,E₂}=∗
         ⌜s.MaybeReducible (e₁, σ₁)⌝ ∗
         ∃ G, thCarriers i G ∗ Obl.fuels G 1 ∗ ∃ R, Wit.layers R ∗
@@ -521,7 +520,7 @@ theorem lwp_lift_atomic_step (he : toVal e₁ = none) (hkeep : KeepsCrashed i e�
             thCarriers i G -∗ Wit.creds R -∗
             ([∗list] j ∈ List.range efs.length,
               thActive (tp.length + j) ∗ thKids (tp.length + j) ∅ ∗ thCarriers (tp.length + j) ∅) -∗
-            alc iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (fill K e₂) ++ efs) ∗
+            alc iprop(|={E₂,E₁}=> stateInterp σ₂ (tp.set i (K e₂) ++ efs) ∗
               |={E₁}=>m ((∃ v, ⌜toVal e₂ = some v⌝ ∗ Φ v) ∗
                 [∗list] j ↦ ef ∈ efs,
                   lWP ef @ s; (tp.length + j); ⊤ {{ lwp.liftTerm (tp.length + j) L.forkPost }})))
