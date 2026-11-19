@@ -13,6 +13,7 @@ the nodes of crashed threads) is described in `docs/model.md`, §4–§5.
 | `ProgramLogic/WeakestPre.lean` | `lWP`, its step `lwp.step`, its rules (§2) |
 | `ProgramLogic/Lifting.lean`, `EctxLifting.lean` | the lifting lemmas (§3) |
 | `HeapLang/Instances.lean` | HeapLang as a language, its class instances (§4) |
+| `HeapLang/Context.lean` | the evaluation contexts of `lWP` against HeapLang's context items (§4) |
 | `HeapLang/PrimitiveLaws.lean` | HeapLang's ghost state, the token, the primitive laws (§4) |
 | `HeapLang/ProofMode.lean` | the step tactics (§5) |
 
@@ -210,9 +211,21 @@ The token `threadExpr i C e` is exact ownership of the expression `fill C e` of 
 into the caller's context `C` and the current subexpression `e`; `threadExpr_fill` moves a
 context between the two, and `exits v @ i` is `threadExpr i [] (.val v)`.  Since `lwp.step`
 quantifies over the contexts `K` that put the thread's expression in the pool, a law relates `K`
-to the token's `C`: when `e` can step, the token and the pool give `K = C` (`threadExpr_ctx`, by
-`fill_ctx_step_inj`).  So the pool after the step is `tp.set i (fill C e')`, and the token and
-the map change together (`threadMapAuth_update`, and `threadExpr_pureExecSI` for pure steps).
+to the token's `C`: the token and the pool give `K e = fill C e` (`threadExpr_ctx`), and then
+`K e' = fill C e'` for the result `e'` of a step of `e` (`context_eq_fill_of_primStep`).  So the
+pool after the step is `tp.set i (fill C e')`, and the token and the map change together
+(`threadMapAuth_update`, and `threadExpr_pureExecSI` for pure steps).
+
+`context_eq_fill_of_primStep` (`HeapLang/Context.lean`) is about an arbitrary function `K` with
+the laws of `Language.Context`, which need not be a list of items.  The step is a base step of
+a redex under items, which join `K` and `C`.  The final state determines the result of every
+base step but `chooseNat`'s (`allocN` picks a location, which the state records), so
+`Language.Context.eq_of_primStep` applies.  `chooseNat` steps to every number with the same
+state, and the laws of a context only say that `K` sends the numbers onto the numbers under
+`C`; that it sends each number to itself follows from another expression, `!ℓ`, which reads the
+number from the state: `K !ℓ` steps as `!ℓ` does, so it is a redex that reads `ℓ` under some
+items, which sends each number to itself, and these items are `C` because two lists of items
+that agree on two different values are equal.
 
 Every step law takes the token and `stepPre i G R` (the bill, one unit of fuel of each of its
 obligations, the witness layers) and gives back the token and `stepPost i G R o` (the later
