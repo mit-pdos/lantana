@@ -345,7 +345,9 @@ the interpretation of the temporal layer, initialized from the empty registry of
 `docs/activity.md`, §3).
 
 - `Lang.lean`: the language, a worker `work n`, a killer and a reviver over a boolean state,
-  "the worker is alive"; the worker is crashed while the state is `false` (`instCrash`).  The
+  "the worker is alive"; the worker is crashed while the state is `false` (`instCrash`), and
+  its evaluation contexts are the trivial ones (`instEvContext`; `docs/program-logic.md`, §2.1).
+  The
   closed world `CrashGF` holds the temporal layer and a ghost variable of the state and of "the
   worker has finished"; the state interpretation `crashInterp` holds half of it, and
   `doneOrCrashed`, a fraction of it, has the state fact `σ = false ∨ fin tp`.
