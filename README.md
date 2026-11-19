@@ -155,14 +155,9 @@ that are neither aliased nor ignored, which is no longer maintained.
 ## Design (the main departures from Rocq)
 
 - **One language per world**: languages are Iris-Lean's (`Language Expr State Obs Val`, at
-  `Type`), and the temporal ghost state determines the language; thread ids are list positions
-  and pools are `List Expr`; `lWP` and traces ignore observations, and prophecies are dropped.
-- **Evaluation contexts are Iris-Lean's**: a Rocq language has its own type of contexts, over
-  which a step of `lwp` quantifies. Here the program logic needs a `Language` only: a step of
-  `lWP` quantifies over the functions `K : Expr → Expr` with `Language.Context K`, and
-  `lwp_bind` is stated as Iris-Lean's `wp_bind`. A language whose laws follow the expression of
-  a thread in the pool relates these contexts to its own view of the thread
-  (`docs/program-logic.md`, §2.1, with the limits of this choice).
+  `Type`), with the evaluation contexts of `lWP` an Iris-Lean `EvContext Expr Ectx`, and the
+  temporal ghost state determines the language; thread ids are list positions and pools are
+  `List Expr`; `lWP` and traces ignore observations, and prophecies are dropped.
 - **The obligation model** keeps Rocq's rules but not its ghost layout: owners are read from the
   obligation map (no owner ghost state), there is no boolean state flag, the per-thread maps are
   folded into the forest invariant, and ordinal-valued cells live under per-obligation ghost

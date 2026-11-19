@@ -12,12 +12,13 @@ structural rules and the pure-step lifting lemmas, over an arbitrary language. -
 namespace LantanaTest.WeakestPre
 
 open Iris Iris.BI Iris.ProofMode Lantana Ordinals Ordinal
-open Iris.ProgramLogic (toVal Language)
+open Iris.ProgramLogic (toVal Language EvContext EvContextOps)
+open Iris.ProgramLogic.EvContext (fill)
 
 section
 
-variable {Expr State Obs Val : Type} {GF : BundledGFunctors}
-variable [Λ : Language Expr State Obs Val] [Crash Expr State Obs Val]
+variable {Expr State Obs Val Ectx : Type} {GF : BundledGFunctors}
+variable [Λ : Language Expr State Obs Val] [EvContext Expr Ectx] [Crash Expr State Obs Val]
 variable [ModelGS GF] [LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 variable {s : Stuckness} {i : ThreadId} {E E₂ : CoPset} {e : Expr} {Φ : Val → IProp GF}
   {P Q : IProp GF}
@@ -82,24 +83,29 @@ example (v : Val) : Φ v ⊢ lWP (v : Expr) @ s; i; E {{ Φ }} := lwp_value'
 
 example (h : E ⊆ E₂) : lWP e @ s; i; E {{ Φ }} ⊢ lWP e @ s; i; E₂ {{ Φ }} := lwp_mask_mono h
 
-/-! Bind: a context around an expression; contexts are functions and compose. -/
+/-! Bind: a context around an expression. -/
 
-example (K₁ K₂ : Expr → Expr) [Language.Context K₁] [Language.Context K₂] :
-    lWP e @ s; i; E {{ fun v : Val => lWP (K₁ (K₂ (v : Expr))) @ s; i; E {{ Φ }} }} ⊢
-      lWP (K₁ (K₂ e)) @ s; i; E {{ Φ }} :=
-  lwp_bind (K₁ ∘ K₂)
+example (K₁ K₂ : Ectx) [Language.Context (fill (Expr := Expr) K₁)]
+    [Language.Context (fill (Expr := Expr) K₂)] :
+    lWP e @ s; i; E {{ fun v : Val =>
+        lWP (fill K₁ (fill K₂ (v : Expr))) @ s; i; E {{ Φ }} }} ⊢
+      lWP (fill K₁ (fill K₂ e)) @ s; i; E {{ Φ }} := by
+  iintro H
+  rw [EvContext.fill_comp]
+  iapply lwp_bind (EvContextOps.comp K₁ K₂)
+  isimp only [← EvContext.fill_comp]
+  iexact H
 
-/-! The identity context. -/
+/-! The empty context. -/
 
-example : lWP e @ s; i; E {{ fun v : Val => lWP (v : Expr) @ s; i; E {{ Φ }} }} ⊢
-    lWP e @ s; i; E {{ Φ }} :=
-  lwp_bind id
+example : lWP e @ s; i; E {{ Φ }} ⊢ lWP (fill (EvContextOps.empty : Ectx) e) @ s; i; E {{ Φ }} := by
+  rw [EvContext.fill_empty]
 
 /-! Two pure steps paid at once, each keeping the crashed threads. -/
 
 example [Inhabited State] (ς : ThreadId → Expr → IProp GF) [PureExecSI ς i] {e₁ e₂ : Expr}
     [Language.PureExec True 2 e₁ e₂] (G R : Oids) (o : Fuel)
-    (hkeep : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed i e) :
+    (hkeep : ∀ e e' : Expr, Language.PurePrimStep e e' → KeepsCrashed (Ectx := Ectx) i e) :
     ς i e₁ ∗ thCarriers i G ∗ Obl.fuels G ((2 : Nat) : Measure) ∗ Wit.layers R ∗
       (ς i e₂ -∗ thCarriers i G -∗
         ([∗set] r ∈ R, Wit.cred r ((2 : Nat) : Fuel) ∨ Obl.discharged r) -∗

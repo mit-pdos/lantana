@@ -18,9 +18,11 @@ namespace LantanaTest.Crash
 
 open Iris Iris.BI Iris.ProofMode Iris.Std
 open Ordinals Ordinal Lantana Lantana.Model
-open Iris.ProgramLogic (toVal Language PrimStep)
+open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 
 /-! ## The pool -/
+
+theorem fill_eq (K : Unit) (e : Exp) : EvContext.fill K e = e := rfl
 
 theorem crashed_cfg_iff {tp : ThreadPool Exp} {σ : St} {j : ThreadId} :
     Cfg.Crashed (tp, σ) j ↔ (∃ n, tp[j]? = some (.work n)) ∧ σ = false := by
@@ -130,8 +132,7 @@ section Lifting
 variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]
 variable {s : Stuckness} {i : ThreadId} {E : CoPset} {e₁ : Exp} {Φ : Unit → IProp GF}
 
-/-- `lwp_lift_step_gen_si` for this language, which has no context but the identity, no fork and
-no witness. -/
+/-- `lwp_lift_step_gen_si` for this language, which has no context, no fork and no witness. -/
 theorem lwp_step (he : toVal e₁ = none) :
     (∀ (σ₁ : St) (tp : ThreadPool Exp), ⌜tp[i]? = some e₁⌝ →
       stateInterp σ₁ tp ={E,∅}=∗
@@ -148,8 +149,7 @@ theorem lwp_step (he : toVal e₁ = none) :
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro H
   iapply lwp_lift_step_gen_si he
-  iintro %K %σ₁ %tp %hK %hi Hs
-  obtain rfl := context_eq_id K
+  iintro %K %σ₁ %tp %_ %hi Hs
   imod H $$ %σ₁ %tp %hi Hs with ⟨%hred, %G, %G', HG, HF, H⟩
   imodintro
   isplitr
@@ -166,7 +166,7 @@ theorem lwp_step (he : toVal e₁ = none) :
   obtain ⟨hst, rfl⟩ := primStep_iff.mp hstep
   imod H $$ %e₂ %σ₂ %hst with ⟨Hs, H⟩
   imodintro
-  simp only [id_eq, List.append_nil, List.length_nil, Nat.add_zero]
+  simp only [fill_eq, List.append_nil, List.length_nil, Nat.add_zero]
   iframe Hs
   iintro HG - -
   ispecialize H $$ HG

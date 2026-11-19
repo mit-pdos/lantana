@@ -19,7 +19,7 @@ shape `|={⊤,∅}=> alc (|={∅,⊤}=> …)`; it also gives the facts of the st
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode
-open Iris.ProgramLogic (toVal Language PrimStep)
+open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 open Iris.ProgramLogic.PrimStep (primStep)
 open Lantana.Model
 
@@ -66,6 +66,7 @@ theorem owitInvLbMonoFair_fairMeasure (c : Nat → Nat) : OWitInvLbMonoFair (fai
 
 section Run
 
+variable {Ectx : Type} [EvContext Expr Ectx]
 variable [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF]
   [L : LantanaGS Expr State Obs Val GF] [TemporalInterp Expr State GF]
 
@@ -224,7 +225,7 @@ def runStepPost (c : Nat) (h : List (HistEntry Expr State)) (n : Nat)
     £ₙ c ∗ historyTInterp (h ++ [(σ', tp')]) (n + 1) σ' tp' ∗
     modelInterp g' v' Ω' W' (n + 1) tp'.length (Cfg.Crashed (tp', σ')) ∗ threadsRun tp' Ψ')
 
-/-- One step of `lWP` for a running thread: `lwp.step` at the context `id`, mask `⊤`. -/
+/-- One step of `lWP` for a running thread: `lwp.step` at the empty context, mask `⊤`. -/
 theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → IProp GF}
     (he : toVal e₁ = none) :
     threadRun i e₁ Ψ ⊢ ∀ (h : List (HistEntry Expr State)) (n : Nat) (σ : State)
@@ -245,10 +246,10 @@ theorem threadRun_step {i : ThreadId} {e₁ : Expr} {Ψ : ThreadId → Val → I
   rw [threadRun_of_toVal_none he, lwp_unfold.to_eq]
   simp only [lwp.pre, he]
   unfold lwp.step
-  refine (forall_elim (id : Expr → Expr)).trans ?_
-  simp only [id_eq, Stuckness.MaybeReducible]
+  refine (forall_elim (EvContextOps.empty : Ectx)).trans ?_
+  simp only [EvContext.fill_empty, Stuckness.MaybeReducible]
   iintro H %h %n %σ %tp %hi
-  iapply H $$ %h %n %σ %tp %(Language.instContext_id) %hi
+  iapply H $$ %h %n %σ %tp %(Language.Context.fillEmpty (Ectx := Ectx)) %hi
 
 omit L [TemporalInterp Expr State GF] in
 /-- `get_obligationsThreadActive`, keeping the model. -/

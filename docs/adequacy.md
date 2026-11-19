@@ -346,14 +346,11 @@ the interpretation of the temporal layer, initialized from the empty registry of
 
 - `Lang.lean`: the language, a worker `work n`, a killer and a reviver over a boolean state,
   "the worker is alive"; the worker is crashed while the state is `false` (`instCrash`).  The
-  language has no evaluation context but the identity (`context_eq_id`, from the steps of the
-  killer, the reviver and the worker), which the step rule needs, since the crashed threads
-  are read from the pool (`docs/program-logic.md`, §2.1).  The
   closed world `CrashGF` holds the temporal layer and a ghost variable of the state and of "the
   worker has finished"; the state interpretation `crashInterp` holds half of it, and
   `doneOrCrashed`, a fraction of it, has the state fact `σ = false ∨ fin tp`.
-- `Step.lean`: the step rule `lwp_step`, which is `lwp_lift_step_gen_si` for this language at
-  its only context, and which threads a step crashes or recovers.
+- `Step.lean`: the step rule `lwp_step`, which is `lwp_lift_step_gen_si` for this language, and
+  which threads a step crashes or recovers.
 - `Kill.lean`: the worker's forest of obligations (`HangsBelow {k} S kids`), each a `finallyI`
   of `doneOrCrashed` in the namespace `oblN.@j` of its obligation `j`; the shared invariant
   `crashInv`, which holds, by the state, the worker's node with its obligations (or, after a

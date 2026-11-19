@@ -18,7 +18,7 @@ namespace LantanaTest.Crash
 
 open Iris Iris.BI Iris.ProofMode Iris.Std
 open Ordinals Ordinal Lantana
-open Iris.ProgramLogic (toVal Language PrimStep)
+open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 
 section Reviver
 variable {GF : BundledGFunctors} [ModelGS GF] [CrashGS GF]

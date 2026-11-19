@@ -21,7 +21,7 @@ See `docs/adequacy.md`, §5.1. Rocq: `lantana/trace/adequacy_temporal.v`.
 namespace Lantana
 
 open Iris Iris.BI Iris.ProofMode Ordinals
-open Iris.ProgramLogic (Language)
+open Iris.ProgramLogic (Language EvContext)
 open Lantana.Model
 open scoped Lantana.TrSpec Lantana.TrProp
 
@@ -36,7 +36,7 @@ attribute [reducible, instance] TemporalGpreS.modelG TemporalGpreS.histG Tempora
 
 section Lwp
 
-variable {Expr State Obs Val : Type} [Language Expr State Obs Val]
+variable {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val] [EvContext Expr Ectx]
   [Crash Expr State Obs Val] {GF : BundledGFunctors} [ModelGS GF]
   [L : LantanaGS Expr State Obs Val GF]
 
@@ -177,8 +177,8 @@ behavior from the initial configuration on which the threads are fairly schedule
 `G.external`, hence `R`. Each initial thread gets its empty bill, and its running handle and
 empty children if it is not crashed. -/
 @[lantana_alias lwp_adequacy_temporal]
-theorem lwp_adequacy_temporal {Expr State Obs Val : Type} [Language Expr State Obs Val]
-    [Crash Expr State Obs Val] {GF : BundledGFunctors}
+theorem lwp_adequacy_temporal {Expr State Obs Val Ectx : Type} [Language Expr State Obs Val]
+    [EvContext Expr Ectx] [Crash Expr State Obs Val] {GF : BundledGFunctors}
     [TemporalGpreS Expr State GF]
     (σ : State) (tp : ThreadPool Expr) (G : TrSpec Expr State GF)
     (R : TrProp (Cfg Expr State)) (hGR : G.external ⊆ R) (τ : Trace (Cfg Expr State))

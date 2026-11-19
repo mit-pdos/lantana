@@ -6,7 +6,7 @@ module
 
 public import Iris.BI.Lib.GenHeap
 public import Iris.Instances.Lib.GhostMap
-public import Lantana.HeapLang.Context
+public import Lantana.HeapLang.Instances
 public import Lantana.ProgramLogic.EctxLifting
 
 /-! # The program logic of HeapLang: ghost state, assertions, primitive laws
@@ -125,16 +125,23 @@ theorem threadMapAuth_lookup (tp : ThreadPool Exp) (i : ThreadId) (C : List ECtx
   ipureintro
   rwa [ThreadPool.get?_toMap] at h
 
-/-- A context `K` that puts the token's expression at thread `i` agrees with the token's items on
-it, hence on the results of its steps (`context_eq_fill_of_primStep`). -/
+/-- Two contexts that put the same expression, which can step, at thread `i` are equal. -/
+theorem ctx_eq_of_primStep {tp : ThreadPool Exp} {i : ThreadId} {C K : List ECtxItem} {e : Exp}
+    {σ : State} {obs : List Empty} {e' : Exp} {σ' : State} {efs : List Exp}
+    (hs : primStep (e, σ) obs (e', σ', efs))
+    (hC : tp[i]? = some (fill C e)) (hK : tp[i]? = some (fill K e)) : C = K :=
+  EctxItemLanguage.fill_ctx_step_inj hs (Option.some.inj (hC.symm.trans hK))
+
+/-- The token determines the context of a thread that can step. -/
 @[lantana_alias thread_expr_ctx]
-theorem threadExpr_ctx (tp : ThreadPool Exp) (i : ThreadId) (C : List ECtxItem) (K : Exp → Exp)
-    (e : Exp) (hK : tp[i]? = some (K e)) :
-    threadMapAuth (GF := GF) tp ∗ threadExpr i C e ⊢ ⌜K e = fill C e⌝ := by
+theorem threadExpr_ctx (tp : ThreadPool Exp) (i : ThreadId) (C K : List ECtxItem) (e : Exp)
+    {σ : State} {obs : List Empty} {e' : Exp} {σ' : State} {efs : List Exp}
+    (hK : tp[i]? = some (fill K e)) (hs : primStep (e, σ) obs (e', σ', efs)) :
+    threadMapAuth (GF := GF) tp ∗ threadExpr i C e ⊢ ⌜C = K⌝ := by
   iintro H
   ihave %hC := threadMapAuth_lookup tp i C e $$ H
   ipureintro
-  exact Option.some.inj (hK.symm.trans hC)
+  exact ctx_eq_of_primStep hs hC hK
 
 /-- The token and the pool change together. -/
 theorem threadMapAuth_update (tp : ThreadPool Exp) (i : ThreadId) (C : List ECtxItem)
@@ -227,9 +234,9 @@ instance threadExpr_pureExecSI {GF : BundledGFunctors} [HeapGS GF] (C : List ECt
   pureExecSI {K e₁ e₂ σ obs tp} _ hi hstep := by
     iintro ⟨Hf, Hσ⟩
     icases (stateInterp_unfold σ tp).mp $$ Hσ with ⟨Hh, Ha⟩
-    ihave %hC := threadExpr_ctx tp i C K e₁ hi $$ [Ha Hf]
+    ihave %hC := threadExpr_ctx tp i C K e₁ hi hstep $$ [Ha Hf]
     · iframe
-    rw [context_eq_fill_of_primStep hC hstep]
+    subst hC
     imod threadMapAuth_update tp i C e₁ e₂ $$ [Ha Hf] with ⟨Ha, Hf⟩
     · iframe
     imodintro
@@ -238,7 +245,7 @@ instance threadExpr_pureExecSI {GF : BundledGFunctors} [HeapGS GF] (C : List ECt
     iframe
 
 /-- Every step of HeapLang keeps the statuses. -/
-theorem keepsCrashed (i : ThreadId) (e : Exp) : KeepsCrashed i e :=
+theorem keepsCrashed (i : ThreadId) (e : Exp) : KeepsCrashed (Ectx := List ECtxItem) i e :=
   KeepsCrashed.of_never not_crashed i e
 
 /-- Crashing is permanent in HeapLang. -/
@@ -276,12 +283,14 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
       ⊢ lWP e₁ @ s; i; E {{ Φ }} := by
   iintro ⟨HT, ⟨HG, HF, HR⟩, HH, HΦ⟩
   iapply lwp_lift_atomic_base_step_no_fork he (keepsCrashed i e₁)
-  iintro %K %σ₁ %tp %hK %hi Hσ
+  iintro %K %σ₁ %tp %hi Hσ
   icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
   icases hstep σ₁ $$ [Hh HH] with ⟨%hred, Hstep⟩
   · iframe
-  ihave %hC := threadExpr_ctx tp i C K e₁ hi $$ [Ha HT]
+  have ⟨_, _, _, _, hb⟩ := hred
+  ihave %hC := threadExpr_ctx tp i C K e₁ hi (EctxLanguage.primStep_of_baseStep hb) $$ [Ha HT]
   · iframe
+  subst hC
   imodintro
   isplitr
   · ipureintro
@@ -291,7 +300,6 @@ theorem lwp_heap_step {e₁ : Exp} (he : toVal e₁ = none) (H : IProp GF) (Ψ :
   iexists R
   iframe HR
   iintro %obs %e₂ %σ₂ %efs %hs
-  rw [context_eq_fill_of_primStep hC (EctxLanguage.primStep_of_baseStep hs)]
   imod Hstep $$ %e₂ %σ₂ %efs %hs with ⟨%hefs, %v, %hv, Hh, HΨ⟩
   imod threadMapAuth_update tp i C e₁ e₂ $$ [Ha HT] with ⟨Ha, HT⟩
   · iframe
@@ -362,10 +370,12 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
           thKids i (G \ K) }}} := by
   iintro #Hfork %Φ !> ⟨HT, ⟨HB, HF, HR⟩, HG, HK, HP⟩ HΦ
   iapply lwp_lift_atomic_base_step rfl (keepsCrashed i _)
-  iintro %K' %σ₁ %tp %hK' %hi Hσ
+  iintro %K' %σ₁ %tp %hi Hσ
   icases (stateInterp_unfold σ₁ tp).mp $$ Hσ with ⟨Hh, Ha⟩
-  ihave %hC := threadExpr_ctx tp i C K' (.fork e) hi $$ [Ha HT]
+  ihave %hC := threadExpr_ctx tp i C K' (.fork e) hi
+    (EctxLanguage.primStep_of_baseStep (obs := []) (.forkS e σ₁)) $$ [Ha HT]
   · iframe
+  subst hC
   imodintro
   isplitr
   · ipureintro
@@ -375,7 +385,6 @@ theorem lwp_fork (K : Oids) (P : IProp GF) (e : Exp) (hK : K ⊆ G) :
   iexists R
   iframe HR
   iintro %obs %e₂ %σ₂ %efs %hs
-  rw [context_eq_fill_of_primStep hC (EctxLanguage.primStep_of_baseStep hs)]
   cases hs
   imod threadMapAuth_update tp i C (.fork e) (.val (.lit .unit)) $$ [Ha HT] with ⟨Ha, HT⟩
   · iframe

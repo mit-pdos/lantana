@@ -9,9 +9,9 @@ public import Lantana
 /-! # A language whose threads crash: the language, its world, its state interpretation
 
 A worker `work n` with `n` steps of work left, a killer and a reviver, over a boolean state "the
-worker is alive"; the worker is crashed while the state is `false` (`instCrash`), and the only
-evaluation context is the identity (`context_eq_id`). The closed world `CrashGF`, the state
-interpretation `crashInterp` and the state fact `doneOrCrashed`. See `docs/adequacy.md`, §7.
+worker is alive"; the worker is crashed while the state is `false` (`instCrash`). The closed
+world `CrashGF`, the state interpretation `crashInterp` and the state fact `doneOrCrashed`.
+See `docs/adequacy.md`, §7.
 -/
 
 @[expose] public noncomputable section
@@ -20,7 +20,7 @@ namespace LantanaTest.Crash
 
 open Iris Iris.BI Iris.ProofMode Iris.Std
 open Ordinals Ordinal Lantana Lantana.Model
-open Iris.ProgramLogic (toVal Language PrimStep)
+open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 
 /-! ## The language -/
 
@@ -65,6 +65,15 @@ instance instLanguage : Language Exp St Empty Unit where
     obtain ⟨h, -⟩ := h
     cases h <;> rfl
 
+/-- The trivial evaluation contexts. -/
+instance instEvContext : EvContext Exp Unit where
+  empty := ()
+  comp _ _ := ()
+  fill _ e := e
+  fill_empty _ := rfl
+  fill_comp _ _ _ := rfl
+  fill_inj h := h
+
 /-- The worker is crashed while the state is `false`. -/
 instance instCrash : Crash Exp St Empty Unit where
   crashed e σ := (∃ n, e = .work n) ∧ σ = false
@@ -76,67 +85,6 @@ instance instCrash : Crash Exp St Empty Unit where
 theorem primStep_iff {e e' : Exp} {σ σ' : St} {obs : List Empty} {efs : List Exp} :
     PrimStep.primStep (e, σ) obs (e', σ', efs) ↔ Step e σ e' σ' ∧ efs = [] :=
   .rfl
-
-/-! ## Evaluation contexts -/
-
-section Context
-variable (K : Exp → Exp) [Language.Context K]
-
-theorem step_context {e e' : Exp} {σ σ' : St} (h : Step e σ e' σ') : Step (K e) σ (K e') σ' :=
-  (primStep_iff.mp (Language.Context.primStep_fill (K := K) (obs := [])
-    (primStep_iff.mpr ⟨h, rfl⟩))).1
-
-theorem step_context_inv {e x : Exp} {σ σ' : St} (he : e ≠ .ret) (h : Step (K e) σ x σ') :
-    ∃ e', x = K e' ∧ Step e σ e' σ' := by
-  have hv : toVal e = none := by cases e <;> first | rfl | exact absurd rfl he
-  obtain ⟨e', rfl, h'⟩ := Language.Context.primStep_fill_inv (K := K) (obs := []) hv
-    (primStep_iff.mpr ⟨h, rfl⟩)
-  exact ⟨e', rfl, (primStep_iff.mp h').1⟩
-
-/-- The language has no evaluation context but the identity. -/
-theorem context_eq_id : K = id := by
-  have hkill : K .kill = .kill ∧ K .ret = .ret := by
-    generalize hx : K .kill = x, hy : K .ret = y
-    have h := step_context K (.kill true)
-    rw [hx, hy] at h
-    cases h
-    exact ⟨rfl, rfl⟩
-  have hwork : ∀ n, K (.work n) = .work n := by
-    intro n
-    induction n with
-    | zero =>
-      generalize hx : K (.work 0) = x
-      have h := step_context K .finish
-      rw [hx, hkill.2] at h
-      cases h with
-      | finish => rfl
-      | giveUp =>
-        obtain ⟨e', -, h'⟩ := step_context_inv K (e := .work 0) (x := .ret) (σ' := false)
-          Exp.noConfusion (hx ▸ Step.kill true)
-        cases h'
-      | revive =>
-        obtain ⟨e', -, h'⟩ := step_context_inv K (e := .work 0) (x := .ret) (σ' := true)
-          Exp.noConfusion (hx ▸ Step.revive false)
-        cases h'
-    | succ n ih =>
-      generalize hx : K (.work (n + 1)) = x
-      have h := step_context K (.work n)
-      rw [hx, ih] at h
-      cases h
-      rfl
-  funext e
-  cases e with
-  | work n => exact hwork n
-  | kill => exact hkill.1
-  | revive =>
-    generalize hx : K .revive = x
-    have h := step_context K (.revive false)
-    rw [hx, hkill.2] at h
-    cases h
-    rfl
-  | ret => exact hkill.2
-
-end Context
 
 /-! ## The pool -/
 

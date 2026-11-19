@@ -22,7 +22,7 @@ namespace LantanaTest.Crash
 open Iris Iris.BI Iris.ProofMode Iris.Std
 open Ordinals Ordinal Lantana
 open scoped Lantana.TrSpec Lantana.TrProp
-open Iris.ProgramLogic (toVal Language PrimStep)
+open Iris.ProgramLogic (toVal Language PrimStep EvContext EvContextOps)
 
 theorem insert_empty (k : Oid) : (∅ : Oids).insert k = {k} :=
   Std.ExtTreeSet.ext_mem fun _ => by simp
