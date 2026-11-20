@@ -158,9 +158,11 @@ canonical readings.  Access: `alwaysI_acc` and `untilI_acc`, with instances so t
 an `alwaysI` like an invariant.  Allocation: `alwaysI_alloc`; `alwaysI_register` for an
 existing invariant; `untilI_init` on an obligation held in full; `untilI_alloc`, which creates
 the obligation below a parent, adds it to the parent's bill and lets the formulas be chosen once
-`k` is known; `untilIDone_init` for an until fulfilled at once.  Discharge: `untilI_discharge`,
-`untilI_discharge_done`, `finallyI_discharge` (with a later credit).  Then
-`untilI_discharged_false` and the fractions, `untilI_frac_split` and `untilI_frac_add`.
+`k` is known; `untilIDone_init` for an until fulfilled at once.  Discharge: `untilI_discharge`
+and `untilI_discharge_done`, which give the left formula `P` under a later; and, with a later
+credit, `untilIGuar_discharge_lc`, which gives `P` back with `Q`, and `finallyI_discharge`,
+whose left formula is `True`.  Then `untilI_discharged_false` and the fractions,
+`untilI_frac_split` and `untilI_frac_add`.
 
 ### 4.1 Discharging an until with its invariant open
 

@@ -908,7 +908,8 @@ theorem OidMap.empty_union {V : Type _} (F : OidMap V) : ∅ ∪ F = F :=
     rw [Std.ExtTreeMap.getElem?_union, Std.ExtTreeMap.getElem?_empty, Option.or_none]
 
 /-- Adding the fuels `G` to the witness induction, each `(l, m)` given as fuel `m * ▽` at a
-layer `l` above `ℓ`. -/
+layer `l` above `ℓ`; the entries of `F` at an obligation of `G` are replaced, their fuel
+dropped. -/
 @[lantana_alias wit_fuels_add_map_gen]
 theorem Wit.fuels_add_map_gen (k : Oid) (ℓ : Layer) (α : Fuel) (F G : OidMap (Layer × Measure)) :
     Wit.fuels (GF := GF) k ℓ α F ⊢
@@ -1005,7 +1006,8 @@ theorem embedFuels_init {A : Type} {r : A → A → Prop} (hwf : WellFounded r) 
   unfold embedFuels
   exact bigSepM_empty.2
 
-/-- Adding fuel `m * ℵ` at `l` for each `g ∈ G`. -/
+/-- Adding fuel `m * ℵ` at `l` for each `g ∈ G`; the entries of `F` at an obligation of `G` are
+replaced, their fuel dropped. -/
 @[lantana_alias embed_fuels_add_map]
 theorem embedFuels_add_map {A : Type} {r : A → A → Prop} (hwf : WellFounded r) (a : A)
     (F : OidMap (Layer × Measure)) (G : Oids) (l : Layer) (m : Measure) :

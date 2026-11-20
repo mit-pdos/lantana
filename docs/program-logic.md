@@ -273,7 +273,10 @@ credits `£ₒ o`, the bill, the witnesses' credits): the paper's STEP rules.  `
 `lwp_heap_step` is the common part of the laws of a step that forks no thread and ends in a
 value (`lwp_alloc`, `lwp_free`, `lwp_load`, `lwp_store`, `lwp_xchg`, `lwp_cmpXchg_fail`,
 `lwp_cmpXchg_suc`, `lwp_faa`, `lwp_chooseNat`), which supply only the effect on the heap.
-`HeapLang.lwp_pure_step` is `lwp_pure_step_simple` for the token.  In `lwp_fork`, the children
+`HeapLang.lwp_pure_step` is `lwp_pure_step_simple` for the token, with the credits of one
+step whatever the number `n` of steps: one credit to each witness (`Wit.creds_of_nat`) and
+`£ₒ o`, the shape that the step tactics hand to their continuation.  A caller that wants the
+`n` credits of each witness uses `lwp_pure_step_simple`.  In `lwp_fork`, the children
 `K ⊆ G` of the parent move to the new thread with one unit of fuel each and become its children
 and its bill; the parent keeps `G \ K` as both (`Th.carriers_resync`), and the new thread starts
 with its token, its running handle, and the postcondition `lwp.liftTerm j (fun _ _ => True)`.
