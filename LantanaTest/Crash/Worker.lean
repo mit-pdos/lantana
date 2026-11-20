@@ -204,7 +204,7 @@ theorem worker_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
             iframe Oa
             iapply BigSepS.bigSepS_sep.2
             iframe Hkk
-            iapply bigSepS_wand_intro fun _ _ => stVar_doneOrCrashed_fin (Qp.half 1) true
+            iapply Oids.bigSepS_wand_intro fun _ _ => stVar_doneOrCrashed_fin (Qp.half 1) true
           icases BigSepL.bigSepL_singleton.1 $$ Hk0 with Hk0
           icases BigSepS.bigSepS_sep.1 $$ HD with ⟨-, HV⟩
           imod Th.terminate ∅ 0 $$ Ha0 Hk0 with #Hd

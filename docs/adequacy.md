@@ -195,7 +195,7 @@ The number of obligations to discharge need not be known.
   the big separating conjunction with the rest of the data of each obligation, so every
   obligation may have its own reason why `X` gives its right formula.  At a crash, `X` is the
   fact that the thread is crashed.  When a lemma gives every right formula from `X`,
-  `bigSepS_wand_intro` builds the wands.
+  `Oids.bigSepS_wand_intro` builds the wands.
 - `untilIGuar_discharge_opened_forest` discharges a forest in one model update: every obligation
   of `S`, with its whole assignment, where `S` is closed under children (`kids`) and hangs below
   the roots `ps`.  It rests on `Obl.discharge_forest` (`docs/model.md`, §6) and leaves each

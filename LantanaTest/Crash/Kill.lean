@@ -252,7 +252,7 @@ theorem killer_spec (k : Oid) (S : Oids) (kids : Oid → Oids) (hF : HangsBelow 
           iframe Oa
           iapply BigSepS.bigSepS_sep.2
           iframe Hkk
-          iapply bigSepS_wand_intro fun _ _ => stVar_doneOrCrashed (Qp.half 1) false
+          iapply Oids.bigSepS_wand_intro fun _ _ => stVar_doneOrCrashed (Qp.half 1) false
         icases BigSepL.bigSepL_singleton.1 $$ Hk0 with Hk0
         icases BigSepS.bigSepS_sep.1 $$ HD with ⟨#HD, HV⟩
         imodintro

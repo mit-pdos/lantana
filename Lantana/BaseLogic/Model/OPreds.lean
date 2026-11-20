@@ -38,6 +38,11 @@ theorem _root_.Lantana.Oids.bigSepS_erase {PROP : Type _} [BI PROP] {Φ : Oid �
   rw [Oids.erase_eq_diff]
   exact BigSepS.bigSepS_delete hk
 
+/-- A wand from `X` to each member of a family over a set, from an entailment for each. -/
+theorem _root_.Lantana.Oids.bigSepS_wand_intro {PROP : Type _} [BI PROP] {X : PROP}
+    {Φ : Oid → PROP} {K : Oids} (h : ∀ k, k ∈ K → X ⊢ Φ k) : ⊢ [∗set] k ∈ K, (X -∗ Φ k) :=
+  BigSepS.bigSepS_intro fun hk => wand_intro (emp_sep.1.trans (h _ hk))
+
 variable {GF : BundledGFunctors}
 
 /-! ## Definitions -/
