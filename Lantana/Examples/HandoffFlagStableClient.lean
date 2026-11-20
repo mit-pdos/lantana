@@ -88,7 +88,7 @@ theorem main_spec : ∃ μ : Measure, ∀ (i : ThreadId) (kl kc : Oid),
   iapply lwp_alloc (o := 0) (C := _) (G := {kl, kc}) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
-  iintro %b ⟨HT, ⟨-, HG, -⟩, Hb⟩
+  iintro %b ⟨HT, ⟨-, HG, -⟩, Hb, -⟩
   ihave HT := (threadExpr_fill i [] _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF
@@ -411,7 +411,7 @@ theorem handoffClient_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior �
     (gMain_external_subset 0) τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
-  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, -, HT⟩
   letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
   imodintro
   iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
@@ -450,7 +450,7 @@ theorem handoffClient_safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBeh
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
   intro _ _
   refine ⟨2, ?_⟩
-  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, -, HT⟩
   letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
   imodintro
   iexists instStateInterp, (fun _ _ => iprop(True)), mainPost

@@ -129,13 +129,15 @@ abbrev _root_.Lantana.HeapLang.HeapStateGS.ofNames (γh γm γt : GName) : HeapS
   threadMapName := γt
 
 /-- Allocation of HeapLang's ghost state for the state `σ` and the pool `tp`: the state
-interpretation, a points-to for each location of `σ` and a token for each thread of `tp`. -/
+interpretation, a points-to and a meta token for each location of `σ`, and a token for each
+thread of `tp`. -/
 theorem heapState_init (σ : State) (tp : ThreadPool Exp) :
     ⊢@{IProp GF} |==> ∃ _ : HeapStateGS GF, HeapLang.stateInterp σ tp ∗
       bigSepM (M := HeapF) (fun l v => l ↦ v) σ.heap ∗
+      bigSepM (M := HeapF) (fun l _ => metaToken l ⊤) σ.heap ∗
       ([∗list] j ↦ e ∈ tp, threadExpr j [] e) := by
   imod genHeap_init_names (L := Loc) (V := Option Val) (GF := GF) (H := HeapF) σ.heap with
-    ⟨%γh, %γm, Hh, Hpts, -⟩
+    ⟨%γh, %γm, Hh, Hpts, Hmeta⟩
   imod ghost_map_alloc (GF := GF) (K := ThreadId) (V := Exp) (H := ThreadMapF)
     (ThreadPool.toMap tp) with ⟨%γt, Ha, Hfr⟩
   imodintro
@@ -143,7 +145,7 @@ theorem heapState_init (σ : State) (tp : ThreadPool Exp) :
   isplitl [Hh Ha]
   · unfold HeapLang.stateInterp
     iframe
-  iframe Hpts
+  iframe Hpts Hmeta
   unfold ThreadPool.toMap
   ihave Hfr := (BigSepM.bigSepM_map_seq (PROP := IProp GF) (M' := ThreadMapF) (start := 0)
     (l := tp)).mp $$ Hfr

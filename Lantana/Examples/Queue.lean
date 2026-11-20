@@ -340,7 +340,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (φ : Val → Oids → IPr
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
-  iintro %node ⟨HT, ⟨-, HG, -⟩, Hnode⟩
+  iintro %node ⟨HT, ⟨-, HG, -⟩, Hnode, -⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF
@@ -359,7 +359,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (φ : Val → Oids → IPr
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
-  iintro %ltptr ⟨HT, ⟨-, HG, -⟩, Hlt⟩
+  iintro %ltptr ⟨HT, ⟨-, HG, -⟩, Hlt, -⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_bind hl(allocn(#1, #node)) HT
@@ -367,7 +367,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (φ : Val → Oids → IPr
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
-  iintro %lhptr ⟨HT, ⟨-, HG, -⟩, Hlh⟩
+  iintro %lhptr ⟨HT, ⟨-, HG, -⟩, Hlh, -⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF
@@ -504,7 +504,7 @@ theorem enqueue_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oid
   iapply lwp_alloc (o := 0) (G := G.insert κu) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
-  iintro %newt ⟨HT, ⟨-, HG, -⟩, Pnewt⟩
+  iintro %newt ⟨HT, ⟨-, HG, -⟩, Pnewt, -⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF

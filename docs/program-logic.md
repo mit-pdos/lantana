@@ -253,7 +253,10 @@ The ghost state `HeapGS` is the temporal layer and `HeapStateGS`: the heap, Iris
 from locations to `Option Val`, and the thread-expression map, a ghost map from thread ids to
 expressions.  The state interpretation `stateInterp σ tp` holds the heap of `σ` and the map of
 the pool `tp`, so the map is the pool.  Points-to is `l ↦{dq} v` at `Option Val`: `l ↦ some v`
-holds a value, and a freed location is `l ↦{q} none` (Rocq's `freed l q`).
+holds a value, and a freed location is `l ↦{q} none` (Rocq's `freed l q`).  A new location comes
+with its meta token `metaToken l ⊤`, Iris-Lean's, from which ghost names can be attached to the
+location: `lwp_alloc` gives it with the points-to, and `Examples.heapState_init` gives those of
+the initial heap.
 
 The token `threadExpr i C e` is exact ownership of the expression `fill C e` of thread `i`, split
 into the caller's context `C` and the current subexpression `e`; `threadExpr_fill` moves a

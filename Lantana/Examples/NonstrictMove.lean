@@ -135,7 +135,7 @@ theorem unsound (hns : ∀ [ModelGS ExGF] [HeapGS ExGF], OblMoveNonstrict ExGF)
     hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
-  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, -, HT⟩
   letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
   haveI : OblMoveNonstrict ExGF := hns
   imodintro
