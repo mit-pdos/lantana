@@ -351,6 +351,8 @@ the interpretation of the temporal layer, initialized from the empty registry of
   `j` to be given (`Ψs !! j = Some Q`), `lwp_adequacy_safety` takes `j < tp.length`; a thread
   forked later gets `forkPost`, about which nothing is assumed.
 - Allocation returns ghost names, from which the instances are rebuilt (§5.2).
+- `untilIGuar_discharge_lc` gives the left formula `P` back with `Q`.  Rocq's
+  `untilI_guar_discharge_lc` gives only `Q`, and the `P` that the until held is lost.
 
 ## 7. The crash test
 
