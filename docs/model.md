@@ -135,8 +135,9 @@ configuration (`docs/activity.md`, §4).
 
 The model interpretation `modelInterp h i Ω W n tc crashed` is the history of the model (`i + 1`
 events ending at `(n, Ω)`), the obligations `Ω` (`osat`), the forest at the view `tc`,
-`crashed`, and the witnesses `W` with their invariant.  The position `n` is the step index of the run: the
-physical round moves it from `n₁` to `n₂`, and the model updates in between keep it.
+`crashed`, and the witnesses `W` with their invariant.  The position `n` is the step index of
+the run: the physical round moves it from `n₁` to `n₂`, and the model updates in between keep
+it.
 
 The model update `mupd n P` (`|=[n]=>m P`) is the least fixpoint of `mupdPre n`: either `P` holds
 now, or the prover plays one round and the update continues.  In a round, given the model at any
@@ -241,5 +242,8 @@ and that terminated and crashed threads own none.
   `∪` and `\`.
 - **Except-0.**  The model update absorbs `◇` unconditionally (`isExcept0_mupd`), as the fancy
   update does; Rocq requires `IsExcept0 P`.
+- **The layer of collected fuels.**  Rocq's `wit_fuels_witP_layer` gives the layer under an
+  update, `wit_fuels k ℓ α F ==∗ witP_layer k ℓ`, which consumes the package.  `Wit.fuels_layer`
+  has no update: the layer is persistent, so the package of collected fuels is kept.
 - **The interface.**  Rocq states it as a class with an instance by the model; with a single
   model, it is here a module of irreducible definitions, which gives the same abstraction (§7).
