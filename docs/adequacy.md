@@ -212,8 +212,8 @@ The `untilI` and `finallyI` forms of these rules take no guarantee, since a form
 its canonical reading (`guar_canon`); their forms for one obligation therefore serve `Q` itself,
 and a caller with a stronger resource uses the `untilIGuar` form.  The `untilIGuar` forms get
 the guarantee `▷ (Q ⊨ₜ G₂)` from the opening, under a later, so they need a later credit, as
-does a left formula that is not timeless; one credit serves a whole set.  The contents of `finallyI`s are timeless, so
-`finallyI_acc_assigned_set` gives the assignments without a later.
+does a left formula that is not timeless; one credit serves a whole set.  The contents of
+`finallyI`s are timeless, so `finallyI_acc_assigned_set` gives the assignments without a later.
 
 ### 4.3 A note on the proofs
 
