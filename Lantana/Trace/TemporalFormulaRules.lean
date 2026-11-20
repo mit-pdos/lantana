@@ -468,40 +468,39 @@ theorem untilIGuar_acc_assigned {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N �
   iintro Oa
   iframe Oa U
 
-/-- The record of the right formula of a discharged obligation at the current position, from a
-resource `X` that implies `Q`, which is given back. -/
-theorem untilIGuar_record_discharged {G₂ : TrSpec Expr State GF} (E : CoPset) {X : IProp GF} :
-    (Q ⊨ₜ G₂) ⊢ Obl.discharged k -∗ X -∗ (X -∗ Q) -∗ |={E}=>m X ∗ untilDischarged k G₂ := by
-  iintro #HG₂ #D HX HXQ
+/-- The record of the right formula of a discharged obligation at the current position, from
+`Q`, which is given back. -/
+theorem untilIGuar_record_discharged {G₂ : TrSpec Expr State GF} (E : CoPset) :
+    (Q ⊨ₜ G₂) ⊢ Obl.discharged k -∗ Q -∗ |={E}=>m Q ∗ untilDischarged k G₂ := by
+  iintro #HG₂ #D HQ
   iapply mupd_read
   iintro %h %n %σ %tp %g %i %Ω %W %tc %crashed HI TI MI
-  ihave #TQ : record G₂ n $$ [HI MI HX HXQ]
+  ihave #TQ : record G₂ n $$ [HI MI HQ]
   · iapply guar_elim Q G₂ h n σ tp g i Ω W tc crashed $$ HG₂
-    iframe HI MI
-    iapply HXQ $$ HX
+    iframe HI MI HQ
   icases Obl.discharged_modelInterp_lookup k g i Ω W n tc crashed $$ [D MI] with %hkd
   · iframe D MI
   ihave #EF := modelInterp_eventObl hkd $$ MI
   iframe MI
   imodintro
-  iframe HI TI HX
+  iframe HI TI HQ
   iunfold untilDischarged
   iexists n, i, Ω
   iframe EF
   iexact TQ
 
-/-- The discharge of an until whose invariant is open, at any mask, with a resource `X` that
-implies `Q`; `X` is given back with the content that closes the invariant. -/
+/-- The discharge of an until whose invariant is open, at any mask, with `Q`, which is given back
+with the content that closes the invariant. -/
 theorem untilIGuar_discharge_opened {G₂ : TrSpec Expr State GF} (E : CoPset) (p : Parent)
-    (K : Oids) (hk : k ∈ K) {X : IProp GF} :
-    (Q ⊨ₜ G₂) ⊢ Obl.assigned k 1 -∗ Par.kids p K -∗ oblKids k ∅ -∗ X -∗ (X -∗ Q) -∗
-      |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
+    (K : Oids) (hk : k ∈ K) :
+    (Q ⊨ₜ G₂) ⊢ Obl.assigned k 1 -∗ Par.kids p K -∗ oblKids k ∅ -∗ Q -∗
+      |={E}=>m Q ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
         Obl.variant k P (untilDischarged k G₂) := by
-  iintro #HG₂ Oa Kp Kk HX HXQ
+  iintro #HG₂ Oa Kp Kk HQ
   imod Obl.discharge_leaf E p K k hk $$ Kp Kk Oa with ⟨Kp, #D⟩
-  imod untilIGuar_record_discharged E $$ HG₂ D HX HXQ with ⟨HX, #R⟩
+  imod untilIGuar_record_discharged E $$ HG₂ D HQ with ⟨HQ, #R⟩
   imodintro
-  iframe HX Kp D
+  iframe HQ Kp D
   iapply (Obl.variant_unfold k P _).2
   iright
   iframe D R
@@ -516,16 +515,15 @@ theorem untilI_acc_assigned (hN : ↑N ⊆ E) :
   imodintro
   iframe H ACC
 
-theorem untilI_record_discharged (E : CoPset) {X : IProp GF} :
-    Obl.discharged k ⊢ X -∗ (X -∗ Q) -∗
-      |={E}=>m X ∗ untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q) :=
+theorem untilI_record_discharged (E : CoPset) :
+    Obl.discharged k ⊢ Q -∗
+      |={E}=>m Q ∗ untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q) :=
   (emp_sep.2.trans (sep_mono_left (guar_canon Q))).trans
     (wand_elim (untilIGuar_record_discharged E))
 
-theorem untilI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K)
-    {X : IProp GF} :
-    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗ (X -∗ Q) -∗
-      |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
+theorem untilI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K) :
+    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ Q -∗
+      |={E}=>m Q ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
         Obl.variant k P (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q)) :=
   (emp_sep.2.trans (sep_mono_left (guar_canon Q))).trans
     (wand_elim (untilIGuar_discharge_opened E p K hk))
@@ -544,10 +542,9 @@ theorem finallyI_acc_assigned (hN : ↑N ⊆ E) :
   icases H with ⟨H, -⟩
   iexact H
 
-theorem finallyI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K)
-    {X : IProp GF} :
-    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ X -∗ (X -∗ Q) -∗
-      |={E}=>m X ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
+theorem finallyI_discharge_opened (E : CoPset) (p : Parent) (K : Oids) (hk : k ∈ K) :
+    Obl.assigned k 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ Q -∗
+      |={E}=>m Q ∗ Par.kids p (K.erase k) ∗ Obl.discharged k ∗
         Obl.variant k iprop(True)
           (untilDischarged k (TrSpec.canon (Expr := Expr) (State := State) Q)) :=
   untilI_discharge_opened E p K hk
@@ -566,10 +563,8 @@ theorem untilIGuar_discharge_done {G₁ G₂ : TrSpec Expr State GF} (hN : ↑N 
   icases H with ⟨Oa, HP⟩
   iframe HP
   iintro %p %K %hk Kp Kk HQ %E'
-  imod untilIGuar_discharge_opened (P := P) (X := Q) E' p K hk $$ HG₂ Oa Kp Kk HQ []
+  imod untilIGuar_discharge_opened (P := P) E' p K hk $$ HG₂ Oa Kp Kk HQ
     with ⟨HQ, Kp, #D, V⟩
-  · iintro HQ
-    iexact HQ
   imodintro
   imod ACC $$ [V] with -
   · inext
@@ -716,7 +711,12 @@ theorem untilIGuar_record_discharged_set {G₂ : Oid → TrSpec Expr State GF} (
   | hadd x T hx ih =>
     iintro Hs HX
     icases (bigSepS_insert hx).1 $$ Hs with ⟨⟨#HG₂, #D, HXQ⟩, Hs⟩
-    imod untilIGuar_record_discharged E $$ HG₂ D HX HXQ with ⟨HX, #R⟩
+    ihave #HG : (iprop(X ∗ (X -∗ Q x)) ⊨ₜ G₂ x) $$ []
+    · iapply guar_mono $$ [] HG₂
+      iintro !> ⟨HX, HXQ⟩
+      iapply HXQ $$ HX
+    imod untilIGuar_record_discharged E $$ HG D [HX HXQ] with ⟨⟨HX, -⟩, #R⟩
+    · iframe HX HXQ
     imod ih $$ Hs HX with ⟨HX, Vs⟩
     imodintro
     iframe HX

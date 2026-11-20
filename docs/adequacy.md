@@ -174,12 +174,12 @@ which runs at the empty mask against the new configuration (`docs/program-logic.
   and a closing that takes the content back, discharged or not, after which the half of the
   assignment kept rebuilds the until.
 - `untilIGuar_record_discharged` writes the record of the right formula of a discharged
-  obligation at the current position, from a resource `X` and a wand `X -∗ Q`.  `X` is given
-  back: the rule takes from `Q` only the record, which is persistent, so the right formula may
-  follow from a resource that is still needed, such as the content that closes an invariant.
-  The wand is a premise inside the rule, so it may use what the caller holds.
+  obligation at the current position, from `Q`, which is given back: the rule takes from `Q`
+  only the record, which is persistent.  A caller that holds a stronger resource `X`, still
+  needed afterwards, weakens the guarantee to `X ⊨ₜ G₂` first (`guar_mono`) and applies the
+  rule at `X`, which gives `X` back.
 - `untilIGuar_discharge_opened` discharges `k`, a childless child of a parent `p`, at any mask,
-  with such an `X` and its wand, and gives the content that closes the invariant.
+  with `Q`, given back, and gives the content that closes the invariant.
 
 ### 4.2 Sets and forests of untils
 
@@ -195,7 +195,10 @@ The number of obligations to discharge need not be known.
   the big separating conjunction with the rest of the data of each obligation, so every
   obligation may have its own reason why `X` gives its right formula.  At a crash, `X` is the
   fact that the thread is crashed.  When a lemma gives every right formula from `X`,
-  `Oids.bigSepS_wand_intro` builds the wands.
+  `Oids.bigSepS_wand_intro` builds the wands.  The rules of one obligation take `Q` itself;
+  these take `X` and the wands, because one resource serves every obligation and a reason may
+  own a resource, which a weakening of the guarantees would not allow (`guar_mono` asks for a
+  persistent implication).
 - `untilIGuar_discharge_opened_forest` discharges a forest in one model update: every obligation
   of `S`, with its whole assignment, where `S` is closed under children (`kids`) and hangs below
   the roots `ps`.  It rests on `Obl.discharge_forest` (`docs/model.md`, §6) and leaves each
@@ -204,9 +207,10 @@ The number of obligations to discharge need not be known.
   children, and `…_threads` the case of thread roots, which end at `thKids j ∅`.
 
 The `untilI` and `finallyI` forms of these rules take no guarantee, since a formula guarantees
-its canonical reading (`guar_canon`).  The `untilIGuar` forms get the guarantee `▷ (Q ⊨ₜ G₂)`
-from the opening, under a later, so they need a later credit, as does a left formula that is not
-timeless; one credit serves a whole set.  The contents of `finallyI`s are timeless, so
+its canonical reading (`guar_canon`); their forms for one obligation therefore serve `Q` itself,
+and a caller with a stronger resource uses the `untilIGuar` form.  The `untilIGuar` forms get
+the guarantee `▷ (Q ⊨ₜ G₂)` from the opening, under a later, so they need a later credit, as
+does a left formula that is not timeless; one credit serves a whole set.  The contents of `finallyI`s are timeless, so
 `finallyI_acc_assigned_set` gives the assignments without a later.
 
 ### 4.3 A note on the proofs
