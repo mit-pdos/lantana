@@ -444,16 +444,17 @@ theorem example_until_discharged (p : Parent) (K : Oids) (Q : IProp GF)
     (φ : State → ThreadPool Expr → Prop) [StateFact Q φ] (P : IProp GF) (hN : ↑N ⊆ E)
     (hk : k ∈ K) :
     £ₙ 1 ⊢ untilI (Expr := Expr) (State := State) N k 1 P Q -∗ Par.kids p K -∗ oblKids k ∅ -∗
-      Q -∗ |={E}=>m ∃ U : IProp GF, (U ⊨ₜ (TrSpec.canon P Uₛ TrSpec.state φ)) ∗ U ∗
+      Q -∗ |={E}=>m P ∗ ∃ U : IProp GF, (U ⊨ₜ (TrSpec.canon P Uₛ TrSpec.state φ)) ∗ U ∗
         Par.kids p (K.erase k) := by
   iintro LC HU Kp Kk HQ
   imod untilI_discharge_done hN $$ HU with HU
   iapply lc_mupd_add_later $$ LC
   inext
-  icases HU with ⟨-, HU⟩
+  icases HU with ⟨HP, HU⟩
   imod HU $$ %p %K %hk Kp Kk HQ %(E \ ↑N) with HU
   imod HU with ⟨U, Kp⟩
   imodintro
+  iframe HP
   iexists untilIDone (Expr := Expr) (State := State) k Q
   iframe U Kp
   iapply (IntoGuar.into_guar :

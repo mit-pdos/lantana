@@ -624,7 +624,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadI
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
-  iintro %curr ⟨HT, ⟨-, HG, -⟩, Hcurr⟩
+  iintro %curr ⟨HT, ⟨-, HG, -⟩, Hcurr, -⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_bind hl(ref(#0)) HT
@@ -632,7 +632,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (ℓ : Layer) (i : ThreadI
   iapply lwp_alloc (o := 0) (G := G) (R := ∅) $$ [HT HG HF1]
   · iframe HT
     iapply stepPre_nil $$ HG HF1
-  iintro %next ⟨HT, ⟨-, HG, -⟩, Hnext⟩
+  iintro %next ⟨HT, ⟨-, HG, -⟩, Hnext, -⟩
   ihave HT := (threadExpr_fill i C _ _).mpr $$ HT
   lwp_expr_simp
   lwp_step HT HG HF with Hlc : lc

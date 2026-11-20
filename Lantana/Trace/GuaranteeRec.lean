@@ -299,7 +299,7 @@ theorem renew_discharge (p : Parent) (K : Oids) (hN : ↑N ⊆ E) (hk : k ∈ K)
       renew N Q G -∗
       |={E}=>m Q ∗ renew N Q G ∗ Par.kids p (K.erase k) ∗ Obl.discharged k := by
   iintro LC Kp Kk U HQ R
-  imod untilIGuar_discharge_lc p K hN hk $$ LC Kp Kk U [HQ R] with ⟨⟨HQ, R⟩, Kp, D⟩
+  imod untilIGuar_discharge_lc p K hN hk $$ LC Kp Kk U [HQ R] with ⟨-, ⟨HQ, R⟩, Kp, D⟩
   · iframe HQ R
   imodintro
   iframe HQ R Kp D

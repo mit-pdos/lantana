@@ -179,7 +179,7 @@ theorem init_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G : Oids) 
   iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
   · iframe HT
     iapply stepPre_nil $$ HG HF
-  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
+  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx, -⟩
   rw [show (hl_val(#0) : Val) = v0 from rfl]
   imod isFlag_init ⊤ x p K B ℓ m $$ HB Hx HK Hb with ⟨%k, %hk, HK, Hb, Hkk, Hf, Htk, #Hflag⟩
   imodintro
@@ -272,7 +272,7 @@ theorem init_thread_spec : ∃ μ : Measure, ∀ (lc : Fuel) (i : ThreadId) (G :
   iapply lwp_alloc (o := 0) (C := C) (G := G) (R := ∅) $$ [HT HG HF]
   · iframe HT
     iapply stepPre_nil $$ HG HF
-  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx⟩
+  iintro %x ⟨HT, ⟨-, HG, -⟩, Hx, -⟩
   rw [show (hl_val(#0) : Val) = v0 from rfl]
   imod isFlag_init ⊤ x (.thread i) G G ℓ m $$ [] Hx HK HG with
     ⟨%k, %hk, HK, HG, Hkk, Hf, Htk, #Hflag⟩

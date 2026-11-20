@@ -253,7 +253,10 @@ The ghost state `HeapGS` is the temporal layer and `HeapStateGS`: the heap, Iris
 from locations to `Option Val`, and the thread-expression map, a ghost map from thread ids to
 expressions.  The state interpretation `stateInterp σ tp` holds the heap of `σ` and the map of
 the pool `tp`, so the map is the pool.  Points-to is `l ↦{dq} v` at `Option Val`: `l ↦ some v`
-holds a value, and a freed location is `l ↦{q} none` (Rocq's `freed l q`).
+holds a value, and a freed location is `l ↦{q} none` (Rocq's `freed l q`).  A new location comes
+with its meta token `metaToken l ⊤`, Iris-Lean's, from which ghost names can be attached to the
+location: `lwp_alloc` gives it with the points-to, and `Examples.heapState_init` gives those of
+the initial heap.
 
 The token `threadExpr i C e` is exact ownership of the expression `fill C e` of thread `i`, split
 into the caller's context `C` and the current subexpression `e`; `threadExpr_fill` moves a
@@ -273,7 +276,10 @@ credits `£ₒ o`, the bill, the witnesses' credits): the paper's STEP rules.  `
 `lwp_heap_step` is the common part of the laws of a step that forks no thread and ends in a
 value (`lwp_alloc`, `lwp_free`, `lwp_load`, `lwp_store`, `lwp_xchg`, `lwp_cmpXchg_fail`,
 `lwp_cmpXchg_suc`, `lwp_faa`, `lwp_chooseNat`), which supply only the effect on the heap.
-`HeapLang.lwp_pure_step` is `lwp_pure_step_simple` for the token.  In `lwp_fork`, the children
+`HeapLang.lwp_pure_step` is `lwp_pure_step_simple` for the token, with the credits of one
+step whatever the number `n` of steps: one credit to each witness (`Wit.creds_of_nat`) and
+`£ₒ o`, the shape that the step tactics hand to their continuation.  A caller that wants the
+`n` credits of each witness uses `lwp_pure_step_simple`.  In `lwp_fork`, the children
 `K ⊆ G` of the parent move to the new thread with one unit of fuel each and become its children
 and its bill; the parent keeps `G \ K` as both (`Th.carriers_resync`), and the new thread starts
 with its token, its running handle, and the postcondition `lwp.liftTerm j (fun _ _ => True)`.

@@ -985,21 +985,22 @@ theorem untilI_acc (hN : ↑N ⊆ E) :
     untilI N k q P Q ⊢ |={E, E \ ↑N}=> ▷ (P ∗ (▷ P ={E \ ↑N, E}=∗ untilI N k q P Q)) := by
   rw [untilI_eq]; exact untilIGuar_acc hN
 
-/-- Discharge with the right formula at hand, using a later credit. -/
+/-- Discharge with the right formula at hand, using a later credit; the left formula, which the
+until held, is given back with the right one. -/
 @[lantana_alias untilI_guar_discharge_lc]
 theorem untilIGuar_discharge_lc {G₁ G₂ : TrSpec Expr State GF} (p : Parent) (K : Oids)
     (hN : ↑N ⊆ E) (hk : k ∈ K) :
     £ₙ 1 ⊢ Par.kids p K -∗ oblKids k ∅ -∗ untilIGuar N k 1 P Q G₁ G₂ -∗ Q -∗
-      |={E}=>m Q ∗ Par.kids p (K.erase k) ∗ Obl.discharged k := by
+      |={E}=>m P ∗ Q ∗ Par.kids p (K.erase k) ∗ Obl.discharged k := by
   iintro LC Kp Kk HU HQ
   imod untilIGuar_discharge hN $$ HU with HU
   iapply lc_mupd_add_later $$ LC
   inext
-  icases HU with ⟨-, HU⟩
+  icases HU with ⟨HP, HU⟩
   imod HU $$ %p %K %hk Kp Kk HQ %(E \ ↑N) with HU
   imod HU with ⟨HQ, Kp, D⟩
   imodintro
-  iframe HQ Kp D
+  iframe HP HQ Kp D
 
 @[lantana_alias finallyI_discharge]
 theorem finallyI_discharge (p : Parent) (K : Oids) (hN : ↑N ⊆ E) (hk : k ∈ K) :
@@ -1007,7 +1008,10 @@ theorem finallyI_discharge (p : Parent) (K : Oids) (hN : ↑N ⊆ E) (hk : k ∈
       |={E}=>m Q ∗ Par.kids p (K.erase k) ∗ Obl.discharged k := by
   unfold finallyI
   rw [untilI_eq]
-  exact untilIGuar_discharge_lc p K hN hk
+  iintro LC Kp Kk HU HQ
+  imod untilIGuar_discharge_lc p K hN hk $$ LC Kp Kk HU HQ with ⟨-, H⟩
+  imodintro
+  iexact H
 
 /-! ### Guarantees -/
 

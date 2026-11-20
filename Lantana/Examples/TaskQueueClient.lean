@@ -595,7 +595,7 @@ theorem adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
     (gMain_external_subset 0) τ hbeh hfair hpos hinit ?_
   intro _ _
   refine ⟨2, ?_⟩
-  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, -, HT⟩
   letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
   imodintro
   iexists instStateInterp, (fun _ _ => iprop(True)), mainPost
@@ -620,7 +620,7 @@ theorem safety_adequacy (τ : Trace (Cfg Exp State)) (hbeh : isBehavior τ)
   refine lwp_adequacy_safety (GF := ExGF) σ0 tp0 0 _ τ hbeh hfair hpos hinit (by decide) ?_
   intro _ _
   refine ⟨2, ?_⟩
-  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, HT⟩
+  imod heapState_init σ0 tp0 with ⟨%hs, Hσ, -, -, HT⟩
   letI : HeapGS ExGF := { toTemporalGS := ‹_›, toHeapStateGS := hs }
   imodintro
   iexists instStateInterp, (fun _ _ => iprop(True)), mainPost

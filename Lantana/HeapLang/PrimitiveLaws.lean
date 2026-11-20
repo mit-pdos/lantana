@@ -464,10 +464,10 @@ theorem lwp_alloc (v : Val) :
           stepPre i G R }}}
         (Exp.allocN (.val (.lit (.int 1))) (.val v)) @ s; i; E
       l{{{ (l : Loc), RET Val.lit (.loc l); threadExpr i C (.val (.lit (.loc l))) ∗
-        stepPost i G R o ∗ l ↦ some v }}} := by
+        stepPost i G R o ∗ l ↦ some v ∗ metaToken l ⊤ }}} := by
   iintro %Φ !> ⟨HT, Hpre⟩ HΦ
   iapply lwp_heap_step (o := o) rfl iprop(emp)
-    (fun w => iprop(∃ l : Loc, ⌜w = .lit (.loc l)⌝ ∗ l ↦ some v))
+    (fun w => iprop(∃ l : Loc, ⌜w = .lit (.loc l)⌝ ∗ l ↦ some v ∗ metaToken l ⊤))
   · intro σ₁
     iintro ⟨Hh, -⟩
     isplitr
@@ -479,7 +479,7 @@ theorem lwp_alloc (v : Val) :
     have hl : σ₁.get? l = none := by
       have := hfresh 0 (by omega) (by omega)
       rwa [Loc.add_zero] at this
-    imod genHeap_alloc (v := some v) hl $$ Hh with ⟨Hh, Hl, -⟩
+    imod genHeap_alloc (v := some v) hl $$ Hh with ⟨Hh, Hl, Hm⟩
     imodintro
     isplitr
     · ipureintro; trivial
@@ -491,7 +491,7 @@ theorem lwp_alloc (v : Val) :
     iexists l
     isplitr
     · ipureintro; trivial
-    iexact Hl
+    iframe Hl Hm
   iframe HT Hpre
   isplitr
   · iempintro

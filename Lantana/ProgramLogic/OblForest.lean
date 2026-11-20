@@ -528,13 +528,15 @@ theorem Wit.fuels_init (k : Oid) (ℓ : Layer) :
     Wit.layer (GF := GF) k ℓ ⊢ ∃ α : Fuel, Wit.fuels k ℓ α ∅ := by
   rw [Wit.layer_unfold, Wit.fuels_unfold]; exact Model.OPreds.witFuels_init k ℓ
 
+/-- The layer of a package of collected fuels; it is persistent, so the package is kept. -/
 @[lantana_alias oblf.wit_fuels_witP_layer]
 theorem Wit.fuels_layer (k : Oid) (ℓ : Layer) (α : Fuel) (F : OidMap (Layer × Measure)) :
-    Wit.fuels (GF := GF) k ℓ α F ⊢ |==> Wit.layer k ℓ := by
+    Wit.fuels (GF := GF) k ℓ α F ⊢ Wit.layer k ℓ := by
   rw [Wit.fuels_unfold, Wit.layer_unfold]
-  exact (Model.OPreds.witFuels_layer k ℓ α F).trans
-    (BIUpdate.intro (self := UPred.instBIUpdateUPred))
+  exact Model.OPreds.witFuels_layer k ℓ α F
 
+/-- Collecting the fuel of `f`; an entry that `F` already has for `f` is replaced, and the fuel
+collected for it is dropped. -/
 @[lantana_alias oblf.wit_fuels_add]
 theorem Wit.fuels_add (k : Oid) {ℓ₁ ℓ₂ : Layer} (α : Fuel) (F : OidMap (Layer × Measure))
     (f : Oid) (μ : Measure) (h : ℓ₁ < ℓ₂) :
