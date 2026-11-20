@@ -174,9 +174,12 @@ which runs at the empty mask against the new configuration (`docs/program-logic.
   and a closing that takes the content back, discharged or not, after which the half of the
   assignment kept rebuilds the until.
 - `untilIGuar_record_discharged` writes the record of the right formula of a discharged
-  obligation at the current position, from a resource `X` that implies `Q`, which is given back.
+  obligation at the current position, from a resource `X` and a wand `X -∗ Q`.  `X` is given
+  back: the rule takes from `Q` only the record, which is persistent, so the right formula may
+  follow from a resource that is still needed, such as the content that closes an invariant.
+  The wand is a premise inside the rule, so it may use what the caller holds.
 - `untilIGuar_discharge_opened` discharges `k`, a childless child of a parent `p`, at any mask,
-  with such an `X`, and gives the content that closes the invariant.
+  with such an `X` and its wand, and gives the content that closes the invariant.
 
 ### 4.2 Sets and forests of untils
 
@@ -188,12 +191,16 @@ The number of obligations to discharge need not be known.
   `untilIGuar_acc_assigned_set_ndot` is the case of the namespaces `N₀.@k`, opened to
   `E \ ↑N₀`.
 - `untilIGuar_record_discharged_set` writes the records of a set of discharged obligations from
-  one resource that implies all their right formulas: at a crash, the fact that the thread is
-  crashed.
+  one resource `X`, given back, and a wand `X -∗ Q k` for each obligation `k`.  The wands are in
+  the big separating conjunction with the rest of the data of each obligation, so every
+  obligation may have its own reason why `X` gives its right formula.  At a crash, `X` is the
+  fact that the thread is crashed.  When a lemma gives every right formula from `X`,
+  `bigSepS_wand_intro` builds the wands.
 - `untilIGuar_discharge_opened_forest` discharges a forest in one model update: every obligation
   of `S`, with its whole assignment, where `S` is closed under children (`kids`) and hangs below
   the roots `ps`.  It rests on `Obl.discharge_forest` (`docs/model.md`, §6) and leaves each
-  root with its children outside `S`.  `…_all` is the case where the roots end without
+  root with its children outside `S`.  It takes `X` and the wands as
+  `untilIGuar_record_discharged_set` does.  `…_all` is the case where the roots end without
   children, and `…_threads` the case of thread roots, which end at `thKids j ∅`.
 
 The `untilI` and `finallyI` forms of these rules take no guarantee, since a formula guarantees
