@@ -699,14 +699,9 @@ theorem untilIGuar_acc_assigned_set_ndot {G₁ G₂ : Oid → TrSpec Expr State 
   have ⟨hE', hNk, hdisj⟩ := ndot_masks hN
   untilIGuar_acc_assigned_set hE' (fun k _ => hNk k) fun k k' _ _ => hdisj k k'
 
-omit instM in
-/-- The wands of the rules below, when a lemma gives every right formula from `X`. -/
-theorem bigSepS_wand_intro {X : IProp GF} {Φ : Oid → IProp GF} (h : ∀ k, k ∈ S → X ⊢ Φ k) :
-    ⊢ [∗set] k ∈ S, (X -∗ Φ k) :=
-  bigSepS_intro fun hk => wand_intro (emp_sep.1.trans (h _ hk))
-
 /-- The records of the right formulas of a set of discharged obligations, from one resource `X`,
-given back, that implies each of them by its own wand. -/
+given back, that implies each of them by its own wand (`Oids.bigSepS_wand_intro` builds the
+wands from a lemma). -/
 theorem untilIGuar_record_discharged_set {G₂ : Oid → TrSpec Expr State GF} (E : CoPset)
     {X : IProp GF} :
     ([∗set] k ∈ S, (Q k ⊨ₜ G₂ k) ∗ Obl.discharged k ∗ (X -∗ Q k)) ⊢ X -∗
